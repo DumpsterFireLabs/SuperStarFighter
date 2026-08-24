@@ -11,8 +11,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | --- | --- | --- |
 | 0 — Repository and Toolchain | Complete | Godot 4.7.2 verified; 7 scripts parsed; 4 startup modes exercised; 29 tests passed; forced-failure exit verified. |
 | 1 — Shared Rules, Cards, and Match Model | Complete | 16 card resources validated; deterministic stats, draft, and scoring/state-machine rules covered; 345 assertions passed; forced-failure exit verified. |
-| 2 — Offline Combat Sandbox | Next | Milestone 1 exit gate passed. |
-| 3 — Authoritative Networking and Lobby | Planned | Depends on Milestones 1–2. |
+| 2 — Offline Combat Sandbox | Complete | Final-size arena and combat lab operational; 32 spawns validated; 15-minute accelerated lifecycle soak passed; 427 assertions and 43 project checks passed. |
+| 3 — Authoritative Networking and Lobby | Next | Milestone 2 exit gate passed. |
 | 4 — Complete Multiplayer Match Loop | Planned | Depends on Milestone 3. |
 | 5 — Production UI, Neon Presentation, and Audio | Planned | Depends on Milestone 4. |
 | 6 — Validation, Diagnostics, and 32-Client Hardening | Planned | Depends on Milestone 5. |
@@ -83,7 +83,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 2 — Offline Combat Sandbox
 
-**Status:** Next  
+**Status:** Complete — 2026-08-24  
 **Outcome:** One local player can move, aim, shoot, shield, take damage, die, and experience overtime in the final arena geometry.
 
 ### Work
@@ -109,6 +109,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 3 — Authoritative Networking and Lobby
 
+**Status:** Next  
 **Outcome:** Multiple clients can connect to a dedicated server, enter a lobby, and control server-owned ships with prediction and interpolation.
 
 ### Work

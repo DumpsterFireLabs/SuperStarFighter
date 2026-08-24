@@ -8,6 +8,7 @@ func _ready() -> void:
 	CardStatTests.run(_context)
 	DraftManagerTests.run(_context)
 	MatchStateMachineTests.run(_context)
+	CombatSystemTests.run(_context)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):
 		_context.expect_true(false, "forced failure proves the nonzero exit path")

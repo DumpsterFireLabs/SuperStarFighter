@@ -85,4 +85,5 @@ Invoke-FoundationCheck -Name 'Failing test exit path' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--', '--run-tests', '--force-test-failure'
 ) -ExpectedExitCode 1 -ExpectedMarker 'failed=1'
 
-Write-Host "`nFoundation verification passed ($verificationCount checks)."
+Write-Host "`nProject verification passed ($verificationCount checks)."
+exit 0

@@ -16,6 +16,7 @@ From PowerShell in the repository root:
 .\tools\bootstrap.ps1
 .\tools\run-editor.ps1
 .\tools\run-tests.ps1
+.\tools\verify-foundation.ps1
 .\tools\start-server.ps1
 .\tools\start-client.ps1
 ```
@@ -24,6 +25,14 @@ The bootstrap script downloads the pinned portable Godot release and export temp
 
 ## Current Status
 
-Milestones 0 and 1 are complete. The repository now includes the pinned self-contained Godot toolchain, startup modes, deterministic shared rules, all 16 card resources, seeded draft handling, and the UI-independent match state machine. The headless suite passes 345 assertions and verifies that an intentional failure returns a nonzero exit code.
+Milestones 0–2 are complete. The default client launches a playable offline combat sandbox backed by the same deterministic combat rules intended for the authoritative server. The project verifier passes 43 startup, parser, and test checks; the headless suite passes 427 assertions and verifies that an intentional failure returns a nonzero exit code.
 
-Milestone 2 (offline combat sandbox) is next.
+Milestone 3 (authoritative networking and lobby) is next.
+
+## Offline Sandbox Controls
+
+- `WASD`: move; mouse: aim; left mouse: automatic fire; right mouse: directional shield.
+- `Q` / `E`: select a card; `G`: grant one stack; `C`: clear the current build.
+- `T`: toggle target shields; `B`: toggle target fire; `Y`: reset the heat.
+- `O`: cycle normal time, overtime warning, overtime start, and minimum-radius overtime.
+- `F1`: toggle the on-screen help.

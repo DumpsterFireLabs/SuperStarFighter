@@ -1,0 +1,263 @@
+class_name CombatSystemTests
+extends RefCounted
+
+
+static func run(context: TestContext) -> void:
+	_validate_arena(context)
+	_validate_movement_and_aim(context)
+	_validate_weapon(context)
+	_validate_shield(context)
+	_validate_projectiles(context)
+	_validate_projectile_limits(context)
+	_validate_damage_and_repair(context)
+	_validate_overtime(context)
+	_validate_sandbox_and_soak(context)
+
+
+static func _validate_arena(context: TestContext) -> void:
+	var anchors := ArenaLayout.spawn_anchors()
+	context.expect_equal(anchors.size(), 32, "arena exposes exactly 32 spawn anchors")
+	context.expect_empty(ArenaLayout.validate(), "arena spawn anchors satisfy layout constraints")
+	context.expect_equal(ArenaLayout.cover_rectangles().size(), 4, "arena contains four cover islands")
+	context.expect_equal(ArenaLayout.central_octagon().size(), 8, "central obstacle is octagonal")
+
+
+static func _validate_movement_and_aim(context: TestContext) -> void:
+	var diagonal := MovementSystem.sanitize_input(Vector2(1.0, 1.0))
+	context.expect_approx(diagonal.length(), 1.0, "diagonal movement input is normalized")
+	context.expect_equal(
+		MovementSystem.sanitize_input(Vector2(INF, 0.0)),
+		Vector2.ZERO,
+		"non-finite movement input is rejected to zero"
+	)
+	var stats := CombatStats.create_base()
+	var accelerated := MovementSystem.step_velocity(
+		Vector2.ZERO, Vector2.RIGHT, stats, 1.0 / 60.0
+	)
+	context.expect_approx(accelerated.x, 15.0, "movement applies base acceleration per tick")
+	var shield_accelerated := MovementSystem.step_velocity(
+		Vector2.ZERO, Vector2.RIGHT, stats, 1.0 / 60.0, true
+	)
+	context.expect_approx(
+		shield_accelerated.x,
+		11.25,
+		"shielding reduces acceleration by 25 percent"
+	)
+	var capped := MovementSystem.step_velocity(
+		Vector2(479.0, 0.0), Vector2.RIGHT, stats, 1.0
+	)
+	context.expect_approx(capped.length(), stats.max_speed, "movement does not exceed maximum speed")
+	var dragged := MovementSystem.step_velocity(Vector2(100.0, 0.0), Vector2.ZERO, stats, 0.1)
+	context.expect_approx(dragged.x, 30.0, "drag moves idle velocity toward zero")
+	context.expect_approx(
+		MovementSystem.normalize_aim_angle(-PI * 0.5),
+		TAU - PI * 0.5,
+		"aim angle normalizes into one positive turn"
+	)
+	context.expect_approx(
+		MovementSystem.normalize_aim_angle(NAN, 1.25),
+		1.25,
+		"non-finite aim preserves the last valid angle"
+	)
+	var even_spread := MovementSystem.spread_angles(0.0, 2, 10.0)
+	context.expect_approx(
+		angle_difference(0.0, even_spread[0]),
+		deg_to_rad(-5.0),
+		"even projectile spread begins left of aim"
+	)
+	context.expect_approx(
+		angle_difference(0.0, even_spread[1]),
+		deg_to_rad(5.0),
+		"even projectile spread ends right of aim"
+	)
+	var odd_spread := MovementSystem.spread_angles(1.0, 3, 20.0)
+	context.expect_approx(odd_spread[1], 1.0, "odd projectile spread is centered on aim")
+
+
+static func _validate_weapon(context: TestContext) -> void:
+	var stats := CombatStats.create_base()
+	var weapon := WeaponState.new()
+	weapon.reset(stats)
+	context.expect_true(weapon.try_fire(stats, false), "ready weapon fires immediately")
+	context.expect_equal(weapon.ammunition, 7, "firing consumes one magazine round")
+	context.expect_false(weapon.try_fire(stats, false), "fire cadence blocks an immediate second shot")
+	weapon.step(stats, 0.249)
+	context.expect_false(weapon.try_fire(stats, false), "weapon remains blocked before cadence elapses")
+	weapon.step(stats, 0.001)
+	context.expect_true(weapon.try_fire(stats, false), "weapon fires exactly when cadence elapses")
+	context.expect_false(weapon.try_fire(stats, true), "shielding disables firing")
+	while weapon.ammunition > 0:
+		weapon.step(stats, 1.0 / stats.fire_rate)
+		context.expect_true(weapon.try_fire(stats, false), "automatic fire consumes remaining ammunition")
+	context.expect_true(weapon.reloading, "empty magazine begins automatic reload")
+	context.expect_false(weapon.try_fire(stats, false), "reloading disables firing")
+	weapon.step(stats, stats.reload_duration - 0.001)
+	context.expect_true(weapon.reloading, "reload remains active before its duration")
+	weapon.step(stats, 0.001)
+	context.expect_false(weapon.reloading, "reload completes at its duration")
+	context.expect_equal(weapon.ammunition, stats.magazine_size, "reload restores a full derived magazine")
+
+
+static func _validate_shield(context: TestContext) -> void:
+	var stats := CombatStats.create_base()
+	var shield := ShieldState.new()
+	shield.reset(stats)
+	shield.step(true, stats, 0.0)
+	context.expect_true(shield.active, "held shield activates when energy is available")
+	context.expect_true(
+		shield.can_block(0.0, Vector2.from_angle(deg_to_rad(60.0)), 120.0),
+		"shield includes its positive arc boundary"
+	)
+	context.expect_true(
+		shield.can_block(0.0, Vector2.from_angle(deg_to_rad(-60.0)), 120.0),
+		"shield includes its negative arc boundary"
+	)
+	context.expect_false(
+		shield.can_block(0.0, Vector2.from_angle(deg_to_rad(60.1)), 120.0),
+		"shield excludes impacts outside its arc"
+	)
+	shield.step(true, stats, 0.5)
+	context.expect_approx(shield.energy, 90.0, "active shield drains continuously")
+	context.expect_true(shield.try_block(0.0, Vector2.RIGHT, stats), "front impact is blocked")
+	context.expect_approx(shield.energy, 65.0, "block subtracts projectile energy cost")
+	context.expect_false(
+		shield.try_block(0.0, Vector2.LEFT, stats),
+		"rear impact continues to the hull"
+	)
+	shield.energy = 25.0
+	context.expect_true(shield.try_block(0.0, Vector2.RIGHT, stats), "depleting hit is still blocked")
+	context.expect_true(shield.depletion_locked, "empty shield enters depletion lock")
+	shield.step(true, stats, 2.0)
+	context.expect_false(shield.active, "held depleted shield cannot reactivate")
+	context.expect_approx(shield.energy, 22.5, "regeneration only uses time beyond its delay")
+	shield.step(false, stats, 0.05)
+	context.expect_true(shield.depletion_locked, "shield stays locked below reactivation threshold")
+	shield.step(false, stats, 0.05)
+	context.expect_false(shield.depletion_locked, "shield unlocks after regenerating to threshold")
+
+
+static func _validate_projectiles(context: TestContext) -> void:
+	var stats := CombatStats.create_base()
+	stats.pierce_count = 1
+	stats.ricochet_count = 1
+	var projectile := ProjectileState.create(10, 1, 3, Vector2.ZERO, 0.0, stats)
+	context.expect_false(projectile.can_hit(1), "projectile ignores its owner")
+	context.expect_true(projectile.can_hit(2), "projectile can hit an opponent")
+	context.expect_true(projectile.register_hull_hit(2), "piercing projectile survives its first hull hit")
+	context.expect_false(projectile.can_hit(2), "projectile cannot damage the same ship twice")
+	context.expect_false(projectile.register_hull_hit(3), "projectile expires after pierce allowance is spent")
+	var speed_before := projectile.velocity.length()
+	context.expect_true(projectile.ricochet(Vector2.LEFT), "projectile uses an available ricochet")
+	context.expect_true(projectile.velocity.x < 0.0, "ricochet reflects projectile velocity")
+	context.expect_approx(projectile.velocity.length(), speed_before, "ricochet preserves projectile speed")
+	context.expect_false(projectile.ricochet(Vector2.RIGHT), "projectile expires on wall after ricochets are spent")
+	var lifetime_projectile := ProjectileState.create(11, 1, 4, Vector2.ZERO, 0.0, stats)
+	context.expect_true(
+		lifetime_projectile.step(GameConstants.PROJECTILE_LIFETIME_SECONDS - 0.001),
+		"projectile lives until its configured lifetime"
+	)
+	context.expect_false(lifetime_projectile.step(0.001), "projectile expires at its lifetime")
+
+
+static func _validate_projectile_limits(context: TestContext) -> void:
+	var stats := CombatStats.create_base()
+	var registry := ProjectileRegistry.new()
+	registry.maximum_per_owner = 2
+	registry.maximum_global = 3
+	registry.add(ProjectileState.create(1, 10, 1, Vector2.ZERO, 0.0, stats))
+	registry.add(ProjectileState.create(2, 10, 2, Vector2.ZERO, 0.0, stats))
+	var owner_removed := registry.add(
+		ProjectileState.create(3, 10, 3, Vector2.ZERO, 0.0, stats)
+	)
+	context.expect_equal(owner_removed, [1], "owner limit removes the shooter's oldest projectile")
+	registry.add(ProjectileState.create(4, 20, 1, Vector2.ZERO, 0.0, stats))
+	var global_removed := registry.add(
+		ProjectileState.create(5, 30, 1, Vector2.ZERO, 0.0, stats)
+	)
+	context.expect_equal(global_removed, [2], "global limit removes the globally oldest projectile")
+	registry.schedule_owner_cleanup(10)
+	context.expect_empty(registry.step_cleanup(0.499), "dead-owner projectiles remain for the grace period")
+	context.expect_equal(registry.step_cleanup(0.001), [3], "dead-owner projectiles despawn after 0.5 seconds")
+
+
+static func _validate_damage_and_repair(context: TestContext) -> void:
+	var repair_stats := CombatStats.create_base()
+	repair_stats.auto_repair_enabled = true
+	var repair_ship := CombatantState.create(1, repair_stats)
+	repair_ship.apply_damage(40.0)
+	repair_ship.step(Vector2.ZERO, 0.0, false, 4.99)
+	context.expect_approx(repair_ship.health, 60.0, "auto-repair waits for its full grace period")
+	repair_ship.step(Vector2.ZERO, 0.0, false, 0.02)
+	context.expect_approx(repair_ship.health, 60.08, "auto-repair heals only after grace expires")
+	repair_ship.apply_damage(5.0)
+	repair_ship.step(Vector2.ZERO, 0.0, false, 1.0)
+	context.expect_approx(repair_ship.health, 55.08, "damage interrupts auto-repair")
+	var first := CombatantState.create(1, CombatStats.create_base())
+	var second := CombatantState.create(2, CombatStats.create_base())
+	first.health = 10.0
+	second.health = 10.0
+	var combatants := {1: first, 2: second}
+	var deaths := DamageResolver.resolve_tick(combatants, [
+		{"projectile_id": 9, "target_id": 1, "damage": 10.0},
+		{"projectile_id": 8, "target_id": 2, "damage": 10.0},
+	])
+	context.expect_equal(deaths, [2, 1], "simultaneous lethal hits resolve in stable projectile-ID order")
+	context.expect_false(first.alive, "first simultaneous target dies")
+	context.expect_false(second.alive, "second simultaneous target dies")
+	first.step(Vector2.RIGHT, 1.0, false, 1.0)
+	context.expect_equal(first.velocity, Vector2.ZERO, "dead combatant loses input authority")
+
+
+static func _validate_overtime(context: TestContext) -> void:
+	context.expect_false(OvertimeSystem.is_active(89.999), "overtime is inactive before 90 seconds")
+	context.expect_true(OvertimeSystem.is_warning(85.0), "overtime warning begins five seconds early")
+	context.expect_true(OvertimeSystem.is_active(90.0), "overtime activates at 90 seconds")
+	context.expect_approx(
+		OvertimeSystem.radius_at(135.0),
+		GameConstants.OVERTIME_MINIMUM_RADIUS,
+		"overtime boundary reaches minimum radius after 45 seconds"
+	)
+	context.expect_approx(OvertimeSystem.damage_rate_at(90.0), 30.0, "overtime starts at base damage")
+	context.expect_approx(OvertimeSystem.damage_rate_at(145.0), 40.0, "overtime damage increases every ten seconds")
+	context.expect_approx(OvertimeSystem.damage_rate_at(999.0), 100.0, "overtime damage is capped")
+	context.expect_approx(
+		OvertimeSystem.damage_for_position(Vector2.ZERO, 135.0, 0.5),
+		15.0,
+		"ship outside overtime radius takes continuous damage"
+	)
+	context.expect_approx(
+		OvertimeSystem.damage_for_position(ArenaLayout.center(), 200.0, 1.0),
+		0.0,
+		"ship inside overtime radius takes no boundary damage"
+	)
+
+
+static func _validate_sandbox_and_soak(context: TestContext) -> void:
+	var sandbox_path := "res://scenes/gameplay/offline_sandbox.tscn"
+	context.expect_true(ResourceLoader.exists(sandbox_path), "offline combat sandbox scene is loadable")
+	var sandbox_scene := load(sandbox_path) as PackedScene
+	context.expect_true(sandbox_scene != null, "offline combat sandbox is a packed scene")
+	if sandbox_scene != null:
+		var sandbox := sandbox_scene.instantiate()
+		context.expect_true(sandbox is OfflineSandbox, "offline combat sandbox uses its gameplay controller")
+		sandbox.free()
+
+	var stats := CombatStats.create_base()
+	var registry := ProjectileRegistry.new()
+	var next_id := 1
+	var peak_count := 0
+	var delta := 1.0 / 60.0
+	for tick in 54_000:
+		if tick % 15 == 0:
+			registry.add(ProjectileState.create(next_id, 1, next_id, Vector2.ZERO, 0.0, stats))
+			next_id += 1
+		for projectile in registry.all_projectiles():
+			if not projectile.step(delta):
+				registry.remove(projectile.projectile_id)
+		peak_count = maxi(peak_count, registry.size())
+	for cleanup_tick in 151:
+		for projectile in registry.all_projectiles():
+			if not projectile.step(delta):
+				registry.remove(projectile.projectile_id)
+	context.expect_true(peak_count <= 11, "15-minute projectile soak keeps bounded active entities")
+	context.expect_equal(registry.size(), 0, "15-minute projectile soak returns entity count to baseline")
