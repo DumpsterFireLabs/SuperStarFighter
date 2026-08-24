@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"ricochet_rounds"
+display_name = "Ricochet Rounds"
+description = "+1 projectile ricochet. Projectile speed is multiplied by 0.90."
+category = 2
+max_stacks = 3
+multiplicative_modifiers = {"projectile_speed": 0.9}
+integer_modifiers = {"ricochet_count": 1}

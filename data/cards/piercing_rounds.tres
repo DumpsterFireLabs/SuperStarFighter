@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"piercing_rounds"
+display_name = "Piercing Rounds"
+description = "+1 projectile pierce. Projectile damage is multiplied by 0.85."
+category = 2
+max_stacks = 3
+multiplicative_modifiers = {"projectile_damage": 0.85}
+integer_modifiers = {"pierce_count": 1}
+

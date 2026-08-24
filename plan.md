@@ -1,0 +1,64 @@
+# Super Star Fighter — Multiplayer Vertical Slice
+
+## Summary
+
+Build a Windows-first, top-down 2D arena shooter in **Godot 4.7.2 Standard with GDScript**. Godot 4.7.2 is the current stable release, while its ENet multiplayer API and dedicated-server export support the required authoritative 32-player architecture. [Godot download](https://godotengine.org/download/windows/) · [ENet multiplayer](https://docs.godotengine.org/en/4.6/tutorials/networking/high_level_multiplayer.html) · [Dedicated-server exports](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_dedicated_servers.html)
+
+The empty workspace will become a complete vertical slice containing a Windows client, headless server, one arena, card drafting, match flow, neon-vector presentation, tests, load-test bots, export scripts, and operating instructions.
+
+## Documentation Set
+
+- [spec.md](./spec.md) is the authoritative, decision-complete gameplay and technical specification. Implementation behavior, constants, interfaces, edge cases, and acceptance requirements come from that document.
+- [milestones.md](./milestones.md) divides the specification into ordered, independently verifiable implementation stages. A milestone is complete only when its stated exit criteria pass.
+- This plan remains the concise product direction. If wording here conflicts with `spec.md`, the specification takes precedence; intentional behavior changes must update all affected documents in the same change.
+
+## Gameplay and Content
+
+- Support 2–32 players in free-for-all matches. Players move with WASD using acceleration, drag, and independent mouse-facing; hold left-click to fire and right-click for a forward shield.
+- Each round starts with a simultaneous 20-second draft. Every player normally receives five distinct, private, server-generated card offers and chooses one; timeout causes a random offered card to be selected. A fully capped build follows the reduced-offer/build-complete rules in `spec.md`.
+- Cards stack and persist until the match ends. All players draft before round one and every subsequent round.
+- A heat ends when one ship remains. Eliminated players spectate surviving ships until the next heat. The first player to win two heats wins the round; heat scores then reset.
+- The first player to win the configured number of rounds wins the match. The lobby leader selects 1–5 round wins, defaulting to 3.
+- At 90 seconds, a circular damage boundary shrinks to the arena center over 45 seconds and deals 30 health per second through shields. If every survivor dies during the same server tick, replay the heat without awarding a point.
+- Disconnecting during a heat counts as elimination. Late joiners spectate until the next match; reconnect recovery is not included.
+- Use one symmetric 3200×1800 arena with outer walls, a central octagonal obstacle, four mirrored cover islands, and 32 shuffled spawn anchors.
+- Starting combat values: 100 health, 480 px/s maximum speed, 900 px/s² acceleration, 25 projectile damage, four shots/second, eight-round magazine, 1.5-second automatic reload, and 900 px/s projectile speed.
+- The directional shield covers a 120-degree forward arc. It has 100 energy, drains 20/second while held plus 25 per blocked shot, and regenerates at 30/second after a 1.25-second delay. Shielding disables firing and reduces acceleration by 25%.
+- Initial card catalog: Reinforced Hull, Overcharged Thrusters, Vector Jets, Auto-Repair, Capacitor Bank, Quick Charge, Wide Emitter, Efficient Field, Heavy Rounds, Rapid Cycling, Rail Accelerant, Extended Magazine, Quick Loader, Twin Shot, Piercing Rounds, and Ricochet Rounds.
+- Cards use explicit additive/multiplicative modifiers and recompute derived stats from base values, making stacking order-independent. Most cards cap at three stacks; Twin Shot caps at two and Auto-Repair at one.
+- Present the game with procedural neon geometry, glow, projectile trails, shield arcs, impact particles, distinct player colors and nameplates, synthesized sound effects, and no licensed external art or music.
+- Include connection, lobby, draft, combat HUD, spectator, and results screens. The HUD exposes health, shield, ammo/reload, survivors, heat points, round standings, overtime status, and current card stacks.
+
+## Architecture and Interfaces
+
+- Use one Godot project with shared deterministic combat/stat code and separate client/server startup paths. Export Windows x64 client and stripped headless server builds.
+- Run an authoritative 60 Hz server. Clients send sequenced input at 30 Hz; the server publishes world snapshots at 20 Hz. Use local movement prediction and reconciliation for the controlled ship and approximately 100 ms interpolation for remote ships.
+- Separate ENet traffic into unreliable-ordered input, unreliable-ordered snapshots, and reliable match/control events. The server exclusively owns movement validation, projectiles, collision, damage, shield energy, RNG, card offers, deaths, and state transitions.
+- Model the match as `LOBBY → DRAFT → COUNTDOWN → ACTIVE_HEAT → HEAT_RESULT → ROUND_RESULT → MATCH_RESULT`. Reliable events carry transitions and scores; snapshots carry transient world state.
+- Define typed shared models:
+  - `MatchConfig`: protocol version, maximum players, rounds-to-win, port, draft duration, and overtime timings.
+  - `PlayerInputFrame`: sequence, simulation tick, normalized movement, aim angle, fire state, and shield state.
+  - `CardDefinition`: stable ID, category, display text, stack cap, modifiers, and optional special behavior.
+  - `PlayerMatchState`: peer ID, display name, alive/spectator state, health, shield, ammo, heat wins, round wins, and card stacks.
+- Expose reliable client requests for handshake, lobby start/settings, and card selection. Validate the requesting peer from the RPC sender rather than trusting IDs in payloads.
+- Use compact snapshot payloads with stable entity IDs. Reject malformed, stale, non-finite, out-of-range, excessive-rate, and protocol-incompatible input.
+- Provide server options: `--server`, `--port=7000`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
+- Clients connect through an IP/hostname and UDP port. The first connected player becomes lobby leader; leadership transfers to the earliest remaining player on disconnect.
+- Add a headless test-client mode that connects through the real protocol, drafts cards, and generates scripted movement/combat input. It remains developer tooling and is not exposed as playable AI.
+- Initialize Git, add Godot-appropriate ignores, and provide PowerShell commands for tests, client/server exports, local server startup, and multi-client smoke tests.
+
+## Test Plan and Acceptance
+
+- Unit-test stat recomputation, stacking caps, card-offer uniqueness, seeded RNG reproducibility, shield-angle detection, projectile damage, reload timing, overtime damage, and input validation.
+- Exercise the complete match state machine, including draft timeout, first-to-two heat scoring with multiplayer ties beyond three heats, configurable round targets, simultaneous deaths, leader transfer, active-player disconnects, and late spectators.
+- Run integration tests with one headless server and two protocol clients through a complete match, verifying authoritative card selection, combat, scores, rematch reset, and clean shutdown.
+- Run a 32-client, ten-minute local soak test using test clients. Require all peers to connect and remain synchronized, no unhandled errors or invalid states, and server simulation time to remain within its 16.67 ms tick budget on the development machine.
+- Manually verify prediction, interpolation, shield feedback, spectator cycling, card readability, and all HUD states at 1280×720 and 1920×1080.
+- Confirm the exported Windows client connects to the exported headless server over localhost and LAN, and document that public direct-IP hosting requires forwarding the configured UDP port.
+
+## Assumptions and Defaults
+
+- Godot and its export templates are not currently installed; implementation will bootstrap the official portable Godot 4.7.2 Standard tools.
+- The vertical slice has no public server browser, matchmaking, accounts, persistence, teams, chat, controller support, player-facing bots, cosmetics, monetization, or reconnect restoration.
+- Balance values are initial playable defaults stored as data resources so they can be tuned without changing networking or combat code.
+- Direct-IP traffic is unauthenticated and unencrypted for this milestone; server authority protects game state but is not a substitute for a production account or anti-abuse service.

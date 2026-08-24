@@ -1,0 +1,242 @@
+# Super Star Fighter — Implementation Milestones
+
+**Source of truth:** [Vertical slice specification](./spec.md)  
+**Product direction:** [Product plan](./plan.md)
+
+These milestones are ordered by dependency. Work may be prototyped ahead, but a milestone is not complete until its exit gate passes. Each gate should be recorded in the commit or handoff that completes the milestone, including the commands run and any known deviations.
+
+## Status Summary
+
+| Milestone | Status | Evidence |
+| --- | --- | --- |
+| 0 — Repository and Toolchain | Complete | Godot 4.7.2 verified; 7 scripts parsed; 4 startup modes exercised; 29 tests passed; forced-failure exit verified. |
+| 1 — Shared Rules, Cards, and Match Model | Complete | 16 card resources validated; deterministic stats, draft, and scoring/state-machine rules covered; 345 assertions passed; forced-failure exit verified. |
+| 2 — Offline Combat Sandbox | Next | Milestone 1 exit gate passed. |
+| 3 — Authoritative Networking and Lobby | Planned | Depends on Milestones 1–2. |
+| 4 — Complete Multiplayer Match Loop | Planned | Depends on Milestone 3. |
+| 5 — Production UI, Neon Presentation, and Audio | Planned | Depends on Milestone 4. |
+| 6 — Validation, Diagnostics, and 32-Client Hardening | Planned | Depends on Milestone 5. |
+| 7 — Export, Documentation, and Release Candidate | Planned | Depends on Milestone 6. |
+
+## Completion Rules
+
+- Implement against `spec.md`; do not silently resolve conflicts in code.
+- Keep the project runnable at every milestone boundary.
+- Add automated coverage with the behavior it protects, not in a later cleanup pass.
+- Treat warnings, orphaned nodes, leaked ENet peers, parser errors, and unhandled runtime errors as failures.
+- Do not begin presentation polish until the corresponding authoritative gameplay path works.
+- Generated exports and local Godot binaries stay out of Git.
+- A deliberate spec change updates `spec.md`, affected tests, and this milestone document in the same change.
+
+## Milestone 0 — Repository and Toolchain
+
+**Status:** Complete — 2026-08-23  
+**Outcome:** A reproducible Godot project skeleton that can start in client, server, and test modes.
+
+### Work
+
+- Initialize Git and add a Godot-focused `.gitignore`, excluding `.godot/`, local tools, logs, and `builds/`.
+- Bootstrap the official portable Godot 4.7.2 Standard executable and matching export templates outside tracked source.
+- Create `project.godot`, the directory structure defined by the specification, the 60 Hz physics setting, display defaults, and named input actions.
+- Add a startup dispatcher that recognizes client, `--server`, `--bot-client`, and `--run-tests` modes without loading client visuals in server mode.
+- Add typed shared constants for protocol version, default port, maximum players, and gameplay tick rates.
+- Add PowerShell entry scripts for launching the editor, running tests, starting a local server, and starting a client.
+- Add a minimal headless test runner that aggregates failures and returns a nonzero process exit code.
+
+### Verification
+
+- Start the project normally and reach a placeholder client scene.
+- Start with `--server` and reach a headless placeholder server loop without a window.
+- Run `--run-tests` with one sample passing test and verify exit code 0; add a temporary failing assertion and verify a nonzero exit before removing it.
+- Confirm Git status does not include Godot imports, local binaries, logs, or builds.
+
+### Exit Gate
+
+- Client, headless server, and test entry paths all run from documented commands on a clean checkout after tool bootstrap.
+- No parser errors, missing-resource errors, or tracked generated artifacts remain.
+
+## Milestone 1 — Shared Rules, Cards, and Match Model
+
+**Status:** Complete — 2026-08-23  
+**Outcome:** Gameplay values and match decisions exist as deterministic, UI-independent shared code.
+
+### Work
+
+- Implement typed `MatchConfig`, `PlayerInputFrame`, `CardDefinition`, derived combat stats, player match state, score state, and state-machine enums.
+- Implement the canonical stat evaluation pipeline: flat additions, compound multipliers, special integer additions, then clamps.
+- Create all 16 card resources with the exact IDs, effects, descriptions, categories, and caps from `spec.md`.
+- Implement seeded card-offer generation, offer tokens, eligibility, timeout selection, simultaneous application, and build-complete behavior.
+- Implement the match state machine as a server-oriented domain object independent of rendering and ENet.
+- Cover the heat, round, match, tie, forfeit, draft, and reset rules with deterministic unit tests.
+
+### Verification
+
+- Run table-driven tests for every card at one stack and maximum stacks.
+- Acquire the same card set in several orders and assert identical derived values.
+- Simulate a multiplayer round in which three different players win early heats and a later player reaches two wins.
+- Simulate draft timeout, fewer than five eligible cards, no eligible cards, and fixed-seed offer reproduction.
+
+### Exit Gate
+
+- All stat, card, scoring, draft, and state-transition tests pass headlessly.
+- No gameplay constant used by these systems is duplicated in UI or networking code.
+
+## Milestone 2 — Offline Combat Sandbox
+
+**Status:** Next  
+**Outcome:** One local player can move, aim, shoot, shield, take damage, die, and experience overtime in the final arena geometry.
+
+### Work
+
+- Build the 3200×1800 arena, symmetric obstacles, collision layers, 32 validated spawn anchors, and overtime boundary.
+- Implement shared movement math and a server-compatible ship controller with acceleration, drag, collision slide, and independent mouse aim.
+- Implement ammunition, automatic reload, fire cadence, projectile lifetime, owner immunity, pierce, ricochet, and active-projectile limits.
+- Implement directional shield angle testing, drain, block cost, depletion lockout, regeneration delay, and firing/acceleration restrictions.
+- Implement damage ordering, Auto-Repair, death, projectile cleanup, spawn reset, and simultaneous-death reporting.
+- Add the follow camera, arena clamping, local-player marker, and a debug combat HUD.
+- Provide a local sandbox scene with controllable debug targets and keys to grant specific card stacks.
+
+### Verification
+
+- Unit-test movement normalization, cooldown/reload timing, shield boundary angles, shield depletion, pierce, ricochet, repair interruption, overtime damage, and projectile caps.
+- Manually verify direct and diagonal movement, aiming at all angles, wall/ship collision, every projectile modifier, and every shield modifier.
+- Run the sandbox for 15 minutes while repeatedly spawning and destroying projectiles; entity counts must return to baseline.
+
+### Exit Gate
+
+- Base combat and all 16 cards produce the specified observable effects in the local sandbox.
+- Combat tests pass and the sandbox produces no orphan, leak, or runtime-error warnings.
+
+## Milestone 3 — Authoritative Networking and Lobby
+
+**Outcome:** Multiple clients can connect to a dedicated server, enter a lobby, and control server-owned ships with prediction and interpolation.
+
+### Work
+
+- Implement ENet server/client startup, bounded command-line parsing, binding errors, shutdown, and the three protocol channels.
+- Implement handshake timeout, protocol version checks, display-name validation, capacity rejection, welcome/rejection messages, and disconnect cleanup.
+- Implement authoritative lobby state, revisioning, leader assignment/transfer, round-target changes, minimum-player start validation, and late-spectator admission.
+- Implement packed input and player-snapshot codecs with bounds checking, sequence wrap handling, input rate limiting, and sender-derived identity.
+- Send inputs at 30 Hz and authoritative player snapshots at 20 Hz from the 60 Hz simulation.
+- Implement local prediction/replay, reconciliation smoothing/snap thresholds, remote interpolation, limited extrapolation, and diagnostics counters.
+- Implement authoritative projectile spawn/remove batches, predicted local shot matching, and 5 Hz projectile correction snapshots.
+- Add a basic connection screen and lobby UI sufficient to exercise all networking paths.
+
+### Verification
+
+- Run protocol encode/decode, truncated-payload, non-finite input, oversized count, stale sequence, and authorization tests.
+- Connect two clients to a headless server; verify unique identity, leader controls, synchronized movement, shooting, shield state, and projectile corrections.
+- Disconnect the leader and verify deterministic transfer. Attempt joins with a bad version, invalid name, and full server and verify the expected reason codes.
+- Compare server and client positions under repeated acceleration changes and verify prediction buffers are pruned by acknowledgements.
+
+### Exit Gate
+
+- Two clients can connect, move, aim, shoot, shield, disconnect, and reconnect to the lobby without the server trusting client-owned state.
+- All protocol failures are handled without crashing or corrupting the session.
+
+## Milestone 4 — Complete Multiplayer Match Loop
+
+**Outcome:** Human clients can play a networked match from lobby through draft, heats, rounds, results, and a clean second match.
+
+### Work
+
+- Connect the tested domain state machine to the authoritative server tick and reliable transition events.
+- Implement private draft offers, selection validation, ready status, early completion, timeout auto-pick, simultaneous build application, and public post-draft builds.
+- Implement authoritative heat spawning, countdown lock, survivor tracking, heat scoring, tie replay, round scoring, and configurable match victory.
+- Add server-timed overtime boundary behavior and client synchronization.
+- Implement death-to-spectator transition, target cycling, active disconnect elimination, between-state removal, forfeit victory, and late-join spectator behavior.
+- Implement match results, 10-second return to lobby, score/build reset, spectator promotion, and second-match startup.
+- Add the `--auto-start` behavior needed by integration tests.
+
+### Verification
+
+- Run one server and two scripted clients through a deterministic complete match and then a second match.
+- Exercise a round longer than three heats, a simultaneous-death replay, a draft timeout, a combat disconnect, a mid-match late join, and a forfeit.
+- Assert cards persist across heats/rounds but all cards and scores reset on lobby return.
+- Verify client countdowns, scores, and state labels are derived from the same server tick and revision.
+
+### Exit Gate
+
+- The complete loop is playable without debug intervention and matches every transition and edge case in sections 4–7 of `spec.md`.
+- The two-client integration scenario is automated and consistently passes headlessly.
+
+## Milestone 5 — Production UI, Neon Presentation, and Audio
+
+**Outcome:** The vertical slice communicates every state and combat event clearly at the target resolutions.
+
+### Work
+
+- Replace temporary screens with final connection, lobby, draft, combat HUD, spectator, scoreboard, results, pause/disconnect, and error states.
+- Ensure card panels show exact effects, current/new stacks, category, selection lock, and accessible number-key hints.
+- Add procedural neon ships, stable player palette, outline patterns, nameplates, local marker, projectile trails, shield arcs, impacts, elimination effects, and overtime boundary treatment.
+- Add off-screen ship/projectile indicators using both shape and color.
+- Add synthesized SFX for every event listed in the specification and prevent repeated network snapshots from replaying the same effect.
+- Add UI scaling, minimum resolution handling, camera smoothing/clamping, restrained screen shake, and readable 32-player scoreboard behavior.
+- Add clear messages and recovery navigation for all rejection and disconnect reason codes.
+
+### Verification
+
+- Manually inspect every screen at 1280×720 and 1920×1080, including a 32-player lobby/scoreboard and a draft with one through five eligible choices.
+- Confirm local identity, shield state, shield break, damage direction, elimination, overtime, heat result, round result, and match result are distinguishable without relying only on color.
+- Play two consecutive matches and confirm no stale panels, timers, effects, sounds, cards, or scores survive state resets.
+
+### Exit Gate
+
+- A first-time tester can connect, identify themselves, choose cards, understand combat resources and scoring, spectate, and recognize the winner without developer explanation.
+- All UI remains legible and interactive at both target resolutions.
+
+## Milestone 6 — Validation, Diagnostics, and 32-Client Hardening
+
+**Outcome:** The authoritative server is observable, abuse-resistant within scope, and stable under the required local load.
+
+### Work
+
+- Complete request-state validation, rate limits, bounded arrays/strings, malformed packet handling, and safe peer removal.
+- Add JSON-line server logging for startup, seed, connections, rejections, transitions, results, periodic metrics, fatal errors, and shutdown.
+- Add the debug client network overlay and server counters for simulation duration, peers, entities, and outbound bytes.
+- Implement the headless scripted test client using the real handshake, input, draft, and event protocol.
+- Add configurable 2-client smoke and 32-client soak PowerShell scripts with process cleanup, log collection, assertions, and nonzero failure codes.
+- Profile object counts, projectile batching, snapshot encoding, allocation hot spots, and server physics duration; optimize without changing specified behavior.
+- Verify server shutdown closes ENet peers and child test clients without leaving processes behind.
+
+### Verification
+
+- Run malformed and excessive traffic tests and confirm only the offending peer is rejected.
+- Run the required 10-minute, 32-client soak scenario, including overtime, one combat disconnect, one late spectator, and clean shutdown.
+- Confirm 95th-percentile server simulation remains below 16.67 ms and entity collections do not grow without corresponding live entities.
+- Review logs to ensure they contain required events and metrics but no per-frame spam or client IP addresses.
+
+### Exit Gate
+
+- The full automated protocol, integration, smoke, and soak suites pass from a single documented command.
+- The performance and stability criteria in section 11.2 of `spec.md` are met and recorded.
+
+## Milestone 7 — Export, Documentation, and Release Candidate
+
+**Outcome:** A clean checkout can produce and operate the deliverable Windows client and dedicated server.
+
+### Work
+
+- Configure Windows x64 client and dedicated-server export presets; strip client-only visual/audio resources from the server while retaining shared collision/gameplay data.
+- Add an export script that runs automated tests before producing `SuperStarFighter.exe` and `SuperStarFighterServer.exe`, and fails immediately on errors.
+- Add a release smoke script that starts the exported server, connects exported/headless clients, completes the minimum deterministic scenario, and shuts down cleanly.
+- Write the README with controls, architecture summary, local hosting, direct-IP joining, UDP port forwarding, tests, exports, logs, known limitations, and troubleshooting.
+- Audit repository contents for generated files, local paths, downloaded executables, secrets, and unlicensed assets.
+- Run the complete manual acceptance matrix and record defects; fix every release-blocking defect before declaring the candidate complete.
+
+### Verification
+
+- Produce both release artifacts from a clean checkout using only the documented bootstrap and export commands.
+- Connect two Windows clients to the exported server over localhost and LAN and complete two consecutive matches.
+- Verify error handling for unreachable server, full server, version mismatch, leader disconnect, server shutdown, and invalid command-line values.
+- Re-run the 32-client soak against the release-mode server export.
+
+### Exit Gate
+
+- Every automated and manual acceptance criterion in section 11 of `spec.md` passes.
+- The two named Windows executables, test/soak/export tooling, and README are present and reproducible.
+- No release-blocking issues, undocumented setup steps, secrets, or unlicensed assets remain.
+
+## Vertical Slice Definition of Done
+
+The vertical slice is done only when Milestones 0–7 are complete, the exported client and server pass the release smoke and 32-client soak tests, and the implemented behavior matches the authoritative specification without undocumented exceptions.

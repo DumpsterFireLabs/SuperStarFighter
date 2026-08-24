@@ -1,0 +1,22 @@
+# Godot generated state
+.godot/
+
+# Local portable engine and templates
+.tools/
+
+# Generated exports, logs, and local reports
+builds/
+logs/
+reports/
+*.log
+
+# Local export credentials
+export_credentials.cfg
+
+# Editor and OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+

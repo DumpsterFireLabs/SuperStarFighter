@@ -1,0 +1,64 @@
+class_name MatchConfig
+extends RefCounted
+
+var protocol_version: int = GameConstants.PROTOCOL_VERSION
+var port: int = GameConstants.DEFAULT_PORT
+var max_players: int = GameConstants.DEFAULT_MAX_PLAYERS
+var rounds_to_win: int = GameConstants.DEFAULT_ROUNDS_TO_WIN
+var draft_duration_seconds: float = GameConstants.DRAFT_DURATION_SECONDS
+var countdown_duration_seconds: float = GameConstants.COUNTDOWN_DURATION_SECONDS
+var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SECONDS
+var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
+var match_result_duration_seconds: float = GameConstants.MATCH_RESULT_DURATION_SECONDS
+
+
+func validate() -> PackedStringArray:
+	var errors := PackedStringArray()
+	if protocol_version != GameConstants.PROTOCOL_VERSION:
+		errors.append("Protocol version must match the shared protocol version.")
+	if port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
+		errors.append("Port must be from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT])
+	if max_players < GameConstants.MIN_PLAYERS or max_players > GameConstants.MAX_PLAYERS:
+		errors.append(
+			"Maximum players must be from %d through %d." % [
+				GameConstants.MIN_PLAYERS,
+				GameConstants.MAX_PLAYERS,
+			]
+		)
+	if rounds_to_win < GameConstants.MIN_ROUNDS_TO_WIN or rounds_to_win > GameConstants.MAX_ROUNDS_TO_WIN:
+		errors.append(
+			"Rounds to win must be from %d through %d." % [
+				GameConstants.MIN_ROUNDS_TO_WIN,
+				GameConstants.MAX_ROUNDS_TO_WIN,
+			]
+		)
+	for duration in [
+		draft_duration_seconds,
+		countdown_duration_seconds,
+		heat_result_duration_seconds,
+		round_result_duration_seconds,
+		match_result_duration_seconds,
+	]:
+		if not is_finite(duration) or duration <= 0.0:
+			errors.append("All state durations must be finite and greater than zero.")
+			break
+	return errors
+
+
+func duration_to_ticks(duration_seconds: float) -> int:
+	return ceili(duration_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
+
+
+func duplicate_config() -> MatchConfig:
+	var copy := MatchConfig.new()
+	copy.protocol_version = protocol_version
+	copy.port = port
+	copy.max_players = max_players
+	copy.rounds_to_win = rounds_to_win
+	copy.draft_duration_seconds = draft_duration_seconds
+	copy.countdown_duration_seconds = countdown_duration_seconds
+	copy.heat_result_duration_seconds = heat_result_duration_seconds
+	copy.round_result_duration_seconds = round_result_duration_seconds
+	copy.match_result_duration_seconds = match_result_duration_seconds
+	return copy
+

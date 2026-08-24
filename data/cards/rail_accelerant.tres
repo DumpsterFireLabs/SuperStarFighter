@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"rail_accelerant"
+display_name = "Rail Accelerant"
+description = "Projectile speed is multiplied by 1.35, but projectile damage is multiplied by 0.90."
+category = 2
+max_stacks = 3
+multiplicative_modifiers = {"projectile_damage": 0.9, "projectile_speed": 1.35}
+

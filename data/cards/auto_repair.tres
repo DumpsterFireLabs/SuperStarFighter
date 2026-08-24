@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"auto_repair"
+display_name = "Auto-Repair"
+description = "After 5 seconds without damage, repair 8 health per second until damaged or fully repaired."
+category = 0
+max_stacks = 1
+special_behavior_id = &"auto_repair"
+
