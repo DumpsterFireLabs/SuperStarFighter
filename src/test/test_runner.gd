@@ -6,6 +6,7 @@ var _context := TestContext.new()
 func _ready() -> void:
 	_run_foundation_tests()
 	CardStatTests.run(_context)
+	ClientDraftPresentationTests.run(_context, self)
 	DraftManagerTests.run(_context)
 	MatchStateMachineTests.run(_context)
 	CombatSystemTests.run(_context)

@@ -6,9 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"extended_magazine"
 display_name = "Extended Magazine"
-description = "+4 magazine capacity. Reload duration is multiplied by 1.20."
+description = "+4 magazine capacity."
 category = 2
 max_stacks = 3
 additive_modifiers = {"magazine_size": 4.0}
-multiplicative_modifiers = {"reload_duration": 1.2}
-

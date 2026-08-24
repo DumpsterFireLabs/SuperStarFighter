@@ -4,6 +4,7 @@ extends RefCounted
 
 static func run(context: TestContext) -> void:
 	_validate_complete_match_and_rematch(context)
+	_validate_last_survivor_resolution(context)
 	_validate_forfeit(context)
 
 
@@ -102,6 +103,36 @@ static func _validate_forfeit(context: TestContext) -> void:
 	coordinator.disconnect_peer(11)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "single remaining participant wins by forfeit")
 	context.expect_equal(coordinator.machine.match_winner, 10, "forfeit records remaining participant as match winner")
+
+
+static func _validate_last_survivor_resolution(context: TestContext) -> void:
+	var lobby := ServerLobby.new(_fast_config())
+	var world := AuthoritativeWorld.new()
+	for peer_id in [20, 21, 22]:
+		lobby.admit(peer_id, "Survivor%d" % peer_id)
+		world.add_peer(peer_id)
+	lobby.request_start(20)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 8080)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	(world.combatants[21] as CombatantState).alive = false
+	(world.combatants[21] as CombatantState).health = 0.0
+	(world.combatants[22] as CombatantState).alive = false
+	(world.combatants[22] as CombatantState).health = 0.0
+	_advance(world, coordinator, 1)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "one remaining ship ends the heat immediately")
+	context.expect_equal(coordinator.machine.last_heat_winner, 20, "the last living ship receives the heat win")
+	context.expect_equal(coordinator.machine.scores.get_score(20).heat_wins, 1, "first survival awards one of two required heat wins")
+
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	(world.combatants[21] as CombatantState).alive = false
+	(world.combatants[21] as CombatantState).health = 0.0
+	(world.combatants[22] as CombatantState).alive = false
+	(world.combatants[22] as CombatantState).health = 0.0
+	_advance(world, coordinator, 1)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "second last-survivor result closes combat")
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ROUND_RESULT)
+	context.expect_equal(coordinator.machine.last_round_winner, 20, "two last-survivor heat wins end the round")
 
 
 static func _fast_config() -> MatchConfig:

@@ -137,7 +137,7 @@ State transitions are reliable server events containing the new state, server ti
 - Each heat starts every participant alive at full derived health, full shield energy, full magazine, and no active reload or repair timer.
 - Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown.
 - A player at zero health is eliminated immediately and becomes a spectator for the remainder of the heat.
-- When exactly one participant remains alive, that player gains one heat win.
+- When exactly one participant remains alive after a complete authoritative damage tick, end the heat immediately and award that player one heat win. Their second heat win ends the round.
 - When zero participants remain because multiple deaths resolve during the same server tick, award no heat win and replay the heat after `HEAT_RESULT`.
 - The first player to reach two heat wins gains one round win. All heat-win counters then reset to zero.
 - The first player to reach `rounds_to_win` wins the match.
@@ -244,46 +244,48 @@ Derived stats are recomputed from base values whenever the build changes:
 3. Apply integer special additions such as projectile, pierce, and ricochet counts.
 4. Apply the clamps below.
 
+Cards are not required to include a downside. Pure upgrades, tradeoffs, and transformative effects may all coexist in the catalog. Positive modifiers from different cards deliberately multiply one another, so a long match can produce extreme builds. The clamps are technical guardrails for network encoding, physics stability, and entity budgets—not intended balance ceilings.
+
 | Stat | Minimum | Maximum |
 | --- | ---: | ---: |
-| Maximum health | 25 | 250 |
-| Maximum speed | 200 | 900 px/s |
-| Acceleration | 300 | 2000 px/s² |
-| Drag | 250 | 2500 px/s² |
-| Projectile damage | 5 | 100 |
-| Fire rate | 1 | 12 shots/s |
-| Magazine | 1 | 30 |
-| Reload duration | 0.35 s | 4 s |
-| Projectile speed | 400 | 1800 px/s |
-| Shield capacity | 20 | 250 |
-| Shield regeneration | 5 | 100 energy/s |
-| Shield drain | 5 | 100 energy/s |
-| Shield regeneration delay | 0.25 s | 4 s |
-| Shield arc | 60° | 240° |
-| Projectile count | 1 | 3 |
-| Pierce count | 0 | 3 |
-| Ricochet count | 0 | 3 |
+| Maximum health | 10 | 600 |
+| Maximum speed | 100 | 2400 px/s |
+| Acceleration | 100 | 6000 px/s² |
+| Drag | 100 | 6000 px/s² |
+| Projectile damage | 1 | 600 |
+| Fire rate | 0.25 | 20 shots/s |
+| Magazine | 1 | 128 |
+| Reload duration | 0.1 s | 8 s |
+| Projectile speed | 200 | 4000 px/s |
+| Shield capacity | 5 | 600 |
+| Shield regeneration | 1 | 400 energy/s |
+| Shield drain | 0.25 | 400 energy/s |
+| Shield regeneration delay | 0.05 s | 8 s |
+| Shield arc | 30° | 360° |
+| Projectile count | 1 | 6 |
+| Pierce count | 0 | 12 |
+| Ricochet count | 0 | 12 |
 
 ### 7.2 Initial Catalog
 
 | ID | Card | Category | Effect per stack | Cap |
 | --- | --- | --- | --- | ---: |
 | `reinforced_hull` | Reinforced Hull | Ship | +25 maximum health; ×0.92 maximum speed | 3 |
-| `overcharged_thrusters` | Overcharged Thrusters | Ship | ×1.12 maximum speed; ×1.15 acceleration; −10 maximum health | 3 |
+| `overcharged_thrusters` | Overcharged Thrusters | Ship | ×1.12 maximum speed; ×1.15 acceleration | 3 |
 | `vector_jets` | Vector Jets | Ship | ×1.20 acceleration; ×1.25 drag | 3 |
 | `auto_repair` | Auto-Repair | Ship | After 5 seconds without damage, repair 8 health/s until damaged or full | 1 |
-| `capacitor_bank` | Capacitor Bank | Shield | +30 capacity; ×0.90 regeneration | 3 |
-| `quick_charge` | Quick Charge | Shield | ×1.25 regeneration; −10 capacity | 3 |
+| `capacitor_bank` | Capacitor Bank | Shield | +30 capacity; ×1.10 regeneration | 3 |
+| `quick_charge` | Quick Charge | Shield | ×1.25 regeneration | 3 |
 | `wide_emitter` | Wide Emitter | Shield | +20° arc; ×1.15 continuous drain | 3 |
-| `efficient_field` | Efficient Field | Shield | ×0.80 continuous drain; +0.25 s regeneration delay | 3 |
+| `efficient_field` | Efficient Field | Shield | ×0.80 continuous drain | 3 |
 | `heavy_rounds` | Heavy Rounds | Weapon | ×1.35 damage; ×0.80 fire rate | 3 |
-| `rapid_cycling` | Rapid Cycling | Weapon | ×1.30 fire rate; ×0.80 damage | 3 |
-| `rail_accelerant` | Rail Accelerant | Weapon | ×1.35 projectile speed; ×0.90 damage | 3 |
-| `extended_magazine` | Extended Magazine | Weapon | +4 magazine; ×1.20 reload duration | 3 |
+| `rapid_cycling` | Rapid Cycling | Weapon | ×1.30 fire rate | 3 |
+| `rail_accelerant` | Rail Accelerant | Weapon | ×1.35 projectile speed; ×1.10 damage | 3 |
+| `extended_magazine` | Extended Magazine | Weapon | +4 magazine | 3 |
 | `quick_loader` | Quick Loader | Weapon | ×0.75 reload duration; −2 magazine | 3 |
 | `twin_shot` | Twin Shot | Weapon | +1 projectile; +10° total spread; ×0.70 damage | 2 |
-| `piercing_rounds` | Piercing Rounds | Weapon | +1 pierce; ×0.85 damage | 3 |
-| `ricochet_rounds` | Ricochet Rounds | Weapon | +1 ricochet; ×0.90 projectile speed | 3 |
+| `piercing_rounds` | Piercing Rounds | Weapon | +1 pierce; ×1.08 damage | 3 |
+| `ricochet_rounds` | Ricochet Rounds | Weapon | +1 ricochet; ×1.08 projectile speed | 3 |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 

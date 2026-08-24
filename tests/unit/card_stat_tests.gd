@@ -29,6 +29,7 @@ static func run(context: TestContext) -> void:
 	_validate_one_stack_values(context, catalog)
 	_validate_max_stack_values(context, catalog)
 	_validate_order_independence(context, catalog)
+	_validate_runaway_synergy(context, catalog)
 	_validate_clamps(context)
 	_validate_player_build_rules(context, catalog)
 	_validate_shared_models(context)
@@ -48,40 +49,40 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 
 static func _validate_one_stack_values(context: TestContext, catalog: CardCatalog) -> void:
 	_expect_build(context, catalog, &"reinforced_hull", 1, {"max_health": 125.0, "max_speed": 441.6})
-	_expect_build(context, catalog, &"overcharged_thrusters", 1, {"max_health": 90.0, "max_speed": 537.6, "acceleration": 1035.0})
+	_expect_build(context, catalog, &"overcharged_thrusters", 1, {"max_health": 100.0, "max_speed": 537.6, "acceleration": 1035.0})
 	_expect_build(context, catalog, &"vector_jets", 1, {"acceleration": 1080.0, "drag": 875.0})
 	_expect_build(context, catalog, &"auto_repair", 1, {"auto_repair_enabled": true, "auto_repair_delay": 5.0, "auto_repair_rate": 8.0})
-	_expect_build(context, catalog, &"capacitor_bank", 1, {"shield_capacity": 130.0, "shield_regeneration": 27.0})
-	_expect_build(context, catalog, &"quick_charge", 1, {"shield_capacity": 90.0, "shield_regeneration": 37.5})
+	_expect_build(context, catalog, &"capacitor_bank", 1, {"shield_capacity": 130.0, "shield_regeneration": 33.0})
+	_expect_build(context, catalog, &"quick_charge", 1, {"shield_capacity": 100.0, "shield_regeneration": 37.5})
 	_expect_build(context, catalog, &"wide_emitter", 1, {"shield_arc_degrees": 140.0, "shield_continuous_drain": 23.0})
-	_expect_build(context, catalog, &"efficient_field", 1, {"shield_continuous_drain": 16.0, "shield_regeneration_delay": 1.5})
+	_expect_build(context, catalog, &"efficient_field", 1, {"shield_continuous_drain": 16.0, "shield_regeneration_delay": 1.25})
 	_expect_build(context, catalog, &"heavy_rounds", 1, {"projectile_damage": 33.75, "fire_rate": 3.2})
-	_expect_build(context, catalog, &"rapid_cycling", 1, {"projectile_damage": 20.0, "fire_rate": 5.2})
-	_expect_build(context, catalog, &"rail_accelerant", 1, {"projectile_damage": 22.5, "projectile_speed": 1215.0})
-	_expect_build(context, catalog, &"extended_magazine", 1, {"magazine_size": 12, "reload_duration": 1.8})
+	_expect_build(context, catalog, &"rapid_cycling", 1, {"projectile_damage": 25.0, "fire_rate": 5.2})
+	_expect_build(context, catalog, &"rail_accelerant", 1, {"projectile_damage": 27.5, "projectile_speed": 1215.0})
+	_expect_build(context, catalog, &"extended_magazine", 1, {"magazine_size": 12, "reload_duration": 1.5})
 	_expect_build(context, catalog, &"quick_loader", 1, {"magazine_size": 6, "reload_duration": 1.125})
 	_expect_build(context, catalog, &"twin_shot", 1, {"projectile_count": 2, "projectile_spread_degrees": 10.0, "projectile_damage": 17.5})
-	_expect_build(context, catalog, &"piercing_rounds", 1, {"pierce_count": 1, "projectile_damage": 21.25})
-	_expect_build(context, catalog, &"ricochet_rounds", 1, {"ricochet_count": 1, "projectile_speed": 810.0})
+	_expect_build(context, catalog, &"piercing_rounds", 1, {"pierce_count": 1, "projectile_damage": 27.0})
+	_expect_build(context, catalog, &"ricochet_rounds", 1, {"ricochet_count": 1, "projectile_speed": 972.0})
 
 
 static func _validate_max_stack_values(context: TestContext, catalog: CardCatalog) -> void:
 	_expect_build(context, catalog, &"reinforced_hull", 3, {"max_health": 175.0, "max_speed": 373.77024})
-	_expect_build(context, catalog, &"overcharged_thrusters", 3, {"max_health": 70.0, "max_speed": 674.36544, "acceleration": 1368.7875})
+	_expect_build(context, catalog, &"overcharged_thrusters", 3, {"max_health": 100.0, "max_speed": 674.36544, "acceleration": 1368.7875})
 	_expect_build(context, catalog, &"vector_jets", 3, {"acceleration": 1555.2, "drag": 1367.1875})
 	_expect_build(context, catalog, &"auto_repair", 1, {"auto_repair_enabled": true})
-	_expect_build(context, catalog, &"capacitor_bank", 3, {"shield_capacity": 190.0, "shield_regeneration": 21.87})
-	_expect_build(context, catalog, &"quick_charge", 3, {"shield_capacity": 70.0, "shield_regeneration": 58.59375})
+	_expect_build(context, catalog, &"capacitor_bank", 3, {"shield_capacity": 190.0, "shield_regeneration": 39.93})
+	_expect_build(context, catalog, &"quick_charge", 3, {"shield_capacity": 100.0, "shield_regeneration": 58.59375})
 	_expect_build(context, catalog, &"wide_emitter", 3, {"shield_arc_degrees": 180.0, "shield_continuous_drain": 30.4175})
-	_expect_build(context, catalog, &"efficient_field", 3, {"shield_continuous_drain": 10.24, "shield_regeneration_delay": 2.0})
+	_expect_build(context, catalog, &"efficient_field", 3, {"shield_continuous_drain": 10.24, "shield_regeneration_delay": 1.25})
 	_expect_build(context, catalog, &"heavy_rounds", 3, {"projectile_damage": 61.509375, "fire_rate": 2.048})
-	_expect_build(context, catalog, &"rapid_cycling", 3, {"projectile_damage": 12.8, "fire_rate": 8.788})
-	_expect_build(context, catalog, &"rail_accelerant", 3, {"projectile_damage": 18.225, "projectile_speed": 1800.0})
-	_expect_build(context, catalog, &"extended_magazine", 3, {"magazine_size": 20, "reload_duration": 2.592})
+	_expect_build(context, catalog, &"rapid_cycling", 3, {"projectile_damage": 25.0, "fire_rate": 8.788})
+	_expect_build(context, catalog, &"rail_accelerant", 3, {"projectile_damage": 33.275, "projectile_speed": 2214.3375})
+	_expect_build(context, catalog, &"extended_magazine", 3, {"magazine_size": 20, "reload_duration": 1.5})
 	_expect_build(context, catalog, &"quick_loader", 3, {"magazine_size": 2, "reload_duration": 0.6328125})
 	_expect_build(context, catalog, &"twin_shot", 2, {"projectile_count": 3, "projectile_spread_degrees": 20.0, "projectile_damage": 12.25})
-	_expect_build(context, catalog, &"piercing_rounds", 3, {"pierce_count": 3, "projectile_damage": 15.353125})
-	_expect_build(context, catalog, &"ricochet_rounds", 3, {"ricochet_count": 3, "projectile_speed": 656.1})
+	_expect_build(context, catalog, &"piercing_rounds", 3, {"pierce_count": 3, "projectile_damage": 31.4928})
+	_expect_build(context, catalog, &"ricochet_rounds", 3, {"ricochet_count": 3, "projectile_speed": 1133.7408})
 
 
 static func _validate_order_independence(context: TestContext, catalog: CardCatalog) -> void:
@@ -111,6 +112,34 @@ static func _validate_order_independence(context: TestContext, catalog: CardCata
 			context.expect_equal(actual, expected, "stat %s is acquisition-order independent" % property_name)
 
 
+static func _validate_runaway_synergy(context: TestContext, catalog: CardCatalog) -> void:
+	var build := {
+		&"overcharged_thrusters": 3,
+		&"vector_jets": 3,
+		&"heavy_rounds": 3,
+		&"rail_accelerant": 3,
+		&"piercing_rounds": 3,
+		&"ricochet_rounds": 3,
+	}
+	var stats := StatSystem.derive(build, catalog)
+	context.expect_approx(
+		stats.acceleration,
+		900.0 * pow(1.15, 3) * pow(1.2, 3),
+		"positive acceleration cards multiply into a runaway combined build"
+	)
+	context.expect_approx(
+		stats.projectile_damage,
+		25.0 * pow(1.35, 3) * pow(1.1, 3) * pow(1.08, 3),
+		"damage cards compound past the former balance ceiling"
+	)
+	context.expect_true(stats.projectile_damage > 100.0, "legal builds can exceed former balance clamps")
+	context.expect_approx(
+		stats.projectile_speed,
+		900.0 * pow(1.35, 3) * pow(1.08, 3),
+		"projectile-speed synergies multiply across different cards"
+	)
+
+
 static func _validate_clamps(context: TestContext) -> void:
 	var extreme := CardDefinition.new()
 	extreme.card_id = &"extreme_test"
@@ -119,7 +148,7 @@ static func _validate_clamps(context: TestContext) -> void:
 	extreme.max_stacks = 1
 	extreme.additive_modifiers = {
 		"max_health": 1000.0,
-		"magazine_size": 100.0,
+		"magazine_size": 1000.0,
 		"shield_capacity": -1000.0,
 		"shield_arc_degrees": 1000.0,
 	}
@@ -139,19 +168,19 @@ static func _validate_clamps(context: TestContext) -> void:
 	var catalog := CardCatalog.new()
 	context.expect_true(catalog.add_card(extreme), "synthetic clamp card validates")
 	var stats := StatSystem.derive({&"extreme_test": 1}, catalog)
-	context.expect_approx(stats.max_health, 250.0, "maximum health upper clamp applies")
-	context.expect_approx(stats.max_speed, 200.0, "maximum speed lower clamp applies")
-	context.expect_approx(stats.acceleration, 2000.0, "acceleration upper clamp applies")
-	context.expect_approx(stats.projectile_damage, 100.0, "damage upper clamp applies")
-	context.expect_approx(stats.fire_rate, 12.0, "fire-rate upper clamp applies")
-	context.expect_equal(stats.magazine_size, 30, "magazine upper clamp applies")
-	context.expect_approx(stats.reload_duration, 0.35, "reload lower clamp applies")
-	context.expect_approx(stats.projectile_speed, 1800.0, "projectile-speed upper clamp applies")
-	context.expect_equal(stats.projectile_count, 3, "projectile-count upper clamp applies")
-	context.expect_equal(stats.pierce_count, 3, "pierce upper clamp applies")
-	context.expect_equal(stats.ricochet_count, 3, "ricochet upper clamp applies")
-	context.expect_approx(stats.shield_capacity, 20.0, "shield-capacity lower clamp applies")
-	context.expect_approx(stats.shield_arc_degrees, 240.0, "shield-arc upper clamp applies")
+	context.expect_approx(stats.max_health, 600.0, "maximum health transport guardrail applies")
+	context.expect_approx(stats.max_speed, 100.0, "maximum speed physics guardrail applies")
+	context.expect_approx(stats.acceleration, 6000.0, "acceleration physics guardrail applies")
+	context.expect_approx(stats.projectile_damage, 600.0, "damage transport guardrail applies")
+	context.expect_approx(stats.fire_rate, 20.0, "fire-rate entity-budget guardrail applies")
+	context.expect_equal(stats.magazine_size, 128, "magazine transport guardrail applies")
+	context.expect_approx(stats.reload_duration, 0.1, "reload timing guardrail applies")
+	context.expect_approx(stats.projectile_speed, 4000.0, "projectile velocity transport guardrail applies")
+	context.expect_equal(stats.projectile_count, 6, "projectile-count entity-budget guardrail applies")
+	context.expect_equal(stats.pierce_count, 12, "pierce entity-budget guardrail applies")
+	context.expect_equal(stats.ricochet_count, 12, "ricochet entity-budget guardrail applies")
+	context.expect_approx(stats.shield_capacity, 5.0, "shield-capacity transport guardrail applies")
+	context.expect_approx(stats.shield_arc_degrees, 360.0, "shield-arc geometry guardrail applies")
 
 
 static func _validate_player_build_rules(context: TestContext, catalog: CardCatalog) -> void:

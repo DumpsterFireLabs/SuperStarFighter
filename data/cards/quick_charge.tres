@@ -6,9 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"quick_charge"
 display_name = "Quick Charge"
-description = "Shield regeneration is multiplied by 1.25, but shield capacity is reduced by 10."
+description = "Shield regeneration is multiplied by 1.25."
 category = 1
 max_stacks = 3
-additive_modifiers = {"shield_capacity": -10.0}
 multiplicative_modifiers = {"shield_regeneration": 1.25}
-

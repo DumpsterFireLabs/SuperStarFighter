@@ -27,7 +27,7 @@ The bootstrap script downloads the pinned portable Godot release and export temp
 
 ## Current Status
 
-Milestones 0–4 are complete. Human clients can now play the authoritative online loop from lobby through private card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. The project verifier passes 63 startup, parser, and test checks; the headless suite passes 667 assertions and verifies that an intentional failure returns a nonzero exit code.
+Milestones 0–4 are complete. Human clients can now play the authoritative online loop from lobby through rendered five-card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. Card modifiers deliberately compound into extreme builds; many cards are pure upgrades, while technical guardrails protect networking and physics without acting as narrow balance ceilings. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. The project verifier passes 64 startup, parser, and test checks; the headless suite passes 704 assertions and verifies that an intentional failure returns a nonzero exit code.
 
 Milestone 5 (production UI, neon presentation, and audio) is next.
 

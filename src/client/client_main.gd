@@ -190,7 +190,11 @@ func _create_match_ui() -> void:
 	for index in GameConstants.CARD_OFFER_SIZE:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(190.0, 320.0)
-		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		button.add_theme_font_size_override("font_size", 16)
+		button.add_theme_color_override("font_color", Color("e8f5ff"))
+		button.add_theme_color_override("font_hover_color", Color.WHITE)
 		button.pressed.connect(_select_draft_card.bind(index))
 		cards.add_child(button)
 		draft_buttons.append(button)
@@ -314,7 +318,14 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
 		latest_match_payload["builds"] = payload.get("builds", {})
+		active_offer_token = ""
+		active_offer_deadline = -1
 		draft_panel.visible = false
+	elif event_type == &"PLAYER_ELIMINATED":
+		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
+		for peer_value in payload.get("peer_ids", []):
+			alive_peer_ids.erase(int(peer_value))
+		latest_match_payload["alive_peer_ids"] = alive_peer_ids
 
 
 func _process(_delta: float) -> void:
@@ -339,14 +350,24 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			continue
 		var card := card_catalog.get_card(StringName(card_ids[index]))
 		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
-		button.text = "%d\n\n%s\n[%s]\n\n%s\n\nStack %d → %d" % [
+		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d / %d" % [
 			index + 1,
 			card.display_name,
-			card.category_name(),
+			card.category_name().to_upper(),
 			card.description,
 			current_stacks,
 			current_stacks + 1,
+			card.max_stacks,
 		] if card != null else String(card_ids[index])
+		if card != null:
+			var category_color := _draft_category_color(card.category)
+			button.add_theme_color_override("font_color", category_color.lightened(0.42))
+			button.add_theme_stylebox_override("normal", _draft_card_style(category_color, false))
+			button.add_theme_stylebox_override("hover", _draft_card_style(category_color.lightened(0.18), true))
+			button.add_theme_stylebox_override("pressed", _draft_card_style(category_color.lightened(0.28), true))
+			button.add_theme_stylebox_override("focus", _draft_card_style(category_color.lightened(0.3), true))
+			button.add_theme_stylebox_override("disabled", _draft_card_style(category_color.darkened(0.35), false))
+			button.tooltip_text = "%s — %s" % [card.display_name, card.description]
 	draft_panel.visible = true
 	match_panel.visible = true
 	_update_match_presentation()
@@ -365,6 +386,8 @@ func _select_draft_card(index: int) -> void:
 	for draft_button in draft_buttons:
 		draft_button.disabled = true
 	button.text += "\n\nSELECTED"
+	var selected_color := Color("42e8ff")
+	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
 
 
 func _update_match_presentation() -> void:
@@ -400,7 +423,30 @@ func _update_match_presentation() -> void:
 		status = "★ %s WINS THE MATCH ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
 	match_label.text = status
 	if state_name == "DRAFT":
-		draft_title.text = "CHOOSE YOUR UPGRADE · %.1fs" % seconds_left
+		draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
+
+
+func _draft_category_color(category: int) -> Color:
+	match category:
+		CardDefinition.Category.SHIP:
+			return Color("38d9ff")
+		CardDefinition.Category.SHIELD:
+			return Color("ae7cff")
+		_:
+			return Color("ff4fd8")
+
+
+func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color, 0.24 if emphasized else 0.12)
+	style.border_color = Color(color, 0.95 if emphasized else 0.62)
+	style.set_border_width_all(3 if emphasized else 2)
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 12.0
+	style.content_margin_bottom = 12.0
+	return style
 
 
 func _local_build_stack(card_id: StringName) -> int:
