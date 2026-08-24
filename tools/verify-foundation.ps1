@@ -80,7 +80,7 @@ Invoke-FoundationCheck -Name 'Server startup and argument parsing' -Arguments @(
 Invoke-FoundationCheck -Name 'Bot-client startup' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--quit-after', '5', '--',
     '--bot-client=FoundationBot', '--port=7123'
-) -ExpectedMarker 'SSF_MODE_READY=bot_client name=FoundationBot port=7123'
+) -ExpectedMarker 'SSF_MODE_READY=bot_client name=FoundationBot host=127.0.0.1 port=7123'
 Invoke-FoundationCheck -Name 'Passing test suite' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--', '--run-tests'
 ) -ExpectedMarker 'failed=0'

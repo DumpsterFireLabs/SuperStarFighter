@@ -1,0 +1,44 @@
+class_name NetworkProtocol
+extends RefCounted
+
+const PACKET_VERSION: int = 1
+const SERVER_PEER_ID: int = 1
+
+const CHANNEL_CONTROL: int = 0
+const CHANNEL_INPUT: int = 1
+const CHANNEL_SNAPSHOT: int = 2
+
+const ACTION_FIRE: int = 1
+const ACTION_SHIELD: int = 2
+const ACTION_MASK: int = ACTION_FIRE | ACTION_SHIELD
+
+const HANDSHAKE_TIMEOUT_SECONDS: float = 10.0
+const MAX_INPUTS_PER_SECOND: int = 60
+const TRAFFIC_STRIKES_BEFORE_DISCONNECT: int = 3
+const MAX_SNAPSHOT_PLAYERS: int = GameConstants.MAX_PLAYERS
+const MAX_PACKET_PROJECTILES: int = GameConstants.MAX_PROJECTILES_GLOBAL
+
+const REJECT_SERVER_FULL: StringName = &"SERVER_FULL"
+const REJECT_VERSION_MISMATCH: StringName = &"VERSION_MISMATCH"
+const REJECT_INVALID_NAME: StringName = &"INVALID_NAME"
+const REJECT_HANDSHAKE_TIMEOUT: StringName = &"HANDSHAKE_TIMEOUT"
+const REJECT_MALFORMED_TRAFFIC: StringName = &"MALFORMED_TRAFFIC"
+const REJECT_SERVER_CLOSED: StringName = &"SERVER_CLOSED"
+
+
+static func rejection_message(reason: StringName) -> String:
+	match reason:
+		REJECT_SERVER_FULL:
+			return "The server is full."
+		REJECT_VERSION_MISMATCH:
+			return "Client and server protocol versions do not match."
+		REJECT_INVALID_NAME:
+			return "Display name must contain 1–16 printable characters."
+		REJECT_HANDSHAKE_TIMEOUT:
+			return "The connection handshake timed out."
+		REJECT_MALFORMED_TRAFFIC:
+			return "The server rejected malformed or excessive network traffic."
+		REJECT_SERVER_CLOSED:
+			return "The server closed the connection."
+		_:
+			return "The server rejected the connection."

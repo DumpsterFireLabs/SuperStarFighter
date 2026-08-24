@@ -8,7 +8,7 @@ The project is currently implementing the vertical slice described in:
 - [Authoritative specification](./spec.md)
 - [Implementation milestones](./milestones.md)
 
-## Foundation Commands
+## Development Commands
 
 From PowerShell in the repository root:
 
@@ -17,6 +17,7 @@ From PowerShell in the repository root:
 .\tools\run-editor.ps1
 .\tools\run-tests.ps1
 .\tools\verify-foundation.ps1
+.\tools\verify-network.ps1
 .\tools\start-server.ps1
 .\tools\start-client.ps1
 ```
@@ -25,9 +26,21 @@ The bootstrap script downloads the pinned portable Godot release and export temp
 
 ## Current Status
 
-Milestones 0–2 are complete. The default client launches a playable offline combat sandbox backed by the same deterministic combat rules intended for the authoritative server. The project verifier passes 43 startup, parser, and test checks; the headless suite passes 427 assertions and verifies that an intentional failure returns a nonzero exit code.
+Milestones 0–3 are complete. The client now provides a direct-IP connection screen and online lobby alongside the offline combat lab. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. The project verifier passes 61 startup, parser, and test checks; the headless suite passes 602 assertions and verifies that an intentional failure returns a nonzero exit code.
 
-Milestone 3 (authoritative networking and lobby) is next.
+Milestone 4 (complete multiplayer match loop) is next.
+
+## Local Multiplayer
+
+Start the authoritative server in one PowerShell window:
+
+```powershell
+.\tools\start-server.ps1 -Port 7000 -MaxPlayers 32 -RoundsToWin 3
+```
+
+Start one or more clients with `.\tools\start-client.ps1`, enter the server host and UDP port, and connect. The first admitted player is lobby leader. Use the in-client controls to change the round target and start once at least two participants are present.
+
+`verify-network.ps1` launches isolated protocol clients and verifies handshake acceptance/rejection, authoritative inputs and snapshots, projectile traffic, leader transfer, late-spectator admission, and clean shutdown.
 
 ## Offline Sandbox Controls
 

@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://src/client/client_main.gd" id="1_client"]
 [ext_resource type="PackedScene" path="res://scenes/gameplay/offline_sandbox.tscn" id="2_sandbox"]
 
-[node name="ClientMain" type="Node"]
+[node name="Main" type="Node"]
 script = ExtResource("1_client")
 
 [node name="OfflineSandbox" parent="." instance=ExtResource("2_sandbox")]

@@ -1,0 +1,461 @@
+class_name NetworkBridge
+extends Node
+
+signal server_peer_admitted(peer_id: int, player: PlayerMatchState)
+signal server_peer_departed(peer_id: int)
+signal client_connected(peer_id: int)
+signal client_lobby_updated(state: Dictionary)
+signal client_match_event_received(event_type: StringName, server_tick: int, payload: Dictionary)
+signal client_snapshot_received(decoded: Dictionary)
+signal client_projectile_batch_received(decoded: Dictionary)
+signal client_projectile_correction_received(decoded: Dictionary)
+signal client_rejected(reason: StringName, message: String)
+signal client_connection_lost(message: String)
+
+enum Role {
+	NONE,
+	SERVER,
+	CLIENT,
+}
+
+var role: Role = Role.NONE
+var lobby: ServerLobby
+var world: AuthoritativeWorld
+var local_peer_id: int = 0
+var latest_lobby_state: Dictionary = {}
+var last_error: String = ""
+
+var _configuration: Dictionary = {}
+var _enet_peer: ENetMultiplayerPeer
+var _pending_handshakes := HandshakeRegistry.new()
+var _pending_disconnects: Dictionary = {}
+var _rate_limiter := InputRateLimiter.new()
+var _client_name: String = "Pilot"
+var _client_protocol_version: int = GameConstants.PROTOCOL_VERSION
+var _last_metrics_tick: int = 0
+var _simulation_total_usec: int = 0
+var _simulation_max_usec: int = 0
+var _simulation_samples: int = 0
+var _outbound_bytes: int = 0
+
+
+func start_server(configuration: Dictionary) -> Error:
+	stop()
+	role = Role.SERVER
+	_configuration = configuration.duplicate(true)
+	var match_config := MatchConfig.new()
+	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
+	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
+	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
+	lobby = ServerLobby.new(match_config)
+	world = AuthoritativeWorld.new()
+	_enet_peer = ENetMultiplayerPeer.new()
+	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, 3)
+	if error != OK:
+		last_error = "Could not bind UDP port %d (error %d)." % [match_config.port, error]
+		_log("error", "server_bind_failed", {"port": match_config.port, "error": error})
+		role = Role.NONE
+		return error
+	multiplayer.multiplayer_peer = _enet_peer
+	if not multiplayer.peer_connected.is_connected(_on_server_peer_connected):
+		multiplayer.peer_connected.connect(_on_server_peer_connected)
+	if not multiplayer.peer_disconnected.is_connected(_on_server_peer_disconnected):
+		multiplayer.peer_disconnected.connect(_on_server_peer_disconnected)
+	_log("info", "server_started", {
+		"port": match_config.port,
+		"max_players": match_config.max_players,
+		"rounds_to_win": match_config.rounds_to_win,
+	})
+	return OK
+
+
+func start_client(
+	host: String,
+	port: int,
+	display_name: String,
+	protocol_version: int = GameConstants.PROTOCOL_VERSION
+) -> Error:
+	stop()
+	role = Role.CLIENT
+	_client_name = display_name
+	_client_protocol_version = protocol_version
+	_enet_peer = ENetMultiplayerPeer.new()
+	var error := _enet_peer.create_client(host, port, 3)
+	if error != OK:
+		last_error = "Could not connect to %s:%d (error %d)." % [host, port, error]
+		role = Role.NONE
+		return error
+	multiplayer.multiplayer_peer = _enet_peer
+	if not multiplayer.connected_to_server.is_connected(_on_client_transport_connected):
+		multiplayer.connected_to_server.connect(_on_client_transport_connected)
+	if not multiplayer.connection_failed.is_connected(_on_client_connection_failed):
+		multiplayer.connection_failed.connect(_on_client_connection_failed)
+	if not multiplayer.server_disconnected.is_connected(_on_client_server_disconnected):
+		multiplayer.server_disconnected.connect(_on_client_server_disconnected)
+	return OK
+
+
+func stop() -> void:
+	if role == Role.SERVER and _enet_peer != null:
+		_log("info", "server_shutdown", {
+			"connected_peers": lobby.players.size() if lobby != null else 0,
+		})
+	if _enet_peer != null:
+		_enet_peer.close()
+	_enet_peer = null
+	if is_inside_tree() and multiplayer.multiplayer_peer != null:
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	_pending_handshakes.clear()
+	_pending_disconnects.clear()
+	local_peer_id = 0
+	role = Role.NONE
+
+
+func get_round_trip_time_ms() -> int:
+	if role != Role.CLIENT or _enet_peer == null:
+		return -1
+	var server_peer := _enet_peer.get_peer(NetworkProtocol.SERVER_PEER_ID)
+	if server_peer == null:
+		return -1
+	return int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+
+
+func send_input(frame: PlayerInputFrame) -> void:
+	if role != Role.CLIENT or local_peer_id == 0:
+		return
+	var packet := InputPacketCodec.encode(frame)
+	submit_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, packet)
+
+
+func send_lobby_config(rounds_to_win: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_lobby_config.rpc_id(NetworkProtocol.SERVER_PEER_ID, rounds_to_win)
+
+
+func send_start_match() -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_start_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
+
+
+func send_card_selection(offer_token: int, card_id: StringName) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		select_card.rpc_id(NetworkProtocol.SERVER_PEER_ID, offer_token, card_id)
+
+
+func _physics_process(delta: float) -> void:
+	if role != Role.SERVER or world == null:
+		return
+	var start_usec := Time.get_ticks_usec()
+	_process_pending_connections()
+	world.step(delta)
+	var tick := world.server_tick
+	if tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE) == 0:
+		_send_player_snapshots()
+	_send_projectile_batch()
+	if tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PROJECTILE_CORRECTION_RATE) == 0:
+		_send_projectile_correction()
+	var duration_usec := Time.get_ticks_usec() - start_usec
+	_simulation_total_usec += duration_usec
+	_simulation_max_usec = maxi(_simulation_max_usec, duration_usec)
+	_simulation_samples += 1
+	if tick - _last_metrics_tick >= GameConstants.PHYSICS_TICKS_PER_SECOND * 10:
+		_log_metrics()
+		_last_metrics_tick = tick
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func client_hello(protocol_version: int, display_name: String) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _pending_handshakes.has(sender_id):
+		_reject_request(sender_id, "duplicate_or_unexpected_hello")
+		return
+	var rejection := ConnectionAdmission.validate_hello(
+		protocol_version,
+		display_name,
+		lobby.players.size(),
+		lobby.config.max_players
+	)
+	if not rejection.is_empty():
+		_reject_connection(sender_id, rejection)
+		return
+	var result := lobby.admit(sender_id, display_name)
+	if not result.ok:
+		_reject_connection(sender_id, result.reason)
+		return
+	_pending_handshakes.complete(sender_id)
+	var player := result.player as PlayerMatchState
+	world.add_peer(sender_id)
+	server_welcome.rpc_id(sender_id, sender_id, lobby.serialize())
+	_outbound_bytes += 64
+	_broadcast_lobby_state()
+	server_peer_admitted.emit(sender_id, player)
+	_log("info", "peer_joined", {"peer_id": sender_id, "display_name": player.display_name, "spectator": player.spectator})
+	if bool(_configuration.get("auto_start", false)) and lobby.participant_count() >= GameConstants.MIN_PLAYERS and not lobby.match_active:
+		var start_result := lobby.request_start(lobby.leader_id)
+		if start_result.ok:
+			_broadcast_lobby_state()
+			_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": lobby.leader_id})
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_lobby_config(rounds_to_win: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	var result := lobby.request_rounds_to_win(sender_id, rounds_to_win)
+	if result.ok:
+		_broadcast_lobby_state()
+	else:
+		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_start_match() -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	var result := lobby.request_start(sender_id)
+	if result.ok:
+		_broadcast_lobby_state()
+		_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": sender_id})
+	else:
+		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func select_card(offer_token: int, card_id: StringName) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	_send_request_rejected(sender_id, "Card selection is only accepted during the authoritative draft state.")
+	_log("warning", "card_selection_rejected", {"peer_id": sender_id, "offer_token": offer_token, "card_id": String(card_id)})
+
+
+@rpc("any_peer", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_INPUT)
+func submit_input(packet: PackedByteArray) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not lobby.players.has(sender_id):
+		_reject_request(sender_id, "input_before_handshake")
+		return
+	var decoded := InputPacketCodec.decode(packet)
+	var decision := _rate_limiter.register(sender_id, _now_seconds(), decoded.ok)
+	if decision == InputRateLimiter.Decision.DISCONNECT:
+		_reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return
+	if decision != InputRateLimiter.Decision.ACCEPT or not decoded.ok:
+		return
+	world.submit_input(sender_id, decoded.frame)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func server_welcome(peer_id: int, lobby_state_value: Dictionary) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	local_peer_id = peer_id
+	latest_lobby_state = lobby_state_value
+	client_connected.emit(peer_id)
+	client_lobby_updated.emit(lobby_state_value)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func connection_rejected(reason: StringName, display_message: String) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	last_error = display_message
+	client_rejected.emit(reason, display_message)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func lobby_state(state: Dictionary) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	var incoming_revision := int(state.get("revision", 0))
+	var current_revision := int(latest_lobby_state.get("revision", 0))
+	if not latest_lobby_state.is_empty() and not SequenceMath.is_newer(incoming_revision, current_revision):
+		return
+	latest_lobby_state = state
+	client_lobby_updated.emit(state)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func draft_offer(offer_token: int, card_ids: Array[StringName], deadline_tick: int) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	client_match_event_received.emit(&"DRAFT_OFFER", deadline_tick, {"offer_token": offer_token, "card_ids": card_ids})
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func match_event(event_type: StringName, server_tick_value: int, payload: Dictionary) -> void:
+	if role == Role.CLIENT and multiplayer.get_remote_sender_id() == NetworkProtocol.SERVER_PEER_ID:
+		client_match_event_received.emit(event_type, server_tick_value, payload)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
+func world_snapshot(packet: PackedByteArray) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	var decoded := PlayerSnapshotCodec.decode(packet)
+	if decoded.ok:
+		client_snapshot_received.emit(decoded)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
+func projectile_batch(packet: PackedByteArray) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	var decoded := ProjectilePacketCodec.decode_batch(packet)
+	if decoded.ok:
+		client_projectile_batch_received.emit(decoded)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
+func projectile_correction(packet: PackedByteArray) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	var decoded := ProjectilePacketCodec.decode_correction(packet)
+	if decoded.ok:
+		client_projectile_correction_received.emit(decoded)
+
+
+func _on_server_peer_connected(peer_id: int) -> void:
+	_pending_handshakes.begin(peer_id, _now_seconds())
+
+
+func _on_server_peer_disconnected(peer_id: int) -> void:
+	_pending_handshakes.complete(peer_id)
+	_pending_disconnects.erase(peer_id)
+	_rate_limiter.remove_peer(peer_id)
+	var departed := lobby.remove(peer_id) if lobby != null else null
+	if world != null:
+		world.remove_peer(peer_id)
+	if departed != null:
+		_broadcast_lobby_state()
+		server_peer_departed.emit(peer_id)
+		_log("info", "peer_left", {"peer_id": peer_id})
+
+
+func _on_client_transport_connected() -> void:
+	client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, _client_protocol_version, _client_name)
+
+
+func _on_client_connection_failed() -> void:
+	if role != Role.CLIENT:
+		return
+	last_error = "Could not reach the server."
+	client_connection_lost.emit(last_error)
+
+
+func _on_client_server_disconnected() -> void:
+	if role != Role.CLIENT:
+		return
+	var message := last_error if not last_error.is_empty() else NetworkProtocol.rejection_message(NetworkProtocol.REJECT_SERVER_CLOSED)
+	local_peer_id = 0
+	client_connection_lost.emit(message)
+
+
+func _process_pending_connections() -> void:
+	var now := _now_seconds()
+	for peer_id in _pending_handshakes.expired(now):
+		_reject_connection(peer_id, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT)
+	for peer_value in _pending_disconnects.keys():
+		var peer_id := int(peer_value)
+		if now >= float(_pending_disconnects[peer_id]):
+			_pending_disconnects.erase(peer_id)
+			if _enet_peer != null:
+				_enet_peer.disconnect_peer(peer_id)
+
+
+func _reject_connection(peer_id: int, reason: StringName) -> void:
+	var message := NetworkProtocol.rejection_message(reason)
+	connection_rejected.rpc_id(peer_id, reason, message)
+	_pending_handshakes.complete(peer_id)
+	_pending_disconnects[peer_id] = _now_seconds() + 0.1
+	_log("warning", "connection_rejected", {"peer_id": peer_id, "reason": String(reason)})
+
+
+func _reject_request(peer_id: int, detail: String) -> void:
+	_send_request_rejected(peer_id, "The request was rejected by server authority.")
+	_log("warning", "request_rejected", {"peer_id": peer_id, "detail": detail})
+
+
+func _send_request_rejected(peer_id: int, message_text: String) -> void:
+	match_event.rpc_id(peer_id, &"REQUEST_REJECTED", world.server_tick if world != null else 0, {"message": message_text})
+
+
+func _broadcast_lobby_state() -> void:
+	if lobby == null:
+		return
+	var state := lobby.serialize()
+	lobby_state.rpc(state)
+	_outbound_bytes += JSON.stringify(state).length() * maxi(lobby.players.size(), 1)
+
+
+func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void:
+	var tick := world.server_tick if world != null else 0
+	match_event.rpc(event_type, tick, payload)
+	_log("info", "match_event", {"event_type": String(event_type), "server_tick": tick})
+
+
+func _send_player_snapshots() -> void:
+	if lobby == null or lobby.players.is_empty():
+		return
+	var states := world.snapshot_states()
+	for peer_value in lobby.players.keys():
+		var peer_id := int(peer_value)
+		var packet := PlayerSnapshotCodec.encode(world.server_tick, world.acknowledged_input(peer_id), states)
+		world_snapshot.rpc_id(peer_id, packet)
+		_outbound_bytes += packet.size()
+
+
+func _send_projectile_batch() -> void:
+	var batch := world.drain_projectile_batch()
+	if (batch.spawned as Array).is_empty() and (batch.removed as Array).is_empty():
+		return
+	var packet := ProjectilePacketCodec.encode_batch(world.server_tick, batch.spawned, batch.removed)
+	projectile_batch.rpc(packet)
+	_outbound_bytes += packet.size() * maxi(lobby.players.size(), 1)
+
+
+func _send_projectile_correction() -> void:
+	if lobby == null or lobby.players.is_empty():
+		return
+	var packet := ProjectilePacketCodec.encode_correction(world.server_tick, world.active_projectiles())
+	projectile_correction.rpc(packet)
+	_outbound_bytes += packet.size() * lobby.players.size()
+
+
+func _log_metrics() -> void:
+	var mean_usec := 0.0
+	if _simulation_samples > 0:
+		mean_usec = float(_simulation_total_usec) / _simulation_samples
+	_log("info", "simulation_metrics", {
+		"connected_peers": lobby.players.size() if lobby != null else 0,
+		"active_ships": world.combatants.size() if world != null else 0,
+		"active_projectiles": world.projectile_registry.size() if world != null else 0,
+		"mean_simulation_usec": mean_usec,
+		"max_simulation_usec": _simulation_max_usec,
+		"outbound_bytes": _outbound_bytes,
+	})
+	_simulation_total_usec = 0
+	_simulation_max_usec = 0
+	_simulation_samples = 0
+	_outbound_bytes = 0
+
+
+func _log(level: String, event_name: String, fields: Dictionary = {}) -> void:
+	var entry := {
+		"timestamp": Time.get_datetime_string_from_system(true),
+		"level": level,
+		"event": event_name,
+	}
+	for key in fields:
+		entry[key] = fields[key]
+	print(JSON.stringify(entry))
+
+
+static func _now_seconds() -> float:
+	return Time.get_ticks_msec() / 1000.0

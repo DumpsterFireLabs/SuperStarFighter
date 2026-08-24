@@ -19,6 +19,7 @@ var camera: Camera2D
 var status_label: Label
 var card_label: Label
 var help_label: Label
+var hud_canvas: CanvasLayer
 var next_projectile_id: int = 1
 var heat_elapsed: float = 0.0
 var overtime_debug_stage: int = 0
@@ -71,6 +72,13 @@ func _physics_process(delta: float) -> void:
 
 func _exit_tree() -> void:
 	Input.set_custom_mouse_cursor(null)
+
+
+func set_sandbox_active(active: bool) -> void:
+	visible = active
+	process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
+	if hud_canvas != null:
+		hud_canvas.visible = active
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -130,13 +138,13 @@ func _create_camera() -> void:
 
 
 func _create_hud() -> void:
-	var canvas := CanvasLayer.new()
-	canvas.name = "CombatHUD"
-	add_child(canvas)
+	hud_canvas = CanvasLayer.new()
+	hud_canvas.name = "CombatHUD"
+	add_child(hud_canvas)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(20.0, 20.0)
 	panel.custom_minimum_size = Vector2(510.0, 0.0)
-	canvas.add_child(panel)
+	hud_canvas.add_child(panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 8)
 	panel.add_child(content)

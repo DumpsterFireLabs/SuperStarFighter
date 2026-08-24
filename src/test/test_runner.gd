@@ -9,6 +9,7 @@ func _ready() -> void:
 	DraftManagerTests.run(_context)
 	MatchStateMachineTests.run(_context)
 	CombatSystemTests.run(_context)
+	NetworkProtocolTests.run(_context)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):
 		_context.expect_true(false, "forced failure proves the nonzero exit path")
@@ -51,13 +52,31 @@ func _run_foundation_tests() -> void:
 		_context.expect_true(ResourceLoader.exists(scene_path), "startup scene %s exists" % scene_path)
 
 	var server_config := CommandLineConfig.parse(
-		PackedStringArray(["--server", "--port=7123", "--max-players=16", "--rounds-to-win=4"])
+		PackedStringArray(["--server", "--host=localhost", "--port=7123", "--max-players=16", "--rounds-to-win=4"])
 	)
 	_context.expect_true(server_config.ok, "valid server arguments parse")
 	_context.expect_equal(server_config.get("mode"), "server", "server mode is selected")
 	_context.expect_equal(server_config.get("port"), 7123, "custom port parses")
 	_context.expect_equal(server_config.get("max_players"), 16, "custom player limit parses")
 	_context.expect_equal(server_config.get("rounds_to_win"), 4, "custom round target parses")
+	_context.expect_equal(server_config.get("host"), "localhost", "custom network host parses")
+	var bot_config := CommandLineConfig.parse(PackedStringArray([
+		"--bot-client=ProtocolProbe",
+		"--host=127.0.0.1",
+		"--test-protocol-version=999",
+	]))
+	_context.expect_true(bot_config.ok, "test bot protocol override parses")
+	_context.expect_equal(bot_config.get("test_protocol_version"), 999, "test bot protocol override is retained")
+	var invalid_protocol_override := CommandLineConfig.parse(PackedStringArray([
+		"--server",
+		"--test-protocol-version=999",
+	]))
+	_context.expect_false(invalid_protocol_override.ok, "protocol override is restricted to test bots")
+	var invalid_host := CommandLineConfig.parse(PackedStringArray([
+		"--bot-client=BadHost",
+		"--host=not a host",
+	]))
+	_context.expect_false(invalid_host.ok, "hostnames containing spaces are rejected")
 
 	var invalid_port := CommandLineConfig.parse(PackedStringArray(["--server", "--port=80"]))
 	_context.expect_true(not invalid_port.ok, "privileged server port is rejected")
