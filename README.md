@@ -31,7 +31,7 @@ Milestone 3 (authoritative networking and lobby) is next.
 
 ## Offline Sandbox Controls
 
-- `WASD`: move; mouse: aim; left mouse: automatic fire; right mouse: directional shield.
+- `W` / `S`: move forward/back relative to ship aim; `A` / `D`: strafe left/right; mouse: aim with the custom crosshair; left mouse: automatic fire; right mouse: directional shield.
 - `Q` / `E`: select a card; `G`: grant one stack; `C`: clear the current build.
 - `T`: toggle target shields; `B`: toggle target fire; `Y`: reset the heat.
 - `O`: cycle normal time, overtime warning, overtime start, and minimum-radius overtime.

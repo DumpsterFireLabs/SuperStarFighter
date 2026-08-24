@@ -8,6 +8,13 @@ static func sanitize_input(input_direction: Vector2) -> Vector2:
 	return input_direction.limit_length(1.0)
 
 
+static func ship_relative_to_world(local_input: Vector2, aim_angle: float) -> Vector2:
+	var movement := sanitize_input(local_input)
+	var forward := Vector2.from_angle(normalize_aim_angle(aim_angle))
+	var right := -forward.orthogonal()
+	return sanitize_input(forward * -movement.y + right * movement.x)
+
+
 static func step_velocity(
 	current_velocity: Vector2,
 	input_direction: Vector2,

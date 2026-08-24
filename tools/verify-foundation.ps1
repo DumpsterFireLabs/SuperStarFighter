@@ -56,7 +56,10 @@ function Invoke-FoundationCheck {
 
 Invoke-FoundationCheck -Name 'Editor import and global class registration' -Arguments @(
     '--headless', '--editor', '--path', $SsfRepositoryRoot, '--quit'
-) -AllowedErrorFragments @("Could not open 'user://' directory")
+) -AllowedErrorFragments @(
+    "Could not open 'user://' directory",
+    "Could not create ObjectDB Snapshots directory: user://"
+)
 Invoke-FoundationCheck -Name 'Client startup' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--quit-after', '5'
 ) -ExpectedMarker 'SSF_MODE_READY=client'

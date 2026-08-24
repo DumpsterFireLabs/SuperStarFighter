@@ -3,6 +3,7 @@ extends Node2D
 
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
+const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 
 var catalog: CardCatalog = CardCatalog.create_default()
 var build: Dictionary = {}
@@ -26,6 +27,7 @@ var targets_firing: bool = false
 
 
 func _ready() -> void:
+	Input.set_custom_mouse_cursor(CROSSHAIR_TEXTURE, Input.CURSOR_ARROW, Vector2(20.0, 20.0))
 	arena = SandboxArena.new()
 	arena.name = "Arena"
 	add_child(arena)
@@ -43,11 +45,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	heat_elapsed += delta
 	if player.combatant.alive:
-		var movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		var local_movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 		var aim_vector := get_global_mouse_position() - player.global_position
 		var aim_angle := player.combatant.aim_angle
 		if not aim_vector.is_zero_approx():
 			aim_angle = aim_vector.angle()
+		var movement := MovementSystem.ship_relative_to_world(local_movement, aim_angle)
 		player.simulate(movement, aim_angle, Input.is_action_pressed("shield"), delta)
 		if Input.is_action_pressed("fire") and player.combatant.try_fire():
 			_spawn_shot(player)
@@ -64,6 +67,10 @@ func _physics_process(delta: float) -> void:
 	_update_camera(delta)
 	_update_hud()
 	arena.set_overtime(OvertimeSystem.is_active(heat_elapsed), OvertimeSystem.radius_at(heat_elapsed))
+
+
+func _exit_tree() -> void:
+	Input.set_custom_mouse_cursor(null)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -146,7 +153,7 @@ func _create_hud() -> void:
 	card_label.add_theme_font_size_override("font_size", 16)
 	content.add_child(card_label)
 	help_label = Label.new()
-	help_label.text = "WASD move · Mouse aim · LMB fire · RMB shield\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O cycle overtime · F1 help"
+	help_label.text = "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O cycle overtime · F1 help"
 	help_label.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(help_label)
 

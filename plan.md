@@ -14,7 +14,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
 
 ## Gameplay and Content
 
-- Support 2–32 players in free-for-all matches. Players move with WASD using acceleration, drag, and independent mouse-facing; hold left-click to fire and right-click for a forward shield.
+- Support 2–32 players in free-for-all matches. Players move in ship-relative space with `W`/`S` for forward/back and `A`/`D` for strafing, using acceleration, drag, and independent mouse-facing; hold left-click to fire and right-click for a forward shield.
 - Each round starts with a simultaneous 20-second draft. Every player normally receives five distinct, private, server-generated card offers and chooses one; timeout causes a random offered card to be selected. A fully capped build follows the reduced-offer/build-complete rules in `spec.md`.
 - Cards stack and persist until the match ends. All players draft before round one and every subsequent round.
 - A heat ends when one ship remains. Eliminated players spectate surviving ships until the next heat. The first player to win two heats wins the round; heat scores then reset.

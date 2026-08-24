@@ -30,6 +30,34 @@ static func _validate_movement_and_aim(context: TestContext) -> void:
 		Vector2.ZERO,
 		"non-finite movement input is rejected to zero"
 	)
+	context.expect_approx(
+		MovementSystem.ship_relative_to_world(Vector2(0.0, -1.0), 0.0).angle(),
+		0.0,
+		"W moves forward along a right-facing ship"
+	)
+	context.expect_approx(
+		MovementSystem.ship_relative_to_world(Vector2(0.0, -1.0), PI * 0.5).angle(),
+		PI * 0.5,
+		"W follows the ship aim when it faces down"
+	)
+	context.expect_approx(
+		MovementSystem.ship_relative_to_world(Vector2(-1.0, 0.0), 0.0).angle(),
+		-PI * 0.5,
+		"A strafes left relative to a right-facing ship"
+	)
+	context.expect_approx(
+		angle_difference(
+			PI,
+			MovementSystem.ship_relative_to_world(Vector2(1.0, 0.0), PI * 0.5).angle()
+		),
+		0.0,
+		"D strafes right relative to a downward-facing ship"
+	)
+	context.expect_approx(
+		MovementSystem.ship_relative_to_world(Vector2(1.0, -1.0), PI * 0.25).length(),
+		1.0,
+		"ship-relative diagonal movement remains normalized"
+	)
 	var stats := CombatStats.create_base()
 	var accelerated := MovementSystem.step_velocity(
 		Vector2.ZERO, Vector2.RIGHT, stats, 1.0 / 60.0

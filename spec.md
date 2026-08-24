@@ -168,6 +168,7 @@ State transitions are reliable server events containing the new state, server ti
 | Drag | 700 px/s² |
 
 - Normalize combined WASD input so diagonal movement is not faster.
+- Interpret WASD in ship-local space: `W` moves along the current aim direction, `S` moves backward, and `A`/`D` strafe left/right perpendicular to aim.
 - With movement input, move velocity toward `input_direction × maximum_speed` at `acceleration × delta`.
 - Without movement input, move velocity toward zero at `drag × delta`.
 - Aim is independent of movement. The ship's forward vector snaps to the latest valid cursor-derived aim angle.
@@ -352,6 +353,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 9.2 Presentation Rules
 
 - Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles.
+- Replace the system arrow over the gameplay viewport with a high-contrast crosshair centered on the aim point.
 - Give every participant a stable color chosen from a high-contrast palette, then add name, outline pattern, and local-player marker so identity never depends on color alone.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
 - Keep critical HUD text at least 18 px at 1080p and scale UI with window size. Card body text must remain readable at 1280×720 without scrolling.
