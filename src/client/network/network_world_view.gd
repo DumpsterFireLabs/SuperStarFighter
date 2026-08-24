@@ -20,6 +20,11 @@ var input_send_accumulator: float = 0.0
 var prediction_initialized: bool = false
 var next_predicted_id: int = -1
 var latest_acknowledged_input: int = 0
+var latest_server_tick: int = 0
+var match_payload: Dictionary = {}
+var spectator_target_id: int = 0
+var controls_enabled: bool = false
+var card_catalog := CardCatalog.create_default()
 
 
 func setup(network_bridge: NetworkBridge) -> void:
@@ -61,6 +66,10 @@ func reset_session() -> void:
 	input_send_accumulator = 0.0
 	prediction_initialized = false
 	latest_acknowledged_input = 0
+	latest_server_tick = 0
+	match_payload.clear()
+	spectator_target_id = 0
+	controls_enabled = false
 	next_predicted_id = -1
 	predicted_projectile_ids.clear()
 	prediction = ClientPredictionBuffer.new()
@@ -83,13 +92,16 @@ func _physics_process(delta: float) -> void:
 	if not aim_vector.is_zero_approx():
 		aim_angle = aim_vector.angle()
 	var local_movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var local_alive := local_ship.combatant.alive
+	if not controls_enabled:
+		local_movement = Vector2.ZERO
 	var frame := PlayerInputFrame.new(
 		input_sequence,
 		client_tick,
 		local_movement,
 		aim_angle,
-		Input.is_action_pressed("fire"),
-		Input.is_action_pressed("shield")
+		controls_enabled and local_alive and Input.is_action_pressed("fire"),
+		controls_enabled and local_alive and Input.is_action_pressed("shield")
 	)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
@@ -97,7 +109,7 @@ func _physics_process(delta: float) -> void:
 		input_sequence = SequenceMath.increment(input_sequence)
 		frame.sequence = input_sequence
 		bridge.send_input(frame)
-	if prediction_initialized:
+	if prediction_initialized and local_alive and controls_enabled:
 		prediction.predict(frame, local_stats, delta)
 		local_ship.global_position = prediction.visual_position(delta)
 		local_ship.combatant.position = local_ship.global_position
@@ -121,6 +133,7 @@ func _on_connected(peer_id: int) -> void:
 
 func _on_snapshot(decoded: Dictionary) -> void:
 	latest_acknowledged_input = int(decoded.acknowledged_input)
+	latest_server_tick = int(decoded.server_tick)
 	var receive_time := _now_seconds()
 	var present_ids: Dictionary = {}
 	for state_value in decoded.states:
@@ -147,6 +160,44 @@ func _on_snapshot(decoded: Dictionary) -> void:
 			(ships[peer_id] as SandboxShip).queue_free()
 			ships.erase(peer_id)
 			interpolation.remove_peer(peer_id)
+	_update_spectator_target()
+
+
+func apply_match_state(payload: Dictionary) -> void:
+	match_payload = payload.duplicate(true)
+	controls_enabled = String(payload.get("state_name", "")) == "ACTIVE_HEAT"
+	var builds := payload.get("builds", {}) as Dictionary
+	if builds.has(local_peer_id):
+		local_stats = StatSystem.derive(builds[local_peer_id] as Dictionary, card_catalog)
+	if String(payload.get("state_name", "")) == "COUNTDOWN":
+		local_weapon.reset(local_stats)
+		prediction_initialized = false
+	_update_spectator_target()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible or not _local_is_eliminated():
+		return
+	var direction := 0
+	if event is InputEventKey and not event.echo:
+		if not event.pressed:
+			return
+		if event.physical_keycode == KEY_A:
+			direction = -1
+		elif event.physical_keycode == KEY_D:
+			direction = 1
+	elif event is InputEventMouseButton:
+		if not event.pressed:
+			return
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			direction = -1
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			direction = 1
+	else:
+		return
+	if direction != 0:
+		_cycle_spectator(direction)
+		get_viewport().set_input_as_handled()
 
 
 func _on_projectile_batch(decoded: Dictionary) -> void:
@@ -237,7 +288,13 @@ func _step_projectile_visuals(delta: float) -> void:
 
 
 func _update_camera(local_ship: SandboxShip, delta: float) -> void:
-	camera.position = camera.position.lerp(local_ship.global_position, 1.0 - exp(-8.0 * delta))
+	var target_position := local_ship.global_position
+	if not local_ship.combatant.alive:
+		if spectator_target_id != 0 and ships.has(spectator_target_id):
+			target_position = (ships[spectator_target_id] as SandboxShip).global_position
+		else:
+			target_position = ArenaLayout.center()
+	camera.position = camera.position.lerp(target_position, 1.0 - exp(-8.0 * delta))
 
 
 func _create_camera_and_hud() -> void:
@@ -260,7 +317,49 @@ func _create_camera_and_hud() -> void:
 
 
 func _update_diagnostics() -> void:
-	diagnostics_label.text = "NETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
+	var resources := ""
+	if ships.has(local_peer_id):
+		var local_ship := ships[local_peer_id] as SandboxShip
+		resources = "HP %.0f · SHIELD %.0f · AMMO %d" % [local_ship.combatant.health, local_ship.combatant.shield.energy, local_ship.combatant.weapon.ammunition]
+		if not local_ship.combatant.alive:
+			resources = "SPECTATING %d · A/D or mouse buttons to cycle" % spectator_target_id
+	diagnostics_label.text = "%s\nNETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [resources, Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
+
+
+func _local_is_eliminated() -> bool:
+	return ships.has(local_peer_id) and not (ships[local_peer_id] as SandboxShip).combatant.alive
+
+
+func _living_spectator_targets() -> Array[int]:
+	var result: Array[int] = []
+	for peer_value in ships.keys():
+		var peer_id := int(peer_value)
+		if peer_id != local_peer_id and (ships[peer_id] as SandboxShip).combatant.alive:
+			result.append(peer_id)
+	result.sort()
+	return result
+
+
+func _update_spectator_target() -> void:
+	if not _local_is_eliminated():
+		spectator_target_id = 0
+		return
+	var targets := _living_spectator_targets()
+	if targets.is_empty():
+		spectator_target_id = 0
+	elif spectator_target_id not in targets:
+		spectator_target_id = targets[0]
+
+
+func _cycle_spectator(direction: int) -> void:
+	var targets := _living_spectator_targets()
+	if targets.is_empty():
+		spectator_target_id = 0
+		return
+	var current_index := targets.find(spectator_target_id)
+	if current_index < 0:
+		current_index = 0
+	spectator_target_id = targets[posmod(current_index + direction, targets.size())]
 
 
 static func _now_seconds() -> float:

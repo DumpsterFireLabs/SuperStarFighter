@@ -21,6 +21,7 @@ enum Role {
 var role: Role = Role.NONE
 var lobby: ServerLobby
 var world: AuthoritativeWorld
+var match_coordinator: AuthoritativeMatchCoordinator
 var local_peer_id: int = 0
 var latest_lobby_state: Dictionary = {}
 var last_error: String = ""
@@ -47,8 +48,15 @@ func start_server(configuration: Dictionary) -> Error:
 	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
+	if bool(configuration.get("test_fast_match", false)):
+		match_config.draft_duration_seconds = 0.75
+		match_config.countdown_duration_seconds = 0.25
+		match_config.heat_result_duration_seconds = 0.25
+		match_config.round_result_duration_seconds = 0.25
+		match_config.match_result_duration_seconds = 0.75
 	lobby = ServerLobby.new(match_config)
 	world = AuthoritativeWorld.new()
+	match_coordinator = null
 	_enet_peer = ENetMultiplayerPeer.new()
 	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, 3)
 	if error != OK:
@@ -108,6 +116,7 @@ func stop() -> void:
 	_pending_handshakes.clear()
 	_pending_disconnects.clear()
 	local_peer_id = 0
+	match_coordinator = null
 	role = Role.NONE
 
 
@@ -137,7 +146,7 @@ func send_start_match() -> void:
 		request_start_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
 
 
-func send_card_selection(offer_token: int, card_id: StringName) -> void:
+func send_card_selection(offer_token: String, card_id: StringName) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		select_card.rpc_id(NetworkProtocol.SERVER_PEER_ID, offer_token, card_id)
 
@@ -147,7 +156,13 @@ func _physics_process(delta: float) -> void:
 		return
 	var start_usec := Time.get_ticks_usec()
 	_process_pending_connections()
-	world.step(delta)
+	world.step(delta, match_coordinator != null and match_coordinator.controls_enabled())
+	if match_coordinator != null:
+		match_coordinator.step(delta)
+		_drain_match_coordinator()
+		if match_coordinator.is_finished():
+			match_coordinator = null
+			_broadcast_lobby_state()
 	var tick := world.server_tick
 	if tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE) == 0:
 		_send_player_snapshots()
@@ -187,7 +202,16 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 	_pending_handshakes.complete(sender_id)
 	var player := result.player as PlayerMatchState
 	world.add_peer(sender_id)
+	if match_coordinator != null:
+		match_coordinator.add_late_spectator(player)
 	server_welcome.rpc_id(sender_id, sender_id, lobby.serialize())
+	if match_coordinator != null:
+		match_event.rpc_id(
+			sender_id,
+			&"STATE_CHANGED",
+			world.server_tick,
+			match_coordinator.current_state_payload()
+		)
 	_outbound_bytes += 64
 	_broadcast_lobby_state()
 	server_peer_admitted.emit(sender_id, player)
@@ -196,7 +220,7 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 		var start_result := lobby.request_start(lobby.leader_id)
 		if start_result.ok:
 			_broadcast_lobby_state()
-			_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": lobby.leader_id})
+			_start_match_coordinator(lobby.leader_id)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -219,18 +243,29 @@ func request_start_match() -> void:
 	var result := lobby.request_start(sender_id)
 	if result.ok:
 		_broadcast_lobby_state()
-		_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": sender_id})
+		_start_match_coordinator(sender_id)
 	else:
 		_send_request_rejected(sender_id, result.error)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func select_card(offer_token: int, card_id: StringName) -> void:
+func select_card(offer_token: String, card_id: StringName) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	_send_request_rejected(sender_id, "Card selection is only accepted during the authoritative draft state.")
-	_log("warning", "card_selection_rejected", {"peer_id": sender_id, "offer_token": offer_token, "card_id": String(card_id)})
+	if match_coordinator == null:
+		_send_request_rejected(sender_id, "Card selection is only accepted during the authoritative draft state.")
+		return
+	var result := match_coordinator.select_card(sender_id, offer_token, card_id)
+	if result != DraftManager.SelectionResult.ACCEPTED:
+		var result_name: String = String(DraftManager.SelectionResult.keys()[result])
+		_send_request_rejected(sender_id, "Card selection rejected: %s." % result_name.to_lower())
+		_log("warning", "card_selection_rejected", {
+			"peer_id": sender_id,
+			"selection_result": result_name,
+			"card_id": String(card_id),
+		})
+	_drain_match_coordinator()
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_INPUT)
@@ -282,7 +317,7 @@ func lobby_state(state: Dictionary) -> void:
 
 
 @rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func draft_offer(offer_token: int, card_ids: Array[StringName], deadline_tick: int) -> void:
+func draft_offer(offer_token: String, card_ids: Array[StringName], deadline_tick: int) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return
 	client_match_event_received.emit(&"DRAFT_OFFER", deadline_tick, {"offer_token": offer_token, "card_ids": card_ids})
@@ -329,6 +364,9 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
+	if match_coordinator != null:
+		match_coordinator.disconnect_peer(peer_id)
+		_drain_match_coordinator()
 	var departed := lobby.remove(peer_id) if lobby != null else null
 	if world != null:
 		world.remove_peer(peer_id)
@@ -398,6 +436,50 @@ func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void
 	var tick := world.server_tick if world != null else 0
 	match_event.rpc(event_type, tick, payload)
 	_log("info", "match_event", {"event_type": String(event_type), "server_tick": tick})
+
+
+func _start_match_coordinator(leader_id: int) -> void:
+	var configured_seed := int(_configuration.get("test_match_seed", 0))
+	var seed_value := configured_seed if configured_seed > 0 else int(Time.get_unix_time_from_system())
+	var overtime_start := 2.0 if bool(_configuration.get("test_fast_match", false)) else GameConstants.OVERTIME_START_SECONDS
+	match_coordinator = AuthoritativeMatchCoordinator.new(lobby, world, seed_value, overtime_start)
+	if not match_coordinator.start(world.server_tick):
+		match_coordinator = null
+		lobby.return_to_lobby()
+		_broadcast_lobby_state()
+		_send_request_rejected(leader_id, "The match coordinator could not start.")
+		return
+	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": leader_id, "match_seed": seed_value})
+	_drain_match_coordinator()
+
+
+func _drain_match_coordinator() -> void:
+	if match_coordinator == null:
+		return
+	for event_value in match_coordinator.drain_events():
+		var event := event_value as Dictionary
+		var event_type := event.event_type as StringName
+		var server_tick_value := int(event.server_tick)
+		var payload := event.payload as Dictionary
+		match_event.rpc(event_type, server_tick_value, payload)
+		_log("info", "match_event", {
+			"event_type": String(event_type),
+			"server_tick": server_tick_value,
+			"state": payload.get("state_name", ""),
+			"round": payload.get("round_number", 0),
+			"heat": payload.get("heat_number", 0),
+			"winner": payload.get("match_winner", 0),
+		})
+	for offer_value in match_coordinator.drain_private_offers():
+		var offer := offer_value as Dictionary
+		var peer_id := int(offer.peer_id)
+		if lobby.players.has(peer_id):
+			draft_offer.rpc_id(
+				peer_id,
+				String(offer.offer_token),
+				offer.card_ids as Array[StringName],
+				int(offer.deadline_tick)
+			)
 
 
 func _send_player_snapshots() -> void:

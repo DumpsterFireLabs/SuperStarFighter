@@ -12,6 +12,12 @@ var observed_movement: bool = false
 var observed_aim: bool = false
 var observed_shield: bool = false
 var observed_correction: bool = false
+var passive: bool = false
+var draft_timeout: bool = false
+var match_state_name: String = "LOBBY"
+var latest_states: Dictionary = {}
+var match_result_count: int = 0
+var lobby_return_count: int = 0
 
 
 func _ready() -> void:
@@ -21,11 +27,14 @@ func _ready() -> void:
 	add_child(bridge)
 	bridge.client_connected.connect(_on_welcome)
 	bridge.client_lobby_updated.connect(_on_lobby_state)
+	bridge.client_match_event_received.connect(_on_match_event)
 	bridge.client_snapshot_received.connect(_on_snapshot)
 	bridge.client_projectile_batch_received.connect(_on_projectile_batch)
 	bridge.client_projectile_correction_received.connect(_on_projectile_correction)
 	bridge.client_rejected.connect(_on_rejected)
 	bridge.client_connection_lost.connect(_on_connection_lost)
+	passive = bool(configuration.get("bot_passive", false))
+	draft_timeout = bool(configuration.get("bot_draft_timeout", false))
 	var connect_error := bridge.start_client(
 		configuration.get("host", "127.0.0.1"),
 		configuration.get("port", GameConstants.DEFAULT_PORT),
@@ -55,13 +64,20 @@ func _physics_process(delta: float) -> void:
 		send_accumulator -= send_interval
 		input_sequence = SequenceMath.increment(input_sequence)
 		client_tick = SequenceMath.increment(client_tick)
+		var aim_angle := fposmod(elapsed * 0.8, TAU)
+		var movement := Vector2(sin(elapsed * 0.7) * 0.65, -0.75).limit_length(1.0)
+		var target_position := _target_position()
+		if target_position != Vector2.INF and latest_states.has(bridge.local_peer_id):
+			var local_state := latest_states[bridge.local_peer_id] as Dictionary
+			aim_angle = (target_position - (local_state.position as Vector2)).angle()
+			movement = Vector2.ZERO if passive else Vector2(0.0, -0.85)
 		var frame := PlayerInputFrame.new(
 			input_sequence,
 			client_tick,
-			Vector2(sin(elapsed * 0.7) * 0.65, -0.75).limit_length(1.0),
-			fposmod(elapsed * 0.8, TAU),
-			fmod(elapsed, 1.0) < 0.7,
-			fmod(elapsed, 5.0) > 4.2
+			movement,
+			aim_angle,
+			not passive and match_state_name == "ACTIVE_HEAT",
+			not passive and fmod(elapsed, 5.0) > 4.2
 		)
 		bridge.send_input(frame)
 
@@ -79,6 +95,10 @@ func _on_lobby_state(state: Dictionary) -> void:
 
 func _on_snapshot(decoded: Dictionary) -> void:
 	snapshot_count += 1
+	latest_states.clear()
+	for state_value in decoded.states:
+		var indexed_state := state_value as Dictionary
+		latest_states[int(indexed_state.peer_id)] = indexed_state
 	if snapshot_count == 1:
 		print("SSF_BOT_SNAPSHOT server_tick=%d players=%d ack=%d rtt_ms=%d" % [decoded.server_tick, (decoded.states as Array).size(), decoded.acknowledged_input, bridge.get_round_trip_time_ms()])
 	if not observed_ack and int(decoded.acknowledged_input) > 0:
@@ -95,6 +115,32 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		if not observed_shield and bool(state.shielding):
 			observed_shield = true
 			print("SSF_BOT_SHIELD peer_id=%d" % state.peer_id)
+
+
+func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
+	if event_type == &"DRAFT_OFFER":
+		var card_ids := payload.get("card_ids", []) as Array
+		print("SSF_BOT_DRAFT_OFFER cards=%d timeout=%s" % [card_ids.size(), str(draft_timeout).to_lower()])
+		if not draft_timeout and not card_ids.is_empty():
+			bridge.send_card_selection(String(payload.get("offer_token", "")), StringName(card_ids[0]))
+		return
+	if event_type != &"STATE_CHANGED":
+		return
+	match_state_name = String(payload.get("state_name", ""))
+	print("SSF_BOT_STATE state=%s round=%d heat=%d winner=%d" % [
+		match_state_name,
+		int(payload.get("round_number", 0)),
+		int(payload.get("heat_number", 0)),
+		int(payload.get("match_winner", 0)),
+	])
+	if match_state_name == "MATCH_RESULT":
+		match_result_count += 1
+		print("SSF_BOT_MATCH_RESULT count=%d winner=%d" % [match_result_count, int(payload.get("match_winner", 0))])
+	elif match_state_name == "LOBBY":
+		lobby_return_count += 1
+		var builds := payload.get("builds", {}) as Dictionary
+		var scores := payload.get("scores", {}) as Dictionary
+		print("SSF_BOT_LOBBY_RETURN count=%d builds=%d scores=%d" % [lobby_return_count, builds.size(), scores.size()])
 
 
 func _on_projectile_batch(decoded: Dictionary) -> void:
@@ -122,3 +168,16 @@ func _on_connection_lost(message: String) -> void:
 func _exit_tree() -> void:
 	if bridge != null:
 		bridge.stop()
+
+
+func _target_position() -> Vector2:
+	var peer_ids := latest_states.keys()
+	peer_ids.sort()
+	for peer_value in peer_ids:
+		var peer_id := int(peer_value)
+		if peer_id == bridge.local_peer_id:
+			continue
+		var state := latest_states[peer_id] as Dictionary
+		if bool(state.alive):
+			return state.position as Vector2
+	return Vector2.INF

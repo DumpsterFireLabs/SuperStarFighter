@@ -13,8 +13,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 1 — Shared Rules, Cards, and Match Model | Complete | 16 card resources validated; deterministic stats, draft, and scoring/state-machine rules covered; 345 assertions passed; forced-failure exit verified. |
 | 2 — Offline Combat Sandbox | Complete | Final-size arena and combat lab operational; 32 spawns validated; 15-minute accelerated lifecycle soak passed; 427 assertions and 43 project checks passed. |
 | 3 — Authoritative Networking and Lobby | Complete | Real ENet clients verified across three channels; rejection, lobby authority, prediction/interpolation, snapshots, projectiles, leader transfer, late spectator, and clean shutdown passed; 602 assertions and 61 project checks passed. |
-| 4 — Complete Multiplayer Match Loop | Next | Milestone 3 exit gate passed. |
-| 5 — Production UI, Neon Presentation, and Audio | Planned | Depends on Milestone 4. |
+| 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; timeout, ties, extended rounds, forfeit, late spectator, reset, and second match covered; 667 assertions and 63 project checks passed. |
+| 5 — Production UI, Neon Presentation, and Audio | Next | Milestone 4 exit gate passed. |
 | 6 — Validation, Diagnostics, and 32-Client Hardening | Planned | Depends on Milestone 5. |
 | 7 — Export, Documentation, and Release Candidate | Planned | Depends on Milestone 6. |
 
@@ -83,7 +83,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 2 — Offline Combat Sandbox
 
-**Status:** Complete — 2026-08-24  
+**Status:** Complete — 2026-08-24
 **Outcome:** One local player can move, aim, shoot, shield, take damage, die, and experience overtime in the final arena geometry.
 
 ### Work
@@ -137,7 +137,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 4 — Complete Multiplayer Match Loop
 
-**Status:** Next  
+**Status:** Complete — 2026-08-24
+
 **Outcome:** Human clients can play a networked match from lobby through draft, heats, rounds, results, and a clean second match.
 
 ### Work
@@ -164,6 +165,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 5 — Production UI, Neon Presentation, and Audio
 
+**Status:** Next
 **Outcome:** The vertical slice communicates every state and combat event clearly at the target resolutions.
 
 ### Work

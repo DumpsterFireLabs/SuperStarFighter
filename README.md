@@ -18,6 +18,7 @@ From PowerShell in the repository root:
 .\tools\run-tests.ps1
 .\tools\verify-foundation.ps1
 .\tools\verify-network.ps1
+.\tools\verify-match-loop.ps1
 .\tools\start-server.ps1
 .\tools\start-client.ps1
 ```
@@ -26,9 +27,9 @@ The bootstrap script downloads the pinned portable Godot release and export temp
 
 ## Current Status
 
-Milestones 0–3 are complete. The client now provides a direct-IP connection screen and online lobby alongside the offline combat lab. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. The project verifier passes 61 startup, parser, and test checks; the headless suite passes 602 assertions and verifies that an intentional failure returns a nonzero exit code.
+Milestones 0–4 are complete. Human clients can now play the authoritative online loop from lobby through private card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. The project verifier passes 63 startup, parser, and test checks; the headless suite passes 667 assertions and verifies that an intentional failure returns a nonzero exit code.
 
-Milestone 4 (complete multiplayer match loop) is next.
+Milestone 5 (production UI, neon presentation, and audio) is next.
 
 ## Local Multiplayer
 
@@ -41,6 +42,15 @@ Start the authoritative server in one PowerShell window:
 Start one or more clients with `.\tools\start-client.ps1`, enter the server host and UDP port, and connect. The first admitted player is lobby leader. Use the in-client controls to change the round target and start once at least two participants are present.
 
 `verify-network.ps1` launches isolated protocol clients and verifies handshake acceptance/rejection, authoritative inputs and snapshots, projectile traffic, leader transfer, late-spectator admission, and clean shutdown.
+
+`verify-match-loop.ps1` launches one server and two protocol clients through deterministic full matches, including a private card choice, timeout auto-pick, scoring, reset, rematch, and clean shutdown.
+
+## Online Match Controls
+
+- `W` / `S`: forward/back relative to ship aim; `A` / `D`: strafe left/right; mouse: aim; left mouse: fire; right mouse: shield.
+- Draft cards: click a card or press `1`–`5`.
+- Hold `Tab` to inspect scores and public card builds.
+- After elimination, use `A` / `D` or the left/right mouse buttons to cycle living ships.
 
 ## Offline Sandbox Controls
 

@@ -116,10 +116,18 @@ func is_active() -> bool:
 	return _active
 
 
+func withdraw_player(peer_id: int) -> void:
+	var offer := get_offer(peer_id)
+	if offer == null:
+		return
+	offer.selected_card_id = &""
+	offer.build_complete = true
+	offer.locked = true
+
+
 func _shuffle(values: Array[StringName]) -> void:
 	for index in range(values.size() - 1, 0, -1):
 		var swap_index := _rng.randi_range(0, index)
 		var temporary := values[index]
 		values[index] = values[swap_index]
 		values[swap_index] = temporary
-

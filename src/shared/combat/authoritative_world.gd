@@ -44,8 +44,10 @@ func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
 	return true
 
 
-func step(delta: float) -> void:
+func step(delta: float, controls_enabled: bool = true) -> void:
 	server_tick = SequenceMath.increment(server_tick)
+	if not controls_enabled:
+		return
 	var peer_ids := _ordered_peer_ids()
 	for peer_id in peer_ids:
 		var combatant := combatants[peer_id] as CombatantState
@@ -63,6 +65,63 @@ func step(delta: float) -> void:
 	_step_projectiles(delta, peer_ids)
 	for projectile_id in projectile_registry.step_cleanup(delta):
 		_record_removed(projectile_id)
+
+
+func prepare_heat(
+	participant_stats: Dictionary,
+	spawn_assignments: Dictionary
+) -> void:
+	clear_projectiles()
+	for peer_id in _ordered_peer_ids():
+		var combatant := combatants[peer_id] as CombatantState
+		if participant_stats.has(peer_id) and spawn_assignments.has(peer_id):
+			combatant.reset_for_heat(
+				participant_stats[peer_id] as CombatStats,
+				spawn_assignments[peer_id] as Vector2
+			)
+		else:
+			combatant.alive = false
+			combatant.health = 0.0
+			combatant.velocity = Vector2.ZERO
+			combatant.shield.active = false
+
+
+func set_spectator(peer_id: int) -> void:
+	var combatant := combatants.get(peer_id) as CombatantState
+	if combatant == null:
+		return
+	combatant.alive = false
+	combatant.health = 0.0
+	combatant.velocity = Vector2.ZERO
+	combatant.shield.active = false
+
+
+func clear_projectiles() -> void:
+	for projectile in projectile_registry.all_projectiles():
+		_remove_projectile(projectile.projectile_id)
+
+
+func apply_overtime(heat_elapsed: float, delta: float) -> Array[int]:
+	var damage_events: Array[Dictionary] = []
+	for peer_id in _ordered_peer_ids():
+		var combatant := combatants[peer_id] as CombatantState
+		if not combatant.alive:
+			continue
+		var damage := OvertimeSystem.damage_for_position(
+			combatant.position,
+			heat_elapsed,
+			delta
+		)
+		if damage > 0.0:
+			damage_events.append({
+				"projectile_id": 2_000_000_000 + peer_id,
+				"target_id": peer_id,
+				"damage": damage,
+			})
+	var deaths := DamageResolver.resolve_tick(combatants, damage_events)
+	for peer_id in deaths:
+		projectile_registry.schedule_owner_cleanup(peer_id)
+	return deaths
 
 
 func snapshot_states() -> Array[Dictionary]:

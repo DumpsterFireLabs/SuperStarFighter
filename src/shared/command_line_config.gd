@@ -18,6 +18,10 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"test_protocol_version": GameConstants.PROTOCOL_VERSION,
 		"has_test_protocol_override": false,
 		"test_server_duration": 0,
+		"test_fast_match": false,
+		"test_match_seed": 0,
+		"bot_passive": false,
+		"bot_draft_timeout": false,
 	}
 	var explicit_modes: Array[String] = []
 
@@ -70,6 +74,22 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			result.auto_start = true
 		elif argument == "--force-test-failure":
 			result.force_test_failure = true
+		elif argument == "--test-fast-match":
+			result.test_fast_match = true
+		elif argument.begins_with("--test-match-seed="):
+			var parsed_seed := _parse_bounded_integer(
+				argument.trim_prefix("--test-match-seed="),
+				1,
+				2147483647,
+				"--test-match-seed"
+			)
+			if not parsed_seed.ok:
+				return parsed_seed
+			result.test_match_seed = parsed_seed.value
+		elif argument == "--bot-passive":
+			result.bot_passive = true
+		elif argument == "--bot-draft-timeout":
+			result.bot_draft_timeout = true
 		elif argument.begins_with("--test-protocol-version="):
 			var parsed_protocol := _parse_bounded_integer(
 				argument.trim_prefix("--test-protocol-version="),
@@ -106,6 +126,12 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("--test-protocol-version is only valid with --bot-client.")
 	if result.test_server_duration > 0 and result.mode != "server":
 		return _error("--test-server-duration is only valid with --server.")
+	if result.test_fast_match and result.mode != "server":
+		return _error("--test-fast-match is only valid with --server.")
+	if result.test_match_seed > 0 and result.mode != "server":
+		return _error("--test-match-seed is only valid with --server.")
+	if (result.bot_passive or result.bot_draft_timeout) and result.mode != "bot_client":
+		return _error("Bot behavior options are only valid with --bot-client.")
 	return result
 
 

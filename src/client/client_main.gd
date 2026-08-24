@@ -13,6 +13,17 @@ var connection_status: Label
 var lobby_label: Label
 var rounds_control: SpinBox
 var start_button: Button
+var match_panel: PanelContainer
+var match_label: Label
+var draft_panel: PanelContainer
+var draft_title: Label
+var draft_buttons: Array[Button] = []
+var scoreboard_panel: PanelContainer
+var scoreboard_label: Label
+var card_catalog := CardCatalog.create_default()
+var active_offer_token: String = ""
+var active_offer_deadline: int = -1
+var latest_match_payload: Dictionary = {}
 var _applying_lobby_state: bool = false
 
 
@@ -33,12 +44,19 @@ func _ready() -> void:
 	add_child(network_world)
 	network_world.setup(bridge)
 	_create_connection_ui(configuration)
+	_create_match_ui()
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=enet" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
 		_show_connection_screen("Choose online play or the offline combat lab.")
+	if event is InputEventKey and event.pressed and not event.echo and draft_panel != null and draft_panel.visible:
+		for index in draft_buttons.size():
+			if event.is_action_pressed("draft_%d" % (index + 1)):
+				_select_draft_card(index)
+				get_viewport().set_input_as_handled()
+				break
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
@@ -137,6 +155,58 @@ func _create_lobby_panel() -> void:
 	content.add_child(disconnect_button)
 
 
+func _create_match_ui() -> void:
+	match_panel = PanelContainer.new()
+	match_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	match_panel.position = Vector2(-270.0, 18.0)
+	match_panel.custom_minimum_size = Vector2(540.0, 88.0)
+	match_panel.visible = false
+	connection_canvas.add_child(match_panel)
+	match_label = Label.new()
+	match_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_label.add_theme_font_size_override("font_size", 18)
+	match_label.add_theme_color_override("font_color", Color("73f7ff"))
+	match_panel.add_child(match_label)
+
+	draft_panel = PanelContainer.new()
+	draft_panel.set_anchors_preset(Control.PRESET_CENTER)
+	draft_panel.position = Vector2(-510.0, -230.0)
+	draft_panel.custom_minimum_size = Vector2(1020.0, 460.0)
+	draft_panel.visible = false
+	connection_canvas.add_child(draft_panel)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 14)
+	draft_panel.add_child(content)
+	draft_title = Label.new()
+	draft_title.text = "CHOOSE YOUR UPGRADE"
+	draft_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	draft_title.add_theme_font_size_override("font_size", 28)
+	draft_title.add_theme_color_override("font_color", Color("d39cff"))
+	content.add_child(draft_title)
+	var cards := HBoxContainer.new()
+	cards.alignment = BoxContainer.ALIGNMENT_CENTER
+	cards.add_theme_constant_override("separation", 10)
+	content.add_child(cards)
+	for index in GameConstants.CARD_OFFER_SIZE:
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(190.0, 320.0)
+		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		button.pressed.connect(_select_draft_card.bind(index))
+		cards.add_child(button)
+		draft_buttons.append(button)
+
+	scoreboard_panel = PanelContainer.new()
+	scoreboard_panel.set_anchors_preset(Control.PRESET_CENTER)
+	scoreboard_panel.position = Vector2(-360.0, -260.0)
+	scoreboard_panel.custom_minimum_size = Vector2(720.0, 520.0)
+	scoreboard_panel.visible = false
+	connection_canvas.add_child(scoreboard_panel)
+	scoreboard_label = Label.new()
+	scoreboard_label.add_theme_font_size_override("font_size", 18)
+	scoreboard_label.add_theme_color_override("font_color", Color("e8f5ff"))
+	scoreboard_panel.add_child(scoreboard_label)
+
+
 func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
 	var label := Label.new()
 	label.text = label_text
@@ -170,9 +240,13 @@ func _connect_online() -> void:
 
 func _play_offline() -> void:
 	bridge.stop()
+	latest_match_payload.clear()
 	network_world.set_network_active(false)
 	connection_screen.visible = false
 	lobby_panel.visible = false
+	match_panel.visible = false
+	draft_panel.visible = false
+	scoreboard_panel.visible = false
 	offline_sandbox.set_sandbox_active(true)
 
 
@@ -186,8 +260,14 @@ func _show_connection_screen(message: String) -> void:
 		bridge.stop()
 	network_world.set_network_active(false)
 	offline_sandbox.set_sandbox_active(false)
+	latest_match_payload.clear()
+	active_offer_token = ""
+	active_offer_deadline = -1
 	connection_screen.visible = true
 	lobby_panel.visible = false
+	match_panel.visible = false
+	draft_panel.visible = false
+	scoreboard_panel.visible = false
 	connection_status.text = message
 
 
@@ -226,6 +306,141 @@ func _on_rounds_changed(value: float) -> void:
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
 	if event_type == &"REQUEST_REJECTED":
 		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
+	elif event_type == &"DRAFT_OFFER":
+		_show_draft_offer(payload)
+	elif event_type == &"STATE_CHANGED":
+		latest_match_payload = payload.duplicate(true)
+		network_world.apply_match_state(payload)
+		_update_match_presentation()
+	elif event_type == &"DRAFT_RESOLVED":
+		latest_match_payload["builds"] = payload.get("builds", {})
+		draft_panel.visible = false
+
+
+func _process(_delta: float) -> void:
+	if not latest_match_payload.is_empty():
+		_update_match_presentation()
+	if scoreboard_panel != null:
+		scoreboard_panel.visible = match_panel.visible and Input.is_action_pressed("scoreboard")
+		if scoreboard_panel.visible:
+			_update_scoreboard()
+
+
+func _show_draft_offer(payload: Dictionary) -> void:
+	active_offer_token = String(payload.get("offer_token", ""))
+	active_offer_deadline = int(payload.get("deadline_tick", -1))
+	var card_ids := payload.get("card_ids", []) as Array
+	for index in draft_buttons.size():
+		var button := draft_buttons[index]
+		button.visible = index < card_ids.size()
+		button.disabled = false
+		button.set_meta("card_id", StringName(card_ids[index]) if index < card_ids.size() else &"")
+		if index >= card_ids.size():
+			continue
+		var card := card_catalog.get_card(StringName(card_ids[index]))
+		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
+		button.text = "%d\n\n%s\n[%s]\n\n%s\n\nStack %d → %d" % [
+			index + 1,
+			card.display_name,
+			card.category_name(),
+			card.description,
+			current_stacks,
+			current_stacks + 1,
+		] if card != null else String(card_ids[index])
+	draft_panel.visible = true
+	match_panel.visible = true
+	_update_match_presentation()
+
+
+func _select_draft_card(index: int) -> void:
+	if index < 0 or index >= draft_buttons.size():
+		return
+	var button := draft_buttons[index]
+	if not button.visible or button.disabled:
+		return
+	var card_id := button.get_meta("card_id", &"") as StringName
+	if card_id.is_empty():
+		return
+	bridge.send_card_selection(active_offer_token, card_id)
+	for draft_button in draft_buttons:
+		draft_button.disabled = true
+	button.text += "\n\nSELECTED"
+
+
+func _update_match_presentation() -> void:
+	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
+	if state_name == "LOBBY":
+		match_panel.visible = false
+		draft_panel.visible = false
+		return
+	match_panel.visible = true
+	if state_name != "DRAFT":
+		draft_panel.visible = false
+	var deadline := int(latest_match_payload.get("deadline_tick", -1))
+	if state_name == "DRAFT" and active_offer_deadline >= 0:
+		deadline = active_offer_deadline
+	var seconds_left := maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0) if deadline >= 0 else 0.0
+	var status := "%s · Round %d · Heat %d" % [
+		state_name.replace("_", " ").capitalize(),
+		int(latest_match_payload.get("round_number", 0)),
+		int(latest_match_payload.get("heat_number", 0)),
+	]
+	if deadline >= 0:
+		status += " · %.1fs" % seconds_left
+	if state_name == "ACTIVE_HEAT":
+		status += " · %d alive" % (latest_match_payload.get("alive_peer_ids", []) as Array).size()
+		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
+		if overtime_tick >= 0:
+			status += " · OVERTIME" if network_world.latest_server_tick >= overtime_tick else " · overtime in %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
+	elif state_name == "HEAT_RESULT":
+		status += " · %s" % ("Tie" if bool(latest_match_payload.get("tied_heat", false)) else "%s wins heat" % _player_name(int(latest_match_payload.get("last_heat_winner", 0))))
+	elif state_name == "ROUND_RESULT":
+		status += " · %s wins round" % _player_name(int(latest_match_payload.get("last_round_winner", 0)))
+	elif state_name == "MATCH_RESULT":
+		status = "★ %s WINS THE MATCH ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
+	match_label.text = status
+	if state_name == "DRAFT":
+		draft_title.text = "CHOOSE YOUR UPGRADE · %.1fs" % seconds_left
+
+
+func _local_build_stack(card_id: StringName) -> int:
+	var builds := latest_match_payload.get("builds", {}) as Dictionary
+	var local_build := builds.get(bridge.local_peer_id, {}) as Dictionary
+	return int(local_build.get(card_id, 0))
+
+
+func _player_name(peer_id: int) -> String:
+	for player_value in bridge.latest_lobby_state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == peer_id:
+			return String(player.get("display_name", "Pilot"))
+	return "Pilot %d" % peer_id
+
+
+func _update_scoreboard() -> void:
+	var lines := PackedStringArray(["SCOREBOARD", "", "PILOT                         HEATS  ROUNDS  BUILD"])
+	var scores := latest_match_payload.get("scores", {}) as Dictionary
+	var builds := latest_match_payload.get("builds", {}) as Dictionary
+	var participant_ids := latest_match_payload.get("participant_peer_ids", []) as Array
+	for peer_value in participant_ids:
+		var peer_id := int(peer_value)
+		var score := scores.get(peer_id, {}) as Dictionary
+		var build := builds.get(peer_id, {}) as Dictionary
+		var card_parts := PackedStringArray()
+		var card_ids := build.keys()
+		card_ids.sort()
+		for card_value in card_ids:
+			var card_id := StringName(card_value)
+			var card := card_catalog.get_card(card_id)
+			card_parts.append("%s ×%d" % [card.display_name if card != null else String(card_id), int(build[card_value])])
+		lines.append("%-28s  %d      %d       %s" % [
+			_player_name(peer_id),
+			int(score.get("heat_wins", 0)),
+			int(score.get("round_wins", 0)),
+			", ".join(card_parts) if not card_parts.is_empty() else "—",
+		])
+	lines.append("\nHold Tab to inspect · builds are public after each draft")
+	scoreboard_label.text = "\n".join(lines)
 
 
 func _on_rejected(_reason: StringName, message: String) -> void:

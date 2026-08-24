@@ -10,6 +10,7 @@ func _ready() -> void:
 	MatchStateMachineTests.run(_context)
 	CombatSystemTests.run(_context)
 	NetworkProtocolTests.run(_context)
+	MatchCoordinatorTests.run(_context)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):
 		_context.expect_true(false, "forced failure proves the nonzero exit path")
@@ -60,13 +61,25 @@ func _run_foundation_tests() -> void:
 	_context.expect_equal(server_config.get("max_players"), 16, "custom player limit parses")
 	_context.expect_equal(server_config.get("rounds_to_win"), 4, "custom round target parses")
 	_context.expect_equal(server_config.get("host"), "localhost", "custom network host parses")
+	var match_test_config := CommandLineConfig.parse(PackedStringArray([
+		"--server",
+		"--test-fast-match",
+		"--test-match-seed=4242",
+	]))
+	_context.expect_true(match_test_config.ok, "match-loop test server options parse")
+	_context.expect_true(match_test_config.get("test_fast_match"), "fast match test mode is retained")
+	_context.expect_equal(match_test_config.get("test_match_seed"), 4242, "deterministic match seed parses")
 	var bot_config := CommandLineConfig.parse(PackedStringArray([
 		"--bot-client=ProtocolProbe",
 		"--host=127.0.0.1",
 		"--test-protocol-version=999",
+		"--bot-passive",
+		"--bot-draft-timeout",
 	]))
 	_context.expect_true(bot_config.ok, "test bot protocol override parses")
 	_context.expect_equal(bot_config.get("test_protocol_version"), 999, "test bot protocol override is retained")
+	_context.expect_true(bot_config.get("bot_passive"), "passive bot behavior parses")
+	_context.expect_true(bot_config.get("bot_draft_timeout"), "draft-timeout bot behavior parses")
 	var invalid_protocol_override := CommandLineConfig.parse(PackedStringArray([
 		"--server",
 		"--test-protocol-version=999",

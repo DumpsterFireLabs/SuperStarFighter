@@ -91,7 +91,7 @@ function Assert-SsfContains {
 
 try {
     $server = Start-SsfProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", '--max-players=2', '--rounds-to-win=2', '--auto-start', '--test-server-duration=20'
+        '--server', "--port=$Port", '--max-players=2', '--rounds-to-win=2', '--auto-start', '--test-server-duration=40'
     )
     Start-Sleep -Milliseconds 600
     $alpha = Start-SsfProcess -Name 'alpha' -UserArguments @(
@@ -197,7 +197,7 @@ try {
         throw "Network verification emitted unexpected Godot errors: $($unexpectedErrors -join ' | ')"
     }
 
-    Wait-SsfCondition -Description 'graceful server shutdown' -TimeoutSeconds 20 -Condition {
+    Wait-SsfCondition -Description 'graceful server shutdown' -TimeoutSeconds 40 -Condition {
         $server.HasExited -and (Get-SsfOutput -Name 'server').Contains('SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration')
     }
     $serverText = Get-SsfOutput -Name 'server'
