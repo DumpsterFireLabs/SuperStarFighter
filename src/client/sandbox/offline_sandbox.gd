@@ -103,7 +103,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_Y:
 			_reset_combatants()
 		KEY_O:
-			_cycle_overtime_debug()
+			if event.shift_pressed:
+				_cycle_overtime_debug()
+			else:
+				_toggle_overtime_debug()
 		KEY_F1:
 			help_label.visible = not help_label.visible
 
@@ -161,7 +164,7 @@ func _create_hud() -> void:
 	card_label.add_theme_font_size_override("font_size", 16)
 	content.add_child(card_label)
 	help_label = Label.new()
-	help_label.text = "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O cycle overtime · F1 help"
+	help_label.text = "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help"
 	help_label.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(help_label)
 
@@ -171,6 +174,16 @@ func _spawn_shot(ship: SandboxShip) -> void:
 	for angle in MovementSystem.spread_angles(ship.combatant.aim_angle, ship.combatant.stats.projectile_count, ship.combatant.stats.projectile_spread_degrees):
 		var projectile := ProjectileState.create(next_projectile_id, ship.combatant.peer_id, ship.combatant.weapon.shot_sequence, muzzle, angle, ship.combatant.stats)
 		next_projectile_id += 1
+		var spawn_normal := ArenaCollisionSystem.projectile_obstacle_normal(
+			projectile.position,
+			projectile.radius
+		)
+		if not spawn_normal.is_zero_approx():
+			if not projectile.ricochet(spawn_normal):
+				continue
+			projectile.position = ship.global_position + spawn_normal * (
+				GameConstants.SHIP_COLLISION_RADIUS + projectile.radius + 1.0
+			)
 		projectile_registry.add(projectile)
 
 
@@ -311,3 +324,15 @@ func _cycle_overtime_debug() -> void:
 		1: heat_elapsed = 85.0
 		2: heat_elapsed = 90.0
 		3: heat_elapsed = 135.0
+
+
+func _toggle_overtime_debug() -> void:
+	heat_elapsed = next_overtime_toggle_time(heat_elapsed)
+	overtime_debug_stage = 0 if heat_elapsed == 0.0 else 2
+
+
+static func next_overtime_toggle_time(current_heat_elapsed: float) -> float:
+	var warning_start := (
+		GameConstants.OVERTIME_START_SECONDS - GameConstants.OVERTIME_WARNING_SECONDS
+	)
+	return 0.0 if current_heat_elapsed >= warning_start else GameConstants.OVERTIME_START_SECONDS

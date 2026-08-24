@@ -12,6 +12,7 @@ static func run(context: TestContext) -> void:
 	_validate_prediction_and_interpolation(context)
 	_validate_authoritative_world(context)
 	_validate_connection_admission(context)
+	_validate_reconnect_reset(context)
 
 
 static func _validate_sequence_wrap(context: TestContext) -> void:
@@ -234,6 +235,28 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	context.expect_equal(snapshot.size(), 2, "authoritative snapshot contains every connected combatant")
 	context.expect_true(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(world.server_tick, world.acknowledged_input(2), snapshot)).ok, "authoritative world snapshot survives wire encoding")
 
+	var blocked_world := AuthoritativeWorld.new()
+	var blocked_shooter := blocked_world.add_peer(20)
+	blocked_shooter.position = Vector2(GameConstants.SHIP_COLLISION_RADIUS, 500.0)
+	blocked_world.submit_input(20, PlayerInputFrame.new(1, 1, Vector2.ZERO, PI, true))
+	blocked_world.step(1.0 / 60.0)
+	var blocked_batch := blocked_world.drain_projectile_batch()
+	context.expect_empty(blocked_batch.spawned, "muzzle against boundary cannot create projectile beyond wall")
+	context.expect_equal(blocked_world.projectile_registry.size(), 0, "blocked muzzle leaves no through-wall projectile")
+
+	var ricochet_stats := CombatStats.create_base()
+	ricochet_stats.ricochet_count = 1
+	var ricochet_world := AuthoritativeWorld.new()
+	var ricochet_shooter := ricochet_world.add_peer(21, ricochet_stats)
+	ricochet_shooter.position = Vector2(GameConstants.SHIP_COLLISION_RADIUS, 600.0)
+	ricochet_world.submit_input(21, PlayerInputFrame.new(1, 1, Vector2.ZERO, PI, true))
+	ricochet_world.step(1.0 / 60.0)
+	var ricochet_batch := ricochet_world.drain_projectile_batch()
+	context.expect_equal((ricochet_batch.spawned as Array).size(), 1, "wall-adjacent ricochet shot bounces instead of crossing wall")
+	if not (ricochet_batch.spawned as Array).is_empty():
+		var bounced := ricochet_batch.spawned[0] as ProjectileState
+		context.expect_true(bounced.velocity.x > 0.0, "wall-adjacent ricochet reflects back into arena")
+
 
 static func _validate_connection_admission(context: TestContext) -> void:
 	context.expect_equal(
@@ -262,3 +285,22 @@ static func _validate_connection_admission(context: TestContext) -> void:
 	context.expect_empty(handshakes.expired(109.999), "handshake remains pending before ten-second deadline")
 	context.expect_equal(handshakes.expired(110.0), [9], "handshake expires at ten-second deadline")
 	context.expect_true(handshakes.complete(9), "completed handshake is removed")
+
+
+static func _validate_reconnect_reset(context: TestContext) -> void:
+	var view := NetworkWorldView.new()
+	view.camera = Camera2D.new()
+	view.camera.position = Vector2(50.0, 75.0)
+	view.local_peer_id = 99
+	view.input_sequence = 400
+	view.client_tick = 500
+	view.prediction_initialized = true
+	view.prediction.predicted_position = Vector2(3000.0, 1700.0)
+	view.reset_session()
+	context.expect_equal(view.local_peer_id, 0, "disconnect clears prior local peer identity")
+	context.expect_equal(view.input_sequence, 0, "disconnect clears prior input sequence")
+	context.expect_equal(view.client_tick, 0, "disconnect clears prior client tick")
+	context.expect_false(view.prediction_initialized, "disconnect clears prior prediction initialization")
+	context.expect_equal(view.camera.position, ArenaLayout.center(), "disconnect recenters network camera on the arena")
+	view.camera.free()
+	view.free()

@@ -40,11 +40,36 @@ func setup(network_bridge: NetworkBridge) -> void:
 
 
 func set_network_active(active: bool) -> void:
+	if not active:
+		reset_session()
 	visible = active
 	process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 	if diagnostics_label != null:
 		var diagnostics_canvas := diagnostics_label.get_parent() as CanvasLayer
 		diagnostics_canvas.visible = active
+
+
+func reset_session() -> void:
+	for ship_value in ships.values():
+		(ship_value as SandboxShip).queue_free()
+	ships.clear()
+	for projectile in authoritative_projectiles.all_projectiles():
+		authoritative_projectiles.remove(projectile.projectile_id)
+	local_peer_id = 0
+	input_sequence = 0
+	client_tick = 0
+	input_send_accumulator = 0.0
+	prediction_initialized = false
+	latest_acknowledged_input = 0
+	next_predicted_id = -1
+	predicted_projectile_ids.clear()
+	prediction = ClientPredictionBuffer.new()
+	interpolation = RemoteInterpolator.new()
+	predicted_tracker = PredictedProjectileTracker.new()
+	local_weapon = WeaponState.new()
+	local_weapon.reset(local_stats)
+	if camera != null:
+		camera.position = ArenaLayout.center()
 
 
 func _physics_process(delta: float) -> void:
@@ -108,6 +133,8 @@ func _on_snapshot(decoded: Dictionary) -> void:
 			if not prediction_initialized:
 				prediction.predicted_position = state.position
 				prediction.predicted_velocity = state.velocity
+				ship.global_position = state.position
+				camera.position = state.position
 				prediction_initialized = true
 			else:
 				prediction.reconcile(state.position, state.velocity, decoded.acknowledged_input, local_stats)

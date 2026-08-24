@@ -117,6 +117,16 @@ func _spawn_shot(combatant: CombatantState) -> void:
 			combatant.stats
 		)
 		_next_projectile_id = SequenceMath.increment(_next_projectile_id)
+		var spawn_normal := ArenaCollisionSystem.projectile_obstacle_normal(
+			projectile.position,
+			projectile.radius
+		)
+		if not spawn_normal.is_zero_approx():
+			if not projectile.ricochet(spawn_normal):
+				continue
+			projectile.position = combatant.position + spawn_normal * (
+				GameConstants.SHIP_COLLISION_RADIUS + projectile.radius + 1.0
+			)
 		for removed_id in projectile_registry.add(projectile):
 			_record_removed(removed_id)
 		_spawned_since_batch.append(projectile)

@@ -12,6 +12,7 @@ static func run(context: TestContext) -> void:
 	_validate_damage_and_repair(context)
 	_validate_overtime(context)
 	_validate_sandbox_and_soak(context)
+	_validate_overtime_debug_toggle(context)
 
 
 static func _validate_arena(context: TestContext) -> void:
@@ -289,3 +290,21 @@ static func _validate_sandbox_and_soak(context: TestContext) -> void:
 				registry.remove(projectile.projectile_id)
 	context.expect_true(peak_count <= 11, "15-minute projectile soak keeps bounded active entities")
 	context.expect_equal(registry.size(), 0, "15-minute projectile soak returns entity count to baseline")
+
+
+static func _validate_overtime_debug_toggle(context: TestContext) -> void:
+	context.expect_approx(
+		OfflineSandbox.next_overtime_toggle_time(20.0),
+		GameConstants.OVERTIME_START_SECONDS,
+		"overtime debug control starts overtime from normal play"
+	)
+	context.expect_approx(
+		OfflineSandbox.next_overtime_toggle_time(85.0),
+		0.0,
+		"overtime debug reset restores the full heat clock during warning"
+	)
+	context.expect_approx(
+		OfflineSandbox.next_overtime_toggle_time(120.0),
+		0.0,
+		"overtime debug reset restores the full heat clock while active"
+	)
