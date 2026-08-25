@@ -118,6 +118,12 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(Vector2i(2560, 1080) in client.RESOLUTION_OPTIONS and Vector2i(3440, 1440) in client.RESOLUTION_OPTIONS, "settings includes both ultrawide resolutions")
 	context.expect_equal(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand", "ultrawide windows reveal space without nonuniform stretching")
 	context.expect_true(client.splash_screen != null, "animated splash screen exists")
+	context.expect_approx(client.SPLASH_MINIMUM_SECONDS, 10.0, "splash declares a ten-second minimum display")
+	client._dismiss_splash()
+	context.expect_false(client.splash_dismissed, "early input cannot bypass the splash minimum")
+	client.splash_minimum_elapsed = true
+	client._dismiss_splash(true)
+	context.expect_true(client.splash_dismissed, "splash can proceed after its minimum display")
 	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
 	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")

@@ -108,7 +108,7 @@ The server owns a single explicit state machine.
 | `COUNTDOWN` | 3 s | Spawn/reset ships with controls locked. | Timer reaches zero. |
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
 | `HEAT_RESULT` | 3 s | Freeze combat and show heat result. | Continue current round or resolve it. |
-| `ROUND_RESULT` | 4 s | Award a round win and clear all heat wins. | Start next draft or resolve match. |
+| `ROUND_RESULT` | 2.5 s | Award a round win and clear all heat wins. | Start next draft or resolve match. |
 | `MATCH_RESULT` | 10 s | Show winner and final builds/scores. | Return all connected clients to lobby. |
 
 State transitions are reliable server events containing the new state, server tick, end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers.
@@ -415,7 +415,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated, skippable splash before the connection menu. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
+- Start with an animated splash that displays `PRESS ANY KEY TO START` for a minimum of 10 seconds before proceeding to the connection menu; early input cannot bypass that minimum. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 

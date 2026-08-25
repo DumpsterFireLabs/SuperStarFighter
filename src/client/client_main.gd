@@ -1,5 +1,6 @@
 extends Node
 
+const SPLASH_MINIMUM_SECONDS: float = 10.0
 const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
 	Vector2i(1600, 900),
@@ -49,6 +50,7 @@ var current_resolution: Vector2i = Vector2i(1280, 720)
 var settings_return_to_pause: bool = false
 var splash_screen: Control
 var splash_dismissed: bool = false
+var splash_minimum_elapsed: bool = false
 var card_catalog := CardCatalog.create_default()
 var active_offer_token: String = ""
 var active_offer_deadline: int = -1
@@ -683,7 +685,7 @@ func _create_splash_screen() -> void:
 	flare.add_theme_color_override("font_color", Color("ff4fd8"))
 	content.add_child(flare)
 	var skip := Label.new()
-	skip.text = "PRESS ANY KEY"
+	skip.text = "PRESS ANY KEY TO START"
 	skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	skip.add_theme_font_size_override("font_size", 18)
 	skip.add_theme_color_override("font_color", Color("73f7ff"))
@@ -695,11 +697,18 @@ func _create_splash_screen() -> void:
 	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	intro.tween_property(content, "modulate", Color.WHITE, 0.8)
 	intro.tween_property(content, "scale", Vector2.ONE, 1.05)
-	get_tree().create_timer(3.5).timeout.connect(_dismiss_splash)
+	get_tree().create_timer(SPLASH_MINIMUM_SECONDS).timeout.connect(_on_splash_minimum_elapsed)
+
+
+func _on_splash_minimum_elapsed() -> void:
+	splash_minimum_elapsed = true
+	_dismiss_splash()
 
 
 func _dismiss_splash(immediate: bool = false) -> void:
 	if splash_dismissed or splash_screen == null:
+		return
+	if not immediate and not splash_minimum_elapsed:
 		return
 	splash_dismissed = true
 	if immediate:
