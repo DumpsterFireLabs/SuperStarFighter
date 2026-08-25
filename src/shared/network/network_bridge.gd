@@ -29,6 +29,7 @@ var last_error: String = ""
 
 var _configuration: Dictionary = {}
 var _enet_peer: ENetMultiplayerPeer
+var _lan_discovery: LanDiscoveryService
 var _pending_handshakes := HandshakeRegistry.new()
 var _pending_disconnects: Dictionary = {}
 var _rate_limiter := InputRateLimiter.new()
@@ -44,6 +45,7 @@ var _simulation_sample_usec: Array[int] = []
 var _outbound_bytes: int = 0
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
+var _discovery_instance_id: String = ""
 
 
 func start_server(configuration: Dictionary) -> Error:
@@ -52,6 +54,10 @@ func start_server(configuration: Dictionary) -> Error:
 	_configuration = configuration.duplicate(true)
 	var match_config := MatchConfig.new()
 	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
+	if match_config.port == LanDiscoveryProtocol.DISCOVERY_PORT:
+		last_error = "UDP port %d is reserved for LAN server discovery." % LanDiscoveryProtocol.DISCOVERY_PORT
+		role = Role.NONE
+		return ERR_INVALID_PARAMETER
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
 	if bool(configuration.get("test_fast_match", false)):
@@ -65,6 +71,7 @@ func start_server(configuration: Dictionary) -> Error:
 	_reset_metrics_window()
 	_metrics_window = 0
 	_logged_overtime_key = ""
+	_discovery_instance_id = "%x-%x" % [Time.get_ticks_msec(), get_instance_id()]
 	_enet_peer = ENetMultiplayerPeer.new()
 	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, 3)
 	if error != OK:
@@ -77,6 +84,15 @@ func start_server(configuration: Dictionary) -> Error:
 		multiplayer.peer_connected.connect(_on_server_peer_connected)
 	if not multiplayer.peer_disconnected.is_connected(_on_server_peer_disconnected):
 		multiplayer.peer_disconnected.connect(_on_server_peer_disconnected)
+	_lan_discovery = LanDiscoveryService.new()
+	_lan_discovery.name = "LanDiscoveryResponder"
+	add_child(_lan_discovery)
+	var discovery_error := _lan_discovery.start_responder(_lan_discovery_payload)
+	if discovery_error != OK:
+		_log("warning", "lan_discovery_unavailable", {
+			"port": LanDiscoveryProtocol.DISCOVERY_PORT,
+			"error": discovery_error,
+		})
 	_log("info", "server_started", {
 		"port": match_config.port,
 		"max_players": match_config.max_players,
@@ -123,6 +139,10 @@ func stop() -> void:
 	if _enet_peer != null:
 		_enet_peer.close()
 	_enet_peer = null
+	if _lan_discovery != null:
+		_lan_discovery.stop()
+		_lan_discovery.queue_free()
+		_lan_discovery = null
 	if is_inside_tree() and multiplayer.multiplayer_peer != null:
 		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_pending_handshakes.clear()
@@ -134,6 +154,19 @@ func stop() -> void:
 	match_coordinator = null
 	npc_controller.clear()
 	role = Role.NONE
+
+
+func _lan_discovery_payload() -> Dictionary:
+	return {
+		"instance_id": _discovery_instance_id,
+		"protocol_version": GameConstants.PROTOCOL_VERSION,
+		"server_name": String(_configuration.get("server_name", "Super Star Fighter Server")),
+		"game_port": int(_configuration.get("port", GameConstants.DEFAULT_PORT)),
+		"human_count": lobby.human_count() if lobby != null else 0,
+		"npc_count": lobby.npc_count() if lobby != null else 0,
+		"player_limit": lobby.player_limit if lobby != null else int(_configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS)),
+		"match_active": lobby.match_active if lobby != null else false,
+	}
 
 
 func flush_metrics() -> void:

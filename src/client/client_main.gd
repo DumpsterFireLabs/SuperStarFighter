@@ -17,11 +17,21 @@ var audio_director: AudioDirector
 var connection_canvas: CanvasLayer
 var connection_screen: Control
 var connection_form_panel: PanelContainer
+var connection_tabs: TabContainer
 var lobby_panel: PanelContainer
 var host_field: LineEdit
 var port_field: LineEdit
+var host_port_field: LineEdit
 var name_field: LineEdit
+var server_name_field: LineEdit
 var connection_status: Label
+var lan_servers_container: VBoxContainer
+var lan_refresh_button: Button
+var lan_browser: LanDiscoveryService
+var _lan_servers: Array[Dictionary] = []
+var _hosted_server_root: Node
+var _hosted_server_bridge: NetworkBridge
+var _hosted_server_multiplayer: MultiplayerAPI
 var lobby_label: Label
 var lobby_roster: VBoxContainer
 var ready_button: CheckButton
@@ -91,6 +101,13 @@ func _ready() -> void:
 	network_world.setup(bridge)
 	network_world.presentation_event.connect(_on_world_presentation_event)
 	_create_connection_ui(configuration)
+	lan_browser = LanDiscoveryService.new()
+	lan_browser.name = "LanServerBrowser"
+	add_child(lan_browser)
+	lan_browser.servers_updated.connect(_on_lan_servers_updated)
+	var discovery_error := lan_browser.start_browser()
+	if discovery_error != OK:
+		connection_status.text = lan_browser.last_error
 	_create_match_ui()
 	_create_pause_overlay()
 	_create_settings_overlay()
@@ -152,7 +169,7 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	connection_screen.add_child(center)
 	connection_form_panel = PanelContainer.new()
-	connection_form_panel.custom_minimum_size = Vector2(700.0, 570.0)
+	connection_form_panel.custom_minimum_size = Vector2(780.0, 690.0)
 	connection_form_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
 	center.add_child(connection_form_panel)
 	var content := VBoxContainer.new()
@@ -170,19 +187,19 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	subtitle.add_theme_color_override("font_color", Color("d39cff"))
 	subtitle.add_theme_font_size_override("font_size", 25)
 	content.add_child(subtitle)
-	host_field = _add_labeled_field(content, "Server host", configuration.get("host", "127.0.0.1"))
-	port_field = _add_labeled_field(content, "UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
 	name_field = _add_labeled_field(content, "Display name", "Pilot")
 	name_field.max_length = 16
+	connection_tabs = TabContainer.new()
+	connection_tabs.custom_minimum_size = Vector2(720.0, 285.0)
+	connection_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(connection_tabs)
+	_create_lan_join_tab()
+	_create_direct_join_tab(configuration)
+	_create_host_tab(configuration)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 12)
 	content.add_child(buttons)
-	var connect_button := Button.new()
-	connect_button.text = "Connect"
-	connect_button.custom_minimum_size.y = 54.0
-	connect_button.pressed.connect(_connect_online)
-	buttons.add_child(connect_button)
 	var offline_button := Button.new()
 	offline_button.text = "Offline Combat Lab"
 	offline_button.custom_minimum_size.y = 54.0
@@ -199,12 +216,76 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	quit_button.pressed.connect(get_tree().quit)
 	buttons.add_child(quit_button)
 	connection_status = Label.new()
-	connection_status.text = "Direct IP uses UDP. Press F2 at any time to return here."
+	connection_status.text = "Browse local servers, host instantly, or connect directly by address."
 	connection_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	connection_status.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(connection_status)
 	_create_lobby_panel()
+
+
+func _create_lan_join_tab() -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "LAN SERVERS"
+	tab.add_theme_constant_override("separation", 8)
+	connection_tabs.add_child(tab)
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation", 10)
+	tab.add_child(controls)
+	var hint := Label.new()
+	hint.text = "Servers on your local network"
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint.add_theme_color_override("font_color", Color("aebbd4"))
+	controls.add_child(hint)
+	lan_refresh_button = Button.new()
+	lan_refresh_button.text = "REFRESH"
+	lan_refresh_button.custom_minimum_size = Vector2(145.0, 42.0)
+	lan_refresh_button.pressed.connect(_refresh_lan_servers)
+	controls.add_child(lan_refresh_button)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size.y = 185.0
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tab.add_child(scroll)
+	lan_servers_container = VBoxContainer.new()
+	lan_servers_container.name = "LanServerRows"
+	lan_servers_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lan_servers_container.add_theme_constant_override("separation", 6)
+	scroll.add_child(lan_servers_container)
+	_rebuild_lan_server_list()
+
+
+func _create_direct_join_tab(configuration: Dictionary) -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "DIRECT CONNECT"
+	tab.add_theme_constant_override("separation", 10)
+	connection_tabs.add_child(tab)
+	host_field = _add_labeled_field(tab, "Server host or IP", configuration.get("host", "127.0.0.1"))
+	port_field = _add_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	var connect_center := CenterContainer.new()
+	tab.add_child(connect_center)
+	var connect_button := Button.new()
+	connect_button.text = "CONNECT TO SERVER"
+	connect_button.custom_minimum_size = Vector2(280.0, 48.0)
+	connect_button.pressed.connect(_connect_online)
+	connect_center.add_child(connect_button)
+
+
+func _create_host_tab(configuration: Dictionary) -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "HOST GAME"
+	tab.add_theme_constant_override("separation", 10)
+	connection_tabs.add_child(tab)
+	server_name_field = _add_labeled_field(tab, "Server name", "Super Star Arena")
+	server_name_field.max_length = LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
+	host_port_field = _add_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	var host_center := CenterContainer.new()
+	tab.add_child(host_center)
+	var host_button := Button.new()
+	host_button.text = "HOST & JOIN"
+	host_button.custom_minimum_size = Vector2(280.0, 48.0)
+	host_button.pressed.connect(_host_online)
+	host_center.add_child(host_button)
 
 
 func _create_lobby_panel() -> void:
@@ -798,17 +879,13 @@ func _hide_pause_overlay() -> void:
 func _return_from_pause() -> void:
 	_hide_pause_overlay()
 	bridge.stop()
+	_stop_hosted_server()
 	_show_connection_screen("Returned to the main menu.")
 
 
 func _connect_online() -> void:
-	var port_text := port_field.text.strip_edges()
-	if not port_text.is_valid_int():
-		connection_status.text = "Port must be an integer from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT]
-		return
-	var port := int(port_text)
-	if port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
-		connection_status.text = "Port must be from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT]
+	var port := _validated_port(port_field)
+	if port == 0:
 		return
 	var display_name := name_field.text.strip_edges()
 	if not ServerLobby.is_valid_display_name(display_name):
@@ -822,8 +899,155 @@ func _connect_online() -> void:
 		connection_status.text = bridge.last_error
 
 
+func _host_online() -> void:
+	var port := _validated_port(host_port_field, true)
+	if port == 0:
+		return
+	var display_name := name_field.text.strip_edges()
+	if not ServerLobby.is_valid_display_name(display_name):
+		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
+		return
+	var server_name := server_name_field.text.strip_edges()
+	if not LanDiscoveryProtocol.is_valid_server_name(server_name):
+		connection_status.text = "Server name must contain 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
+		return
+	bridge.stop()
+	_stop_hosted_server()
+	var error := _start_hosted_server({
+		"port": port,
+		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
+		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
+		"server_name": server_name,
+	})
+	if error != OK:
+		connection_status.text = _hosted_server_bridge.last_error if _hosted_server_bridge != null else "Could not start the local server."
+		_stop_hosted_server()
+		return
+	offline_sandbox.set_sandbox_active(false)
+	network_world.set_network_active(false)
+	connection_status.text = "Hosting %s on UDP %d and joining locally…" % [server_name, port]
+	error = bridge.start_client("127.0.0.1", port, display_name)
+	if error != OK:
+		connection_status.text = bridge.last_error
+		_stop_hosted_server()
+
+
+func _start_hosted_server(configuration: Dictionary) -> Error:
+	_hosted_server_root = Node.new()
+	_hosted_server_root.name = "HostedServerRuntime"
+	add_child(_hosted_server_root)
+	_hosted_server_multiplayer = MultiplayerAPI.create_default_interface()
+	get_tree().set_multiplayer(_hosted_server_multiplayer, _hosted_server_root.get_path())
+	var server_main := Node.new()
+	server_main.name = "Main"
+	_hosted_server_root.add_child(server_main)
+	_hosted_server_bridge = NetworkBridge.new()
+	_hosted_server_bridge.name = "NetworkBridge"
+	server_main.add_child(_hosted_server_bridge)
+	return _hosted_server_bridge.start_server(configuration)
+
+
+func _stop_hosted_server() -> void:
+	if _hosted_server_bridge != null and is_instance_valid(_hosted_server_bridge):
+		_hosted_server_bridge.stop()
+	if _hosted_server_root != null and is_instance_valid(_hosted_server_root):
+		_hosted_server_root.free()
+	_hosted_server_bridge = null
+	_hosted_server_root = null
+	_hosted_server_multiplayer = null
+
+
+func _validated_port(field: LineEdit, reserve_discovery_port: bool = false) -> int:
+	var port_text := field.text.strip_edges()
+	if not port_text.is_valid_int():
+		connection_status.text = "Port must be an integer from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT]
+		return 0
+	var port := int(port_text)
+	if port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
+		connection_status.text = "Port must be from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT]
+		return 0
+	if reserve_discovery_port and port == LanDiscoveryProtocol.DISCOVERY_PORT:
+		connection_status.text = "Port %d is reserved for LAN server discovery. Choose another gameplay port." % port
+		return 0
+	return port
+
+
+func _refresh_lan_servers() -> void:
+	if lan_browser != null:
+		lan_browser.refresh_now()
+	connection_status.text = "Scanning the local network for Super Star Fighter servers…"
+
+
+func _on_lan_servers_updated(servers: Array[Dictionary]) -> void:
+	_lan_servers = servers.duplicate(true)
+	_rebuild_lan_server_list()
+	if connection_form_panel.visible and connection_tabs.current_tab == 0:
+		connection_status.text = "%d local server%s found." % [servers.size(), "" if servers.size() == 1 else "s"]
+
+
+func _rebuild_lan_server_list() -> void:
+	if lan_servers_container == null:
+		return
+	for child in lan_servers_container.get_children():
+		lan_servers_container.remove_child(child)
+		child.free()
+	if _lan_servers.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "SEARCHING…\nStart a server on this network or use Direct Connect."
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_label.add_theme_color_override("font_color", Color("8ba1c7"))
+		lan_servers_container.add_child(empty_label)
+		return
+	for server in _lan_servers:
+		_add_lan_server_row(server)
+
+
+func _add_lan_server_row(server: Dictionary) -> void:
+	var compatible := int(server.get("protocol_version", 0)) == GameConstants.PROTOCOL_VERSION
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size.y = 62.0
+	panel.set_meta("address", String(server.get("address", "")))
+	panel.set_meta("game_port", int(server.get("game_port", 0)))
+	panel.add_theme_stylebox_override("panel", _lan_server_row_style(compatible))
+	lan_servers_container.add_child(panel)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(identity)
+	var name_label := Label.new()
+	name_label.text = String(server.get("server_name", "LOCAL SERVER"))
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.add_theme_font_size_override("font_size", 18)
+	name_label.add_theme_color_override("font_color", Color("42e8ff") if compatible else Color("ff7994"))
+	identity.add_child(name_label)
+	var detail_label := Label.new()
+	var state_text := "IN MATCH" if bool(server.get("match_active", false)) else "LOBBY"
+	detail_label.text = "%s:%d  ·  %d HUMAN + %d NPC / %d  ·  %s  ·  %d ms" % [
+		server.get("address", ""), server.get("game_port", 0), server.get("human_count", 0),
+		server.get("npc_count", 0), server.get("player_limit", 0), state_text, server.get("ping_ms", 0),
+	]
+	detail_label.add_theme_font_size_override("font_size", 14)
+	detail_label.add_theme_color_override("font_color", Color("aebbd4"))
+	identity.add_child(detail_label)
+	var join_button := Button.new()
+	join_button.text = "JOIN" if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
+	join_button.disabled = not compatible
+	join_button.custom_minimum_size = Vector2(140.0, 46.0)
+	join_button.pressed.connect(_join_lan_server.bind(String(server.get("address", "")), int(server.get("game_port", 0))))
+	row.add_child(join_button)
+
+
+func _join_lan_server(address: String, port: int) -> void:
+	host_field.text = address
+	port_field.text = str(port)
+	_connect_online()
+
+
 func _play_offline() -> void:
 	bridge.stop()
+	_stop_hosted_server()
 	_set_scoreboard_open(false)
 	latest_match_payload.clear()
 	network_world.set_network_active(false)
@@ -842,12 +1066,14 @@ func _play_offline() -> void:
 
 func _disconnect_online() -> void:
 	bridge.stop()
+	_stop_hosted_server()
 	_show_connection_screen("Disconnected. Ready to reconnect.")
 
 
 func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
+	_stop_hosted_server()
 	network_world.set_network_active(false)
 	_set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
@@ -1659,6 +1885,20 @@ func _button_style(accent: Color, opacity: float) -> StyleBoxFlat:
 	return style
 
 
+func _lan_server_row_style(compatible: bool) -> StyleBoxFlat:
+	var accent := Color("42e8ff") if compatible else Color("ff7994")
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(accent.darkened(0.82), 0.74)
+	style.border_color = Color(accent, 0.52)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(9)
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 7.0
+	style.content_margin_bottom = 7.0
+	return style
+
+
 func _input_style(accent: Color = Color("53627d")) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("0d1730")
@@ -1679,5 +1919,8 @@ func _on_connection_lost(message: String) -> void:
 
 
 func _exit_tree() -> void:
+	if lan_browser != null:
+		lan_browser.stop()
 	if bridge != null:
 		bridge.stop()
+	_stop_hosted_server()

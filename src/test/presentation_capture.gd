@@ -36,7 +36,15 @@ func _capture_sequence() -> void:
 	await process_frame
 	await _capture(client, "splash")
 	client._dismiss_splash(true)
+	var local_servers: Array[Dictionary] = [
+		{"server_name": "Graphite's Arena", "address": "192.168.1.42", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 3, "npc_count": 5, "player_limit": 12, "match_active": false, "ping_ms": 3},
+		{"server_name": "Battle in Progress", "address": "192.168.1.77", "game_port": 7010, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 6, "npc_count": 2, "player_limit": 16, "match_active": true, "ping_ms": 7},
+	]
+	client._on_lan_servers_updated(local_servers)
 	await _capture(client, "menu")
+	client.connection_tabs.current_tab = 2
+	await _capture(client, "host_menu")
+	client.connection_tabs.current_tab = 0
 	client._show_settings(false)
 	await _capture(client, "settings")
 	client._hide_settings()

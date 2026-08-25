@@ -44,8 +44,9 @@ The empty workspace will become a complete vertical slice containing a Windows c
 - Expose reliable client requests for handshake, lobby start/settings, and card selection. Validate the requesting peer from the RPC sender rather than trusting IDs in payloads.
 - Use compact snapshot payloads with stable entity IDs. Reject malformed, stale, non-finite, out-of-range, excessive-rate, and protocol-incompatible input.
 - Keep connection and lobby views separate from the arena; require authoritative ready-up from every human, and allow only the lobby leader to eject other waiting humans.
-- Provide server options: `--server`, `--port=7000`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
+- Provide server options: `--server`, `--port=7000`, `--server-name=Super Star Fighter Server`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
 - Clients connect through an IP/hostname and UDP port. The first connected player becomes lobby leader; leadership transfers to the earliest remaining player on disconnect.
+- The client also provides Host & Join through an isolated in-process authority, plus bounded UDP local-subnet discovery and a one-click LAN server browser. Direct IP/hostname remains the routed-LAN and internet fallback.
 - NPCs consume match participant seats but no ENet client connections. Their movement, targeting, firing, shielding, and draft choices run exclusively on the authoritative server through the same validated combat-input and card systems used for humans.
 - Add a headless test-client mode that connects through the real protocol, drafts cards, and generates scripted movement/combat input. It remains developer tooling and is not exposed as playable AI.
 - Initialize Git, add Godot-appropriate ignores, and provide PowerShell commands for tests, client/server exports, local server startup, and multi-client smoke tests.
@@ -62,6 +63,6 @@ The empty workspace will become a complete vertical slice containing a Windows c
 ## Assumptions and Defaults
 
 - Godot and its export templates are not currently installed; implementation will bootstrap the official portable Godot 4.7.2 Standard tools.
-- The vertical slice has no public server browser, matchmaking, accounts, persistence, teams, chat, controller support, configurable NPC difficulty, cosmetics, monetization, or reconnect restoration.
+- The vertical slice has no public internet server directory, matchmaking, accounts, persistence, teams, chat, controller support, cosmetics, monetization, or reconnect restoration. Its server browser is LAN-only.
 - Balance values are initial playable defaults stored as data resources so they can be tuned without changing networking or combat code.
 - Direct-IP traffic is unauthenticated and unencrypted for this milestone; server authority protects game state but is not a substitute for a production account or anti-abuse service.

@@ -7,6 +7,7 @@ static func run(context: TestContext) -> void:
 	_validate_input_codec(context)
 	_validate_snapshot_codec(context)
 	_validate_projectile_codec(context)
+	_validate_lan_discovery_protocol(context)
 	_validate_rate_limiting(context)
 	_validate_observability_bounds(context)
 	_validate_lobby_authority(context)
@@ -24,6 +25,41 @@ static func _validate_sequence_wrap(context: TestContext) -> void:
 	context.expect_true(SequenceMath.is_newer(0, 0xffffffff), "sequence comparison handles uint32 wrap")
 	context.expect_false(SequenceMath.is_newer(0xffffffff, 0), "pre-wrap sequence is older after wrap")
 	context.expect_equal(SequenceMath.increment(0xffffffff), 0, "uint32 sequence increment wraps to zero")
+
+
+static func _validate_lan_discovery_protocol(context: TestContext) -> void:
+	var query_packet := LanDiscoveryProtocol.encode_query("test-nonce")
+	context.expect_true(query_packet.size() <= LanDiscoveryProtocol.MAX_PACKET_BYTES, "LAN discovery query is bounded")
+	var query := LanDiscoveryProtocol.decode_query(query_packet)
+	context.expect_true(query.ok and query.nonce == "test-nonce", "LAN discovery query round-trips its nonce")
+	context.expect_false(LanDiscoveryProtocol.decode_query(PackedByteArray()).ok, "empty LAN discovery query is rejected")
+	context.expect_false(LanDiscoveryProtocol.decode_query(PackedByteArray([1, 2, 3])).ok, "malformed LAN discovery query is rejected")
+	var oversized := PackedByteArray()
+	oversized.resize(LanDiscoveryProtocol.MAX_PACKET_BYTES + 1)
+	context.expect_false(LanDiscoveryProtocol.decode_query(oversized).ok, "oversized LAN discovery query is rejected before JSON parsing")
+	var response_packet := LanDiscoveryProtocol.encode_response("test-nonce", {
+		"protocol_version": GameConstants.PROTOCOL_VERSION,
+		"instance_id": "unit-server-1",
+		"server_name": "Neon Local Arena",
+		"game_port": 7000,
+		"human_count": 2,
+		"npc_count": 3,
+		"player_limit": 8,
+		"match_active": false,
+	})
+	context.expect_true(response_packet.size() <= LanDiscoveryProtocol.MAX_PACKET_BYTES, "LAN discovery response is bounded")
+	var response := LanDiscoveryProtocol.decode_response(response_packet)
+	context.expect_true(response.ok, "valid LAN discovery response decodes")
+	context.expect_equal(response.server_name, "Neon Local Arena", "LAN response retains its display name")
+	context.expect_equal(response.human_count + response.npc_count, 5, "LAN response retains bounded participant counts")
+	context.expect_true(LanDiscoveryProtocol.is_valid_server_name("Friends Only"), "printable LAN server name is valid")
+	context.expect_false(LanDiscoveryProtocol.is_valid_server_name("Bad\nName"), "control characters are invalid in LAN server names")
+	var invalid_counts := JSON.stringify({
+		"magic": LanDiscoveryProtocol.RESPONSE_MAGIC, "nonce": "x", "instance_id": "bad-counts", "protocol_version": 6,
+		"server_name": "Bad Counts", "game_port": 7000, "human_count": 20,
+		"npc_count": 20, "player_limit": 32, "match_active": false,
+	}).to_utf8_buffer()
+	context.expect_false(LanDiscoveryProtocol.decode_response(invalid_counts).ok, "LAN response cannot advertise more participants than its limit")
 
 
 static func _validate_input_codec(context: TestContext) -> void:

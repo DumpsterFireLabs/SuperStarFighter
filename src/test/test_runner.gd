@@ -60,7 +60,7 @@ func _run_foundation_tests() -> void:
 		_context.expect_true(ResourceLoader.exists(scene_path), "startup scene %s exists" % scene_path)
 
 	var server_config := CommandLineConfig.parse(
-		PackedStringArray(["--server", "--host=localhost", "--port=7123", "--max-players=16", "--rounds-to-win=4"])
+		PackedStringArray(["--server", "--host=localhost", "--port=7123", "--max-players=16", "--rounds-to-win=4", "--server-name=Foundation Arena"])
 	)
 	_context.expect_true(server_config.ok, "valid server arguments parse")
 	_context.expect_equal(server_config.get("mode"), "server", "server mode is selected")
@@ -68,6 +68,7 @@ func _run_foundation_tests() -> void:
 	_context.expect_equal(server_config.get("max_players"), 16, "custom player limit parses")
 	_context.expect_equal(server_config.get("rounds_to_win"), 4, "custom round target parses")
 	_context.expect_equal(server_config.get("host"), "localhost", "custom network host parses")
+	_context.expect_equal(server_config.get("server_name"), "Foundation Arena", "custom LAN server name parses")
 	var match_test_config := CommandLineConfig.parse(PackedStringArray([
 		"--server",
 		"--test-fast-match",

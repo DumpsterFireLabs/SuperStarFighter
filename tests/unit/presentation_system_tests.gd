@@ -107,6 +107,25 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var client := packed_scene.instantiate()
 	tree_parent.add_child(client)
 	context.expect_true(client.connection_screen != null, "production connection screen exists")
+	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
+	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
+	var discovered_servers: Array[Dictionary] = [
+		{"server_name": "Local Test Arena", "address": "192.168.1.50", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 2, "npc_count": 1, "player_limit": 8, "match_active": false, "ping_ms": 4},
+		{"server_name": "Old Version", "address": "192.168.1.60", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION - 1, "human_count": 1, "npc_count": 0, "player_limit": 4, "match_active": false, "ping_ms": 8},
+	]
+	client._on_lan_servers_updated(discovered_servers)
+	context.expect_equal(client.lan_servers_container.get_child_count(), 2, "LAN browser renders one structured row per discovered server")
+	var compatible_join := client.lan_servers_container.get_child(0).get_child(0).get_child(1) as Button
+	var incompatible_join := client.lan_servers_container.get_child(1).get_child(0).get_child(1) as Button
+	context.expect_false(compatible_join.disabled, "compatible LAN server is directly joinable")
+	context.expect_true(incompatible_join.disabled, "protocol-mismatched LAN server remains visible but cannot be joined")
+	var host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Embedded Test Arena"})
+	context.expect_equal(host_error, OK, "one-click host creates a real authoritative server inside an isolated multiplayer subtree")
+	context.expect_true(client._hosted_server_bridge.role == NetworkBridge.Role.SERVER and client._hosted_server_multiplayer != client.multiplayer, "hosted server and playable client retain independent MultiplayerAPI instances")
+	client._stop_hosted_server()
+	var reserved_host_error: Error = client._start_hosted_server({"port": LanDiscoveryProtocol.DISCOVERY_PORT, "max_players": 32, "rounds_to_win": 3, "server_name": "Collision Test"})
+	context.expect_equal(reserved_host_error, ERR_INVALID_PARAMETER, "gameplay server cannot consume the fixed LAN discovery port")
+	client._stop_hosted_server()
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")

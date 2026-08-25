@@ -34,7 +34,7 @@ The vertical slice targets PC players who enjoy short, chaotic, skill-based mult
 
 ### 1.4 Out of Scope
 
-The vertical slice does not include public matchmaking, a server browser, accounts, progression between matches, teams, chat, controller support, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports.
+The vertical slice does not include public matchmaking, a public internet server directory, accounts, progression between matches, teams, chat, controller support, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports. It does include bounded local-subnet discovery.
 
 ## 2. Terminology
 
@@ -69,6 +69,7 @@ The same project supplies client, server, tests, and protocol test-client entry 
 | --- | --- | --- | --- |
 | `--server` | Server | Off | Starts authoritative headless server mode. |
 | `--port=<1024-65535>` | Server/client | `7000` | Selects the ENet UDP port. |
+| `--server-name=<name>` | Server | `Super Star Fighter Server` | Sets the bounded display name advertised to LAN browsers. |
 | `--max-players=<2-32>` | Server | `32` | Limits admitted clients. |
 | `--rounds-to-win=<1-5>` | Server | `3` | Sets the lobby's initial round target; the lobby leader may change it. |
 | `--auto-start` | Tests only | Off | Starts when at least two test clients are ready. |
@@ -368,7 +369,16 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
 
-### 8.2 Connection and Control Messages
+### 8.2 One-Click Hosting and LAN Discovery
+
+- **Host & Join** creates an authoritative server inside the client process under an isolated `MultiplayerAPI`, then connects the playable client to it through `127.0.0.1` using the normal ENet handshake. The two roles never share authority or bypass the network protocol.
+- The host supplies a bounded server display name and a gameplay UDP port. The fixed discovery port `7359` is reserved and cannot also be selected as the gameplay port.
+- A listening server answers bounded UDP discovery queries on port `7359` with its protocol version, instance ID, display name, gameplay port, human/NPC occupancy, total-player limit, and whether a match is active. Discovery messages never carry gameplay state or authority.
+- A client browser broadcasts a fresh nonce on the local subnet and also probes loopback. It accepts only bounded, well-formed responses matching that nonce, uses the packet source as the join address, deduplicates by server instance, marks protocol-incompatible sessions as unavailable, and expires stale entries after 3.5 seconds.
+- Responders reply by unicast and rate-limit each source endpoint. Discovery collections and packet sizes are hard-bounded. A discovery bind failure logs a warning but does not prevent the authoritative gameplay server from running.
+- LAN discovery is convenience for one broadcast domain, not public matchmaking. Direct host/IP plus port remains available for routed LANs and manually configured internet hosting.
+
+### 8.3 Connection and Control Messages
 
 Client-to-server messages:
 
@@ -397,7 +407,7 @@ Server-to-client messages:
 
 Control payloads may use typed Godot arrays/dictionaries because they are low frequency. Input, player snapshots, and projectile payloads must use versioned `PackedByteArray` encoding with fixed field order, bounded counts, and explicit decode failure handling.
 
-### 8.3 Input, Prediction, and Rendering
+### 8.4 Input, Prediction, and Rendering
 
 - `sequence` and ticks use wrapping unsigned 32-bit values. The server ignores duplicate or older input and remembers the most recent valid input until a newer frame arrives.
 - Movement components are quantized signed 16-bit values representing `[-1, 1]`; aim is quantized to an unsigned 16-bit turn; action bits contain fire and shield flags.
@@ -408,7 +418,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - The local client may show an immediate predicted muzzle flash and projectile. It reconciles predicted projectiles using owner ID plus shot sequence when the server spawn arrives; rejected shots fade within 100 ms.
 - Clients simulate projectile visuals from authoritative spawn data. The 5 Hz correction list adds missed projectiles, corrects ricochets, and removes projectiles absent from the authoritative list.
 
-### 8.4 Validation and Rejection
+### 8.5 Validation and Rejection
 
 - Never trust a peer ID supplied by a client; use the RPC sender identity.
 - Reject non-finite numbers, movement magnitudes above tolerance, impossible action bits, stale offer tokens, invalid card IDs, out-of-state requests, unauthorized lobby actions, and version mismatches.
@@ -422,7 +432,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 ### 9.1 Screens
 
-1. **Connection:** A centered menu over the non-gameplay neon backdrop with display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors. The arena and its map are not rendered before a match begins.
+1. **Connection:** A centered menu over the non-gameplay neon backdrop with three tabs: a refreshable LAN-server list with server name, endpoint, occupancy, lobby/match state, ping, compatibility, and Join action; Direct Connect with address defaulting to `127.0.0.1` and gameplay port defaulting to `7000`; and Host Game with bounded server name, gameplay port, and Host & Join. Display name is shared across all connection paths. Keep Quit, settings access, and inline connection/hosting errors available. The arena and its map are not rendered before a match begins.
 2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, an individual difficulty dropdown on every NPC row, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Holding Tab displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing Tab immediately closes it while the match continues behind it.
@@ -458,7 +468,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - **Combat tests:** Movement normalization, fire cadence, automatic reload, shield arc edges, depletion lock, pierce, ricochet, owner immunity, overtime, repair interruption, and simultaneous lethal hits.
 - **State tests:** Valid transition graph, first-to-two heat resolution with more than three heats, round target 1 and 5, draft early completion/timeout, forfeit, leader transfer, and lobby reset.
 - **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, authorization, rate limiting, version mismatch, and stale card tokens.
-- **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly.
+- **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly. A separate production-flow test starts an in-process authority, admits its loopback client through the real handshake, discovers its advertisement through the LAN browser, and shuts both roles down cleanly.
 - **NPC lobby integration:** One human leader sets a four-participant limit, enables immediate NPC fill, configures the waiting NPC rows, starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots and difficulty-profiled NPC input.
 
 ### 11.2 Load and Soak Acceptance

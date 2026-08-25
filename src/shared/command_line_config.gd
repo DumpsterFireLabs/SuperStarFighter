@@ -10,6 +10,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"mode": "server" if dedicated_server_feature else "client",
 		"port": GameConstants.DEFAULT_PORT,
 		"host": "127.0.0.1",
+		"server_name": "Super Star Fighter Server",
 		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"auto_start": false,
@@ -56,6 +57,11 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if parsed_host.is_empty() or parsed_host.length() > 253 or parsed_host.contains(" "):
 				return _error("--host requires a valid IP address or hostname.")
 			result.host = parsed_host
+		elif argument.begins_with("--server-name="):
+			var parsed_server_name := argument.trim_prefix("--server-name=").strip_edges()
+			if not LanDiscoveryProtocol.is_valid_server_name(parsed_server_name):
+				return _error("--server-name requires 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH)
+			result.server_name = parsed_server_name
 		elif argument.begins_with("--max-players="):
 			var parsed_players := _parse_bounded_integer(
 				argument.trim_prefix("--max-players="),
