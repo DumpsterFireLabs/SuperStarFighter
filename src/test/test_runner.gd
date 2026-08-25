@@ -12,6 +12,7 @@ func _ready() -> void:
 	CombatSystemTests.run(_context)
 	NetworkProtocolTests.run(_context)
 	MatchCoordinatorTests.run(_context)
+	PresentationSystemTests.run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):
 		_context.expect_true(false, "forced failure proves the nonzero exit path")

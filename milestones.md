@@ -14,8 +14,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 2 — Offline Combat Sandbox | Complete | Final-size arena and combat lab operational; 32 spawns validated; 15-minute accelerated lifecycle soak passed; 427 assertions and 43 project checks passed. |
 | 3 — Authoritative Networking and Lobby | Complete | Real ENet clients verified across three channels; rejection, lobby authority, prediction/interpolation, snapshots, projectiles, leader transfer, late spectator, and clean shutdown passed; 602 assertions and 61 project checks passed. |
 | 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; rendered five-card choice, last-survivor resolution, configurable 2–32 seats, server NPC fill, solo force-start, timeout, ties, extended rounds, forfeit, reset, and second match covered; 730 assertions and 65 project checks passed. |
-| 5 — Production UI, Neon Presentation, and Audio | Next | Milestone 4 exit gate passed. |
-| 6 — Validation, Diagnostics, and 32-Client Hardening | Planned | Depends on Milestone 5. |
+| 5 — Production UI, Neon Presentation, and Audio | Complete | Eight production screen states rendered at 1280×720 and 1920×1080; 32-player roster, neon identity/effects, off-screen threats, synchronized cues, optional MP3 pipeline, synthesized placeholders, and clean two-match reset verified; 780 assertions and 71 project checks passed. |
+| 6 — Validation, Diagnostics, and 32-Client Hardening | Next | Milestone 5 exit gate passed. |
 | 7 — Export, Documentation, and Release Candidate | Planned | Depends on Milestone 6. |
 
 ## Completion Rules
@@ -167,7 +167,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 5 — Production UI, Neon Presentation, and Audio
 
-**Status:** Next
+**Status:** Complete — 2026-08-24
 **Outcome:** The vertical slice communicates every state and combat event clearly at the target resolutions.
 
 ### Work
@@ -176,7 +176,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Ensure card panels show exact effects, current/new stacks, category, selection lock, and accessible number-key hints.
 - Add procedural neon ships, stable player palette, outline patterns, nameplates, local marker, projectile trails, shield arcs, impacts, elimination effects, and overtime boundary treatment.
 - Add off-screen ship/projectile indicators using both shape and color.
-- Add synthesized SFX for every event listed in the specification and prevent repeated network snapshots from replaying the same effect.
+- Add synthesized SFX for every event listed in the specification, optional drop-in menu/gameplay music, and prevent repeated network snapshots from replaying the same effect.
 - Add UI scaling, minimum resolution handling, camera smoothing with heat-start recentering, restrained screen shake, and readable 32-player scoreboard behavior.
 - Add clear messages and recovery navigation for all rejection and disconnect reason codes.
 
@@ -185,6 +185,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Manually inspect every screen at 1280×720 and 1920×1080, including a 32-player lobby/scoreboard and a draft with one through five eligible choices.
 - Confirm local identity, shield state, shield break, damage direction, elimination, overtime, heat result, round result, and match result are distinguishable without relying only on color.
 - Play two consecutive matches and confirm no stale panels, timers, effects, sounds, cards, or scores survive state resets.
+- Render menu, 32-player lobby, draft, combat, spectator, pause, results, and error states at both target resolutions and fail on any runtime error or missing capture.
+- Pass 780 headless assertions, 71 project checks, the real-ENet network/match-loop/NPC-lobby suites, and all 16 production-screen captures.
 
 ### Exit Gate
 

@@ -1,0 +1,110 @@
+class_name PresentationSystemTests
+extends RefCounted
+
+
+static func run(context: TestContext, tree_parent: Node) -> void:
+	_validate_audio_pipeline(context, tree_parent)
+	_validate_visual_feedback(context)
+	_validate_production_screens(context, tree_parent)
+
+
+static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) -> void:
+	var audio := AudioDirector.new()
+	tree_parent.add_child(audio)
+	context.expect_equal(audio.sfx_streams.size(), AudioDirector.SFX_NAMES.size(), "audio director provides every required combat cue")
+	context.expect_equal(audio.synthesized_placeholder_count(), AudioDirector.SFX_NAMES.size(), "missing authored SFX receive synthesized placeholders")
+	context.expect_true(FileAccess.file_exists("res://assets/audio/README.md"), "audio drop-in contract is documented beside the asset paths")
+	audio.play_sfx(&"card_lock", "same-card")
+	audio.play_sfx(&"card_lock", "same-card")
+	context.expect_equal(audio._played_keys.size(), 1, "repeated reliable events cannot replay the same sound")
+	audio.set_context(&"menu")
+	context.expect_equal(audio.current_context, &"menu", "menu music context works when its optional MP3 is absent")
+	audio.set_context(&"gameplay")
+	context.expect_equal(audio.current_context, &"gameplay", "gameplay playlist context works when optional tracks are absent")
+	tree_parent.remove_child(audio)
+	audio.free()
+
+
+static func _validate_visual_feedback(context: TestContext) -> void:
+	var ship := SandboxShip.new()
+	ship.setup(7, CombatStats.create_base(), Vector2(300.0, 400.0), Color("ff4f78"), true, "Neon Ace")
+	context.expect_equal(ship.display_name, "Neon Ace", "ship presentation retains its public nameplate")
+	context.expect_equal(ship.identity_pattern, 1, "ship identity includes a stable non-color pattern")
+	ship.flash_damage()
+	ship.flash_shield_block()
+	context.expect_true(ship.damage_flash_remaining > 0.0, "damage has a distinct ship flash")
+	context.expect_true(ship.shield_flash_remaining > 0.0, "shield block has a distinct ship flash")
+	ship.set_eliminated()
+	context.expect_true(ship.elimination_pulse_remaining > 0.0, "elimination has a distinct pulse")
+	ship.free()
+
+	var effects := CombatEffectsLayer.new()
+	effects.spawn_impact(Vector2.ONE)
+	effects.spawn_damage(Vector2.ONE, Vector2.RIGHT)
+	effects.spawn_elimination(Vector2.ONE, Color.WHITE)
+	context.expect_equal(effects.effects.size(), 3, "impact, damage direction, and elimination effects coexist")
+	effects.clear_effects()
+	context.expect_empty(effects.effects, "presentation effects clear between heats")
+	effects.free()
+
+	var view := NetworkWorldView.new()
+	view.local_peer_id = 1
+	var local_ship := SandboxShip.new()
+	local_ship.setup(1, CombatStats.create_base(), Vector2(100.0, 100.0), Color.WHITE, true, "Local")
+	view.ships[1] = local_ship
+	var projectile := ProjectileState.create(50, 2, 1, Vector2(900.0, 100.0), PI, CombatStats.create_base())
+	view.authoritative_projectiles.add(projectile)
+	context.expect_equal(view.nearest_incoming_offscreen_projectile(), projectile, "nearest incoming projectile is selected for a shape indicator")
+	view.camera = Camera2D.new()
+	view.trigger_camera_shake(5.0, 0.2)
+	context.expect_true(view.camera_shake_remaining > 0.0, "local damage can trigger restrained presentation-only camera shake")
+	var feedback_events: Array[StringName] = []
+	view.presentation_event.connect(func(event_name: StringName, _payload: Dictionary) -> void: feedback_events.append(event_name))
+	view.latest_server_tick = 20
+	view._handle_snapshot_feedback(1, {"health": 100.0, "shield": 100.0, "shielding": true, "alive": true, "ammunition": 2, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
+	view.latest_server_tick = 21
+	view._handle_snapshot_feedback(1, {"health": 75.0, "shield": 20.0, "shielding": false, "alive": true, "ammunition": 8, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
+	context.expect_true(&"damage" in feedback_events, "snapshot deltas emit damage feedback once")
+	context.expect_true(&"shield_break" in feedback_events, "snapshot deltas distinguish shield breaks")
+	context.expect_true(&"reload" in feedback_events, "snapshot deltas distinguish reload completion")
+	context.expect_true(local_ship.z_index > 0, "ships render above arena geometry")
+	local_ship.free()
+	view.camera.free()
+	view.free()
+
+
+static func _validate_production_screens(context: TestContext, tree_parent: Node) -> void:
+	var packed_scene := load("res://scenes/client/client_main.tscn") as PackedScene
+	var client := packed_scene.instantiate()
+	tree_parent.add_child(client)
+	context.expect_true(client.connection_screen != null, "production connection screen exists")
+	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
+	context.expect_true(client.draft_panel != null, "production draft screen exists")
+	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
+	context.expect_true(client.network_world.spectator_label != null, "production spectator banner exists")
+	context.expect_false(client.offline_sandbox.camera.enabled, "inactive offline camera cannot steal the online viewport")
+	context.expect_true(client.scoreboard_panel != null, "production scoreboard exists")
+	context.expect_true(client.results_panel != null, "production results screen exists")
+	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
+	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
+	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
+	var players: Array[Dictionary] = []
+	for index in 32:
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": false})
+	client.bridge.local_peer_id = 2
+	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
+	context.expect_equal(client.lobby_label.text.count("Pilot "), 32, "scrollable lobby roster renders all 32 participants")
+	context.expect_true(client.lobby_label.get_parent() is ScrollContainer, "32-player lobby roster is scrollable")
+	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": 600, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
+	client.network_world.latest_server_tick = 300
+	client._update_match_presentation()
+	context.expect_true(client.results_panel.visible, "match result opens the dedicated final standings screen")
+	context.expect_true(client.results_label.text.contains("MATCH CHAMPION"), "results screen clearly identifies the winner")
+	client.connection_screen.visible = false
+	client._toggle_pause_overlay()
+	context.expect_true(client.pause_overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")
+	client._hide_pause_overlay()
+	client._on_rejected(&"SERVER_FULL", "The server is full.")
+	context.expect_true(client.connection_screen.visible and client.connection_status.text.contains("try again"), "connection rejection returns to a usable recovery screen")
+	tree_parent.remove_child(client)
+	client.free()

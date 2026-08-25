@@ -19,7 +19,9 @@ func set_overtime(active: bool, radius: float) -> void:
 
 
 func _draw() -> void:
+	draw_rect(ArenaLayout.arena_rect().grow(1600.0), Color("030716"), true)
 	draw_rect(ArenaLayout.arena_rect(), Color("071024"), true)
+	_draw_stars()
 	_draw_grid()
 	draw_rect(ArenaLayout.arena_rect(), Color("36d7ff"), false, 8.0)
 	var obstacle_fill := Color("18274a")
@@ -33,8 +35,20 @@ func _draw() -> void:
 	for anchor in ArenaLayout.spawn_anchors():
 		draw_circle(anchor, 5.0, Color(0.2, 0.85, 1.0, 0.35))
 	if overtime_visible:
-		draw_circle(ArenaLayout.center(), overtime_radius, Color(1.0, 0.2, 0.42, 0.07))
-		draw_arc(ArenaLayout.center(), overtime_radius, 0.0, TAU, 160, Color("ff315f"), 9.0)
+		var pulse := 0.72 + sin(Time.get_ticks_msec() * 0.008) * 0.2
+		draw_circle(ArenaLayout.center(), overtime_radius, Color(1.0, 0.2, 0.42, 0.1))
+		draw_arc(ArenaLayout.center(), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse * 0.2), 22.0)
+		draw_arc(ArenaLayout.center(), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse), 8.0)
+		queue_redraw()
+
+
+func _draw_stars() -> void:
+	for index in 144:
+		var x := -1600.0 + float(posmod(index * 977 + 131, int(GameConstants.ARENA_SIZE.x + 3200.0)))
+		var y := -1600.0 + float(posmod(index * 577 + 83, int(GameConstants.ARENA_SIZE.y + 3200.0)))
+		var radius := 1.0 + float(index % 3) * 0.55
+		var color := Color("d7f5ff", 0.18 + float(index % 4) * 0.09)
+		draw_circle(Vector2(x, y), radius, color)
 
 
 func _draw_grid() -> void:

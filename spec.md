@@ -366,7 +366,8 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep critical HUD text at least 20 px at 1080p and scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Provide synthesized effects for fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Music is out of scope.
+- Provide synthesized placeholders for fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
+- Support an optional singular `assets/audio/music/main_menu.mp3` track for menu/lobby and an optional `assets/audio/music/gameplay/` MP3 playlist for draft through match results. Missing music is a supported silent state, and all supplied audio must be original or properly licensed.
 
 ## 10. Observability and Failure Handling
 

@@ -77,6 +77,8 @@ func _exit_tree() -> void:
 func set_sandbox_active(active: bool) -> void:
 	visible = active
 	process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
+	if camera != null:
+		camera.enabled = active
 	if hud_canvas != null:
 		hud_canvas.visible = active
 

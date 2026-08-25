@@ -3,6 +3,7 @@ extends Node
 var bridge: NetworkBridge
 var network_world: NetworkWorldView
 var offline_sandbox: OfflineSandbox
+var audio_director: AudioDirector
 var connection_canvas: CanvasLayer
 var connection_screen: Control
 var lobby_panel: PanelContainer
@@ -22,12 +23,19 @@ var draft_title: Label
 var draft_buttons: Array[Button] = []
 var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
+var results_panel: PanelContainer
+var results_label: Label
+var pause_overlay: PanelContainer
+var pause_title: Label
 var card_catalog := CardCatalog.create_default()
 var active_offer_token: String = ""
 var active_offer_deadline: int = -1
 var latest_match_payload: Dictionary = {}
 var _applying_lobby_state: bool = false
 var interface_theme: Theme
+var last_countdown_second: int = -1
+var overtime_announced: bool = false
+var last_state_name: String = "LOBBY"
 
 
 func _ready() -> void:
@@ -42,16 +50,28 @@ func _ready() -> void:
 	bridge.client_match_event_received.connect(_on_match_event)
 	bridge.client_rejected.connect(_on_rejected)
 	bridge.client_connection_lost.connect(_on_connection_lost)
+	audio_director = AudioDirector.new()
+	audio_director.name = "AudioDirector"
+	add_child(audio_director)
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
 	network_world.setup(bridge)
+	network_world.presentation_event.connect(_on_world_presentation_event)
 	_create_connection_ui(configuration)
 	_create_match_ui()
+	_create_pause_overlay()
+	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=enet" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
+		_toggle_pause_overlay()
+		get_viewport().set_input_as_handled()
+		return
+	if pause_overlay != null and pause_overlay.visible:
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
 		_show_connection_screen("Choose online play or the offline combat lab.")
 	if event is InputEventKey and event.pressed and not event.echo and draft_panel != null and draft_panel.visible:
@@ -65,6 +85,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _create_connection_ui(configuration: Dictionary) -> void:
 	interface_theme = Theme.new()
 	interface_theme.default_font_size = 20
+	_configure_interface_theme()
 	connection_canvas = CanvasLayer.new()
 	connection_canvas.layer = 20
 	connection_canvas.name = "ConnectionUI"
@@ -73,15 +94,15 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	connection_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	connection_screen.theme = interface_theme
 	connection_canvas.add_child(connection_screen)
-	var background := ColorRect.new()
+	var background := NeonBackdrop.new()
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.color = Color("071024")
 	connection_screen.add_child(background)
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	connection_screen.add_child(center)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(700.0, 570.0)
+	panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
 	center.add_child(panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 16)
@@ -116,6 +137,11 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	offline_button.custom_minimum_size.y = 54.0
 	offline_button.pressed.connect(_play_offline)
 	buttons.add_child(offline_button)
+	var quit_button := Button.new()
+	quit_button.text = "Quit"
+	quit_button.custom_minimum_size = Vector2(110.0, 54.0)
+	quit_button.pressed.connect(get_tree().quit)
+	buttons.add_child(quit_button)
 	connection_status = Label.new()
 	connection_status.text = "Direct IP uses UDP. Press F2 at any time to return here."
 	connection_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -131,6 +157,7 @@ func _create_lobby_panel() -> void:
 	lobby_panel.position = Vector2(-664.0, 24.0)
 	lobby_panel.custom_minimum_size = Vector2(640.0, 650.0)
 	lobby_panel.theme = interface_theme
+	lobby_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
 	lobby_panel.visible = false
 	connection_canvas.add_child(lobby_panel)
 	var content := VBoxContainer.new()
@@ -197,6 +224,7 @@ func _create_match_ui() -> void:
 	match_panel.position = Vector2(-380.0, 20.0)
 	match_panel.custom_minimum_size = Vector2(760.0, 112.0)
 	match_panel.theme = interface_theme
+	match_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.9))
 	match_panel.visible = false
 	connection_canvas.add_child(match_panel)
 	match_label = Label.new()
@@ -210,6 +238,7 @@ func _create_match_ui() -> void:
 	draft_panel.position = Vector2(-600.0, -280.0)
 	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
 	draft_panel.theme = interface_theme
+	draft_panel.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
 	draft_panel.visible = false
 	connection_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
@@ -242,12 +271,39 @@ func _create_match_ui() -> void:
 	scoreboard_panel.position = Vector2(-450.0, -310.0)
 	scoreboard_panel.custom_minimum_size = Vector2(900.0, 620.0)
 	scoreboard_panel.theme = interface_theme
+	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.97))
 	scoreboard_panel.visible = false
 	connection_canvas.add_child(scoreboard_panel)
+	var scoreboard_scroll := ScrollContainer.new()
+	scoreboard_scroll.custom_minimum_size = Vector2(860.0, 580.0)
+	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scoreboard_panel.add_child(scoreboard_scroll)
 	scoreboard_label = Label.new()
 	scoreboard_label.add_theme_font_size_override("font_size", 22)
 	scoreboard_label.add_theme_color_override("font_color", Color("e8f5ff"))
-	scoreboard_panel.add_child(scoreboard_label)
+	scoreboard_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	scoreboard_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_scroll.add_child(scoreboard_label)
+
+	results_panel = PanelContainer.new()
+	results_panel.set_anchors_preset(Control.PRESET_CENTER)
+	results_panel.position = Vector2(-480.0, -330.0)
+	results_panel.custom_minimum_size = Vector2(960.0, 660.0)
+	results_panel.theme = interface_theme
+	results_panel.add_theme_stylebox_override("panel", _panel_style(Color("fff36a"), 0.98))
+	results_panel.visible = false
+	connection_canvas.add_child(results_panel)
+	var results_scroll := ScrollContainer.new()
+	results_scroll.custom_minimum_size = Vector2(920.0, 620.0)
+	results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	results_panel.add_child(results_scroll)
+	results_label = Label.new()
+	results_label.add_theme_font_size_override("font_size", 24)
+	results_label.add_theme_color_override("font_color", Color("fff36a"))
+	results_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	results_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	results_scroll.add_child(results_label)
 
 
 func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
@@ -259,6 +315,71 @@ func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text:
 	field.custom_minimum_size.y = 48.0
 	parent.add_child(field)
 	return field
+
+
+func _create_pause_overlay() -> void:
+	pause_overlay = PanelContainer.new()
+	pause_overlay.set_anchors_preset(Control.PRESET_CENTER)
+	pause_overlay.position = Vector2(-320.0, -220.0)
+	pause_overlay.custom_minimum_size = Vector2(640.0, 440.0)
+	pause_overlay.theme = interface_theme
+	pause_overlay.add_theme_stylebox_override("panel", _panel_style(Color("ff4fd8"), 0.98))
+	pause_overlay.visible = false
+	connection_canvas.add_child(pause_overlay)
+	var content := VBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 18)
+	pause_overlay.add_child(content)
+	pause_title = Label.new()
+	pause_title.text = "PILOT MENU"
+	pause_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pause_title.add_theme_font_size_override("font_size", 38)
+	pause_title.add_theme_color_override("font_color", Color("ff8ee8"))
+	content.add_child(pause_title)
+	var note := Label.new()
+	note.text = "Online combat continues while this menu is open."
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(note)
+	var resume_button := Button.new()
+	resume_button.text = "Resume"
+	resume_button.custom_minimum_size.y = 58.0
+	resume_button.pressed.connect(_hide_pause_overlay)
+	content.add_child(resume_button)
+	var disconnect_button := Button.new()
+	disconnect_button.text = "Disconnect / Return to Menu"
+	disconnect_button.custom_minimum_size.y = 58.0
+	disconnect_button.pressed.connect(_return_from_pause)
+	content.add_child(disconnect_button)
+	var quit_button := Button.new()
+	quit_button.text = "Quit Game"
+	quit_button.custom_minimum_size.y = 58.0
+	quit_button.pressed.connect(get_tree().quit)
+	content.add_child(quit_button)
+
+
+func _toggle_pause_overlay() -> void:
+	if connection_screen.visible:
+		return
+	pause_overlay.visible = not pause_overlay.visible
+	network_world.input_blocked = pause_overlay.visible
+	if offline_sandbox.visible:
+		offline_sandbox.set_process(not pause_overlay.visible)
+		offline_sandbox.set_physics_process(not pause_overlay.visible)
+
+
+func _hide_pause_overlay() -> void:
+	pause_overlay.visible = false
+	network_world.input_blocked = false
+	if offline_sandbox.visible:
+		offline_sandbox.set_process(true)
+		offline_sandbox.set_physics_process(true)
+
+
+func _return_from_pause() -> void:
+	_hide_pause_overlay()
+	bridge.stop()
+	_show_connection_screen("Returned to the main menu.")
 
 
 func _connect_online() -> void:
@@ -291,7 +412,10 @@ func _play_offline() -> void:
 	match_panel.visible = false
 	draft_panel.visible = false
 	scoreboard_panel.visible = false
+	results_panel.visible = false
+	pause_overlay.visible = false
 	offline_sandbox.set_sandbox_active(true)
+	audio_director.set_context(&"gameplay")
 
 
 func _disconnect_online() -> void:
@@ -299,7 +423,7 @@ func _disconnect_online() -> void:
 	_show_connection_screen("Disconnected. Ready to reconnect.")
 
 
-func _show_connection_screen(message: String) -> void:
+func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
 	network_world.set_network_active(false)
@@ -312,7 +436,12 @@ func _show_connection_screen(message: String) -> void:
 	match_panel.visible = false
 	draft_panel.visible = false
 	scoreboard_panel.visible = false
+	results_panel.visible = false
+	pause_overlay.visible = false
+	network_world.input_blocked = false
 	connection_status.text = message
+	connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
+	audio_director.set_context(&"menu")
 
 
 func _on_connected(peer_id: int) -> void:
@@ -320,6 +449,8 @@ func _on_connected(peer_id: int) -> void:
 	lobby_panel.visible = true
 	network_world.set_network_active(true)
 	connection_status.text = "Connected as peer %d." % peer_id
+	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
+	audio_director.set_context(&"lobby")
 
 
 func _on_lobby_state(state: Dictionary) -> void:
@@ -371,11 +502,18 @@ func _on_npcs_toggled(enabled: bool) -> void:
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
 	if event_type == &"REQUEST_REJECTED":
 		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
+		if draft_panel.visible and not active_offer_token.is_empty():
+			for draft_button in draft_buttons:
+				if draft_button.visible:
+					draft_button.disabled = false
+					draft_button.text = draft_button.text.trim_suffix("\n\nSELECTED")
 	elif event_type == &"DRAFT_OFFER":
 		_show_draft_offer(payload)
 	elif event_type == &"STATE_CHANGED":
+		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		latest_match_payload = payload.duplicate(true)
 		network_world.apply_match_state(payload)
+		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
 		latest_match_payload["builds"] = payload.get("builds", {})
@@ -396,6 +534,7 @@ func _process(_delta: float) -> void:
 		scoreboard_panel.visible = match_panel.visible and Input.is_action_pressed("scoreboard")
 		if scoreboard_panel.visible:
 			_update_scoreboard()
+	_update_timed_audio()
 
 
 func _show_draft_offer(payload: Dictionary) -> void:
@@ -444,6 +583,7 @@ func _select_draft_card(index: int) -> void:
 	if card_id.is_empty():
 		return
 	bridge.send_card_selection(active_offer_token, card_id)
+	audio_director.play_sfx(&"card_lock", "%s:%s" % [active_offer_token, card_id])
 	for draft_button in draft_buttons:
 		draft_button.disabled = true
 	button.text += "\n\nSELECTED"
@@ -456,10 +596,12 @@ func _update_match_presentation() -> void:
 	if state_name == "LOBBY":
 		match_panel.visible = false
 		draft_panel.visible = false
+		results_panel.visible = false
 		return
 	match_panel.visible = true
 	if state_name != "DRAFT":
 		draft_panel.visible = false
+	results_panel.visible = state_name == "MATCH_RESULT"
 	var deadline := int(latest_match_payload.get("deadline_tick", -1))
 	if state_name == "DRAFT" and active_offer_deadline >= 0:
 		deadline = active_offer_deadline
@@ -482,6 +624,7 @@ func _update_match_presentation() -> void:
 		status += " · %s wins round" % _player_name(int(latest_match_payload.get("last_round_winner", 0)))
 	elif state_name == "MATCH_RESULT":
 		status = "★ %s WINS THE MATCH ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
+		results_label.text = _results_text(seconds_left)
 	match_label.text = status
 	if state_name == "DRAFT":
 		draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
@@ -525,7 +668,11 @@ func _player_name(peer_id: int) -> String:
 
 
 func _update_scoreboard() -> void:
-	var lines := PackedStringArray(["SCOREBOARD", "", "PILOT                         HEATS  ROUNDS  BUILD"])
+	scoreboard_label.text = _scoreboard_text("SCOREBOARD")
+
+
+func _scoreboard_text(title: String) -> String:
+	var lines := PackedStringArray([title, "", "PILOT                         HEATS  ROUNDS  BUILD"])
 	var scores := latest_match_payload.get("scores", {}) as Dictionary
 	var builds := latest_match_payload.get("builds", {}) as Dictionary
 	var participant_ids := latest_match_payload.get("participant_peer_ids", []) as Array
@@ -547,15 +694,114 @@ func _update_scoreboard() -> void:
 			", ".join(card_parts) if not card_parts.is_empty() else "—",
 		])
 	lines.append("\nHold Tab to inspect · builds are public after each draft")
-	scoreboard_label.text = "\n".join(lines)
+	return "\n".join(lines)
+
+
+func _results_text(seconds_left: float) -> String:
+	var winner_id := int(latest_match_payload.get("match_winner", 0))
+	var headline := "★ MATCH CHAMPION ★\n%s\n\n" % _player_name(winner_id)
+	var standings := _scoreboard_text("FINAL STANDINGS")
+	return "%s%s\n\nReturning everyone to the lobby in %.1f seconds" % [headline, standings, seconds_left]
+
+
+func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
+	last_state_name = state_name
+	if state_name == "LOBBY":
+		audio_director.set_context(&"lobby")
+		results_panel.visible = false
+		return
+	audio_director.set_context(&"gameplay")
+	if previous_state == "LOBBY" and state_name == "DRAFT":
+		audio_director.reset_match_deduplication()
+	if state_name == "COUNTDOWN":
+		last_countdown_second = -1
+		overtime_announced = false
+	elif state_name == "ROUND_RESULT":
+		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
+	elif state_name == "MATCH_RESULT":
+		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
+
+
+func _update_timed_audio() -> void:
+	if latest_match_payload.is_empty():
+		return
+	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
+	if state_name == "COUNTDOWN":
+		var deadline := int(latest_match_payload.get("deadline_tick", -1))
+		var second := ceili(maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
+		if second != last_countdown_second and second >= 1 and second <= 3:
+			last_countdown_second = second
+			audio_director.play_sfx(&"countdown", "%d:%d" % [deadline, second])
+	elif state_name == "ACTIVE_HEAT" and not overtime_announced:
+		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
+		if overtime_tick >= 0 and network_world.latest_server_tick >= overtime_tick:
+			overtime_announced = true
+			audio_director.play_sfx(&"overtime", str(overtime_tick))
+
+
+func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -> void:
+	var unique_key := "%s:%s" % [payload.get("owner_id", 0), payload.get("shot_sequence", 0)] if event_name == &"fire" else "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", 0)]
+	audio_director.play_sfx(event_name, unique_key)
+
+
+func _configure_interface_theme() -> void:
+	interface_theme.set_color("font_color", "Button", Color("e8f5ff"))
+	interface_theme.set_color("font_hover_color", "Button", Color.WHITE)
+	interface_theme.set_color("font_pressed_color", "Button", Color("fff36a"))
+	interface_theme.set_stylebox("normal", "Button", _button_style(Color("42e8ff"), 0.2))
+	interface_theme.set_stylebox("hover", "Button", _button_style(Color("42e8ff"), 0.42))
+	interface_theme.set_stylebox("pressed", "Button", _button_style(Color("d39cff"), 0.5))
+	interface_theme.set_stylebox("disabled", "Button", _button_style(Color("53627d"), 0.2))
+	interface_theme.set_stylebox("normal", "LineEdit", _input_style())
+	interface_theme.set_stylebox("focus", "LineEdit", _input_style(Color("42e8ff")))
+	interface_theme.set_color("font_color", "LineEdit", Color("e8f5ff"))
+
+
+func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(Color("071024"), opacity)
+	style.border_color = Color(accent, 0.86)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(16)
+	style.shadow_color = Color(accent, 0.16)
+	style.shadow_size = 12
+	style.content_margin_left = 20.0
+	style.content_margin_right = 20.0
+	style.content_margin_top = 18.0
+	style.content_margin_bottom = 18.0
+	return style
+
+
+func _button_style(accent: Color, opacity: float) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(accent.darkened(0.7), 0.78)
+	style.border_color = Color(accent, opacity + 0.35)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 18.0
+	style.content_margin_right = 18.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
+	return style
+
+
+func _input_style(accent: Color = Color("53627d")) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("0d1730")
+	style.border_color = Color(accent, 0.8)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	return style
 
 
 func _on_rejected(_reason: StringName, message: String) -> void:
-	_show_connection_screen(message)
+	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck the server settings, then try again." % message, true)
 
 
 func _on_connection_lost(message: String) -> void:
-	_show_connection_screen(message)
+	_show_connection_screen("CONNECTION LOST\n%s\nYou can reconnect from this screen." % message, true)
 
 
 func _exit_tree() -> void:

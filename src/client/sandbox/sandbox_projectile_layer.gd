@@ -8,6 +8,8 @@ func _draw() -> void:
 	if registry == null:
 		return
 	for projectile in registry.all_projectiles():
-		draw_circle(projectile.position, projectile.radius + 4.0, Color(0.2, 0.9, 1.0, 0.13))
+		var direction := projectile.velocity.normalized()
+		draw_line(projectile.position, projectile.position - direction * 32.0, Color(0.15, 0.75, 1.0, 0.16), 9.0)
+		draw_circle(projectile.position, projectile.radius + 7.0, Color(0.2, 0.9, 1.0, 0.12))
 		draw_circle(projectile.position, projectile.radius, Color("f4fbff"))
-		draw_line(projectile.position, projectile.position - projectile.velocity.normalized() * 20.0, Color(0.25, 0.85, 1.0, 0.7), 3.0)
+		draw_line(projectile.position, projectile.position - direction * 25.0, Color(0.25, 0.85, 1.0, 0.82), 3.0)

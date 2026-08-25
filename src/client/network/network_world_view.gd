@@ -1,11 +1,16 @@
 class_name NetworkWorldView
 extends Node2D
 
+signal presentation_event(event_name: StringName, payload: Dictionary)
+
 var bridge: NetworkBridge
+var arena: SandboxArena
 var local_peer_id: int = 0
 var ships: Dictionary = {}
 var authoritative_projectiles := ProjectileRegistry.new()
 var projectile_layer: SandboxProjectileLayer
+var effects_layer: CombatEffectsLayer
+var indicator_layer: OffscreenIndicatorLayer
 var prediction := ClientPredictionBuffer.new()
 var interpolation := RemoteInterpolator.new()
 var predicted_tracker := PredictedProjectileTracker.new()
@@ -14,6 +19,12 @@ var local_weapon := WeaponState.new()
 var local_stats := CombatStats.create_base()
 var camera: Camera2D
 var diagnostics_label: Label
+var hud_panel: PanelContainer
+var resources_label: Label
+var combat_status_label: Label
+var spectator_label: Label
+var health_bar: ProgressBar
+var shield_bar: ProgressBar
 var input_sequence: int = 0
 var client_tick: int = 0
 var input_send_accumulator: float = 0.0
@@ -25,6 +36,11 @@ var match_payload: Dictionary = {}
 var spectator_target_id: int = 0
 var controls_enabled: bool = false
 var card_catalog := CardCatalog.create_default()
+var input_blocked: bool = false
+var presentation_states: Dictionary = {}
+var camera_shake_remaining: float = 0.0
+var camera_shake_intensity: float = 0.0
+var diagnostics_visible: bool = false
 
 
 func setup(network_bridge: NetworkBridge) -> void:
@@ -33,14 +49,20 @@ func setup(network_bridge: NetworkBridge) -> void:
 	bridge.client_snapshot_received.connect(_on_snapshot)
 	bridge.client_projectile_batch_received.connect(_on_projectile_batch)
 	bridge.client_projectile_correction_received.connect(_on_projectile_correction)
-	var arena := SandboxArena.new()
+	arena = SandboxArena.new()
 	arena.name = "Arena"
 	add_child(arena)
 	projectile_layer = SandboxProjectileLayer.new()
 	projectile_layer.registry = authoritative_projectiles
+	projectile_layer.z_index = 2
 	add_child(projectile_layer)
+	effects_layer = CombatEffectsLayer.new()
+	effects_layer.name = "CombatEffects"
+	effects_layer.z_index = 5
+	add_child(effects_layer)
 	local_weapon.reset(local_stats)
 	_create_camera_and_hud()
+	_create_indicator_layer()
 	set_network_active(false)
 
 
@@ -49,6 +71,8 @@ func set_network_active(active: bool) -> void:
 		reset_session()
 	visible = active
 	process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
+	if camera != null:
+		camera.enabled = active
 	if diagnostics_label != null:
 		var diagnostics_canvas := diagnostics_label.get_parent() as CanvasLayer
 		diagnostics_canvas.visible = active
@@ -72,13 +96,21 @@ func reset_session() -> void:
 	controls_enabled = false
 	next_predicted_id = -1
 	predicted_projectile_ids.clear()
+	presentation_states.clear()
+	camera_shake_remaining = 0.0
+	camera_shake_intensity = 0.0
 	prediction = ClientPredictionBuffer.new()
 	interpolation = RemoteInterpolator.new()
 	predicted_tracker = PredictedProjectileTracker.new()
 	local_weapon = WeaponState.new()
 	local_weapon.reset(local_stats)
+	if effects_layer != null:
+		effects_layer.clear_effects()
+	if arena != null:
+		arena.set_overtime(false, OvertimeSystem.initial_radius())
 	if camera != null:
 		camera.position = ArenaLayout.center()
+		camera.offset = Vector2.ZERO
 
 
 func _physics_process(delta: float) -> void:
@@ -87,21 +119,21 @@ func _physics_process(delta: float) -> void:
 	client_tick = SequenceMath.increment(client_tick)
 	input_send_accumulator += delta
 	var local_ship := ships[local_peer_id] as SandboxShip
-	var aim_vector := get_global_mouse_position() - local_ship.global_position
+	var aim_vector := _unshaken_mouse_world_position() - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
 	if not aim_vector.is_zero_approx():
 		aim_angle = aim_vector.angle()
 	var local_movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var local_alive := local_ship.combatant.alive
-	if not controls_enabled:
+	if not controls_enabled or input_blocked:
 		local_movement = Vector2.ZERO
 	var frame := PlayerInputFrame.new(
 		input_sequence,
 		client_tick,
 		local_movement,
 		aim_angle,
-		controls_enabled and local_alive and Input.is_action_pressed("fire"),
-		controls_enabled and local_alive and Input.is_action_pressed("shield")
+		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("fire"),
+		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield")
 	)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
@@ -122,8 +154,11 @@ func _physics_process(delta: float) -> void:
 	_update_remote_ships()
 	_step_projectile_visuals(delta)
 	_update_camera(local_ship, delta)
+	_update_camera_shake(delta)
+	_update_overtime_presentation()
 	predicted_tracker.step(_now_seconds())
 	_update_diagnostics()
+	queue_redraw()
 
 
 func _on_connected(peer_id: int) -> void:
@@ -141,6 +176,7 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		var peer_id := int(state.peer_id)
 		present_ids[peer_id] = true
 		var ship := _ensure_ship(peer_id, state)
+		_handle_snapshot_feedback(peer_id, state, ship)
 		_apply_snapshot_resources(ship, state)
 		if peer_id == local_peer_id:
 			if not prediction_initialized:
@@ -165,13 +201,19 @@ func _on_snapshot(decoded: Dictionary) -> void:
 
 func apply_match_state(payload: Dictionary) -> void:
 	match_payload = payload.duplicate(true)
-	controls_enabled = String(payload.get("state_name", "")) == "ACTIVE_HEAT"
+	var state_name := String(payload.get("state_name", ""))
+	controls_enabled = state_name == "ACTIVE_HEAT"
+	if hud_panel != null:
+		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
 	var builds := payload.get("builds", {}) as Dictionary
 	if builds.has(local_peer_id):
 		local_stats = StatSystem.derive(builds[local_peer_id] as Dictionary, card_catalog)
 	if String(payload.get("state_name", "")) == "COUNTDOWN":
 		local_weapon.reset(local_stats)
 		prediction_initialized = false
+		presentation_states.clear()
+		if effects_layer != null:
+			effects_layer.clear_effects()
 		snap_camera_to_local_ship()
 	_update_spectator_target()
 
@@ -183,7 +225,14 @@ func snap_camera_to_local_ship() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible or not _local_is_eliminated():
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
+		diagnostics_visible = not diagnostics_visible
+		diagnostics_label.visible = diagnostics_visible
+		get_viewport().set_input_as_handled()
+		return
+	if not _local_is_eliminated() or input_blocked:
 		return
 	var direction := 0
 	if event is InputEventKey and not event.echo:
@@ -216,7 +265,11 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			predicted_projectile_ids.erase(projectile.shot_sequence)
 			predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
 		authoritative_projectiles.add(projectile)
+		presentation_event.emit(&"fire", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id, "shot_sequence": projectile.shot_sequence})
 	for projectile_id in decoded.removed:
+		var projectile := authoritative_projectiles.get_projectile(int(projectile_id))
+		if projectile != null and effects_layer != null:
+			effects_layer.spawn_impact(projectile.position)
 		authoritative_projectiles.remove(int(projectile_id))
 
 
@@ -238,10 +291,12 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 
 func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 	if ships.has(peer_id):
-		return ships[peer_id] as SandboxShip
+		var existing := ships[peer_id] as SandboxShip
+		existing.display_name = _display_name(peer_id)
+		return existing
 	var ship := SandboxShip.new()
-	var color := Color.from_hsv(fposmod(peer_id * 0.173, 1.0), 0.7, 1.0)
-	ship.setup(peer_id, local_stats, state.position, color, peer_id == local_peer_id)
+	var color := _player_color(peer_id)
+	ship.setup(peer_id, local_stats, state.position, color, peer_id == local_peer_id, _display_name(peer_id))
 	add_child(ship)
 	ships[peer_id] = ship
 	return ship
@@ -285,6 +340,7 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 		predicted_projectile_ids[local_weapon.shot_sequence] = next_predicted_id
 		next_predicted_id -= 1
 	predicted_tracker.add(local_peer_id, local_weapon.shot_sequence, _now_seconds())
+	presentation_event.emit(&"fire", {"owner_id": local_peer_id, "shot_sequence": local_weapon.shot_sequence})
 
 
 func _step_projectile_visuals(delta: float) -> void:
@@ -310,23 +366,69 @@ func _create_camera_and_hud() -> void:
 	camera.enabled = true
 	add_child(camera)
 	var canvas := CanvasLayer.new()
-	canvas.name = "NetworkDiagnostics"
+	canvas.name = "CombatHUD"
+	canvas.layer = 10
 	add_child(canvas)
+	hud_panel = PanelContainer.new()
+	hud_panel.position = Vector2(24.0, 24.0)
+	hud_panel.custom_minimum_size = Vector2(520.0, 190.0)
+	hud_panel.add_theme_stylebox_override("panel", _hud_panel_style())
+	hud_panel.visible = false
+	canvas.add_child(hud_panel)
+	var hud_content := VBoxContainer.new()
+	hud_content.add_theme_constant_override("separation", 6)
+	hud_panel.add_child(hud_content)
+	resources_label = Label.new()
+	resources_label.add_theme_font_size_override("font_size", 22)
+	resources_label.add_theme_color_override("font_color", Color("e8f5ff"))
+	hud_content.add_child(resources_label)
+	health_bar = _make_resource_bar(Color("54ff8b"))
+	hud_content.add_child(health_bar)
+	shield_bar = _make_resource_bar(Color("5cf6ff"))
+	hud_content.add_child(shield_bar)
+	combat_status_label = Label.new()
+	combat_status_label.add_theme_font_size_override("font_size", 18)
+	combat_status_label.add_theme_color_override("font_color", Color("aebbd4"))
+	hud_content.add_child(combat_status_label)
+	spectator_label = Label.new()
+	spectator_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	spectator_label.position = Vector2(-360.0, -92.0)
+	spectator_label.custom_minimum_size = Vector2(720.0, 64.0)
+	spectator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	spectator_label.add_theme_font_size_override("font_size", 24)
+	spectator_label.add_theme_color_override("font_color", Color("fff36a"))
+	canvas.add_child(spectator_label)
 	diagnostics_label = Label.new()
-	diagnostics_label.position = Vector2(26.0, 24.0)
+	diagnostics_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	diagnostics_label.position = Vector2(-620.0, -120.0)
+	diagnostics_label.custom_minimum_size = Vector2(600.0, 96.0)
+	diagnostics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	diagnostics_label.add_theme_color_override("font_color", Color("73f7ff"))
-	diagnostics_label.add_theme_font_size_override("font_size", 21)
+	diagnostics_label.add_theme_font_size_override("font_size", 16)
+	diagnostics_label.visible = false
 	canvas.add_child(diagnostics_label)
 
 
 func _update_diagnostics() -> void:
-	var resources := ""
+	var resources := "Waiting for combat snapshot"
+	var combat_status := "F3 network diagnostics · Hold Tab scoreboard"
 	if ships.has(local_peer_id):
 		var local_ship := ships[local_peer_id] as SandboxShip
-		resources = "HP %.0f · SHIELD %.0f · AMMO %d" % [local_ship.combatant.health, local_ship.combatant.shield.energy, local_ship.combatant.weapon.ammunition]
+		health_bar.max_value = local_stats.max_health
+		health_bar.value = local_ship.combatant.health
+		shield_bar.max_value = local_stats.shield_capacity
+		shield_bar.value = local_ship.combatant.shield.energy
+		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
+		combat_status = "%d ALIVE   ·   ROUND %d   HEAT %d   ·   F3 diagnostics" % [(match_payload.get("alive_peer_ids", []) as Array).size(), int(match_payload.get("round_number", 0)), int(match_payload.get("heat_number", 0))]
 		if not local_ship.combatant.alive:
-			resources = "SPECTATING %d · A/D or mouse buttons to cycle" % spectator_target_id
-	diagnostics_label.text = "%s\nNETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [resources, Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
+			resources = "SHIP ELIMINATED"
+			spectator_label.text = "SPECTATING %s   ◀ A / LMB     D / RMB ▶" % _display_name(spectator_target_id) if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
+			spectator_label.visible = true
+		else:
+			spectator_label.visible = false
+	resources_label.text = resources
+	combat_status_label.text = combat_status
+	diagnostics_label.text = "NETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
 
 
 func _local_is_eliminated() -> bool:
@@ -363,6 +465,148 @@ func _cycle_spectator(direction: int) -> void:
 	if current_index < 0:
 		current_index = 0
 	spectator_target_id = targets[posmod(current_index + direction, targets.size())]
+
+
+func nearest_incoming_offscreen_projectile() -> ProjectileState:
+	if not ships.has(local_peer_id):
+		return null
+	var local_position := (ships[local_peer_id] as SandboxShip).global_position
+	var nearest: ProjectileState
+	var nearest_distance := INF
+	for projectile in authoritative_projectiles.all_projectiles():
+		if projectile.owner_id == local_peer_id:
+			continue
+		var offset := local_position - projectile.position
+		var distance := offset.length()
+		if distance <= 0.001 or projectile.velocity.normalized().dot(offset / distance) < 0.72:
+			continue
+		if distance < nearest_distance:
+			nearest = projectile
+			nearest_distance = distance
+	return nearest
+
+
+func trigger_camera_shake(intensity: float, duration: float) -> void:
+	camera_shake_intensity = maxf(camera_shake_intensity, intensity)
+	camera_shake_remaining = maxf(camera_shake_remaining, duration)
+
+
+func _create_indicator_layer() -> void:
+	var canvas := CanvasLayer.new()
+	canvas.name = "OffscreenIndicators"
+	canvas.layer = 8
+	add_child(canvas)
+	indicator_layer = OffscreenIndicatorLayer.new()
+	indicator_layer.setup(self)
+	canvas.add_child(indicator_layer)
+
+
+func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: SandboxShip) -> void:
+	if not presentation_states.has(peer_id):
+		presentation_states[peer_id] = state.duplicate(true)
+		return
+	var previous := presentation_states[peer_id] as Dictionary
+	var health_drop := float(previous.get("health", 0.0)) - float(state.get("health", 0.0))
+	var shield_drop := float(previous.get("shield", 0.0)) - float(state.get("shield", 0.0))
+	if health_drop > 0.05:
+		ship.flash_damage()
+		var direction := -(state.get("velocity", Vector2.ZERO) as Vector2).normalized()
+		if direction.is_zero_approx():
+			direction = Vector2.from_angle(float(state.get("aim_angle", 0.0)) + PI)
+		if effects_layer != null:
+			effects_layer.spawn_damage(state.position, direction)
+		presentation_event.emit(&"damage", {"peer_id": peer_id, "server_tick": latest_server_tick})
+		if peer_id == local_peer_id:
+			trigger_camera_shake(5.0, 0.16)
+	if not bool(previous.get("shielding", false)) and bool(state.get("shielding", false)):
+		presentation_event.emit(&"shield_on", {"peer_id": peer_id, "server_tick": latest_server_tick})
+	if shield_drop > 2.0 and bool(previous.get("shielding", false)):
+		ship.flash_shield_block()
+		presentation_event.emit(&"shield_block", {"peer_id": peer_id, "server_tick": latest_server_tick})
+	if float(previous.get("shield", 0.0)) >= GameConstants.SHIELD_DEPLETION_THRESHOLD and float(state.get("shield", 0.0)) < GameConstants.SHIELD_DEPLETION_THRESHOLD:
+		presentation_event.emit(&"shield_break", {"peer_id": peer_id, "server_tick": latest_server_tick})
+	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
+		if effects_layer != null:
+			effects_layer.spawn_elimination(state.position, ship.ship_color)
+		presentation_event.emit(&"elimination", {"peer_id": peer_id, "server_tick": latest_server_tick})
+		if peer_id == local_peer_id:
+			trigger_camera_shake(9.0, 0.3)
+	if peer_id == local_peer_id and int(state.get("ammunition", 0)) > int(previous.get("ammunition", 0)) + 1:
+		presentation_event.emit(&"reload", {"peer_id": peer_id, "server_tick": latest_server_tick})
+	presentation_states[peer_id] = state.duplicate(true)
+
+
+func _update_overtime_presentation() -> void:
+	if arena == null:
+		return
+	var overtime_tick := int(match_payload.get("overtime_start_tick", -1))
+	var active := controls_enabled and overtime_tick >= 0 and latest_server_tick >= overtime_tick
+	var radius := OvertimeSystem.initial_radius()
+	if active:
+		var elapsed := GameConstants.OVERTIME_START_SECONDS + float(latest_server_tick - overtime_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND
+		radius = OvertimeSystem.radius_at(elapsed)
+	arena.set_overtime(active, radius)
+
+
+func _update_camera_shake(delta: float) -> void:
+	if camera == null:
+		return
+	if camera_shake_remaining <= 0.0:
+		camera.offset = camera.offset.lerp(Vector2.ZERO, 1.0 - exp(-18.0 * delta))
+		return
+	camera_shake_remaining = maxf(camera_shake_remaining - delta, 0.0)
+	var fade := minf(camera_shake_remaining * 8.0, 1.0)
+	camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * camera_shake_intensity * fade
+
+
+func _unshaken_mouse_world_position() -> Vector2:
+	if camera == null:
+		return get_global_mouse_position()
+	var screen_offset := get_viewport().get_mouse_position() - get_viewport_rect().size * 0.5
+	return camera.position + Vector2(screen_offset.x / camera.zoom.x, screen_offset.y / camera.zoom.y)
+
+
+func _player_color(peer_id: int) -> Color:
+	var palette: Array[Color] = [
+		Color("42e8ff"), Color("ff4f78"), Color("fff36a"), Color("62ff9b"),
+		Color("d39cff"), Color("ff9f43"), Color("5cf6ff"), Color("ff66d4"),
+	]
+	return palette[posmod(peer_id, palette.size())]
+
+
+func _display_name(peer_id: int) -> String:
+	for player_value in bridge.latest_lobby_state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == peer_id:
+			return String(player.get("display_name", "Pilot %d" % peer_id))
+	return "Pilot %d" % peer_id
+
+
+func _make_resource_bar(color: Color) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(480.0, 18.0)
+	bar.show_percentage = false
+	bar.add_theme_stylebox_override("background", _flat_style(Color("101a36"), Color("31466c"), 1))
+	bar.add_theme_stylebox_override("fill", _flat_style(Color(color.darkened(0.45), 0.94), color, 1))
+	return bar
+
+
+func _hud_panel_style() -> StyleBoxFlat:
+	var style := _flat_style(Color("071024", 0.9), Color("42e8ff", 0.75), 2)
+	style.content_margin_left = 18.0
+	style.content_margin_right = 18.0
+	style.content_margin_top = 14.0
+	style.content_margin_bottom = 14.0
+	return style
+
+
+func _flat_style(background: Color, border: Color, width: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(width)
+	style.set_corner_radius_all(10)
+	return style
 
 
 static func _now_seconds() -> float:
