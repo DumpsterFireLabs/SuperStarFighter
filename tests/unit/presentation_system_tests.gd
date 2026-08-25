@@ -184,13 +184,18 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.pressed = false
 	client._input(tab_event)
 	context.expect_false(client.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
-	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
+	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()
 	context.expect_true(client.win_overlay.visible and client.results_panel.visible, "match result opens the dedicated final standings screen")
 	context.expect_true(client.results_label.text.contains("VICTORY"), "results screen clearly identifies the winner")
 	context.expect_equal(client.results_standings_container.get_child_count(), 1, "structured standings renders one row per participant")
 	context.expect_equal(client.results_standings_container.get_child(0).get_meta("peer_id"), 2, "winner occupies the first highlighted standings row")
+	var final_build_cards := client.results_standings_container.get_child(0).find_child("FinalBuildCards", true, false) as HFlowContainer
+	context.expect_true(final_build_cards != null and final_build_cards.get_child_count() == 1, "final build renders each owned card as an individual hover target")
+	var result_card_chip := final_build_cards.get_child(0) as Button
+	context.expect_equal(result_card_chip.get_meta("card_id"), &"heavy_rounds", "final-build hover target retains its authoritative card identity")
+	context.expect_true(result_card_chip.tooltip_text.contains("CARD STATS") and result_card_chip.tooltip_text.contains("Projectile Damage") and result_card_chip.tooltip_text.contains("×1.82 total"), "hover popup shows exact per-stack and compounded card statistics")
 	context.expect_true(client.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
 	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
 	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")

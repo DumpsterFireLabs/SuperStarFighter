@@ -95,7 +95,11 @@ func advance_time(at_tick: int) -> Array[Dictionary]:
 			State.COUNTDOWN:
 				_transition(State.ACTIVE_HEAT, transition_tick)
 			State.HEAT_RESULT:
-				if _pending_round_winner != 0:
+				if _pending_match_winner != 0:
+					last_round_winner = _pending_round_winner
+					match_winner = _pending_match_winner
+					_transition(State.MATCH_RESULT, transition_tick)
+				elif _pending_round_winner != 0:
 					last_round_winner = _pending_round_winner
 					_transition(State.ROUND_RESULT, transition_tick)
 				else:
@@ -103,16 +107,12 @@ func advance_time(at_tick: int) -> Array[Dictionary]:
 					_prepare_heat()
 					_transition(State.COUNTDOWN, transition_tick)
 			State.ROUND_RESULT:
-				if _pending_match_winner != 0:
-					match_winner = _pending_match_winner
-					_transition(State.MATCH_RESULT, transition_tick)
-				else:
-					round_number += 1
-					heat_number = 0
-					last_heat_winner = 0
-					last_round_winner = 0
-					_pending_round_winner = 0
-					_transition(State.DRAFT, transition_tick)
+				round_number += 1
+				heat_number = 0
+				last_heat_winner = 0
+				last_round_winner = 0
+				_pending_round_winner = 0
+				_transition(State.DRAFT, transition_tick)
 			_:
 				break
 		transitions.append(event_history.back())

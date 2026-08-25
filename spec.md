@@ -109,10 +109,10 @@ The server owns a single explicit state machine.
 | `COUNTDOWN` | 3 s | Spawn/reset ships with controls locked. | Timer reaches zero. |
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
 | `HEAT_RESULT` | 3 s | Freeze combat and show heat result. | Continue current round or resolve it. |
-| `ROUND_RESULT` | 2.5 s | Award a round win and clear all heat wins. | Start next draft or resolve match. |
+| `ROUND_RESULT` | 2.5 s | Award a non-final round win and clear all heat wins. | Start the next draft. |
 | `MATCH_RESULT` | Indefinite | Show winner and final builds/scores. | Lobby leader selects Exit to Lobby. |
 
-State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. `MATCH_RESULT` has no deadline and cannot advance from elapsed time.
+State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. A decisive final heat transitions directly from `HEAT_RESULT` to `MATCH_RESULT`, skipping the redundant 2.5-second `ROUND_RESULT` intermission. `MATCH_RESULT` has no deadline and cannot advance from elapsed time.
 
 ### 4.2 Lobby Rules
 
@@ -427,7 +427,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Holding Tab displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing Tab immediately closes it while the match continues behind it.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
-6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, and scroll for large lobbies. The lobby leader receives an Exit to Lobby button; other clients see a disabled waiting-for-leader action. No automatic close timer is present.
+6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, and scroll for large lobbies. Render every final-build card as an individual rarity-colored hover target; its popup shows description, tier chance, owned stacks, per-stack modifiers, compounded totals, and special behavior. The lobby leader receives an Exit to Lobby button; other clients see a disabled waiting-for-leader action. No automatic close timer is present.
 
 ### 9.2 Presentation Rules
 

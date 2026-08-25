@@ -1406,6 +1406,94 @@ func _result_build_text(peer_id: int) -> String:
 	return "  •  ".join(parts)
 
 
+func _add_result_build(parent: HBoxContainer, peer_id: int) -> void:
+	var build := _result_build(peer_id)
+	var build_flow := HFlowContainer.new()
+	build_flow.name = "FinalBuildCards"
+	build_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	build_flow.add_theme_constant_override("h_separation", 6)
+	build_flow.add_theme_constant_override("v_separation", 5)
+	parent.add_child(build_flow)
+	if build.is_empty():
+		var base_label := Label.new()
+		base_label.text = "BASE LOADOUT"
+		base_label.add_theme_font_size_override("font_size", 15)
+		base_label.add_theme_color_override("font_color", Color("8ba1c7"))
+		build_flow.add_child(base_label)
+		return
+	var card_ids := build.keys()
+	card_ids.sort_custom(func(first: Variant, second: Variant) -> bool:
+		var first_card := card_catalog.get_card(StringName(first))
+		var second_card := card_catalog.get_card(StringName(second))
+		var first_name := first_card.display_name if first_card != null else String(first)
+		var second_name := second_card.display_name if second_card != null else String(second)
+		return first_name < second_name
+	)
+	for card_value in card_ids:
+		var card_id := StringName(card_value)
+		var card := card_catalog.get_card(card_id)
+		var stacks := int(build[card_value])
+		var chip := Button.new()
+		chip.focus_mode = Control.FOCUS_NONE
+		chip.mouse_default_cursor_shape = Control.CURSOR_HELP
+		chip.text = "%s ×%d" % [card.display_name if card != null else String(card_id), stacks]
+		chip.set_meta("card_id", card_id)
+		chip.set_meta("stack_count", stacks)
+		chip.add_theme_font_size_override("font_size", 14)
+		if card != null:
+			var rarity_color := card.rarity_color()
+			chip.tooltip_text = _result_card_tooltip(card, stacks)
+			chip.add_theme_color_override("font_color", rarity_color.lightened(0.2))
+			chip.add_theme_color_override("font_hover_color", Color.WHITE)
+			chip.add_theme_stylebox_override("normal", _result_card_chip_style(rarity_color, false))
+			chip.add_theme_stylebox_override("hover", _result_card_chip_style(rarity_color, true))
+			chip.add_theme_stylebox_override("pressed", _result_card_chip_style(rarity_color, true))
+		build_flow.add_child(chip)
+
+
+func _result_card_tooltip(card: CardDefinition, stacks: int) -> String:
+	var lines := PackedStringArray([
+		card.display_name.to_upper(),
+		"%s · %s · %s TIER DROP" % [card.rarity_name().to_upper(), card.category_name().to_upper(), card.rarity_drop_chance_text()],
+		"",
+		card.description,
+		"",
+		"OWNED STACKS: %d" % stacks,
+		"CARD STATS",
+	])
+	var stat_lines := PackedStringArray()
+	var additive_names := card.additive_modifiers.keys()
+	additive_names.sort()
+	for property_value in additive_names:
+		var property_name := String(property_value)
+		var per_stack := float(card.additive_modifiers[property_value])
+		stat_lines.append("%s  %+.2f each · %+.2f total" % [_card_stat_name(property_name), per_stack, per_stack * stacks])
+	var multiplier_names := card.multiplicative_modifiers.keys()
+	multiplier_names.sort()
+	for property_value in multiplier_names:
+		var property_name := String(property_value)
+		var per_stack := float(card.multiplicative_modifiers[property_value])
+		stat_lines.append("%s  ×%.2f each · ×%.2f total" % [_card_stat_name(property_name), per_stack, pow(per_stack, stacks)])
+	var integer_names := card.integer_modifiers.keys()
+	integer_names.sort()
+	for property_value in integer_names:
+		var property_name := String(property_value)
+		var per_stack := int(card.integer_modifiers[property_value])
+		stat_lines.append("%s  %+d each · %+d total" % [_card_stat_name(property_name), per_stack, per_stack * stacks])
+	if card.special_behavior_id == &"beam_weapon":
+		stat_lines.append("Weapon Form  Pulse beam")
+	elif card.special_behavior_id == &"auto_repair":
+		stat_lines.append("Special  Automatic hull repair")
+	if stat_lines.is_empty():
+		stat_lines.append("Special behavior described above")
+	lines.append_array(stat_lines)
+	return "\n".join(lines)
+
+
+func _card_stat_name(property_name: String) -> String:
+	return property_name.replace("_", " ").capitalize()
+
+
 func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	var accent := Color("fff36a") if winner else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
 	var row_panel := PanelContainer.new()
@@ -1439,13 +1527,7 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	score_label.add_theme_font_size_override("font_size", 16)
 	score_label.add_theme_color_override("font_color", Color("73f7ff"))
 	row.add_child(score_label)
-	var build_label := Label.new()
-	build_label.text = _result_build_text(peer_id)
-	build_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	build_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	build_label.add_theme_font_size_override("font_size", 16)
-	build_label.add_theme_color_override("font_color", Color("d6e2f2"))
-	row.add_child(build_label)
+	_add_result_build(row, peer_id)
 
 
 func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> void:
@@ -1469,6 +1551,19 @@ func _results_row_style(accent: Color, winner: bool) -> StyleBoxFlat:
 	style.content_margin_right = 10.0
 	style.content_margin_top = 8.0
 	style.content_margin_bottom = 8.0
+	return style
+
+
+func _result_card_chip_style(color: Color, hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color.darkened(0.76), 0.92 if hovered else 0.72)
+	style.border_color = Color(color, 0.9 if hovered else 0.46)
+	style.set_border_width_all(2 if hovered else 1)
+	style.set_corner_radius_all(7)
+	style.content_margin_left = 8.0
+	style.content_margin_right = 8.0
+	style.content_margin_top = 4.0
+	style.content_margin_bottom = 4.0
 	return style
 
 

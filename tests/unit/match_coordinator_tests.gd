@@ -67,9 +67,8 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
 	_finish_heat(world, coordinator, 2)
 	context.expect_equal(coordinator.machine.heat_number, 4, "round can continue beyond three heats")
-	_advance_until_state(world, coordinator, MatchStateMachine.State.ROUND_RESULT)
-	context.expect_equal(coordinator.machine.last_round_winner, 2, "first player to two heat wins takes round")
 	_advance_until_state(world, coordinator, MatchStateMachine.State.MATCH_RESULT)
+	context.expect_equal(coordinator.machine.last_round_winner, 2, "first player to two heat wins takes the decisive round")
 	context.expect_equal(coordinator.machine.match_winner, 2, "round target one resolves match winner")
 	_advance(world, coordinator, 120)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "match coordinator keeps final standings open indefinitely")
@@ -139,8 +138,8 @@ static func _validate_last_survivor_resolution(context: TestContext) -> void:
 	(world.combatants[22] as CombatantState).health = 0.0
 	_advance(world, coordinator, 1)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "second last-survivor result closes combat")
-	_advance_until_state(world, coordinator, MatchStateMachine.State.ROUND_RESULT)
-	context.expect_equal(coordinator.machine.last_round_winner, 20, "two last-survivor heat wins end the round")
+	_advance_until_state(world, coordinator, MatchStateMachine.State.MATCH_RESULT)
+	context.expect_equal(coordinator.machine.last_round_winner, 20, "two last-survivor heat wins end the match without a final round cooldown")
 
 
 static func _validate_npc_draft(context: TestContext) -> void:
