@@ -65,8 +65,8 @@ func _capture_sequence() -> void:
 	client.match_panel.visible = true
 	client.network_world.local_peer_id = 2
 	client.network_world._on_snapshot({"server_tick": 200, "acknowledged_input": 10, "states": [
-		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 78.0, "shield": 64.0, "ammunition": 5, "alive": true, "shielding": false},
-		{"peer_id": 3, "position": Vector2(980.0, 520.0), "velocity": Vector2.ZERO, "aim_angle": PI, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true},
+		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2(280.0, 0.0), "aim_angle": 0.0, "health": 78.0, "shield": 64.0, "ammunition": 5, "alive": true, "shielding": false},
+		{"peer_id": 3, "position": Vector2(980.0, 520.0), "velocity": Vector2(-210.0, 70.0), "aim_angle": PI, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true},
 	]})
 	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "overtime_start_tick": 5600}
 	client.network_world.apply_match_state(client.latest_match_payload)

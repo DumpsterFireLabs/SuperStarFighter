@@ -105,6 +105,20 @@ static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalo
 			context.expect_true(expected_chances[rarity] < expected_chances[rarity - 1], "higher rarity %s is scarcer than the tier below" % CardDefinition.Rarity.keys()[rarity].capitalize())
 	context.expect_equal(catalog.get_card(&"chronal_shield").rarity_drop_chance_text(), "0.25%", "mythical chance keeps meaningful decimal precision")
 	context.expect_equal(catalog.get_card(&"reality_shredder").rarity_drop_chance_text(), "0.05%", "unobtanium chance keeps meaningful decimal precision")
+	var expected_beam_rarities := {
+		&"laser_repeater": CardDefinition.Rarity.EPIC,
+		&"beam_emitter": CardDefinition.Rarity.LEGENDARY,
+		&"prismatic_lance": CardDefinition.Rarity.LEGENDARY,
+		&"sunbeam_core": CardDefinition.Rarity.MYTHICAL,
+		&"singularity_lance": CardDefinition.Rarity.UNOBTANIUM,
+		&"reality_shredder": CardDefinition.Rarity.UNOBTANIUM,
+	}
+	for card_id in expected_beam_rarities:
+		context.expect_equal(
+			catalog.get_card(card_id).rarity,
+			expected_beam_rarities[card_id],
+			"%s uses its rebalanced high-tier beam rarity" % card_id
+		)
 	var beam_stats := StatSystem.derive({&"beam_emitter": 1, &"prismatic_lance": 2}, catalog)
 	context.expect_true(beam_stats.beam_weapon, "beam cards transform the authoritative weapon type")
 	context.expect_equal(beam_stats.pierce_count, 4, "beam lance stacks add pierces")

@@ -309,9 +309,9 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 | `piercing_rounds` | Piercing Rounds | Weapon | Rare | +1 pierce; ×1.08 damage | 3 |
 | `ricochet_rounds` | Ricochet Rounds | Weapon | Epic | +1 ricochet; ×1.08 projectile speed | 3 |
 | `scatter_array` | Scatter Array | Weapon | Uncommon | +2 projectiles; +18° spread; ×0.62 damage | 2 |
-| `beam_emitter` | Beam Emitter | Weapon | Rare | Enable pulse beams; ×1.05 damage; ×2.50 projectile speed | 1 |
-| `prismatic_lance` | Prismatic Lance | Weapon | Epic | Enable pulse beams; +2 pierces; ×1.25 damage; ×0.72 fire rate | 3 |
-| `laser_repeater` | Laser Repeater | Weapon | Uncommon | Enable pulse beams; ×1.28 fire rate; ×0.86 damage | 3 |
+| `beam_emitter` | Beam Emitter | Weapon | Legendary | Enable pulse beams; ×1.05 damage; ×2.50 projectile speed | 1 |
+| `prismatic_lance` | Prismatic Lance | Weapon | Legendary | Enable pulse beams; +2 pierces; ×1.25 damage; ×0.72 fire rate | 3 |
+| `laser_repeater` | Laser Repeater | Weapon | Epic | Enable pulse beams; ×1.28 fire rate; ×0.86 damage | 3 |
 | `siege_cannon` | Siege Cannon | Weapon | Rare | ×1.60 damage; ×0.65 fire rate; ×0.82 projectile speed | 3 |
 | `micro_barrage` | Micro Barrage | Weapon | Epic | +2 projectiles; +14° spread; ×0.80 speed; ×0.72 damage | 2 |
 | `endless_belt` | Endless Belt | Weapon | Common | +8 magazine | 4 |
@@ -336,9 +336,9 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 | `cycling_servo` | Cycling Servo | Weapon | Uncommon | ×1.18 fire rate | 4 |
 | `accelerator_coil` | Accelerator Coil | Weapon | Rare | ×1.25 projectile speed; ×1.12 damage | 3 |
 | `trident_array` | Trident Array | Weapon | Epic | +2 projectiles; +14° spread; ×0.78 damage | 2 |
-| `sunbeam_core` | Sunbeam Core | Weapon | Legendary | Enable beams; ×1.45 damage; ×1.15 fire rate; +1 pierce | 2 |
+| `sunbeam_core` | Sunbeam Core | Weapon | Mythical | Enable beams; ×1.45 damage; ×1.15 fire rate; +1 pierce | 2 |
 | `causality_cannon` | Causality Cannon | Weapon | Mythical | ×2.00 damage; ×1.50 projectile speed | 2 |
-| `singularity_lance` | Singularity Lance | Weapon | Mythical | Enable beams; ×1.75 damage; +3 pierces; +1 ricochet | 2 |
+| `singularity_lance` | Singularity Lance | Weapon | Unobtanium | Enable beams; ×1.75 damage; +3 pierces; +1 ricochet | 2 |
 | `reality_shredder` | Reality Shredder | Weapon | Unobtanium | Enable beams; ×2.50 damage; ×1.60 fire rate; +2 projectiles; +4 pierces; +2 ricochets | 1 |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
@@ -414,7 +414,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 ### 9.2 Presentation Rules
 
-- Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles.
+- Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles. Each living moving ship emits a small, bounded color-matched thruster trail opposite its travel direction; emission intensity follows speed and stops on elimination.
 - Replace the system arrow over the gameplay viewport with a high-contrast crosshair centered on the aim point.
 - Give every participant a stable color chosen from a high-contrast palette, then add name, outline pattern, and local-player marker so identity never depends on color alone.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.

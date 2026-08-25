@@ -21,6 +21,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.3 — Ultrawide and Victory Presentation | Complete | Added 2560×1080 and 3440×1440 expand-aspect modes; rebuilt victory as a champion plate with aligned, highlighted, scrollable standings rows and clean build wrapping; corrected the capture harness to assert real framebuffer dimensions; 1,154 assertions and 44 production-screen captures passed. |
 | 6.4 — Intro and Round Pacing | Complete | Splash accepts any key immediately and retains a ten-second automatic fallback; authoritative round-result intermission shortened from four seconds to 2.5 seconds while heat results remain unchanged; 1,158 assertions passed. |
 | 6.5 — Momentary Scoreboard and Explicit Results Exit | Complete | Removed redundant per-card no-limit copy, changed the live scoreboard to hold/release input, and replaced automatic match-result expiry with a leader-authorized Exit to Lobby transition; 1,150 assertions, 73 project checks, the two-match network loop, and 44 production-screen captures passed. |
+| 6.6 — Beam Rarity Balance and Thruster Particles | Complete | Raised every beam-conversion card to Epic or above, including two-tier jumps for the earliest beam unlocks; added bounded speed-responsive color-matched thruster particles for forward, reverse, and strafe motion; 1,159 assertions, 73 project checks, and 44 production-screen captures passed. |
 | 7 — Export, Documentation, and Release Candidate | Next | Milestone 6 exit gate passed. |
 
 ## Completion Rules

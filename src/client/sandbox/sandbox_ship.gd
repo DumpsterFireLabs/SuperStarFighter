@@ -9,6 +9,8 @@ var identity_pattern: int = 0
 var damage_flash_remaining: float = 0.0
 var shield_flash_remaining: float = 0.0
 var elimination_pulse_remaining: float = 0.0
+var thruster_particles: CPUParticles2D
+var thruster_intensity: float = 0.0
 
 
 func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Color, is_local: bool = false, pilot_name: String = "") -> void:
@@ -27,6 +29,7 @@ func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Col
 	circle.radius = GameConstants.SHIP_COLLISION_RADIUS
 	collision.shape = circle
 	add_child(collision)
+	_create_thruster_particles()
 	queue_redraw()
 
 
@@ -34,6 +37,7 @@ func _process(delta: float) -> void:
 	damage_flash_remaining = maxf(damage_flash_remaining - delta, 0.0)
 	shield_flash_remaining = maxf(shield_flash_remaining - delta, 0.0)
 	elimination_pulse_remaining = maxf(elimination_pulse_remaining - delta, 0.0)
+	_update_thruster_particles()
 	if damage_flash_remaining > 0.0 or shield_flash_remaining > 0.0 or elimination_pulse_remaining > 0.0:
 		queue_redraw()
 
@@ -51,6 +55,8 @@ func set_eliminated() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	elimination_pulse_remaining = 0.65
+	if thruster_particles != null:
+		thruster_particles.emitting = false
 	queue_redraw()
 
 
@@ -72,7 +78,54 @@ func reset_ship(stats: CombatStats, spawn_position: Vector2) -> void:
 	elimination_pulse_remaining = 0.0
 	collision_layer = 2
 	collision_mask = 3
+	if thruster_particles != null:
+		thruster_particles.restart()
 	queue_redraw()
+
+
+func _create_thruster_particles() -> void:
+	thruster_particles = CPUParticles2D.new()
+	thruster_particles.name = "ThrusterParticles"
+	thruster_particles.amount = 10
+	thruster_particles.lifetime = 0.42
+	thruster_particles.randomness = 0.45
+	thruster_particles.local_coords = false
+	thruster_particles.direction = Vector2.LEFT
+	thruster_particles.spread = 16.0
+	thruster_particles.gravity = Vector2.ZERO
+	thruster_particles.initial_velocity_min = 42.0
+	thruster_particles.initial_velocity_max = 92.0
+	thruster_particles.scale_amount_min = 1.4
+	thruster_particles.scale_amount_max = 3.2
+	var color_fade := Gradient.new()
+	color_fade.offsets = PackedFloat32Array([0.0, 0.3, 1.0])
+	color_fade.colors = PackedColorArray([
+		Color(1.0, 1.0, 1.0, 0.82),
+		Color(ship_color.lightened(0.18), 0.58),
+		Color(ship_color, 0.0),
+	])
+	thruster_particles.color_ramp = color_fade
+	thruster_particles.z_index = -1
+	thruster_particles.emitting = false
+	add_child(thruster_particles)
+
+
+func _update_thruster_particles() -> void:
+	if thruster_particles == null or combatant == null or not combatant.alive:
+		thruster_intensity = 0.0
+		if thruster_particles != null:
+			thruster_particles.emitting = false
+		return
+	var speed := combatant.velocity.length()
+	thruster_intensity = clampf(speed / maxf(combatant.stats.max_speed, 1.0), 0.0, 1.0)
+	if speed <= 12.0:
+		thruster_particles.emitting = false
+		return
+	var travel_direction := combatant.velocity / speed
+	thruster_particles.position = -travel_direction * 18.0
+	thruster_particles.rotation = travel_direction.angle()
+	thruster_particles.speed_scale = lerpf(0.7, 1.35, thruster_intensity)
+	thruster_particles.emitting = true
 
 
 func _draw() -> void:
