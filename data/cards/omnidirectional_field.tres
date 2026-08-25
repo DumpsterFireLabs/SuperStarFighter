@@ -9,6 +9,5 @@ display_name = "Omnidirectional Field"
 description = "+240° shield arc for full coverage, but shield drain is doubled."
 category = 1
 rarity = 4
-max_stacks = 1
 additive_modifiers = {"shield_arc_degrees": 240.0}
 multiplicative_modifiers = {"shield_continuous_drain": 2.0}

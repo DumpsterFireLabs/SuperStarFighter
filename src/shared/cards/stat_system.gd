@@ -39,7 +39,7 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 
 	for card_id in catalog.all_ids():
 		var card := catalog.get_card(card_id)
-		var stacks := clampi(int(build.get(card_id, 0)), 0, card.max_stacks)
+		var stacks := maxi(int(build.get(card_id, 0)), 0)
 		if stacks == 0:
 			continue
 		for property_name in card.additive_modifiers:

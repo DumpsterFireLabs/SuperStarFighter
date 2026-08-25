@@ -9,7 +9,6 @@ display_name = "Prismatic Lance"
 description = "Adds beam tech, +2 pierces, damage ×1.25 and fire rate ×0.72 per stack."
 category = 2
 rarity = 3
-max_stacks = 3
 multiplicative_modifiers = {"projectile_damage": 1.25, "fire_rate": 0.72}
 integer_modifiers = {"pierce_count": 2}
 special_behavior_id = &"beam_weapon"

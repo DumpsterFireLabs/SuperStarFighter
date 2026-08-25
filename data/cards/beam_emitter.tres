@@ -9,6 +9,5 @@ display_name = "Beam Emitter"
 description = "Transforms your shots into brilliant, near-instant pulse beams."
 category = 2
 rarity = 2
-max_stacks = 1
 multiplicative_modifiers = {"projectile_damage": 1.05, "projectile_speed": 2.5}
 special_behavior_id = &"beam_weapon"

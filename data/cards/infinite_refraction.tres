@@ -9,5 +9,4 @@ display_name = "Infinite Refraction"
 description = "Shield arc ×3.00, capacity ×2.00 and regeneration ×2.00."
 category = 1
 rarity = 6
-max_stacks = 1
 multiplicative_modifiers = {"shield_arc_degrees": 3.0, "shield_capacity": 2.0, "shield_regeneration": 2.0}

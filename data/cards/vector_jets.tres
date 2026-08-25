@@ -8,6 +8,4 @@ card_id = &"vector_jets"
 display_name = "Vector Jets"
 description = "Acceleration is multiplied by 1.20 and drag by 1.25."
 category = 0
-max_stacks = 3
 multiplicative_modifiers = {"acceleration": 1.2, "drag": 1.25}
-

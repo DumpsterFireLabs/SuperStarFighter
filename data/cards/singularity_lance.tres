@@ -9,7 +9,6 @@ display_name = "Singularity Lance"
 description = "Adds beam tech, damage ×1.75, +3 pierces and +1 ricochet."
 category = 2
 rarity = 5
-max_stacks = 2
 multiplicative_modifiers = {"projectile_damage": 1.75}
 integer_modifiers = {"pierce_count": 3, "ricochet_count": 1}
 special_behavior_id = &"beam_weapon"

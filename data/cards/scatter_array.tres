@@ -9,7 +9,6 @@ display_name = "Scatter Array"
 description = "+2 projectiles and +18° spread, with per-projectile damage ×0.62 per stack."
 category = 2
 rarity = 1
-max_stacks = 2
 additive_modifiers = {"projectile_spread_degrees": 18.0}
 multiplicative_modifiers = {"projectile_damage": 0.62}
 integer_modifiers = {"projectile_count": 2}

@@ -9,5 +9,4 @@ display_name = "Gyroscopic Core"
 description = "Flight damping ×1.25 and acceleration ×1.12 per stack."
 category = 0
 rarity = 2
-max_stacks = 3
 multiplicative_modifiers = {"drag": 1.25, "acceleration": 1.12}

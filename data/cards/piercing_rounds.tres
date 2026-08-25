@@ -9,6 +9,5 @@ display_name = "Piercing Rounds"
 description = "+1 projectile pierce and projectile damage is multiplied by 1.08."
 category = 2
 rarity = 2
-max_stacks = 3
 multiplicative_modifiers = {"projectile_damage": 1.08}
 integer_modifiers = {"pierce_count": 1}

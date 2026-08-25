@@ -9,5 +9,4 @@ display_name = "Aegis Matrix"
 description = "Shield capacity ×1.35 and regeneration ×1.25 per stack."
 category = 1
 rarity = 3
-max_stacks = 3
 multiplicative_modifiers = {"shield_capacity": 1.35, "shield_regeneration": 1.25}

@@ -2,66 +2,66 @@ class_name CardStatTests
 extends RefCounted
 
 const EXPECTED_CARDS := {
-	&"reinforced_hull": [CardDefinition.Category.SHIP, 3],
-	&"overcharged_thrusters": [CardDefinition.Category.SHIP, 3],
-	&"vector_jets": [CardDefinition.Category.SHIP, 3],
-	&"auto_repair": [CardDefinition.Category.SHIP, 1],
-	&"capacitor_bank": [CardDefinition.Category.SHIELD, 3],
-	&"quick_charge": [CardDefinition.Category.SHIELD, 3],
-	&"wide_emitter": [CardDefinition.Category.SHIELD, 3],
-	&"efficient_field": [CardDefinition.Category.SHIELD, 3],
-	&"heavy_rounds": [CardDefinition.Category.WEAPON, 3],
-	&"rapid_cycling": [CardDefinition.Category.WEAPON, 3],
-	&"rail_accelerant": [CardDefinition.Category.WEAPON, 3],
-	&"extended_magazine": [CardDefinition.Category.WEAPON, 3],
-	&"quick_loader": [CardDefinition.Category.WEAPON, 3],
-	&"twin_shot": [CardDefinition.Category.WEAPON, 2],
-	&"piercing_rounds": [CardDefinition.Category.WEAPON, 3],
-	&"ricochet_rounds": [CardDefinition.Category.WEAPON, 3],
-	&"kinetic_plating": [CardDefinition.Category.SHIP, 4],
-	&"phase_thrusters": [CardDefinition.Category.SHIP, 4],
-	&"glass_reactor": [CardDefinition.Category.SHIP, 3],
-	&"emergency_bulkheads": [CardDefinition.Category.SHIP, 2],
-	&"inertial_dampers": [CardDefinition.Category.SHIP, 3],
-	&"nanite_reservoir": [CardDefinition.Category.SHIP, 2],
-	&"flux_reservoir": [CardDefinition.Category.SHIELD, 4],
-	&"mirror_field": [CardDefinition.Category.SHIELD, 3],
-	&"fortress_emitter": [CardDefinition.Category.SHIELD, 2],
-	&"blink_capacitor": [CardDefinition.Category.SHIELD, 2],
-	&"reactive_barrier": [CardDefinition.Category.SHIELD, 3],
-	&"omnidirectional_field": [CardDefinition.Category.SHIELD, 1],
-	&"scatter_array": [CardDefinition.Category.WEAPON, 2],
-	&"beam_emitter": [CardDefinition.Category.WEAPON, 1],
-	&"prismatic_lance": [CardDefinition.Category.WEAPON, 3],
-	&"laser_repeater": [CardDefinition.Category.WEAPON, 3],
-	&"siege_cannon": [CardDefinition.Category.WEAPON, 3],
-	&"micro_barrage": [CardDefinition.Category.WEAPON, 2],
-	&"endless_belt": [CardDefinition.Category.WEAPON, 4],
-	&"zero_point_loader": [CardDefinition.Category.WEAPON, 2],
-	&"ablative_shell": [CardDefinition.Category.SHIP, 5],
-	&"plasma_thrusters": [CardDefinition.Category.SHIP, 4],
-	&"gyroscopic_core": [CardDefinition.Category.SHIP, 3],
-	&"phoenix_chassis": [CardDefinition.Category.SHIP, 3],
-	&"starheart_reactor": [CardDefinition.Category.SHIP, 2],
-	&"event_horizon_drive": [CardDefinition.Category.SHIP, 2],
-	&"quantum_reconstruction": [CardDefinition.Category.SHIP, 1],
-	&"impossible_engine": [CardDefinition.Category.SHIP, 1],
-	&"reserve_cell": [CardDefinition.Category.SHIELD, 5],
-	&"regenerative_coils": [CardDefinition.Category.SHIELD, 4],
-	&"focused_deflector": [CardDefinition.Category.SHIELD, 3],
-	&"shield_siphon": [CardDefinition.Category.SHIELD, 3],
-	&"aegis_matrix": [CardDefinition.Category.SHIELD, 3],
-	&"solar_barrier": [CardDefinition.Category.SHIELD, 2],
-	&"chronal_shield": [CardDefinition.Category.SHIELD, 2],
-	&"infinite_refraction": [CardDefinition.Category.SHIELD, 1],
-	&"hollow_points": [CardDefinition.Category.WEAPON, 5],
-	&"cycling_servo": [CardDefinition.Category.WEAPON, 4],
-	&"accelerator_coil": [CardDefinition.Category.WEAPON, 3],
-	&"trident_array": [CardDefinition.Category.WEAPON, 2],
-	&"sunbeam_core": [CardDefinition.Category.WEAPON, 2],
-	&"causality_cannon": [CardDefinition.Category.WEAPON, 2],
-	&"singularity_lance": [CardDefinition.Category.WEAPON, 2],
-	&"reality_shredder": [CardDefinition.Category.WEAPON, 1],
+	&"reinforced_hull": CardDefinition.Category.SHIP,
+	&"overcharged_thrusters": CardDefinition.Category.SHIP,
+	&"vector_jets": CardDefinition.Category.SHIP,
+	&"auto_repair": CardDefinition.Category.SHIP,
+	&"capacitor_bank": CardDefinition.Category.SHIELD,
+	&"quick_charge": CardDefinition.Category.SHIELD,
+	&"wide_emitter": CardDefinition.Category.SHIELD,
+	&"efficient_field": CardDefinition.Category.SHIELD,
+	&"heavy_rounds": CardDefinition.Category.WEAPON,
+	&"rapid_cycling": CardDefinition.Category.WEAPON,
+	&"rail_accelerant": CardDefinition.Category.WEAPON,
+	&"extended_magazine": CardDefinition.Category.WEAPON,
+	&"quick_loader": CardDefinition.Category.WEAPON,
+	&"twin_shot": CardDefinition.Category.WEAPON,
+	&"piercing_rounds": CardDefinition.Category.WEAPON,
+	&"ricochet_rounds": CardDefinition.Category.WEAPON,
+	&"kinetic_plating": CardDefinition.Category.SHIP,
+	&"phase_thrusters": CardDefinition.Category.SHIP,
+	&"glass_reactor": CardDefinition.Category.SHIP,
+	&"emergency_bulkheads": CardDefinition.Category.SHIP,
+	&"inertial_dampers": CardDefinition.Category.SHIP,
+	&"nanite_reservoir": CardDefinition.Category.SHIP,
+	&"flux_reservoir": CardDefinition.Category.SHIELD,
+	&"mirror_field": CardDefinition.Category.SHIELD,
+	&"fortress_emitter": CardDefinition.Category.SHIELD,
+	&"blink_capacitor": CardDefinition.Category.SHIELD,
+	&"reactive_barrier": CardDefinition.Category.SHIELD,
+	&"omnidirectional_field": CardDefinition.Category.SHIELD,
+	&"scatter_array": CardDefinition.Category.WEAPON,
+	&"beam_emitter": CardDefinition.Category.WEAPON,
+	&"prismatic_lance": CardDefinition.Category.WEAPON,
+	&"laser_repeater": CardDefinition.Category.WEAPON,
+	&"siege_cannon": CardDefinition.Category.WEAPON,
+	&"micro_barrage": CardDefinition.Category.WEAPON,
+	&"endless_belt": CardDefinition.Category.WEAPON,
+	&"zero_point_loader": CardDefinition.Category.WEAPON,
+	&"ablative_shell": CardDefinition.Category.SHIP,
+	&"plasma_thrusters": CardDefinition.Category.SHIP,
+	&"gyroscopic_core": CardDefinition.Category.SHIP,
+	&"phoenix_chassis": CardDefinition.Category.SHIP,
+	&"starheart_reactor": CardDefinition.Category.SHIP,
+	&"event_horizon_drive": CardDefinition.Category.SHIP,
+	&"quantum_reconstruction": CardDefinition.Category.SHIP,
+	&"impossible_engine": CardDefinition.Category.SHIP,
+	&"reserve_cell": CardDefinition.Category.SHIELD,
+	&"regenerative_coils": CardDefinition.Category.SHIELD,
+	&"focused_deflector": CardDefinition.Category.SHIELD,
+	&"shield_siphon": CardDefinition.Category.SHIELD,
+	&"aegis_matrix": CardDefinition.Category.SHIELD,
+	&"solar_barrier": CardDefinition.Category.SHIELD,
+	&"chronal_shield": CardDefinition.Category.SHIELD,
+	&"infinite_refraction": CardDefinition.Category.SHIELD,
+	&"hollow_points": CardDefinition.Category.WEAPON,
+	&"cycling_servo": CardDefinition.Category.WEAPON,
+	&"accelerator_coil": CardDefinition.Category.WEAPON,
+	&"trident_array": CardDefinition.Category.WEAPON,
+	&"sunbeam_core": CardDefinition.Category.WEAPON,
+	&"causality_cannon": CardDefinition.Category.WEAPON,
+	&"singularity_lance": CardDefinition.Category.WEAPON,
+	&"reality_shredder": CardDefinition.Category.WEAPON,
 }
 
 
@@ -71,7 +71,7 @@ static func run(context: TestContext) -> void:
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
-	_validate_max_stack_values(context, catalog)
+	_validate_repeated_stack_values(context, catalog)
 	_validate_order_independence(context, catalog)
 	_validate_runaway_synergy(context, catalog)
 	_validate_rarity_and_beams(context, catalog)
@@ -86,8 +86,7 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 		context.expect_true(card != null, "catalog contains %s" % card_id)
 		if card == null:
 			continue
-		context.expect_equal(card.category, EXPECTED_CARDS[card_id][0], "%s category matches specification" % card_id)
-		context.expect_equal(card.max_stacks, EXPECTED_CARDS[card_id][1], "%s stack cap matches specification" % card_id)
+		context.expect_equal(card.category, EXPECTED_CARDS[card_id], "%s category matches specification" % card_id)
 		context.expect_false(card.display_name.is_empty(), "%s has display text" % card_id)
 		context.expect_false(card.description.is_empty(), "%s has effect description" % card_id)
 		context.expect_true(card.rarity_drop_chance() > 0.0, "%s declares a positive rarity-tier drop chance" % card_id)
@@ -133,7 +132,7 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 	_expect_build(context, catalog, &"ricochet_rounds", 1, {"ricochet_count": 1, "projectile_speed": 972.0})
 
 
-static func _validate_max_stack_values(context: TestContext, catalog: CardCatalog) -> void:
+static func _validate_repeated_stack_values(context: TestContext, catalog: CardCatalog) -> void:
 	_expect_build(context, catalog, &"reinforced_hull", 3, {"max_health": 175.0, "max_speed": 373.77024})
 	_expect_build(context, catalog, &"overcharged_thrusters", 3, {"max_health": 100.0, "max_speed": 674.36544, "acceleration": 1368.7875})
 	_expect_build(context, catalog, &"vector_jets", 3, {"acceleration": 1555.2, "drag": 1367.1875})
@@ -180,6 +179,8 @@ static func _validate_order_independence(context: TestContext, catalog: CardCata
 
 
 static func _validate_runaway_synergy(context: TestContext, catalog: CardCatalog) -> void:
+	var repeated_damage := StatSystem.derive({&"heavy_rounds": 8}, catalog)
+	context.expect_approx(repeated_damage.projectile_damage, 25.0 * pow(1.35, 8), "one card compounds beyond its former stack cap")
 	var build := {
 		&"overcharged_thrusters": 3,
 		&"vector_jets": 3,
@@ -212,7 +213,6 @@ static func _validate_clamps(context: TestContext) -> void:
 	extreme.card_id = &"extreme_test"
 	extreme.display_name = "Extreme Test"
 	extreme.description = "Exercises every stat clamp."
-	extreme.max_stacks = 1
 	extreme.additive_modifiers = {
 		"max_health": 1000.0,
 		"magazine_size": 1000.0,
@@ -253,8 +253,9 @@ static func _validate_clamps(context: TestContext) -> void:
 static func _validate_player_build_rules(context: TestContext, catalog: CardCatalog) -> void:
 	var player := PlayerMatchState.new(7, "Builder", 1)
 	var card := catalog.get_card(&"auto_repair")
-	context.expect_true(player.add_card(card), "player can add an eligible card")
-	context.expect_false(player.add_card(card), "player cannot exceed a card stack cap")
+	for stack in 12:
+		context.expect_true(player.add_card(card), "player can add unlimited card stack %d" % (stack + 1))
+	context.expect_equal(player.card_stack(card.card_id), 12, "player build retains every repeated card stack")
 	var stats := StatSystem.derive(player.card_stacks, catalog)
 	player.reset_for_heat(stats)
 	context.expect_true(player.alive, "heat reset marks a connected participant alive")

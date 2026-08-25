@@ -8,7 +8,5 @@ card_id = &"reinforced_hull"
 display_name = "Reinforced Hull"
 description = "+25 maximum health. Maximum speed is multiplied by 0.92."
 category = 0
-max_stacks = 3
 additive_modifiers = {"max_health": 25.0}
 multiplicative_modifiers = {"max_speed": 0.92}
-

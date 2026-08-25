@@ -9,6 +9,5 @@ display_name = "Kinetic Plating"
 description = "+15 maximum hull and 5% stronger flight damping per stack."
 category = 0
 rarity = 0
-max_stacks = 4
 additive_modifiers = {"max_health": 15.0}
 multiplicative_modifiers = {"drag": 1.05}

@@ -22,7 +22,7 @@ func _ready() -> void:
 
 
 func _run_foundation_tests() -> void:
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 3, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 4, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")
@@ -44,6 +44,11 @@ func _run_foundation_tests() -> void:
 	]
 	for action in required_actions:
 		_context.expect_true(InputMap.has_action(action), "input action %s exists" % action)
+	var tab_mapped := false
+	for event in InputMap.action_get_events(&"scoreboard"):
+		if event is InputEventKey and (event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB):
+			tab_mapped = true
+	_context.expect_true(tab_mapped, "scoreboard action uses Godot's special Tab keycode")
 
 	var startup_scenes: Array[String] = [
 		"res://scenes/client/client_main.tscn",

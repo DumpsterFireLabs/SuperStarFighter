@@ -9,5 +9,4 @@ display_name = "Ablative Shell"
 description = "+20 maximum hull per stack. Simple, dependable, stackable survival."
 category = 0
 rarity = 0
-max_stacks = 5
 additive_modifiers = {"max_health": 20.0}

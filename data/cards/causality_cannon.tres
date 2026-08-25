@@ -9,5 +9,4 @@ display_name = "Causality Cannon"
 description = "Projectile damage ×2.00 and projectile speed ×1.50 per stack."
 category = 2
 rarity = 5
-max_stacks = 2
 multiplicative_modifiers = {"projectile_damage": 2.0, "projectile_speed": 1.5}

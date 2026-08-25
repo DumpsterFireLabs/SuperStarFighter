@@ -68,7 +68,7 @@ shield={
 }
 scoreboard={
 "deadzone": 0.5,
-"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":9,"physical_keycode":9,"key_label":9,"unicode":9,"location":0,"echo":false,"script":null)
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":4194306,"physical_keycode":4194306,"key_label":4194306,"unicode":0,"location":0,"echo":false,"script":null)
 ]
 }
 pause_overlay={

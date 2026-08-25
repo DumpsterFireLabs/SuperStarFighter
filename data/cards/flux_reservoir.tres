@@ -9,5 +9,4 @@ display_name = "Flux Reservoir"
 description = "+20 maximum shield capacity per stack."
 category = 1
 rarity = 0
-max_stacks = 4
 additive_modifiers = {"shield_capacity": 20.0}

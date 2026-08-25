@@ -13,7 +13,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 1 — Shared Rules, Cards, and Match Model | Complete | 16 card resources validated; deterministic stats, draft, and scoring/state-machine rules covered; 345 assertions passed; forced-failure exit verified. |
 | 2 — Offline Combat Sandbox | Complete | Final-size arena and combat lab operational; 32 spawns validated; 15-minute accelerated lifecycle soak passed; 427 assertions and 43 project checks passed. |
 | 3 — Authoritative Networking and Lobby | Complete | Real ENet clients verified across three channels; rejection, lobby authority, prediction/interpolation, snapshots, projectiles, leader transfer, late spectator, and clean shutdown passed; 602 assertions and 61 project checks passed. |
-| 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; rendered five-card choice, last-survivor resolution, configurable 2–32 seats, server NPC fill, solo force-start, timeout, ties, extended rounds, forfeit, reset, and second match covered; 730 assertions and 65 project checks passed. |
+| 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; rendered five-card choice, last-survivor resolution, configurable 2–32 seats, server NPC fill, solo NPC-assisted start, timeout, ties, extended rounds, forfeit, reset, and second match covered; 730 assertions and 65 project checks passed. |
 | 5 — Production UI, Neon Presentation, and Audio | Complete | Eight production screen states rendered at 1280×720 and 1920×1080; 32-player roster, neon identity/effects, off-screen threats, synchronized cues, optional MP3 pipeline, synthesized placeholders, and clean two-match reset verified; 780 assertions and 71 project checks passed. |
 | 6 — Validation, Diagnostics, and 32-Client Hardening | Complete | Malformed/excessive peers isolated; bounded JSON metrics and configurable smoke/soak tooling verified; 794 assertions and 72 project checks passed; 32-client, 600-second soak completed 65 windows with 10.678 ms worst-window p95, zero orphan nodes, bounded entities, overtime, combat disconnect, late spectator, and clean shutdown. |
 | 6.1 — Audio, Screen Flow, and Card Expansion | Complete | Supplied menu/gameplay music discovered across WAV/OGG/MP3 names with a menu-tail crossfade; persistent volume settings, animated splash, in-match Escape menu, and victory screen rendered; catalog expanded to 36 rarity-weighted cards with authoritative beam weapons and round-winner draft byes; 980 assertions and 22 production-screen captures passed. |
@@ -78,7 +78,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Run table-driven tests for every card at one stack and maximum stacks.
 - Acquire the same card set in several orders and assert identical derived values.
 - Simulate a multiplayer round in which three different players win early heats and a later player reaches two wins.
-- Simulate draft timeout, fewer than five eligible cards, no eligible cards, and fixed-seed offer reproduction.
+- Simulate draft timeout, unlimited repeat stacking beyond former caps, five-card uniqueness, and fixed-seed offer reproduction.
 
 ### Exit Gate
 
@@ -153,7 +153,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Add server-timed overtime boundary behavior and client synchronization.
 - Implement death-to-spectator transition, target cycling, active disconnect elimination, between-state removal, forfeit victory, and late-join spectator behavior.
 - Implement match results, 10-second return to lobby, score/build reset, spectator promotion, and second-match startup.
-- Add leader-owned total-player limits, optional server-owned NPC fill, human replacement of waiting NPC seats, NPC combat input/card selection, and a one-human Force Start path.
+- Add leader-owned total-player limits, optional server-owned NPC fill, human replacement of waiting NPC seats, NPC combat input/card selection, and a one-human NPC-assisted start path.
 - Add the `--auto-start` behavior needed by integration tests.
 
 ### Verification
@@ -186,7 +186,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ### Verification
 
-- Manually inspect every screen at 1280×720 and 1920×1080, including a 32-player lobby/scoreboard and a draft with one through five eligible choices.
+- Manually inspect every screen at 1280×720 and 1920×1080, including a 32-player lobby/scoreboard and a full five-card unlimited-stack draft.
 - Confirm local identity, shield state, shield break, damage direction, elimination, overtime, heat result, round result, and match result are distinguishable without relying only on color.
 - Play two consecutive matches and confirm no stale panels, timers, effects, sounds, cards, or scores survive state resets.
 - Render menu, 32-player lobby, draft, combat, spectator, pause, results, and error states at both target resolutions and fail on any runtime error or missing capture.

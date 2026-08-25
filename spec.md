@@ -103,7 +103,7 @@ The server owns a single explicit state machine.
 
 | State | Duration | Entry behavior | Exit condition |
 | --- | ---: | --- | --- |
-| `LOBBY` | Indefinite | Clear match-only state; admit humans and configure optional NPC fill. | Leader force-starts with 2–32 ready participants. |
+| `LOBBY` | Indefinite | Clear match-only state; admit humans and configure optional NPC fill. | Leader starts with 2–32 ready participants, or one ready human plus NPC fill. |
 | `DRAFT` | 30 s max | Generate private offers for every participant. | Everyone selects or the timer expires. |
 | `COUNTDOWN` | 3 s | Spawn/reset ships with controls locked. | Timer reaches zero. |
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
@@ -117,9 +117,9 @@ State transitions are reliable server events containing the new state, server ti
 
 - The first admitted client is lobby leader. On leader disconnect, leadership transfers to the admitted client with the earliest join sequence.
 - The leader may set `rounds_to_win` from 1 through 5 and set the total participant limit from 2 through the server's configured capacity, never above 32. Lobby settings cannot change during a match.
-- Every connected human, including the leader, enters the lobby not ready and must explicitly ready up before Force Start can succeed. Changing any lobby setting or returning from a completed match clears every human's ready state; NPCs are always ready. Readiness is authoritative and serialized in lobby state.
+- Every connected human, including the leader, enters the lobby not ready and must explicitly ready up before Start Match can succeed. Changing any lobby setting or returning from a completed match clears every human's ready state; NPCs are always ready. Readiness is authoritative and serialized in lobby state.
 - The leader may eject another connected human only while the match is inactive. The leader cannot eject themselves or server-owned NPCs. An ejected client receives the `EJECTED` reason and returns to the connection screen.
-- The leader may enable or disable NPC fill. Force Start requires two humans when NPC fill is disabled; when enabled, one human may force-start and the server immediately fills every vacant configured seat with NPC participants.
+- The leader may enable or disable NPC fill. Start Match requires two humans when NPC fill is disabled; when enabled, one human may start and the server immediately fills every vacant configured seat with NPC participants. The button reads `Start Match` for ready multiplayer lobbies, `Start Match with NPCs` for a ready solo leader with NPC fill, and otherwise explains the missing requirement.
 - NPCs never become lobby leader. While the match is inactive, a joining human replaces one waiting NPC when all configured seats are occupied. Disabling NPC fill removes all waiting NPCs; lowering the participant limit removes enough waiting NPCs to meet the new limit and cannot reduce the limit below the connected human count.
 - Display names are trimmed, must contain 1–16 printable non-control Unicode characters, and are made unique for display by appending `#2`, `#3`, and so on.
 - A client joining during `DRAFT` or any later match state becomes a spectator until the server returns to `LOBBY`.
@@ -129,11 +129,11 @@ State transitions are reliable server events containing the new state, server ti
 
 - Every participant drafts before round one and before each later round. No draft occurs between heats in the same round.
 - Before round one, the server creates an offer token and samples five distinct eligible card IDs for every participant using the match PRNG. Before later rounds, the previous round winner receives a locked draft bye and no card; every other participant receives an offer. Human offers are private and rendered for selection; each eligible NPC immediately locks a server-selected card from its own offer.
-- A card is eligible while the player's current stack count is below its stack cap.
+- Every card remains eligible regardless of its current stack count. Card stacks have no maximum and repeated copies always apply their full additive, integer, multiplicative, or special effects.
 - Selecting a card requires the current offer token and one card ID from that offer. Invalid, stale, duplicate, or out-of-state selections are rejected without changing the build.
 - Choices lock immediately, but all chosen cards apply simultaneously when the draft ends. Other clients see only ready/not-ready status during the draft.
 - If the timer expires, the server randomly selects one of that player's offered cards. If every player locks a choice early, the draft ends immediately.
-- If fewer than five cards remain eligible, offer all eligible cards. If none remain, mark the build complete and require no selection for that player.
+- Every eligible drafter receives five distinct card IDs per offer. A card cannot repeat within one offer, but may appear again in every later round and may stack without limit.
 - After the draft, all players may inspect every participant's selected card and aggregate build through the scoreboard.
 - The server seeds the match PRNG once at match start and records the seed in server logs. Tests may inject a fixed seed; production clients never choose it.
 
@@ -240,7 +240,7 @@ State transitions are reliable server events containing the new state, server ti
 
 ### 7.1 Evaluation Rules
 
-`CardDefinition` is a data resource with a stable ID, category, rarity, title, description, stack cap, additive modifiers, multiplicative modifiers, and optional special behavior ID.
+`CardDefinition` is a data resource with a stable ID, category, rarity, title, description, additive modifiers, multiplicative modifiers, integer modifiers, and optional special behavior ID. It contains no maximum-stack field.
 
 Derived stats are recomputed from base values whenever the build changes:
 
@@ -346,7 +346,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `3` and a maximum of 32 client peers in addition to the server. Version 3 carries the projectile beam flag plus authoritative lobby ready/eject messages.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `4` and a maximum of 32 client peers in addition to the server. Version 4 carries the projectile beam flag, authoritative lobby ready/eject messages, and unlimited-stack stat prediction rules.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -404,9 +404,9 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 9.1 Screens
 
 1. **Connection:** A centered menu over the non-gameplay neon backdrop with display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors. The arena and its map are not rendered before a match begins.
-2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
+2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
-4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Tab opens the detailed score/build view.
+4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Tab reliably toggles a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; the match continues behind it.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
 6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, scroll for large lobbies, and keep the automatic return-to-lobby countdown separate from the standings.
 
@@ -440,7 +440,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - **State tests:** Valid transition graph, first-to-two heat resolution with more than three heats, round target 1 and 5, draft early completion/timeout, forfeit, leader transfer, and lobby reset.
 - **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, authorization, rate limiting, version mismatch, and stale card tokens.
 - **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly.
-- **NPC lobby integration:** One human leader sets a four-participant limit, enables NPC fill, force-starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots and NPC-generated input.
+- **NPC lobby integration:** One human leader sets a four-participant limit, enables NPC fill, starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots and NPC-generated input.
 
 ### 11.2 Load and Soak Acceptance
 

@@ -118,12 +118,13 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(Vector2i(2560, 1080) in client.RESOLUTION_OPTIONS and Vector2i(3440, 1440) in client.RESOLUTION_OPTIONS, "settings includes both ultrawide resolutions")
 	context.expect_equal(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand", "ultrawide windows reveal space without nonuniform stretching")
 	context.expect_true(client.splash_screen != null, "animated splash screen exists")
-	context.expect_approx(client.SPLASH_MINIMUM_SECONDS, 10.0, "splash declares a ten-second minimum display")
-	client._dismiss_splash()
-	context.expect_false(client.splash_dismissed, "early input cannot bypass the splash minimum")
-	client.splash_minimum_elapsed = true
-	client._dismiss_splash(true)
-	context.expect_true(client.splash_dismissed, "splash can proceed after its minimum display")
+	context.expect_approx(client.SPLASH_AUTO_ADVANCE_SECONDS, 10.0, "splash declares a ten-second automatic advance")
+	var start_event := InputEventKey.new()
+	start_event.keycode = KEY_ENTER
+	start_event.pressed = true
+	client._input(start_event)
+	context.expect_true(client.splash_dismissed, "any key advances the splash immediately")
+	client.splash_screen.visible = false
 	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
 	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
@@ -141,6 +142,13 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.network_world.local_peer_id, 2, "hidden lobby preserves the connected renderer's local identity")
 	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 4, "leader receives an eject control for another human")
 	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
+	context.expect_equal(client.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
+	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
+	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
+	context.expect_true(client.start_button.disabled and client.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")
+	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
+	context.expect_false(client.start_button.disabled, "ready solo human may start after enabling NPCs")
+	context.expect_equal(client.start_button.text, "Start Match with NPCs", "solo NPC launch uses descriptive wording")
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
 	context.expect_true(client.network_world.visible and client.network_world.process_mode != Node.PROCESS_MODE_DISABLED, "match start reactivates world rendering and prediction")
 	context.expect_equal(client.network_world.local_peer_id, 2, "match start retains local identity for movement and predicted shots")
@@ -150,6 +158,16 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._update_match_presentation()
 	context.expect_false(client.match_panel.visible, "former top-center match banner stays hidden during combat")
 	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("R2 H3"), "compact upper-left HUD carries match state and round details")
+	var tab_event := InputEventKey.new()
+	tab_event.keycode = KEY_TAB
+	tab_event.physical_keycode = KEY_TAB
+	tab_event.pressed = true
+	client._input(tab_event)
+	context.expect_true(client.scoreboard_panel.visible, "Tab opens the live scoreboard without relying on UI focus")
+	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
+	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
+	client._input(tab_event)
+	context.expect_false(client.scoreboard_panel.visible, "pressing Tab again returns to combat")
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": 600, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()

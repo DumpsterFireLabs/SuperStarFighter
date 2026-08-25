@@ -1,6 +1,6 @@
 extends Node
 
-const SPLASH_MINIMUM_SECONDS: float = 10.0
+const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
 	Vector2i(1600, 900),
@@ -38,6 +38,10 @@ var draft_rarity_labels: Array[Label] = []
 var draft_bye_label: Label
 var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
+var scoreboard_context_label: Label
+var scoreboard_rows_container: VBoxContainer
+var scoreboard_open: bool = false
+var _scoreboard_signature: String = ""
 var results_panel: PanelContainer
 var results_label: Label
 var results_winner_label: Label
@@ -53,7 +57,6 @@ var current_resolution: Vector2i = Vector2i(1280, 720)
 var settings_return_to_pause: bool = false
 var splash_screen: Control
 var splash_dismissed: bool = false
-var splash_minimum_elapsed: bool = false
 var card_catalog := CardCatalog.create_default()
 var active_offer_token: String = ""
 var active_offer_deadline: int = -1
@@ -97,16 +100,10 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
-		if splash_screen != null and splash_screen.visible:
-			_dismiss_splash()
-		elif settings_panel != null and settings_panel.visible:
+		if settings_panel != null and settings_panel.visible:
 			_hide_settings()
 		else:
 			_toggle_pause_overlay()
-		get_viewport().set_input_as_handled()
-		return
-	if splash_screen != null and splash_screen.visible and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
-		_dismiss_splash()
 		get_viewport().set_input_as_handled()
 		return
 	if pause_overlay != null and pause_overlay.visible:
@@ -119,6 +116,20 @@ func _unhandled_input(event: InputEvent) -> void:
 				_select_draft_card(index)
 				get_viewport().set_input_as_handled()
 				break
+
+
+func _input(event: InputEvent) -> void:
+	if splash_screen != null and splash_screen.visible and _is_start_input(event):
+		_dismiss_splash()
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB):
+		_toggle_scoreboard()
+		get_viewport().set_input_as_handled()
+
+
+func _is_start_input(event: InputEvent) -> bool:
+	return (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
@@ -262,7 +273,7 @@ func _create_lobby_panel() -> void:
 	ready_button.toggled.connect(_on_ready_toggled)
 	content.add_child(ready_button)
 	start_button = Button.new()
-	start_button.text = "Force Start Match"
+	start_button.text = "Start Match"
 	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(bridge.send_start_match)
 	content.add_child(start_button)
@@ -343,22 +354,54 @@ func _create_match_ui() -> void:
 
 	scoreboard_panel = PanelContainer.new()
 	scoreboard_panel.set_anchors_preset(Control.PRESET_CENTER)
-	scoreboard_panel.position = Vector2(-450.0, -310.0)
-	scoreboard_panel.custom_minimum_size = Vector2(900.0, 620.0)
+	scoreboard_panel.position = Vector2(-550.0, -330.0)
+	scoreboard_panel.custom_minimum_size = Vector2(1100.0, 660.0)
 	scoreboard_panel.theme = interface_theme
-	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.97))
+	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.985))
 	scoreboard_panel.visible = false
 	connection_canvas.add_child(scoreboard_panel)
-	var scoreboard_scroll := ScrollContainer.new()
-	scoreboard_scroll.custom_minimum_size = Vector2(860.0, 580.0)
-	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scoreboard_panel.add_child(scoreboard_scroll)
+	var scoreboard_content := VBoxContainer.new()
+	scoreboard_content.add_theme_constant_override("separation", 10)
+	scoreboard_panel.add_child(scoreboard_content)
+	var scoreboard_kicker := Label.new()
+	scoreboard_kicker.text = "✦  LIVE MATCH  ✦"
+	scoreboard_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_kicker.add_theme_font_size_override("font_size", 16)
+	scoreboard_kicker.add_theme_color_override("font_color", Color("ff8ee8"))
+	scoreboard_content.add_child(scoreboard_kicker)
 	scoreboard_label = Label.new()
-	scoreboard_label.add_theme_font_size_override("font_size", 22)
-	scoreboard_label.add_theme_color_override("font_color", Color("e8f5ff"))
-	scoreboard_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	scoreboard_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scoreboard_scroll.add_child(scoreboard_label)
+	scoreboard_label.text = "SCOREBOARD"
+	scoreboard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_label.add_theme_font_size_override("font_size", 38)
+	scoreboard_label.add_theme_color_override("font_color", Color("73f7ff"))
+	scoreboard_content.add_child(scoreboard_label)
+	scoreboard_context_label = Label.new()
+	scoreboard_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_context_label.add_theme_font_size_override("font_size", 17)
+	scoreboard_context_label.add_theme_color_override("font_color", Color("aebbd4"))
+	scoreboard_content.add_child(scoreboard_context_label)
+	var scoreboard_heading := HBoxContainer.new()
+	scoreboard_heading.add_theme_constant_override("separation", 12)
+	scoreboard_content.add_child(scoreboard_heading)
+	_add_results_column_heading(scoreboard_heading, "RANK / PILOT", 300.0)
+	_add_results_column_heading(scoreboard_heading, "HEATS", 90.0)
+	_add_results_column_heading(scoreboard_heading, "ROUNDS", 100.0)
+	_add_results_column_heading(scoreboard_heading, "CURRENT BUILD", 0.0, true)
+	var scoreboard_scroll := ScrollContainer.new()
+	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 430.0)
+	scoreboard_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scoreboard_content.add_child(scoreboard_scroll)
+	scoreboard_rows_container = VBoxContainer.new()
+	scoreboard_rows_container.add_theme_constant_override("separation", 7)
+	scoreboard_rows_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_scroll.add_child(scoreboard_rows_container)
+	var scoreboard_hint := Label.new()
+	scoreboard_hint.text = "PRESS TAB TO RETURN TO COMBAT  ·  THE MATCH CONTINUES"
+	scoreboard_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_hint.add_theme_font_size_override("font_size", 15)
+	scoreboard_hint.add_theme_color_override("font_color", Color("fff36a"))
+	scoreboard_content.add_child(scoreboard_hint)
 
 	win_overlay = Control.new()
 	win_overlay.name = "WinScreen"
@@ -711,18 +754,15 @@ func _create_splash_screen() -> void:
 	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	intro.tween_property(content, "modulate", Color.WHITE, 0.8)
 	intro.tween_property(content, "scale", Vector2.ONE, 1.05)
-	get_tree().create_timer(SPLASH_MINIMUM_SECONDS).timeout.connect(_on_splash_minimum_elapsed)
+	get_tree().create_timer(SPLASH_AUTO_ADVANCE_SECONDS).timeout.connect(_on_splash_auto_advance)
 
 
-func _on_splash_minimum_elapsed() -> void:
-	splash_minimum_elapsed = true
+func _on_splash_auto_advance() -> void:
 	_dismiss_splash()
 
 
 func _dismiss_splash(immediate: bool = false) -> void:
 	if splash_dismissed or splash_screen == null:
-		return
-	if not immediate and not splash_minimum_elapsed:
 		return
 	splash_dismissed = true
 	if immediate:
@@ -736,6 +776,7 @@ func _dismiss_splash(immediate: bool = false) -> void:
 func _toggle_pause_overlay() -> void:
 	if connection_screen.visible:
 		return
+	_set_scoreboard_open(false)
 	pause_overlay.visible = not pause_overlay.visible
 	network_world.input_blocked = pause_overlay.visible
 	if offline_sandbox.visible:
@@ -780,6 +821,7 @@ func _connect_online() -> void:
 
 func _play_offline() -> void:
 	bridge.stop()
+	_set_scoreboard_open(false)
 	latest_match_payload.clear()
 	network_world.set_network_active(false)
 	connection_screen.visible = false
@@ -804,6 +846,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
 	network_world.set_network_active(false)
+	_set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
 	latest_match_payload.clear()
 	active_offer_token = ""
@@ -839,6 +882,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	var total_count := (state.get("players", []) as Array).size()
 	var match_active := bool(state.get("match_active", false))
 	if not match_active:
+		_set_scoreboard_open(false)
 		connection_screen.visible = true
 		connection_form_panel.visible = false
 		network_world.set_network_active(false, false)
@@ -873,6 +917,17 @@ func _on_lobby_state(state: Dictionary) -> void:
 	npcs_button.disabled = not settings_editable
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
 	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false))
+	var human_count := total_count - npc_count
+	if not is_leader:
+		start_button.text = "Waiting for Lobby Leader"
+	elif not bool(state.get("all_humans_ready", false)):
+		start_button.text = "Waiting for Players to Ready"
+	elif human_count == 1 and not bool(state.get("npcs_enabled", false)):
+		start_button.text = "Enable NPCs to Start Solo"
+	elif human_count == 1:
+		start_button.text = "Start Match with NPCs"
+	else:
+		start_button.text = "Start Match"
 	start_button.tooltip_text = "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
 
 
@@ -975,7 +1030,9 @@ func _process(_delta: float) -> void:
 	if not latest_match_payload.is_empty():
 		_update_match_presentation()
 	if scoreboard_panel != null:
-		scoreboard_panel.visible = network_world.hud_panel != null and network_world.hud_panel.visible and Input.is_action_pressed("scoreboard")
+		if scoreboard_open and not _scoreboard_available():
+			scoreboard_open = false
+		scoreboard_panel.visible = scoreboard_open
 		if scoreboard_panel.visible:
 			_update_scoreboard()
 	_update_timed_audio()
@@ -996,14 +1053,13 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			continue
 		var card := card_catalog.get_card(StringName(card_ids[index]))
 		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
-		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d / %d" % [
+		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d  ·  NO LIMIT" % [
 			index + 1,
 			card.display_name,
 			card.category_name().to_upper(),
 			card.description,
 			current_stacks,
 			current_stacks + 1,
-			card.max_stacks,
 		] if card != null else String(card_ids[index])
 		if card != null:
 			var rarity_color := card.rarity_color()
@@ -1156,33 +1212,90 @@ func _player_name(peer_id: int) -> String:
 
 
 func _update_scoreboard() -> void:
-	scoreboard_label.text = _scoreboard_text("SCOREBOARD")
+	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
+	scoreboard_context_label.text = "%s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
+		state_name,
+		int(latest_match_payload.get("round_number", 0)),
+		int(latest_match_payload.get("heat_number", 0)),
+		_result_peer_ids().size(),
+	]
+	var signature := "%s|%s|%s|%s" % [
+		latest_match_payload.get("participant_peer_ids", []),
+		latest_match_payload.get("scores", {}),
+		latest_match_payload.get("builds", {}),
+		bridge.local_peer_id,
+	]
+	if signature == _scoreboard_signature:
+		return
+	_scoreboard_signature = signature
+	for child in scoreboard_rows_container.get_children():
+		scoreboard_rows_container.remove_child(child)
+		child.free()
+	var peer_ids := _result_peer_ids()
+	for index in peer_ids.size():
+		_add_scoreboard_row(index + 1, peer_ids[index])
 
 
-func _scoreboard_text(title: String) -> String:
-	var lines := PackedStringArray([title, "", "PILOT                         HEATS  ROUNDS  BUILD"])
-	var scores := latest_match_payload.get("scores", {}) as Dictionary
-	var builds := latest_match_payload.get("builds", {}) as Dictionary
-	var participant_ids := latest_match_payload.get("participant_peer_ids", []) as Array
-	for peer_value in participant_ids:
-		var peer_id := int(peer_value)
-		var score := scores.get(peer_id, {}) as Dictionary
-		var build := builds.get(peer_id, {}) as Dictionary
-		var card_parts := PackedStringArray()
-		var card_ids := build.keys()
-		card_ids.sort()
-		for card_value in card_ids:
-			var card_id := StringName(card_value)
-			var card := card_catalog.get_card(card_id)
-			card_parts.append("%s ×%d" % [card.display_name if card != null else String(card_id), int(build[card_value])])
-		lines.append("%-28s  %d      %d       %s" % [
-			_player_name(peer_id),
-			int(score.get("heat_wins", 0)),
-			int(score.get("round_wins", 0)),
-			", ".join(card_parts) if not card_parts.is_empty() else "—",
-		])
-	lines.append("\nHold Tab to inspect · builds are public after each draft")
-	return "\n".join(lines)
+func _toggle_scoreboard() -> void:
+	if not _scoreboard_available():
+		return
+	_set_scoreboard_open(not scoreboard_open)
+
+
+func _set_scoreboard_open(open: bool) -> void:
+	scoreboard_open = open and _scoreboard_available()
+	if scoreboard_panel != null:
+		scoreboard_panel.visible = scoreboard_open
+	if scoreboard_open:
+		_scoreboard_signature = ""
+		_update_scoreboard()
+
+
+func _scoreboard_available() -> bool:
+	if network_world == null or not network_world.visible or pause_overlay != null and pause_overlay.visible:
+		return false
+	return String(latest_match_payload.get("state_name", "LOBBY")) in ["DRAFT", "COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
+
+
+func _add_scoreboard_row(rank: int, peer_id: int) -> void:
+	var is_local := peer_id == bridge.local_peer_id
+	var accent := Color("fff36a") if is_local else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
+	var row_panel := PanelContainer.new()
+	row_panel.custom_minimum_size.y = 58.0
+	row_panel.set_meta("peer_id", peer_id)
+	row_panel.set_meta("rank", rank)
+	row_panel.add_theme_stylebox_override("panel", _results_row_style(accent, is_local))
+	scoreboard_rows_container.add_child(row_panel)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row_panel.add_child(row)
+	var player_label := Label.new()
+	player_label.text = "#%02d   %s%s" % [rank, _player_name(peer_id), "  ★ YOU" if is_local else ""]
+	player_label.custom_minimum_size.x = 300.0
+	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	player_label.add_theme_font_size_override("font_size", 19 if is_local else 17)
+	player_label.add_theme_color_override("font_color", accent if is_local else Color("f4fbff"))
+	row.add_child(player_label)
+	var score := _result_score(peer_id)
+	var heats_label := Label.new()
+	heats_label.text = str(score.get("heat_wins", 0))
+	heats_label.custom_minimum_size.x = 90.0
+	heats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heats_label.add_theme_color_override("font_color", Color("73f7ff"))
+	row.add_child(heats_label)
+	var rounds_label := Label.new()
+	rounds_label.text = str(score.get("round_wins", 0))
+	rounds_label.custom_minimum_size.x = 100.0
+	rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rounds_label.add_theme_color_override("font_color", Color("ff8ee8"))
+	row.add_child(rounds_label)
+	var build_label := Label.new()
+	build_label.text = _result_build_text(peer_id)
+	build_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	build_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	build_label.add_theme_font_size_override("font_size", 15)
+	build_label.add_theme_color_override("font_color", Color("d6e2f2"))
+	row.add_child(build_label)
 
 
 func _update_results_screen(seconds_left: float) -> void:

@@ -114,13 +114,10 @@ func all_ids() -> Array[StringName]:
 	return ids
 
 
-func eligible_ids(build: Dictionary) -> Array[StringName]:
-	var result: Array[StringName] = []
-	for card_id in all_ids():
-		var card := get_card(card_id)
-		if int(build.get(card_id, 0)) < card.max_stacks:
-			result.append(card_id)
-	return result
+func eligible_ids(_build: Dictionary) -> Array[StringName]:
+	# Builds never exhaust a card. Offers remain unique within a single draw,
+	# while the same card may be acquired again in every later draft.
+	return all_ids()
 
 
 func validate_default_catalog() -> PackedStringArray:

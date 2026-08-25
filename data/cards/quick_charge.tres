@@ -9,5 +9,4 @@ display_name = "Quick Charge"
 description = "Shield regeneration is multiplied by 1.25."
 category = 1
 rarity = 1
-max_stacks = 3
 multiplicative_modifiers = {"shield_regeneration": 1.25}

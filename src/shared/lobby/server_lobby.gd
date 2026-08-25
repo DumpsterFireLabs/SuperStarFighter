@@ -116,7 +116,7 @@ func request_start(sender_id: int) -> Dictionary:
 	if npcs_enabled:
 		added_npcs = _fill_npc_seats()
 	if participant_count() < GameConstants.MIN_PLAYERS:
-		return {"ok": false, "error": "At least two participants are required; enable NPCs to force-start solo."}
+		return {"ok": false, "error": "At least two participants are required; enable NPCs to start solo."}
 	match_active = true
 	_revision_changed()
 	return {"ok": true, "added_npcs": added_npcs}

@@ -288,13 +288,13 @@ func _update_hud() -> void:
 func _update_card_label() -> void:
 	var card_id := catalog.all_ids()[selected_card_index]
 	var card := catalog.get_card(card_id)
-	card_label.text = "Selected: %s [%d/%d] — %s" % [card.display_name, int(build.get(card_id, 0)), card.max_stacks, card.description]
+	card_label.text = "Selected: %s [STACK %d · NO LIMIT] — %s" % [card.display_name, int(build.get(card_id, 0)), card.description]
 
 
 func _grant_selected_card() -> void:
 	var card_id := catalog.all_ids()[selected_card_index]
 	var card := catalog.get_card(card_id)
-	build[card_id] = mini(int(build.get(card_id, 0)) + 1, card.max_stacks)
+	build[card_id] = int(build.get(card_id, 0)) + 1
 	_apply_build()
 
 

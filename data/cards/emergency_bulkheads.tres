@@ -9,6 +9,5 @@ display_name = "Emergency Bulkheads"
 description = "+45 maximum hull, but maximum speed ×0.90 per stack."
 category = 0
 rarity = 2
-max_stacks = 2
 additive_modifiers = {"max_health": 45.0}
 multiplicative_modifiers = {"max_speed": 0.9}

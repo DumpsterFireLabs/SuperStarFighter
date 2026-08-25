@@ -9,5 +9,4 @@ display_name = "Rapid Cycling"
 description = "Fire rate is multiplied by 1.30."
 category = 2
 rarity = 1
-max_stacks = 3
 multiplicative_modifiers = {"fire_rate": 1.3}

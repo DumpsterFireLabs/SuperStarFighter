@@ -9,6 +9,5 @@ display_name = "Quantum Reconstruction"
 description = "Enables auto-repair and multiplies maximum hull by 1.50."
 category = 0
 rarity = 5
-max_stacks = 1
 multiplicative_modifiers = {"max_health": 1.5}
 special_behavior_id = &"auto_repair"

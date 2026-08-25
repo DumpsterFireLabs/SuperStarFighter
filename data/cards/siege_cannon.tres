@@ -9,5 +9,4 @@ display_name = "Siege Cannon"
 description = "Damage ×1.60, but fire rate ×0.65 and projectile speed ×0.82 per stack."
 category = 2
 rarity = 2
-max_stacks = 3
 multiplicative_modifiers = {"projectile_damage": 1.6, "fire_rate": 0.65, "projectile_speed": 0.82}

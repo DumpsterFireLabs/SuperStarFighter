@@ -9,5 +9,4 @@ display_name = "Impossible Engine"
 description = "Speed ×2.00, acceleration ×2.00 and flight damping ×1.50."
 category = 0
 rarity = 6
-max_stacks = 1
 multiplicative_modifiers = {"max_speed": 2.0, "acceleration": 2.0, "drag": 1.5}

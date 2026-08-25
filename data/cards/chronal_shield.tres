@@ -9,5 +9,4 @@ display_name = "Chronal Shield"
 description = "Regeneration delay ×0.30 and regeneration ×1.75 per stack."
 category = 1
 rarity = 5
-max_stacks = 2
 multiplicative_modifiers = {"shield_regeneration_delay": 0.3, "shield_regeneration": 1.75}

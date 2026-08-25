@@ -9,5 +9,4 @@ display_name = "Event Horizon Drive"
 description = "Speed ×1.60, acceleration ×1.60 and damping ×1.30 per stack."
 category = 0
 rarity = 5
-max_stacks = 2
 multiplicative_modifiers = {"max_speed": 1.6, "acceleration": 1.6, "drag": 1.3}

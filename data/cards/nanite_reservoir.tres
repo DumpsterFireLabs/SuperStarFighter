@@ -9,6 +9,5 @@ display_name = "Nanite Reservoir"
 description = "Activates auto-repair and adds 35 maximum hull per stack."
 category = 0
 rarity = 3
-max_stacks = 2
 additive_modifiers = {"max_health": 35.0}
 special_behavior_id = &"auto_repair"

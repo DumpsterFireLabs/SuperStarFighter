@@ -9,5 +9,4 @@ display_name = "Accelerator Coil"
 description = "Projectile speed ×1.25 and damage ×1.12 per stack."
 category = 2
 rarity = 2
-max_stacks = 3
 multiplicative_modifiers = {"projectile_speed": 1.25, "projectile_damage": 1.12}

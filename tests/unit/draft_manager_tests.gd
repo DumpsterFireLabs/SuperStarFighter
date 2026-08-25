@@ -6,7 +6,7 @@ static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
 	_validate_seeded_offers(context, catalog)
 	_validate_selection_and_timeout(context, catalog)
-	_validate_reduced_and_complete_offers(context, catalog)
+	_validate_unlimited_stack_offers(context, catalog)
 	_validate_skipped_winner(context, catalog)
 
 
@@ -82,38 +82,21 @@ static func _validate_selection_and_timeout(context: TestContext, catalog: CardC
 	)
 
 
-static func _validate_reduced_and_complete_offers(context: TestContext, catalog: CardCatalog) -> void:
-	var reduced_player := PlayerMatchState.new(1, "Reduced", 1)
-	var remaining_ids: Array[StringName] = [
-		&"reinforced_hull",
-		&"quick_charge",
-		&"heavy_rounds",
-	]
+static func _validate_unlimited_stack_offers(context: TestContext, catalog: CardCatalog) -> void:
+	var stacked_player := PlayerMatchState.new(1, "Unbounded", 1)
 	for card_id in catalog.all_ids():
-		var card := catalog.get_card(card_id)
-		reduced_player.card_stacks[card_id] = card.max_stacks if card_id not in remaining_ids else card.max_stacks - 1
-	var reduced_players := {1: reduced_player}
-	var reduced_manager := DraftManager.new(catalog, 77)
-	reduced_manager.start_draft(reduced_players, 10)
-	var reduced_offer := reduced_manager.get_offer(1)
-	context.expect_equal(reduced_offer.card_ids.size(), 3, "draft offers every eligible card when fewer than five remain")
-	for card_id in reduced_offer.card_ids:
-		context.expect_true(card_id in remaining_ids, "reduced offer contains only eligible cards")
-
-	var complete_player := PlayerMatchState.new(2, "Complete", 2)
-	for card_id in catalog.all_ids():
-		complete_player.card_stacks[card_id] = catalog.get_card(card_id).max_stacks
-	var complete_players := {2: complete_player}
-	var complete_manager := DraftManager.new(catalog, 77)
-	complete_manager.start_draft(complete_players, 10)
-	var complete_offer := complete_manager.get_offer(2)
-	context.expect_true(complete_offer.build_complete, "fully capped build is marked complete")
-	context.expect_true(complete_offer.locked, "fully capped build requires no selection")
-	context.expect_empty(complete_offer.card_ids, "fully capped build receives no inert choices")
-	context.expect_true(complete_manager.all_locked(), "build-complete-only draft is immediately locked")
-	var applied := complete_manager.apply_locked_selections(complete_players)
-	context.expect_true(applied.has(2), "build-complete resolution records the player")
-	context.expect_equal(applied[2], &"", "build-complete resolution applies no card")
+		stacked_player.card_stacks[card_id] = 999
+	var players := {1: stacked_player}
+	var manager := DraftManager.new(catalog, 77)
+	manager.start_draft(players, 10)
+	var offer := manager.get_offer(1)
+	context.expect_equal(offer.card_ids.size(), GameConstants.CARD_OFFER_SIZE, "even massively stacked builds still receive five cards")
+	context.expect_false(offer.build_complete, "builds never become complete from stacking")
+	context.expect_false(offer.locked, "unlimited stacks still require a draft selection")
+	var selected_card := offer.card_ids[0]
+	context.expect_equal(manager.select_card(1, offer.token, selected_card), DraftManager.SelectionResult.ACCEPTED, "an already heavily stacked card remains selectable")
+	manager.apply_locked_selections(players)
+	context.expect_equal(stacked_player.card_stack(selected_card), 1000, "draft resolution increments a card beyond every former cap")
 
 
 static func _validate_skipped_winner(context: TestContext, catalog: CardCatalog) -> void:

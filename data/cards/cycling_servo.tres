@@ -9,5 +9,4 @@ display_name = "Cycling Servo"
 description = "Fire rate ×1.18 per stack."
 category = 2
 rarity = 1
-max_stacks = 4
 multiplicative_modifiers = {"fire_rate": 1.18}

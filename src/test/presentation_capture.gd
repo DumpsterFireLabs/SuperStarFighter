@@ -72,6 +72,22 @@ func _capture_sequence() -> void:
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	await _capture(client, "combat")
+	client.latest_match_payload["participant_peer_ids"] = [2, 3, 4, 5]
+	client.latest_match_payload["scores"] = {
+		2: {"heat_wins": 1, "round_wins": 1},
+		3: {"heat_wins": 1, "round_wins": 0},
+		4: {"heat_wins": 0, "round_wins": 1},
+		5: {"heat_wins": 0, "round_wins": 0},
+	}
+	client.latest_match_payload["builds"] = {
+		2: {&"rapid_cycling": 7, &"twin_shot": 4},
+		3: {&"reinforced_hull": 5, &"beam_emitter": 3},
+		4: {&"flux_reservoir": 6, &"endless_belt": 8},
+		5: {&"inertial_dampers": 2, &"hollow_points": 9},
+	}
+	client._set_scoreboard_open(true)
+	await _capture(client, "scoreboard")
+	client._set_scoreboard_open(false)
 
 	client.network_world._on_snapshot({"server_tick": 240, "acknowledged_input": 12, "states": [
 		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 0.0, "shield": 0.0, "ammunition": 0, "alive": false, "shielding": false},

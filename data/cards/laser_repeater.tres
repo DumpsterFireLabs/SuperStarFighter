@@ -9,6 +9,5 @@ display_name = "Laser Repeater"
 description = "Adds beam tech; fire rate ×1.28 and damage ×0.86 per stack."
 category = 2
 rarity = 1
-max_stacks = 3
 multiplicative_modifiers = {"fire_rate": 1.28, "projectile_damage": 0.86}
 special_behavior_id = &"beam_weapon"

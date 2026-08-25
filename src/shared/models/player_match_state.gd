@@ -29,9 +29,9 @@ func card_stack(card_id: StringName) -> int:
 
 
 func add_card(card: CardDefinition) -> bool:
-	var current_stacks := card_stack(card.card_id)
-	if current_stacks >= card.max_stacks:
+	if card == null:
 		return false
+	var current_stacks := card_stack(card.card_id)
 	card_stacks[card.card_id] = current_stacks + 1
 	return true
 

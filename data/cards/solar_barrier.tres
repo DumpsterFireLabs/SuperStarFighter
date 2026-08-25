@@ -9,5 +9,4 @@ display_name = "Solar Barrier"
 description = "Capacity ×1.50, regeneration ×1.50 and drain ×0.70 per stack."
 category = 1
 rarity = 4
-max_stacks = 2
 multiplicative_modifiers = {"shield_capacity": 1.5, "shield_regeneration": 1.5, "shield_continuous_drain": 0.7}

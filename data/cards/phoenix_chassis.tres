@@ -9,5 +9,4 @@ display_name = "Phoenix Chassis"
 description = "Maximum hull ×1.30 and maximum speed ×1.08 per stack."
 category = 0
 rarity = 3
-max_stacks = 3
 multiplicative_modifiers = {"max_health": 1.3, "max_speed": 1.08}

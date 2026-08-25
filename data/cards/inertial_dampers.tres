@@ -9,5 +9,4 @@ display_name = "Inertial Dampers"
 description = "Flight damping ×1.35 and acceleration ×1.05 per stack."
 category = 0
 rarity = 1
-max_stacks = 3
 multiplicative_modifiers = {"drag": 1.35, "acceleration": 1.05}

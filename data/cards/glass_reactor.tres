@@ -9,5 +9,4 @@ display_name = "Glass Reactor"
 description = "Speed ×1.18 and acceleration ×1.22, but maximum hull ×0.85 per stack."
 category = 0
 rarity = 2
-max_stacks = 3
 multiplicative_modifiers = {"max_speed": 1.18, "acceleration": 1.22, "max_health": 0.85}

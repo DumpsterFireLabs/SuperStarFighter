@@ -9,6 +9,5 @@ display_name = "Fortress Emitter"
 description = "+60 shield capacity, but drain ×1.20 and maximum speed ×0.90 per stack."
 category = 1
 rarity = 3
-max_stacks = 2
 additive_modifiers = {"shield_capacity": 60.0}
 multiplicative_modifiers = {"shield_continuous_drain": 1.2, "max_speed": 0.9}

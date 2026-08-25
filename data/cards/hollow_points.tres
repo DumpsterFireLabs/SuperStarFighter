@@ -9,5 +9,4 @@ display_name = "Hollow Points"
 description = "Projectile damage ×1.08 per stack."
 category = 2
 rarity = 0
-max_stacks = 5
 multiplicative_modifiers = {"projectile_damage": 1.08}

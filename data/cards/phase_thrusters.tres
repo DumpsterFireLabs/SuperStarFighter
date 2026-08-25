@@ -9,5 +9,4 @@ display_name = "Phase Thrusters"
 description = "Maximum speed ×1.08 and acceleration ×1.10 per stack."
 category = 0
 rarity = 1
-max_stacks = 4
 multiplicative_modifiers = {"max_speed": 1.08, "acceleration": 1.1}
