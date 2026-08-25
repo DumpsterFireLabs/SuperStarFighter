@@ -113,8 +113,6 @@ func advance_time(at_tick: int) -> Array[Dictionary]:
 					last_round_winner = 0
 					_pending_round_winner = 0
 					_transition(State.DRAFT, transition_tick)
-			State.MATCH_RESULT:
-				_return_to_lobby(transition_tick)
 			_:
 				break
 		transitions.append(event_history.back())
@@ -199,6 +197,13 @@ func state_name() -> String:
 	return State.keys()[state]
 
 
+func return_to_lobby(at_tick: int) -> bool:
+	if state != State.MATCH_RESULT:
+		return false
+	_return_to_lobby(at_tick)
+	return true
+
+
 func _resolve_heat(winner_peer_id: int, at_tick: int) -> void:
 	last_heat_winner = winner_peer_id
 	tied_heat = winner_peer_id == 0
@@ -279,8 +284,6 @@ func _duration_for_state(target_state: int) -> float:
 			return config.heat_result_duration_seconds
 		State.ROUND_RESULT:
 			return config.round_result_duration_seconds
-		State.MATCH_RESULT:
-			return config.match_result_duration_seconds
 		_:
 			return 0.0
 

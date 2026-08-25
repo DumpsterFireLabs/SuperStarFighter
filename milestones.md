@@ -19,7 +19,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.1 — Audio, Screen Flow, and Card Expansion | Complete | Supplied menu/gameplay music discovered across WAV/OGG/MP3 names with a menu-tail crossfade; persistent volume settings, animated splash, in-match Escape menu, and victory screen rendered; catalog expanded to 36 rarity-weighted cards with authoritative beam weapons and round-winner draft byes; 980 assertions and 22 production-screen captures passed. |
 | 6.2 — Five-Dozen Catalog and Viewport Reclamation | Complete | Catalog expanded to exactly 60 authoritative cards across seven steeply weighted rarity tiers; match state folded into a 430×148 upper-left combat HUD; selectable 720p, 900p, 1080p, and 1440p window resolutions persist alongside audio settings; 1,148 assertions and 22 production-screen captures passed. |
 | 6.3 — Ultrawide and Victory Presentation | Complete | Added 2560×1080 and 3440×1440 expand-aspect modes; rebuilt victory as a champion plate with aligned, highlighted, scrollable standings rows and clean build wrapping; corrected the capture harness to assert real framebuffer dimensions; 1,154 assertions and 44 production-screen captures passed. |
-| 6.4 — Intro and Round Pacing | Complete | Splash now holds for a true ten-second minimum even when input arrives early; authoritative round-result intermission shortened from four seconds to 2.5 seconds while heat results remain unchanged; 1,158 assertions passed. |
+| 6.4 — Intro and Round Pacing | Complete | Splash accepts any key immediately and retains a ten-second automatic fallback; authoritative round-result intermission shortened from four seconds to 2.5 seconds while heat results remain unchanged; 1,158 assertions passed. |
+| 6.5 — Momentary Scoreboard and Explicit Results Exit | Complete | Removed redundant per-card no-limit copy, changed the live scoreboard to hold/release input, and replaced automatic match-result expiry with a leader-authorized Exit to Lobby transition; 1,150 assertions, 73 project checks, the two-match network loop, and 44 production-screen captures passed. |
 | 7 — Export, Documentation, and Release Candidate | Next | Milestone 6 exit gate passed. |
 
 ## Completion Rules
@@ -152,7 +153,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Implement authoritative heat spawning, countdown lock, survivor tracking, heat scoring, tie replay, round scoring, and configurable match victory.
 - Add server-timed overtime boundary behavior and client synchronization.
 - Implement death-to-spectator transition, target cycling, active disconnect elimination, between-state removal, forfeit victory, and late-join spectator behavior.
-- Implement match results, 10-second return to lobby, score/build reset, spectator promotion, and second-match startup.
+- Implement persistent match results, leader-authorized return to lobby, score/build reset, spectator promotion, and second-match startup.
 - Add leader-owned total-player limits, optional server-owned NPC fill, human replacement of waiting NPC seats, NPC combat input/card selection, and a one-human NPC-assisted start path.
 - Add the `--auto-start` behavior needed by integration tests.
 

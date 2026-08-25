@@ -3,7 +3,7 @@ extends RefCounted
 
 const GAME_NAME: String = "Super Star Fighter"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 4
+const PROTOCOL_VERSION: int = 5
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024
@@ -26,7 +26,6 @@ const DRAFT_DURATION_SECONDS: float = 30.0
 const COUNTDOWN_DURATION_SECONDS: float = 3.0
 const HEAT_RESULT_DURATION_SECONDS: float = 3.0
 const ROUND_RESULT_DURATION_SECONDS: float = 2.5
-const MATCH_RESULT_DURATION_SECONDS: float = 10.0
 const HEAT_WINS_TO_WIN_ROUND: int = 2
 const CARD_OFFER_SIZE: int = 5
 

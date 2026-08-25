@@ -35,7 +35,7 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 		context.expect_true(button.visible, "draft card %d is visible" % (index + 1))
 		context.expect_true(button.custom_minimum_size.y >= 400.0, "draft card %d uses the enlarged card layout" % (index + 1))
 		context.expect_true(button.text.contains("STACK 0 → 1"), "draft card %d renders its stack change" % (index + 1))
-		context.expect_true(button.text.contains("NO LIMIT"), "draft card %d communicates unlimited stacking" % (index + 1))
+		context.expect_false(button.text.contains("NO LIMIT"), "draft card %d avoids repeating the global unlimited-stack rule" % (index + 1))
 		context.expect_false(button.text.contains("% DROP"), "draft card %d keeps rarity out of the main body" % (index + 1))
 		var rarity_label := client.draft_rarity_labels[index] as Label
 		context.expect_true(rarity_label.visible and rarity_label.text.contains("TIER DROP"), "draft card %d renders rarity in a bottom badge" % (index + 1))

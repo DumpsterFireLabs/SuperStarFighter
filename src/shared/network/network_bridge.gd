@@ -59,7 +59,6 @@ func start_server(configuration: Dictionary) -> Error:
 		match_config.countdown_duration_seconds = 0.25
 		match_config.heat_result_duration_seconds = 0.25
 		match_config.round_result_duration_seconds = 0.25
-		match_config.match_result_duration_seconds = 0.75
 	lobby = ServerLobby.new(match_config)
 	world = AuthoritativeWorld.new()
 	match_coordinator = null
@@ -186,6 +185,11 @@ func send_eject_player(peer_id: int) -> void:
 func send_start_match() -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_start_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
+
+
+func send_return_to_lobby() -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_return_to_lobby.rpc_id(NetworkProtocol.SERVER_PEER_ID)
 
 
 func send_card_selection(offer_token: String, card_id: StringName) -> void:
@@ -378,6 +382,25 @@ func request_start_match() -> void:
 		_start_match_coordinator(sender_id)
 	else:
 		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_return_to_lobby() -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "return_to_lobby"):
+		return
+	if sender_id != lobby.leader_id:
+		_send_request_rejected(sender_id, "Only the lobby leader may return the match to the lobby.")
+		return
+	if match_coordinator == null or not match_coordinator.return_to_lobby():
+		_send_request_rejected(sender_id, "Return to lobby is only available from the final results screen.")
+		return
+	_drain_match_coordinator()
+	if match_coordinator.is_finished():
+		match_coordinator = null
+		_broadcast_lobby_state()
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)

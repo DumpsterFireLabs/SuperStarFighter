@@ -163,12 +163,13 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.physical_keycode = KEY_TAB
 	tab_event.pressed = true
 	client._input(tab_event)
-	context.expect_true(client.scoreboard_panel.visible, "Tab opens the live scoreboard without relying on UI focus")
+	context.expect_true(client.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
 	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
 	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
+	tab_event.pressed = false
 	client._input(tab_event)
-	context.expect_false(client.scoreboard_panel.visible, "pressing Tab again returns to combat")
-	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": 600, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
+	context.expect_false(client.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
+	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()
 	context.expect_true(client.win_overlay.visible and client.results_panel.visible, "match result opens the dedicated final standings screen")
@@ -176,6 +177,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.results_standings_container.get_child_count(), 1, "structured standings renders one row per participant")
 	context.expect_equal(client.results_standings_container.get_child(0).get_meta("peer_id"), 2, "winner occupies the first highlighted standings row")
 	context.expect_true(client.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
+	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
+	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")
 	context.expect_false(client.lobby_panel.visible, "lobby menu remains hidden throughout the game loop")
 	client.connection_screen.visible = false
 	client._toggle_pause_overlay()

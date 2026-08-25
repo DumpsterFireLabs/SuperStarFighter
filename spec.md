@@ -57,7 +57,7 @@ For more than two players, a round is not limited to three heats. Heats continue
 - Use the non-.NET Godot 4.7.2 Standard build and typed GDScript.
 - Run gameplay physics at 60 ticks per second.
 - Support a resizable window with a minimum usable resolution of 1280×720 and a 1920×1080 virtual canvas. Settings provide persistent 1280×720, 1600×900, 1920×1080, 2560×1080, 2560×1440, and 3440×1440 window-size choices without changing authoritative gameplay. Use `canvas_items` with expand aspect so wider windows expose additional horizontal space without nonuniformly stretching ships, arena geometry, or UI.
-- Support keyboard and mouse only: WASD, mouse aim, left mouse fire, right mouse shield, number keys 1–5 for card choice, left-click UI interaction, Tab scoreboard, and Escape pause/disconnect overlay.
+- Support keyboard and mouse only: WASD, mouse aim, left mouse fire, right mouse shield, number keys 1–5 for card choice, left-click UI interaction, hold Tab for the scoreboard, and Escape for the pause/disconnect overlay.
 - Multiplayer never pauses the server simulation. The Escape overlay only captures local input.
 
 ### 3.2 Command-Line Contract
@@ -109,9 +109,9 @@ The server owns a single explicit state machine.
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
 | `HEAT_RESULT` | 3 s | Freeze combat and show heat result. | Continue current round or resolve it. |
 | `ROUND_RESULT` | 2.5 s | Award a round win and clear all heat wins. | Start next draft or resolve match. |
-| `MATCH_RESULT` | 10 s | Show winner and final builds/scores. | Return all connected clients to lobby. |
+| `MATCH_RESULT` | Indefinite | Show winner and final builds/scores. | Lobby leader selects Exit to Lobby. |
 
-State transitions are reliable server events containing the new state, server tick, end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers.
+State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. `MATCH_RESULT` has no deadline and cannot advance from elapsed time.
 
 ### 4.2 Lobby Rules
 
@@ -123,6 +123,7 @@ State transitions are reliable server events containing the new state, server ti
 - NPCs never become lobby leader. While the match is inactive, a joining human replaces one waiting NPC when all configured seats are occupied. Disabling NPC fill removes all waiting NPCs; lowering the participant limit removes enough waiting NPCs to meet the new limit and cannot reduce the limit below the connected human count.
 - Display names are trimmed, must contain 1–16 printable non-control Unicode characters, and are made unique for display by appending `#2`, `#3`, and so on.
 - A client joining during `DRAFT` or any later match state becomes a spectator until the server returns to `LOBBY`.
+- Final standings remain open until the lobby leader sends the authoritative return-to-lobby request. Other players see that they are waiting for the leader.
 - When a match returns to the lobby, connected spectators become normal participants and all builds and scores are cleared.
 
 ### 4.3 Draft Rules
@@ -346,7 +347,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `4` and a maximum of 32 client peers in addition to the server. Version 4 carries the projectile beam flag, authoritative lobby ready/eject messages, and unlimited-stack stat prediction rules.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `5` and a maximum of 32 client peers in addition to the server. Version 5 carries the projectile beam flag, authoritative lobby ready/eject and final-results exit messages, and unlimited-stack stat prediction rules.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -362,6 +363,7 @@ Client-to-server messages:
 - `request_ready_state(ready)` — reliable, waiting human only.
 - `request_eject_player(peer_id)` — reliable, lobby leader and lobby state only; the sender cannot target themselves or an NPC.
 - `request_start_match()` — reliable, lobby leader only; all connected humans must be ready.
+- `request_return_to_lobby()` — reliable, lobby leader and `MATCH_RESULT` only; closes final standings for every connected client.
 - `select_card(offer_token, card_id)` — reliable, current participant and draft only.
 - `submit_input(sequence, client_tick, move_x, move_y, aim_angle, action_bits)` — unreliable ordered.
 
@@ -406,9 +408,9 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 1. **Connection:** A centered menu over the non-gameplay neon backdrop with display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors. The arena and its map are not rendered before a match begins.
 2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
-4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Tab reliably toggles a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; the match continues behind it.
+4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Holding Tab displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing Tab immediately closes it while the match continues behind it.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
-6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, scroll for large lobbies, and keep the automatic return-to-lobby countdown separate from the standings.
+6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, and scroll for large lobbies. The lobby leader receives an Exit to Lobby button; other clients see a disabled waiting-for-leader action. No automatic close timer is present.
 
 ### 9.2 Presentation Rules
 
@@ -419,7 +421,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated splash that displays `PRESS ANY KEY TO START` for a minimum of 10 seconds before proceeding to the connection menu; early input cannot bypass that minimum. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
+- Start with an animated splash that displays `PRESS ANY KEY TO START`, accepts input immediately, and automatically proceeds to the connection menu after 10 seconds. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 

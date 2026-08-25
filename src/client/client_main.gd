@@ -46,8 +46,9 @@ var results_panel: PanelContainer
 var results_label: Label
 var results_winner_label: Label
 var results_standings_container: VBoxContainer
-var results_countdown_label: Label
+var results_return_button: Button
 var _results_signature: String = ""
+var _return_to_lobby_requested: bool = false
 var win_overlay: Control
 var pause_overlay: PanelContainer
 var pause_title: Label
@@ -123,8 +124,8 @@ func _input(event: InputEvent) -> void:
 		_dismiss_splash()
 		get_viewport().set_input_as_handled()
 		return
-	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB):
-		_toggle_scoreboard()
+	if event is InputEventKey and not event.echo and (event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB):
+		_set_scoreboard_open(event.pressed)
 		get_viewport().set_input_as_handled()
 
 
@@ -397,7 +398,7 @@ func _create_match_ui() -> void:
 	scoreboard_rows_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scoreboard_scroll.add_child(scoreboard_rows_container)
 	var scoreboard_hint := Label.new()
-	scoreboard_hint.text = "PRESS TAB TO RETURN TO COMBAT  ·  THE MATCH CONTINUES"
+	scoreboard_hint.text = "RELEASE TAB TO RETURN TO COMBAT  ·  THE MATCH CONTINUES"
 	scoreboard_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	scoreboard_hint.add_theme_font_size_override("font_size", 15)
 	scoreboard_hint.add_theme_color_override("font_color", Color("fff36a"))
@@ -475,12 +476,14 @@ func _create_match_ui() -> void:
 	results_standings_container.add_theme_constant_override("separation", 7)
 	results_standings_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	results_scroll.add_child(results_standings_container)
-	results_countdown_label = Label.new()
-	results_countdown_label.text = "RETURNING TO LOBBY"
-	results_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_countdown_label.add_theme_font_size_override("font_size", 17)
-	results_countdown_label.add_theme_color_override("font_color", Color("73f7ff"))
-	results_content.add_child(results_countdown_label)
+	var results_action_center := CenterContainer.new()
+	results_content.add_child(results_action_center)
+	results_return_button = Button.new()
+	results_return_button.text = "EXIT TO LOBBY"
+	results_return_button.custom_minimum_size = Vector2(340.0, 52.0)
+	results_return_button.add_theme_font_size_override("font_size", 19)
+	results_return_button.pressed.connect(_on_results_return_pressed)
+	results_action_center.add_child(results_return_button)
 
 
 func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
@@ -878,6 +881,7 @@ func _on_connected(peer_id: int) -> void:
 
 
 func _on_lobby_state(state: Dictionary) -> void:
+	bridge.latest_lobby_state = state.duplicate(true)
 	var npc_count := int(state.get("npc_count", 0))
 	var total_count := (state.get("players", []) as Array).size()
 	var match_active := bool(state.get("match_active", false))
@@ -995,6 +999,7 @@ func _on_eject_pressed(peer_id: int) -> void:
 
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
 	if event_type == &"REQUEST_REJECTED":
+		_return_to_lobby_requested = false
 		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
 		if draft_panel.visible and not active_offer_token.is_empty():
 			for draft_button in draft_buttons:
@@ -1053,7 +1058,7 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			continue
 		var card := card_catalog.get_card(StringName(card_ids[index]))
 		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
-		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d  ·  NO LIMIT" % [
+		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d" % [
 			index + 1,
 			card.display_name,
 			card.category_name().to_upper(),
@@ -1145,8 +1150,8 @@ func _update_match_presentation() -> void:
 	elif state_name == "ROUND_RESULT":
 		status += " · %s wins round" % _player_name(int(latest_match_payload.get("last_round_winner", 0)))
 	elif state_name == "MATCH_RESULT":
-		status = "★ VICTORY · %s ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
-		_update_results_screen(seconds_left)
+		status = "★ VICTORY · %s ★" % _player_name(int(latest_match_payload.get("match_winner", 0)))
+		_update_results_screen()
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
@@ -1236,12 +1241,6 @@ func _update_scoreboard() -> void:
 		_add_scoreboard_row(index + 1, peer_ids[index])
 
 
-func _toggle_scoreboard() -> void:
-	if not _scoreboard_available():
-		return
-	_set_scoreboard_open(not scoreboard_open)
-
-
 func _set_scoreboard_open(open: bool) -> void:
 	scoreboard_open = open and _scoreboard_available()
 	if scoreboard_panel != null:
@@ -1298,10 +1297,20 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	row.add_child(build_label)
 
 
-func _update_results_screen(seconds_left: float) -> void:
+func _update_results_screen() -> void:
 	var winner_id := int(latest_match_payload.get("match_winner", 0))
 	results_winner_label.text = "★  %s  ★" % _player_name(winner_id).to_upper()
-	results_countdown_label.text = "RETURNING TO LOBBY IN %.1f SECONDS" % seconds_left
+	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
+	results_return_button.disabled = not is_leader or _return_to_lobby_requested
+	if _return_to_lobby_requested:
+		results_return_button.text = "RETURNING EVERYONE TO LOBBY…"
+		results_return_button.tooltip_text = "Waiting for server confirmation."
+	elif is_leader:
+		results_return_button.text = "EXIT TO LOBBY"
+		results_return_button.tooltip_text = "Close the final standings and return every connected player to the lobby."
+	else:
+		results_return_button.text = "WAITING FOR LOBBY LEADER"
+		results_return_button.tooltip_text = "The lobby leader controls when everyone leaves the final standings."
 	var signature := "%d|%s|%s" % [winner_id, latest_match_payload.get("scores", {}), latest_match_payload.get("builds", {})]
 	if signature == _results_signature:
 		return
@@ -1312,6 +1321,14 @@ func _update_results_screen(seconds_left: float) -> void:
 	var peer_ids := _result_peer_ids()
 	for index in peer_ids.size():
 		_add_result_row(index + 1, peer_ids[index], peer_ids[index] == winner_id)
+
+
+func _on_results_return_pressed() -> void:
+	if results_return_button.disabled:
+		return
+	_return_to_lobby_requested = true
+	_update_results_screen()
+	bridge.send_return_to_lobby()
 
 
 func _result_peer_ids() -> Array[int]:
@@ -1442,6 +1459,7 @@ func _results_row_style(accent: Color, winner: bool) -> StyleBoxFlat:
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
 	last_state_name = state_name
 	if state_name == "LOBBY":
+		_return_to_lobby_requested = false
 		audio_director.set_context(&"lobby")
 		_set_win_screen_visible(false)
 		return
@@ -1454,6 +1472,7 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	elif state_name == "ROUND_RESULT":
 		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
 	elif state_name == "MATCH_RESULT":
+		_return_to_lobby_requested = false
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
 
 

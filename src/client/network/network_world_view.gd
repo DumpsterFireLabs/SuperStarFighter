@@ -422,7 +422,7 @@ func _create_camera_and_hud() -> void:
 
 func _update_diagnostics() -> void:
 	var resources := "Waiting for combat snapshot"
-	var combat_status := "F3 network diagnostics · Tab scoreboard"
+	var combat_status := "F3 network diagnostics · Hold Tab scoreboard"
 	if ships.has(local_peer_id):
 		var local_ship := ships[local_peer_id] as SandboxShip
 		health_bar.max_value = local_stats.max_health
@@ -430,7 +430,7 @@ func _update_diagnostics() -> void:
 		shield_bar.max_value = local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
-		combat_status = "F3 diagnostics   ·   Tab scoreboard"
+		combat_status = "F3 diagnostics   ·   Hold Tab scoreboard"
 		if not local_ship.combatant.alive:
 			resources = "SHIP ELIMINATED"
 			spectator_label.text = "SPECTATING %s   ◀ A / LMB     D / RMB ▶" % _display_name(spectator_target_id) if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"

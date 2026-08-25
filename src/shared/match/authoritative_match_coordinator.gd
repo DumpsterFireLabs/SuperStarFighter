@@ -137,6 +137,13 @@ func is_finished() -> bool:
 	return _finished
 
 
+func return_to_lobby() -> bool:
+	if _finished or not machine.return_to_lobby(world.server_tick):
+		return false
+	_capture_transitions()
+	return true
+
+
 func drain_events() -> Array[Dictionary]:
 	var result := _events.duplicate(true)
 	_events.clear()

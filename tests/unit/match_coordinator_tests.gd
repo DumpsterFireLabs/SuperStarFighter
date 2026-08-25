@@ -71,9 +71,11 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 	context.expect_equal(coordinator.machine.last_round_winner, 2, "first player to two heat wins takes round")
 	_advance_until_state(world, coordinator, MatchStateMachine.State.MATCH_RESULT)
 	context.expect_equal(coordinator.machine.match_winner, 2, "round target one resolves match winner")
-	_advance_until_state(world, coordinator, MatchStateMachine.State.LOBBY)
-	context.expect_true(coordinator.is_finished(), "match coordinator finishes after result timer")
-	context.expect_false(lobby.match_active, "match result returns server lobby to idle")
+	_advance(world, coordinator, 120)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "match coordinator keeps final standings open indefinitely")
+	context.expect_true(coordinator.return_to_lobby(), "match coordinator accepts an explicit results exit")
+	context.expect_true(coordinator.is_finished(), "match coordinator finishes after the explicit results exit")
+	context.expect_false(lobby.match_active, "explicit results exit returns server lobby to idle")
 	context.expect_true((lobby.players[5] as PlayerMatchState).participant, "late spectator promotes on lobby return")
 	for player_value in coordinator.machine.players.values():
 		var player := player_value as PlayerMatchState
@@ -205,7 +207,6 @@ static func _fast_config() -> MatchConfig:
 	config.countdown_duration_seconds = 0.05
 	config.heat_result_duration_seconds = 0.05
 	config.round_result_duration_seconds = 0.05
-	config.match_result_duration_seconds = 0.05
 	return config
 
 

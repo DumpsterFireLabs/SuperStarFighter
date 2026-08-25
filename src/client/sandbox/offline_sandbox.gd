@@ -288,7 +288,7 @@ func _update_hud() -> void:
 func _update_card_label() -> void:
 	var card_id := catalog.all_ids()[selected_card_index]
 	var card := catalog.get_card(card_id)
-	card_label.text = "Selected: %s [STACK %d · NO LIMIT] — %s" % [card.display_name, int(build.get(card_id, 0)), card.description]
+	card_label.text = "Selected: %s [STACK %d] — %s" % [card.display_name, int(build.get(card_id, 0)), card.description]
 
 
 func _grant_selected_card() -> void:

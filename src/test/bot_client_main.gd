@@ -196,6 +196,8 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 	if match_state_name == "MATCH_RESULT":
 		match_result_count += 1
 		print("SSF_BOT_MATCH_RESULT count=%d winner=%d" % [match_result_count, int(payload.get("match_winner", 0))])
+		if int(bridge.latest_lobby_state.get("leader_id", 0)) == bridge.local_peer_id:
+			bridge.send_return_to_lobby()
 	elif match_state_name == "LOBBY":
 		lobby_return_count += 1
 		var builds := payload.get("builds", {}) as Dictionary

@@ -101,7 +101,7 @@ func _capture_sequence() -> void:
 
 	client.latest_match_payload = {
 		"state_name": "MATCH_RESULT", "round_number": 3, "heat_number": 2,
-		"deadline_tick": 800, "match_winner": 2, "alive_peer_ids": [2],
+		"deadline_tick": -1, "match_winner": 2, "alive_peer_ids": [2],
 		"participant_peer_ids": [2, 3, 4, 5],
 		"scores": {
 			2: {"heat_wins": 0, "round_wins": 3},

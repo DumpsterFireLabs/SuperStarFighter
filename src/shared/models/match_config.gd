@@ -9,7 +9,6 @@ var draft_duration_seconds: float = GameConstants.DRAFT_DURATION_SECONDS
 var countdown_duration_seconds: float = GameConstants.COUNTDOWN_DURATION_SECONDS
 var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SECONDS
 var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
-var match_result_duration_seconds: float = GameConstants.MATCH_RESULT_DURATION_SECONDS
 
 
 func validate() -> PackedStringArray:
@@ -37,7 +36,6 @@ func validate() -> PackedStringArray:
 		countdown_duration_seconds,
 		heat_result_duration_seconds,
 		round_result_duration_seconds,
-		match_result_duration_seconds,
 	]:
 		if not is_finite(duration) or duration <= 0.0:
 			errors.append("All state durations must be finite and greater than zero.")
@@ -59,6 +57,4 @@ func duplicate_config() -> MatchConfig:
 	copy.countdown_duration_seconds = countdown_duration_seconds
 	copy.heat_result_duration_seconds = heat_result_duration_seconds
 	copy.round_result_duration_seconds = round_result_duration_seconds
-	copy.match_result_duration_seconds = match_result_duration_seconds
 	return copy
-
