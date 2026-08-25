@@ -130,7 +130,7 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", 48)
 	content.add_child(title)
 	var subtitle := Label.new()
-	subtitle.text = "BUILD · BREAK · ASCEND"
+	subtitle.text = "POWER UP · OUTGUN · OUTLAST"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_color_override("font_color", Color("d39cff"))
 	subtitle.add_theme_font_size_override("font_size", 25)
@@ -523,7 +523,7 @@ func _create_splash_screen() -> void:
 	title.add_theme_color_override("font_color", Color("f4fbff"))
 	content.add_child(title)
 	var flare := Label.new()
-	flare.text = "✦  BUILD BEYOND CONTROL  ✦"
+	flare.text = "✦  POWER UP · OUTGUN · OUTLAST  ✦"
 	flare.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	flare.add_theme_font_size_override("font_size", 28)
 	flare.add_theme_color_override("font_color", Color("ff4fd8"))
