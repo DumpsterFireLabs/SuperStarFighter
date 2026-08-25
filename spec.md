@@ -46,7 +46,7 @@ The vertical slice does not include public matchmaking, a server browser, accoun
 - **Match:** A sequence of rounds that ends when one player reaches the configured round-win target.
 - **Draft:** The simultaneous card-selection phase before each round, including round one.
 - **Build:** The complete set of card stacks currently owned by a player.
-- **Lobby leader:** The connected participant allowed to change the round target and start a match.
+- **Lobby leader:** The connected participant allowed to change lobby settings, eject other waiting humans, and start a match.
 
 For more than two players, a round is not limited to three heats. Heats continue until one player accumulates two heat wins; different players may each hold one heat win simultaneously.
 
@@ -117,6 +117,8 @@ State transitions are reliable server events containing the new state, server ti
 
 - The first admitted client is lobby leader. On leader disconnect, leadership transfers to the admitted client with the earliest join sequence.
 - The leader may set `rounds_to_win` from 1 through 5 and set the total participant limit from 2 through the server's configured capacity, never above 32. Lobby settings cannot change during a match.
+- Every connected human, including the leader, enters the lobby not ready and must explicitly ready up before Force Start can succeed. Changing any lobby setting or returning from a completed match clears every human's ready state; NPCs are always ready. Readiness is authoritative and serialized in lobby state.
+- The leader may eject another connected human only while the match is inactive. The leader cannot eject themselves or server-owned NPCs. An ejected client receives the `EJECTED` reason and returns to the connection screen.
 - The leader may enable or disable NPC fill. Force Start requires two humans when NPC fill is disabled; when enabled, one human may force-start and the server immediately fills every vacant configured seat with NPC participants.
 - NPCs never become lobby leader. While the match is inactive, a joining human replaces one waiting NPC when all configured seats are occupied. Disabling NPC fill removes all waiting NPCs; lowering the participant limit removes enough waiting NPCs to meet the new limit and cannot reduce the limit below the connected human count.
 - Display names are trimmed, must contain 1–16 printable non-control Unicode characters, and are made unique for display by appending `#2`, `#3`, and so on.
@@ -344,7 +346,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `2` and a maximum of 32 client peers in addition to the server. Version 2 carries the projectile beam flag.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `3` and a maximum of 32 client peers in addition to the server. Version 3 carries the projectile beam flag plus authoritative lobby ready/eject messages.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -357,7 +359,9 @@ Client-to-server messages:
 - `request_lobby_config(rounds_to_win)` — reliable, lobby leader only.
 - `request_player_limit(total_participants)` — reliable, lobby leader and lobby state only; bounded by 2, server capacity, and 32.
 - `request_npcs_enabled(enabled)` — reliable, lobby leader and lobby state only.
-- `request_start_match()` — reliable, lobby leader only.
+- `request_ready_state(ready)` — reliable, waiting human only.
+- `request_eject_player(peer_id)` — reliable, lobby leader and lobby state only; the sender cannot target themselves or an NPC.
+- `request_start_match()` — reliable, lobby leader only; all connected humans must be ready.
 - `select_card(offer_token, card_id)` — reliable, current participant and draft only.
 - `submit_input(sequence, client_tick, move_x, move_y, aim_angle, action_bits)` — unreliable ordered.
 
@@ -391,7 +395,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Reject non-finite numbers, movement magnitudes above tolerance, impossible action bits, stale offer tokens, invalid card IDs, out-of-state requests, unauthorized lobby actions, and version mismatches.
 - Accept at most 20 reliable control requests per peer per second, bound offer tokens and card IDs to 64 characters before interning or lookup, and disconnect only the sender after sustained excessive control traffic.
 - Clamp accepted movement after validation. Do not clamp malformed or non-finite messages into validity.
-- Rejection reason codes are `SERVER_FULL`, `VERSION_MISMATCH`, `INVALID_NAME`, `HANDSHAKE_TIMEOUT`, `MALFORMED_TRAFFIC`, and `SERVER_CLOSED`.
+- Rejection reason codes are `SERVER_FULL`, `VERSION_MISMATCH`, `INVALID_NAME`, `HANDSHAKE_TIMEOUT`, `MALFORMED_TRAFFIC`, `SERVER_CLOSED`, and `EJECTED`.
 - Clients display a human-readable error and return to the connection screen after rejection or network loss.
 - The vertical slice provides authority and validation but no identity authentication, encryption, ban service, or denial-of-service protection.
 
@@ -399,8 +403,8 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 ### 9.1 Screens
 
-1. **Connection:** Display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors.
-2. **Lobby:** Human/NPC player list, leader marker, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, waiting message for others, and connection status.
+1. **Connection:** A centered menu over the non-gameplay neon backdrop with display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors. The arena and its map are not rendered before a match begins.
+2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Tab opens the detailed score/build view.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.

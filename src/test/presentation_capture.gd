@@ -43,15 +43,14 @@ func _capture_sequence() -> void:
 
 	var players: Array[Dictionary] = []
 	for index in 32:
-		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": index >= 8})
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": index >= 8, "ready": index != 5})
 	client.bridge.local_peer_id = 2
-	client.connection_screen.visible = false
-	client.lobby_panel.visible = true
-	client.network_world.set_network_active(true)
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
 	await _capture(client, "lobby_32")
 
 	client.lobby_panel.visible = false
+	client.connection_screen.visible = false
+	client.network_world.set_network_active(true)
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}
 	client.network_world.latest_server_tick = 0
 	client._show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})

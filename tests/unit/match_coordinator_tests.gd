@@ -15,6 +15,7 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 	var lobby := ServerLobby.new(config)
 	for peer_id in [2, 3, 4]:
 		context.expect_true(lobby.admit(peer_id, "Pilot%d" % peer_id).ok, "coordinator fixture admits peer %d" % peer_id)
+	_ready_all(lobby)
 	context.expect_true(lobby.request_start(2).ok, "coordinator fixture authorizes match start")
 	var world := AuthoritativeWorld.new()
 	for peer_id in [2, 3, 4]:
@@ -80,6 +81,7 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 			context.expect_empty(player.card_stacks, "lobby return clears final card builds")
 			context.expect_equal(player.score.round_wins, 0, "lobby return clears final round score")
 
+	_ready_all(lobby)
 	context.expect_true(lobby.request_start(2).ok, "same lobby can start a second match")
 	var second := AuthoritativeMatchCoordinator.new(lobby, world, 54321)
 	context.expect_true(second.start(world.server_tick), "second match starts with fresh coordinator")
@@ -96,6 +98,7 @@ static func _validate_forfeit(context: TestContext) -> void:
 	var lobby := ServerLobby.new(_fast_config())
 	lobby.admit(10, "First")
 	lobby.admit(11, "Second")
+	_ready_all(lobby)
 	lobby.request_start(10)
 	var world := AuthoritativeWorld.new()
 	world.add_peer(10)
@@ -113,6 +116,7 @@ static func _validate_last_survivor_resolution(context: TestContext) -> void:
 	for peer_id in [20, 21, 22]:
 		lobby.admit(peer_id, "Survivor%d" % peer_id)
 		world.add_peer(peer_id)
+	_ready_all(lobby)
 	lobby.request_start(20)
 	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 8080)
 	coordinator.start(0)
@@ -142,6 +146,7 @@ static func _validate_npc_draft(context: TestContext) -> void:
 	lobby.admit(30, "HumanDrafter")
 	lobby.request_player_limit(30, 2)
 	lobby.request_npcs_enabled(30, true)
+	_ready_all(lobby)
 	lobby.request_start(30)
 	var world := AuthoritativeWorld.new()
 	for player_value in lobby.players.values():
@@ -167,6 +172,7 @@ static func _validate_round_winner_draft_bye(context: TestContext) -> void:
 	for peer_id in [40, 41, 42]:
 		lobby.admit(peer_id, "Balance%d" % peer_id)
 		world.add_peer(peer_id)
+	_ready_all(lobby)
 	lobby.request_start(40)
 	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 4040)
 	coordinator.start(0)
@@ -185,6 +191,11 @@ static func _validate_round_winner_draft_bye(context: TestContext) -> void:
 	for offer_value in comeback_offers:
 		var offer := offer_value as Dictionary
 		context.expect_true(int(offer.peer_id) in [41, 42], "comeback offer belongs to a non-winner")
+
+
+static func _ready_all(lobby: ServerLobby) -> void:
+	for peer_id in lobby.human_peer_ids():
+		lobby.request_ready(peer_id, true)
 
 
 static func _fast_config() -> MatchConfig:

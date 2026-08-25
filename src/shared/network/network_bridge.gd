@@ -173,6 +173,16 @@ func send_npcs_enabled(enabled: bool) -> void:
 		request_npcs_enabled.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
+func send_ready_state(ready: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_ready_state.rpc_id(NetworkProtocol.SERVER_PEER_ID, ready)
+
+
+func send_eject_player(peer_id: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_eject_player.rpc_id(NetworkProtocol.SERVER_PEER_ID, peer_id)
+
+
 func send_start_match() -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_start_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
@@ -262,6 +272,8 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 	server_peer_admitted.emit(sender_id, player)
 	_log("info", "peer_joined", {"peer_id": sender_id, "display_name": player.display_name, "spectator": player.spectator})
 	if bool(_configuration.get("auto_start", false)) and lobby.participant_count() >= GameConstants.MIN_PLAYERS and not lobby.match_active:
+		for peer_id in lobby.human_peer_ids():
+			lobby.request_ready(peer_id, true)
 		var start_result := lobby.request_start(lobby.leader_id)
 		if start_result.ok:
 			_activate_added_npcs(start_result)
@@ -311,6 +323,45 @@ func request_npcs_enabled(enabled: bool) -> void:
 		_broadcast_lobby_state()
 	else:
 		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_ready_state(ready: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "ready_state"):
+		return
+	var result := lobby.request_ready(sender_id, ready)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_eject_player(target_peer_id: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "eject_player"):
+		return
+	var result := lobby.request_eject(sender_id, target_peer_id)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+		return
+	if world != null:
+		world.remove_peer(target_peer_id)
+	_rate_limiter.remove_peer(target_peer_id)
+	_control_rate_limiter.remove_peer(target_peer_id)
+	_malformed_control_strikes.erase(target_peer_id)
+	_pending_handshakes.complete(target_peer_id)
+	var reason := NetworkProtocol.REJECT_EJECTED
+	connection_rejected.rpc_id(target_peer_id, reason, NetworkProtocol.rejection_message(reason))
+	_pending_disconnects[target_peer_id] = _now_seconds() + 0.1
+	_broadcast_lobby_state()
+	server_peer_departed.emit(target_peer_id)
+	_log("info", "peer_ejected", {"leader_id": sender_id, "peer_id": target_peer_id})
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)

@@ -1,7 +1,7 @@
 class_name NetworkProtocol
 extends RefCounted
 
-const PACKET_VERSION: int = 2
+const PACKET_VERSION: int = 3
 const SERVER_PEER_ID: int = 1
 
 const CHANNEL_CONTROL: int = 0
@@ -29,6 +29,7 @@ const REJECT_INVALID_NAME: StringName = &"INVALID_NAME"
 const REJECT_HANDSHAKE_TIMEOUT: StringName = &"HANDSHAKE_TIMEOUT"
 const REJECT_MALFORMED_TRAFFIC: StringName = &"MALFORMED_TRAFFIC"
 const REJECT_SERVER_CLOSED: StringName = &"SERVER_CLOSED"
+const REJECT_EJECTED: StringName = &"EJECTED"
 
 
 static func rejection_message(reason: StringName) -> String:
@@ -45,5 +46,7 @@ static func rejection_message(reason: StringName) -> String:
 			return "The server rejected malformed or excessive network traffic."
 		REJECT_SERVER_CLOSED:
 			return "The server closed the connection."
+		REJECT_EJECTED:
+			return "You were removed from the lobby by its leader."
 		_:
 			return "The server rejected the connection."

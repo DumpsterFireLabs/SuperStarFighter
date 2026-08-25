@@ -131,7 +131,14 @@ func _on_welcome(peer_id: int) -> void:
 
 func _on_lobby_state(state: Dictionary) -> void:
 	print("SSF_BOT_LOBBY revision=%d players=%d leader=%d limit=%d npcs=%d enabled=%s" % [state.get("revision", 0), (state.get("players", []) as Array).size(), state.get("leader_id", 0), state.get("player_limit", 0), state.get("npc_count", 0), str(state.get("npcs_enabled", false)).to_lower()])
-	if not welcomed or int(state.get("leader_id", 0)) != bridge.local_peer_id or bool(state.get("match_active", false)):
+	if not welcomed or bool(state.get("match_active", false)):
+		return
+	for player_value in state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == bridge.local_peer_id and not bool(player.get("ready", false)):
+			bridge.send_ready_state(true)
+			return
+	if int(state.get("leader_id", 0)) != bridge.local_peer_id:
 		return
 	if desired_player_limit > 0 and int(state.get("player_limit", 0)) != desired_player_limit:
 		bridge.send_player_limit(desired_player_limit)
@@ -139,7 +146,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	if enable_npcs and not bool(state.get("npcs_enabled", false)):
 		bridge.send_npcs_enabled(true)
 		return
-	if (state.get("players", []) as Array).size() >= start_when_players or bool(state.get("npcs_enabled", false)):
+	if bool(state.get("all_humans_ready", false)) and ((state.get("players", []) as Array).size() >= start_when_players or bool(state.get("npcs_enabled", false))):
 		bridge.send_start_match()
 
 

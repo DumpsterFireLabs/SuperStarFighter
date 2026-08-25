@@ -65,7 +65,10 @@ func request_rounds_to_win(sender_id: int, value: int) -> Dictionary:
 		return {"ok": false, "error": "Match settings cannot change during a match."}
 	if value < GameConstants.MIN_ROUNDS_TO_WIN or value > GameConstants.MAX_ROUNDS_TO_WIN:
 		return {"ok": false, "error": "Rounds to win is outside the supported range."}
+	if config.rounds_to_win == value:
+		return {"ok": true}
 	config.rounds_to_win = value
+	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true}
 
@@ -78,8 +81,11 @@ func request_player_limit(sender_id: int, value: int) -> Dictionary:
 		return {"ok": false, "error": "Player limit must be from 2 through %d." % mini(server_capacity, GameConstants.MAX_PLAYERS)}
 	if value < human_count():
 		return {"ok": false, "error": "Player limit cannot be lower than the connected human count."}
+	if player_limit == value:
+		return {"ok": true, "removed_npc_ids": []}
 	player_limit = value
 	var removed_npc_ids := _trim_npcs_to_limit()
+	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true, "removed_npc_ids": removed_npc_ids}
 
@@ -88,10 +94,13 @@ func request_npcs_enabled(sender_id: int, enabled: bool) -> Dictionary:
 	var authority_error := _settings_authority_error(sender_id)
 	if not authority_error.is_empty():
 		return {"ok": false, "error": authority_error}
+	if npcs_enabled == enabled:
+		return {"ok": true, "removed_npc_ids": []}
 	npcs_enabled = enabled
 	var removed_npc_ids: Array[int] = []
 	if not enabled:
 		removed_npc_ids = remove_all_npcs()
+	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true, "removed_npc_ids": removed_npc_ids}
 
@@ -101,6 +110,8 @@ func request_start(sender_id: int) -> Dictionary:
 		return {"ok": false, "error": "Only the lobby leader may start the match."}
 	if match_active:
 		return {"ok": false, "error": "A match is already active."}
+	if not all_humans_ready():
+		return {"ok": false, "error": "Every connected player must ready up before the match can start."}
 	var added_npcs: Array[PlayerMatchState] = []
 	if npcs_enabled:
 		added_npcs = _fill_npc_seats()
@@ -111,12 +122,41 @@ func request_start(sender_id: int) -> Dictionary:
 	return {"ok": true, "added_npcs": added_npcs}
 
 
+func request_ready(sender_id: int, ready: bool) -> Dictionary:
+	if match_active:
+		return {"ok": false, "error": "Ready state cannot change during a match."}
+	var player := players.get(sender_id) as PlayerMatchState
+	if player == null or player.is_npc:
+		return {"ok": false, "error": "Only connected human players may change ready state."}
+	if player.lobby_ready == ready:
+		return {"ok": true, "changed": false}
+	player.lobby_ready = ready
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_eject(sender_id: int, target_peer_id: int) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if target_peer_id == sender_id:
+		return {"ok": false, "error": "The lobby leader cannot eject themselves."}
+	var target := players.get(target_peer_id) as PlayerMatchState
+	if target == null:
+		return {"ok": false, "error": "That player is no longer in the lobby."}
+	if target.is_npc:
+		return {"ok": false, "error": "Disable NPC fill to remove server-owned NPCs."}
+	var removed := remove(target_peer_id)
+	return {"ok": true, "removed_player": removed}
+
+
 func return_to_lobby() -> void:
 	match_active = false
 	for player_value in players.values():
 		var player := player_value as PlayerMatchState
 		player.participant = true
 		player.spectator = true
+		player.lobby_ready = player.is_npc
 		player.reset_match()
 	_revision_changed()
 
@@ -143,6 +183,19 @@ func npc_count() -> int:
 		if (player_value as PlayerMatchState).is_npc:
 			count += 1
 	return count
+
+
+func ready_human_count() -> int:
+	var count := 0
+	for player_value in players.values():
+		var player := player_value as PlayerMatchState
+		if not player.is_npc and player.lobby_ready:
+			count += 1
+	return count
+
+
+func all_humans_ready() -> bool:
+	return human_count() > 0 and ready_human_count() == human_count()
 
 
 func human_peer_ids() -> Array[int]:
@@ -185,6 +238,7 @@ func serialize() -> Dictionary:
 			"participant": player.participant,
 			"spectator": player.spectator,
 			"is_npc": player.is_npc,
+			"ready": player.lobby_ready,
 		})
 	return {
 		"revision": revision,
@@ -195,6 +249,8 @@ func serialize() -> Dictionary:
 		"server_capacity": server_capacity,
 		"npcs_enabled": npcs_enabled,
 		"npc_count": npc_count(),
+		"ready_human_count": ready_human_count(),
+		"all_humans_ready": all_humans_ready(),
 		"match_active": match_active,
 		"players": serialized_players,
 	}
@@ -260,6 +316,7 @@ func _fill_npc_seats() -> Array[PlayerMatchState]:
 		npc.is_npc = true
 		npc.participant = true
 		npc.spectator = false
+		npc.lobby_ready = true
 		players[peer_id] = npc
 		added.append(npc)
 	return added
@@ -274,3 +331,10 @@ func _trim_npcs_to_limit() -> Array[int]:
 		players.erase(peer_id)
 		removed.append(peer_id)
 	return removed
+
+
+func _clear_human_ready() -> void:
+	for player_value in players.values():
+		var player := player_value as PlayerMatchState
+		if not player.is_npc:
+			player.lobby_ready = false

@@ -16,12 +16,15 @@ var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
 var connection_canvas: CanvasLayer
 var connection_screen: Control
+var connection_form_panel: PanelContainer
 var lobby_panel: PanelContainer
 var host_field: LineEdit
 var port_field: LineEdit
 var name_field: LineEdit
 var connection_status: Label
 var lobby_label: Label
+var lobby_roster: VBoxContainer
+var ready_button: CheckButton
 var rounds_control: SpinBox
 var player_limit_control: SpinBox
 var npcs_button: CheckButton
@@ -136,13 +139,13 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	connection_screen.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(700.0, 570.0)
-	panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
-	center.add_child(panel)
+	connection_form_panel = PanelContainer.new()
+	connection_form_panel.custom_minimum_size = Vector2(700.0, 570.0)
+	connection_form_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
+	center.add_child(connection_form_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 16)
-	panel.add_child(content)
+	connection_form_panel.add_child(content)
 	var title := Label.new()
 	title.text = "✦ SUPER STAR FIGHTER ✦"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -194,9 +197,9 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 
 func _create_lobby_panel() -> void:
 	lobby_panel = PanelContainer.new()
-	lobby_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	lobby_panel.position = Vector2(-664.0, 24.0)
-	lobby_panel.custom_minimum_size = Vector2(640.0, 650.0)
+	lobby_panel.set_anchors_preset(Control.PRESET_CENTER)
+	lobby_panel.position = Vector2(-390.0, -345.0)
+	lobby_panel.custom_minimum_size = Vector2(780.0, 690.0)
 	lobby_panel.theme = interface_theme
 	lobby_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
 	lobby_panel.visible = false
@@ -205,19 +208,25 @@ func _create_lobby_panel() -> void:
 	content.add_theme_constant_override("separation", 12)
 	lobby_panel.add_child(content)
 	var title := Label.new()
-	title.text = "ONLINE LOBBY"
+	title.text = "✦  ONLINE LOBBY  ✦"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_font_size_override("font_size", 34)
 	content.add_child(title)
+	lobby_label = Label.new()
+	lobby_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lobby_label.add_theme_font_size_override("font_size", 20)
+	lobby_label.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(lobby_label)
 	var player_scroll := ScrollContainer.new()
-	player_scroll.custom_minimum_size = Vector2(610.0, 250.0)
+	player_scroll.custom_minimum_size = Vector2(740.0, 220.0)
 	player_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	player_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	content.add_child(player_scroll)
-	lobby_label = Label.new()
-	lobby_label.add_theme_font_size_override("font_size", 20)
-	lobby_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	player_scroll.add_child(lobby_label)
+	lobby_roster = VBoxContainer.new()
+	lobby_roster.add_theme_constant_override("separation", 7)
+	lobby_roster.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	player_scroll.add_child(lobby_roster)
 	var rounds_row := HBoxContainer.new()
 	content.add_child(rounds_row)
 	var rounds_label := Label.new()
@@ -247,6 +256,11 @@ func _create_lobby_panel() -> void:
 	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
+	ready_button = CheckButton.new()
+	ready_button.text = "READY FOR LAUNCH"
+	ready_button.custom_minimum_size.y = 52.0
+	ready_button.toggled.connect(_on_ready_toggled)
+	content.add_child(ready_button)
 	start_button = Button.new()
 	start_button.text = "Force Start Match"
 	start_button.custom_minimum_size.y = 54.0
@@ -795,6 +809,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	active_offer_token = ""
 	active_offer_deadline = -1
 	connection_screen.visible = true
+	connection_form_panel.visible = true
 	lobby_panel.visible = false
 	match_panel.visible = false
 	draft_panel.visible = false
@@ -810,44 +825,93 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 
 
 func _on_connected(peer_id: int) -> void:
-	connection_screen.visible = false
+	connection_screen.visible = true
+	connection_form_panel.visible = false
 	lobby_panel.visible = true
-	network_world.set_network_active(true)
+	network_world.set_network_active(false)
 	connection_status.text = "Connected as peer %d." % peer_id
 	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
 
 
 func _on_lobby_state(state: Dictionary) -> void:
-	var lines: PackedStringArray = []
-	for player_value in state.get("players", []):
-		var player := player_value as Dictionary
-		var badges: PackedStringArray = []
-		if int(player.peer_id) == int(state.leader_id):
-			badges.append("leader")
-		if bool(player.spectator):
-			badges.append("spectator")
-		if bool(player.get("is_npc", false)):
-			badges.append("NPC")
-		var suffix := " [%s]" % ", ".join(badges) if not badges.is_empty() else ""
-		lines.append("%s%s" % [player.display_name, suffix])
 	var npc_count := int(state.get("npc_count", 0))
 	var total_count := (state.get("players", []) as Array).size()
-	lobby_panel.visible = not bool(state.get("match_active", false))
-	lobby_label.text = "Players %d/%d · Humans %d · NPCs %d\n%s\n%s" % [total_count, state.get("player_limit", 32), total_count - npc_count, npc_count, "\n".join(lines), "Match active" if state.get("match_active", false) else "NPCs fill open seats when Force Start is pressed" if state.get("npcs_enabled", false) else "Waiting in lobby"]
+	var match_active := bool(state.get("match_active", false))
+	if not match_active:
+		connection_screen.visible = true
+		connection_form_panel.visible = false
+		network_world.set_network_active(false)
+	lobby_panel.visible = not match_active
+	lobby_label.text = "PLAYERS  %d / %d    ·    READY  %d / %d    ·    NPCS  %d" % [
+		total_count,
+		state.get("player_limit", 32),
+		state.get("ready_human_count", 0),
+		total_count - npc_count,
+		npc_count,
+	]
 	var is_leader := int(state.get("leader_id", 0)) == bridge.local_peer_id
+	_rebuild_lobby_roster(state, is_leader)
+	var local_ready := false
+	for player_value in state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == bridge.local_peer_id:
+			local_ready = bool(player.get("ready", false))
+			break
 	_applying_lobby_state = true
 	rounds_control.value = int(state.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
 	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
 	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
 	npcs_button.button_pressed = bool(state.get("npcs_enabled", false))
+	ready_button.button_pressed = local_ready
 	_applying_lobby_state = false
-	var settings_editable := is_leader and not bool(state.get("match_active", false))
+	ready_button.disabled = match_active
+	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
+	var settings_editable := is_leader and not match_active
 	rounds_control.editable = settings_editable
 	player_limit_control.editable = settings_editable
 	npcs_button.disabled = not settings_editable
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
-	start_button.disabled = not settings_editable or not can_supply_opponent
+	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false))
+	start_button.tooltip_text = "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
+
+
+func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
+	for child in lobby_roster.get_children():
+		lobby_roster.remove_child(child)
+		child.queue_free()
+	for player_value in state.get("players", []):
+		var player := player_value as Dictionary
+		var peer_id := int(player.get("peer_id", 0))
+		var is_npc := bool(player.get("is_npc", false))
+		var is_ready := bool(player.get("ready", false))
+		var row := HBoxContainer.new()
+		row.custom_minimum_size.y = 42.0
+		row.add_theme_constant_override("separation", 10)
+		lobby_roster.add_child(row)
+		var name_label := Label.new()
+		name_label.text = String(player.get("display_name", "Pilot"))
+		name_label.custom_minimum_size.x = 300.0
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.add_theme_color_override("font_color", Color("fff36a") if peer_id == int(state.get("leader_id", 0)) else Color("e8f5ff"))
+		row.add_child(name_label)
+		var role_label := Label.new()
+		role_label.text = "HOST" if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
+		role_label.custom_minimum_size.x = 90.0
+		role_label.add_theme_color_override("font_color", Color("d39cff"))
+		row.add_child(role_label)
+		var status_label := Label.new()
+		status_label.text = "READY" if is_ready else "NOT READY"
+		status_label.custom_minimum_size.x = 125.0
+		status_label.add_theme_color_override("font_color", Color("62ff9b") if is_ready else Color("ff7994"))
+		row.add_child(status_label)
+		if is_leader and peer_id != bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false)):
+			var eject_button := Button.new()
+			eject_button.text = "EJECT"
+			eject_button.custom_minimum_size = Vector2(100.0, 38.0)
+			eject_button.tooltip_text = "Remove this player from the lobby."
+			eject_button.pressed.connect(_on_eject_pressed.bind(peer_id))
+			row.add_child(eject_button)
 
 
 func _on_rounds_changed(value: float) -> void:
@@ -865,6 +929,15 @@ func _on_npcs_toggled(enabled: bool) -> void:
 		bridge.send_npcs_enabled(enabled)
 
 
+func _on_ready_toggled(ready: bool) -> void:
+	if not _applying_lobby_state:
+		bridge.send_ready_state(ready)
+
+
+func _on_eject_pressed(peer_id: int) -> void:
+	bridge.send_eject_player(peer_id)
+
+
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
 	if event_type == &"REQUEST_REJECTED":
 		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
@@ -878,6 +951,11 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 	elif event_type == &"STATE_CHANGED":
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		latest_match_payload = payload.duplicate(true)
+		var entering_match := String(payload.get("state_name", "LOBBY")) != "LOBBY"
+		network_world.set_network_active(entering_match)
+		connection_screen.visible = not entering_match
+		if not entering_match:
+			connection_form_panel.visible = false
 		network_world.apply_match_state(payload)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
@@ -980,6 +1058,10 @@ func _update_match_presentation() -> void:
 		draft_panel.visible = false
 		_set_win_screen_visible(false)
 		lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
+		connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
+		if connection_screen.visible:
+			connection_form_panel.visible = false
+		network_world.set_network_active(false)
 		return
 	lobby_panel.visible = false
 	match_panel.visible = false

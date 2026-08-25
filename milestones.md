@@ -120,12 +120,12 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 - Implement ENet server/client startup, bounded command-line parsing, binding errors, shutdown, and the three protocol channels.
 - Implement handshake timeout, protocol version checks, display-name validation, capacity rejection, welcome/rejection messages, and disconnect cleanup.
-- Implement authoritative lobby state, revisioning, leader assignment/transfer, round-target changes, minimum-player start validation, and late-spectator admission.
+- Implement authoritative lobby state, revisioning, leader assignment/transfer, ready/not-ready state, leader-only waiting-player ejection, round-target changes, minimum-player start validation, and late-spectator admission.
 - Implement packed input and player-snapshot codecs with bounds checking, sequence wrap handling, input rate limiting, and sender-derived identity.
 - Send inputs at 30 Hz and authoritative player snapshots at 20 Hz from the 60 Hz simulation.
 - Implement local prediction/replay, reconciliation smoothing/snap thresholds, remote interpolation, limited extrapolation, and diagnostics counters.
 - Implement authoritative projectile spawn/remove batches, predicted local shot matching, and 5 Hz projectile correction snapshots.
-- Add a basic connection screen and lobby UI sufficient to exercise all networking paths.
+- Add centered connection and lobby screens that keep the arena hidden until match start, including a 32-player scrollable roster, ready toggle, and leader-only eject controls.
 
 ### Verification
 

@@ -9,6 +9,7 @@ var is_npc: bool = false
 var participant: bool = true
 var alive: bool = false
 var spectator: bool = true
+var lobby_ready: bool = false
 
 var health: float = 0.0
 var shield_energy: float = 0.0

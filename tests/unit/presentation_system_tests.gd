@@ -129,11 +129,15 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
 	var players: Array[Dictionary] = []
 	for index in 32:
-		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": false})
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": false, "ready": true})
 	client.bridge.local_peer_id = 2
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
-	context.expect_equal(client.lobby_label.text.count("Pilot "), 32, "scrollable lobby roster renders all 32 participants")
-	context.expect_true(client.lobby_label.get_parent() is ScrollContainer, "32-player lobby roster is scrollable")
+	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "ready_human_count": 32, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
+	context.expect_equal(client.lobby_roster.get_child_count(), 32, "scrollable lobby roster renders all 32 participants")
+	context.expect_true(client.lobby_roster.get_parent() is ScrollContainer, "32-player lobby roster is scrollable")
+	context.expect_true(client.connection_screen.visible and not client.connection_form_panel.visible, "waiting lobby uses the centered menu backdrop instead of the connect form")
+	context.expect_false(client.network_world.visible, "arena remains hidden while players wait in the lobby")
+	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 4, "leader receives an eject control for another human")
+	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
 	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
