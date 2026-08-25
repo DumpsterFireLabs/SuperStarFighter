@@ -18,18 +18,39 @@ const EXPECTED_CARDS := {
 	&"twin_shot": [CardDefinition.Category.WEAPON, 2],
 	&"piercing_rounds": [CardDefinition.Category.WEAPON, 3],
 	&"ricochet_rounds": [CardDefinition.Category.WEAPON, 3],
+	&"kinetic_plating": [CardDefinition.Category.SHIP, 4],
+	&"phase_thrusters": [CardDefinition.Category.SHIP, 4],
+	&"glass_reactor": [CardDefinition.Category.SHIP, 3],
+	&"emergency_bulkheads": [CardDefinition.Category.SHIP, 2],
+	&"inertial_dampers": [CardDefinition.Category.SHIP, 3],
+	&"nanite_reservoir": [CardDefinition.Category.SHIP, 2],
+	&"flux_reservoir": [CardDefinition.Category.SHIELD, 4],
+	&"mirror_field": [CardDefinition.Category.SHIELD, 3],
+	&"fortress_emitter": [CardDefinition.Category.SHIELD, 2],
+	&"blink_capacitor": [CardDefinition.Category.SHIELD, 2],
+	&"reactive_barrier": [CardDefinition.Category.SHIELD, 3],
+	&"omnidirectional_field": [CardDefinition.Category.SHIELD, 1],
+	&"scatter_array": [CardDefinition.Category.WEAPON, 2],
+	&"beam_emitter": [CardDefinition.Category.WEAPON, 1],
+	&"prismatic_lance": [CardDefinition.Category.WEAPON, 3],
+	&"laser_repeater": [CardDefinition.Category.WEAPON, 3],
+	&"siege_cannon": [CardDefinition.Category.WEAPON, 3],
+	&"micro_barrage": [CardDefinition.Category.WEAPON, 2],
+	&"endless_belt": [CardDefinition.Category.WEAPON, 4],
+	&"zero_point_loader": [CardDefinition.Category.WEAPON, 2],
 }
 
 
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	context.expect_equal(catalog.size(), 16, "default card catalog contains all 16 cards")
+	context.expect_equal(catalog.size(), 36, "default card catalog contains all 36 cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
 	_validate_max_stack_values(context, catalog)
 	_validate_order_independence(context, catalog)
 	_validate_runaway_synergy(context, catalog)
+	_validate_rarity_and_beams(context, catalog)
 	_validate_clamps(context)
 	_validate_player_build_rules(context, catalog)
 	_validate_shared_models(context)
@@ -45,6 +66,18 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 		context.expect_equal(card.max_stacks, EXPECTED_CARDS[card_id][1], "%s stack cap matches specification" % card_id)
 		context.expect_false(card.display_name.is_empty(), "%s has display text" % card_id)
 		context.expect_false(card.description.is_empty(), "%s has effect description" % card_id)
+		context.expect_true(card.rarity_drop_chance() > 0.0, "%s declares a positive rarity-tier drop chance" % card_id)
+
+
+static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalog) -> void:
+	var rarity_total := 0.0
+	for chance in CardDefinition.RARITY_DROP_CHANCES.values():
+		rarity_total += float(chance)
+	context.expect_approx(rarity_total, 100.0, "rarity tier chances total 100 percent")
+	var beam_stats := StatSystem.derive({&"beam_emitter": 1, &"prismatic_lance": 2}, catalog)
+	context.expect_true(beam_stats.beam_weapon, "beam cards transform the authoritative weapon type")
+	context.expect_equal(beam_stats.pierce_count, 4, "beam lance stacks add pierces")
+	context.expect_true(beam_stats.projectile_damage > CombatStats.create_base().projectile_damage, "beam cards compound damage multiplicatively")
 
 
 static func _validate_one_stack_values(context: TestContext, catalog: CardCatalog) -> void:

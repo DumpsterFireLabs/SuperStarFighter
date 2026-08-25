@@ -8,6 +8,6 @@ card_id = &"heavy_rounds"
 display_name = "Heavy Rounds"
 description = "Projectile damage is multiplied by 1.35, but fire rate is multiplied by 0.80."
 category = 2
+rarity = 2
 max_stacks = 3
 multiplicative_modifiers = {"fire_rate": 0.8, "projectile_damage": 1.35}
-

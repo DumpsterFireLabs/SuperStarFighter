@@ -92,6 +92,7 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	var stats := CombatStats.create_base()
 	stats.pierce_count = 2
 	stats.ricochet_count = 1
+	stats.beam_weapon = true
 	var projectile := ProjectileState.create(77, 4, 12, Vector2(321.25, 654.5), 0.75, stats)
 	projectile.lifetime_remaining = 1.875
 	var spawned: Array[ProjectileState] = [projectile]
@@ -109,7 +110,11 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 		context.expect_approx(decoded_projectile.damage, 25.0, "projectile damage round-trips")
 		context.expect_equal(decoded_projectile.remaining_pierces, 2, "projectile pierce count round-trips")
 		context.expect_equal(decoded_projectile.remaining_ricochets, 1, "projectile ricochet count round-trips")
+		context.expect_true(decoded_projectile.is_beam, "projectile beam presentation flag round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_batch(packet.slice(0, 8)).ok, "truncated projectile batch is rejected")
+	var bad_flags := packet.duplicate()
+	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 2
+	context.expect_false(ProjectilePacketCodec.decode_batch(bad_flags).ok, "unsupported projectile presentation flags are rejected")
 	var correction := ProjectilePacketCodec.encode_correction(1001, spawned)
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_correction(packet).ok, "projectile correction rejects removal records")

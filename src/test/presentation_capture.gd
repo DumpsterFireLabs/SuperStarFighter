@@ -24,7 +24,12 @@ func _capture_sequence() -> void:
 	root.add_child(client)
 	await process_frame
 	await process_frame
+	await _capture(client, "splash")
+	client._dismiss_splash(true)
 	await _capture(client, "menu")
+	client._show_settings(false)
+	await _capture(client, "settings")
+	client._hide_settings()
 
 	var players: Array[Dictionary] = []
 	for index in 32:
@@ -39,7 +44,7 @@ func _capture_sequence() -> void:
 	client.lobby_panel.visible = false
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}
 	client.network_world.latest_server_tick = 0
-	client._show_draft_offer({"offer_token": "capture", "card_ids": [&"overcharged_thrusters", &"capacitor_bank", &"rapid_cycling", &"rail_accelerant", &"piercing_rounds"], "deadline_tick": 1800})
+	client._show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft")
 
 	client.draft_panel.visible = false

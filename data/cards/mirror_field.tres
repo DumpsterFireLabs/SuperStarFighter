@@ -4,10 +4,11 @@
 
 [resource]
 script = ExtResource("1_card")
-card_id = &"quick_charge"
-display_name = "Quick Charge"
-description = "Shield regeneration is multiplied by 1.25."
+card_id = &"mirror_field"
+display_name = "Mirror Field"
+description = "+10° shield arc and shield regeneration ×1.25 per stack."
 category = 1
-rarity = 1
+rarity = 2
 max_stacks = 3
+additive_modifiers = {"shield_arc_degrees": 10.0}
 multiplicative_modifiers = {"shield_regeneration": 1.25}

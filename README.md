@@ -33,7 +33,7 @@ The bootstrap script downloads the pinned portable Godot release and export temp
 
 ## Current Status
 
-Milestones 0–6 are complete. Human clients can play the authoritative online loop from lobby through rendered 30-second five-card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. Lobby leaders can cap a match at 2–32 total participants, enable server-owned NPC fill, and force-start alone; waiting NPCs yield their seats as humans join. The production interface includes responsive neon menu/lobby screens, resource HUD, readable card panels, scrollable scoreboard, spectator guidance, pause/disconnect menu, final standings, and recoverable error screens. Named ships use stable color plus shape patterns, with trails, shields, impacts, damage direction, elimination pulses, overtime treatment, off-screen threats, and local-only camera feedback. Card modifiers deliberately compound into extreme builds; many cards are pure upgrades, while technical guardrails protect networking and physics without acting as narrow balance ceilings. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. Malformed inputs and sustained control/input floods isolate only their sender; bounded JSON-line logs report match events and ten-second p95 timing/entity/memory windows without client addresses. The Milestone 6 gate passes 794 automated assertions, 72 project checks, all real-ENet integration suites, and a 600-second 32-client soak whose worst timing-window p95 was 10.678 ms.
+Milestones 0–6 are complete. Human clients can play the authoritative online loop from lobby through rendered 30-second five-card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. Lobby leaders can cap a match at 2–32 total participants, enable server-owned NPC fill, and force-start alone; waiting NPCs yield their seats as humans join. The production interface includes an animated splash, responsive neon menu/lobby screens, persistent audio settings, resource HUD, readable rarity-marked card panels, scrollable scoreboard, spectator guidance, an in-match Escape menu, dedicated victory screen, and recoverable error screens. The 36-card catalog spans five visible rarity tiers and includes authoritative pulse-beam weapons; modifiers deliberately compound into extreme builds. Named ships use stable color plus shape patterns, with trails, shields, impacts, damage direction, elimination pulses, overtime treatment, off-screen threats, and local-only camera feedback. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. Malformed inputs and sustained control/input floods isolate only their sender; bounded JSON-line logs report match events and ten-second p95 timing/entity/memory windows without client addresses. The expanded foundation gate passes 943 automated assertions; the completed Milestone 6 acceptance record remains 794 assertions, 72 project checks, and a 600-second 32-client soak whose worst timing-window p95 was 10.678 ms.
 
 Milestone 7 (export, documentation, and release candidate) is next.
 
@@ -53,7 +53,7 @@ Start one or more clients with `.\tools\start-client.ps1`, enter the server host
 
 `verify-npc-lobby.ps1` launches one human protocol client, configures four total seats, enables NPC fill, force-starts with three server-owned NPCs, and verifies drafting, combat input, snapshots, and clean shutdown.
 
-`verify-presentation.ps1` renders menu, 32-player lobby, draft, combat, spectator, pause, results, and error screens at both 1280×720 and 1920×1080. It fails on parser/runtime errors or missing captures; images are written beneath the ignored `.tools/presentation-verification` directory.
+`verify-presentation.ps1` renders splash, menu, settings, 32-player lobby, draft, combat, spectator, pause, victory, and error screens at both 1280×720 and 1920×1080. It fails on parser/runtime errors or missing captures; images are written beneath the ignored `.tools/presentation-verification` directory.
 
 `verify-hardening.ps1` proves malformed and sustained excessive traffic disconnect only the offending peer while healthy clients continue. `verify-smoke.ps1` accepts 2–32 real ENet clients. `verify-soak.ps1` defaults to the acceptance configuration of 32 clients for 600 seconds and records an ignored JSON summary beneath `.tools/soak-verification/`.
 
@@ -61,10 +61,11 @@ Start one or more clients with `.\tools\start-client.ps1`, enter the server host
 
 ## Audio Assets
 
-The game is fully operational before authored audio arrives. It generates short placeholder SFX at runtime and silently skips missing music.
+The game is fully operational before authored audio arrives. It generates short placeholder SFX and victory music at runtime, while safely skipping absent menu/gameplay tracks.
 
-- Put the singular menu track at `assets/audio/music/main_menu.mp3`.
-- Put any number of gameplay MP3s in `assets/audio/music/gameplay/`; they play in filename order as a looping playlist.
+- Put the singular menu track at `assets/audio/music/main_menu.mp3` (or `.wav`/`.ogg`; compound names such as `main_menu.mp3.wav` work).
+- Put any number of `.mp3`, `.wav`, or `.ogg` gameplay tracks in `assets/audio/music/gameplay/`; they play in filename order as a playlist.
+- Optionally put victory music at `assets/audio/music/win.mp3`, `.wav`, or `.ogg`.
 - Replace placeholder SFX by following [the audio drop-in contract](./assets/audio/README.md). No code changes are required.
 
 ## Online Match Controls

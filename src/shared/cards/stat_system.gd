@@ -53,6 +53,8 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 			integer_totals[normalized_name] = int(integer_totals.get(normalized_name, 0)) + int(card.integer_modifiers[property_name]) * stacks
 		if card.special_behavior_id == &"auto_repair":
 			stats.auto_repair_enabled = true
+		elif card.special_behavior_id == &"beam_weapon":
+			stats.beam_weapon = true
 
 	for property_name in FLOAT_STATS:
 		var value := (float(stats.get(property_name)) + float(additive_totals[property_name])) * float(multiplier_totals[property_name])
@@ -80,7 +82,7 @@ static func validate_card(card: CardDefinition) -> PackedStringArray:
 	for property_name in card.integer_modifiers:
 		if StringName(property_name) not in INTEGER_STATS:
 			errors.append("Card %s has unsupported integer stat %s." % [card.card_id, property_name])
-	if not card.special_behavior_id.is_empty() and card.special_behavior_id != &"auto_repair":
+	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon"]:
 		errors.append("Card %s has unsupported special behavior %s." % [card.card_id, card.special_behavior_id])
 	return errors
 

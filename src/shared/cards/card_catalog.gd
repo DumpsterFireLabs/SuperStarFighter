@@ -18,6 +18,26 @@ const DEFAULT_CARD_PATHS: Array[String] = [
 	"res://data/cards/twin_shot.tres",
 	"res://data/cards/vector_jets.tres",
 	"res://data/cards/wide_emitter.tres",
+	"res://data/cards/kinetic_plating.tres",
+	"res://data/cards/phase_thrusters.tres",
+	"res://data/cards/glass_reactor.tres",
+	"res://data/cards/emergency_bulkheads.tres",
+	"res://data/cards/inertial_dampers.tres",
+	"res://data/cards/nanite_reservoir.tres",
+	"res://data/cards/flux_reservoir.tres",
+	"res://data/cards/mirror_field.tres",
+	"res://data/cards/fortress_emitter.tres",
+	"res://data/cards/blink_capacitor.tres",
+	"res://data/cards/reactive_barrier.tres",
+	"res://data/cards/omnidirectional_field.tres",
+	"res://data/cards/scatter_array.tres",
+	"res://data/cards/beam_emitter.tres",
+	"res://data/cards/prismatic_lance.tres",
+	"res://data/cards/laser_repeater.tres",
+	"res://data/cards/siege_cannon.tres",
+	"res://data/cards/micro_barrage.tres",
+	"res://data/cards/endless_belt.tres",
+	"res://data/cards/zero_point_loader.tres",
 ]
 
 var _cards: Dictionary = {}
@@ -86,4 +106,3 @@ func validate_default_catalog() -> PackedStringArray:
 	for card_id in all_ids():
 		errors.append_array(StatSystem.validate_card(get_card(card_id)))
 	return errors
-

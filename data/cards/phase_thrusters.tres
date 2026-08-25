@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1_card")
-card_id = &"overcharged_thrusters"
-display_name = "Overcharged Thrusters"
-description = "Maximum speed is multiplied by 1.12 and acceleration by 1.15."
+card_id = &"phase_thrusters"
+display_name = "Phase Thrusters"
+description = "Maximum speed ×1.08 and acceleration ×1.10 per stack."
 category = 0
 rarity = 1
-max_stacks = 3
-multiplicative_modifiers = {"acceleration": 1.15, "max_speed": 1.12}
+max_stacks = 4
+multiplicative_modifiers = {"max_speed": 1.08, "acceleration": 1.1}

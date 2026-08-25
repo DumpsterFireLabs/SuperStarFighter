@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"kinetic_plating"
+display_name = "Kinetic Plating"
+description = "+15 maximum hull and 5% stronger flight damping per stack."
+category = 0
+rarity = 0
+max_stacks = 4
+additive_modifiers = {"max_health": 15.0}
+multiplicative_modifiers = {"drag": 1.05}

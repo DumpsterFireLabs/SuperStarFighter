@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1_card")
-card_id = &"rail_accelerant"
-display_name = "Rail Accelerant"
-description = "Projectile speed is multiplied by 1.35 and projectile damage by 1.10."
+card_id = &"siege_cannon"
+display_name = "Siege Cannon"
+description = "Damage ×1.60, but fire rate ×0.65 and projectile speed ×0.82 per stack."
 category = 2
 rarity = 2
 max_stacks = 3
-multiplicative_modifiers = {"projectile_damage": 1.1, "projectile_speed": 1.35}
+multiplicative_modifiers = {"projectile_damage": 1.6, "fire_rate": 0.65, "projectile_speed": 0.82}

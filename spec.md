@@ -82,7 +82,7 @@ Use the following top-level structure:
 
 ```text
 project.godot
-assets/              # Fonts and generated/synthesized audio only
+assets/              # UI assets plus authored or generated audio
 data/cards/          # CardDefinition resources
 scenes/              # Client, shared gameplay, arena, and UI scenes
 src/client/          # Input, prediction, rendering, and UI controllers
@@ -238,7 +238,7 @@ State transitions are reliable server events containing the new state, server ti
 
 ### 7.1 Evaluation Rules
 
-`CardDefinition` is a data resource with a stable ID, category, title, description, stack cap, additive modifiers, multiplicative modifiers, and optional special behavior ID.
+`CardDefinition` is a data resource with a stable ID, category, rarity, title, description, stack cap, additive modifiers, multiplicative modifiers, and optional special behavior ID.
 
 Derived stats are recomputed from base values whenever the build changes:
 
@@ -269,26 +269,50 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 | Pierce count | 0 | 12 |
 | Ricochet count | 0 | 12 |
 
-### 7.2 Initial Catalog
+### 7.2 Rarity and Offer Weighting
 
-| ID | Card | Category | Effect per stack | Cap |
-| --- | --- | --- | --- | ---: |
-| `reinforced_hull` | Reinforced Hull | Ship | +25 maximum health; ×0.92 maximum speed | 3 |
-| `overcharged_thrusters` | Overcharged Thrusters | Ship | ×1.12 maximum speed; ×1.15 acceleration | 3 |
-| `vector_jets` | Vector Jets | Ship | ×1.20 acceleration; ×1.25 drag | 3 |
-| `auto_repair` | Auto-Repair | Ship | After 5 seconds without damage, repair 8 health/s until damaged or full | 1 |
-| `capacitor_bank` | Capacitor Bank | Shield | +30 capacity; ×1.10 regeneration | 3 |
-| `quick_charge` | Quick Charge | Shield | ×1.25 regeneration | 3 |
-| `wide_emitter` | Wide Emitter | Shield | +20° arc; ×1.15 continuous drain | 3 |
-| `efficient_field` | Efficient Field | Shield | ×0.80 continuous drain | 3 |
-| `heavy_rounds` | Heavy Rounds | Weapon | ×1.35 damage; ×0.80 fire rate | 3 |
-| `rapid_cycling` | Rapid Cycling | Weapon | ×1.30 fire rate | 3 |
-| `rail_accelerant` | Rail Accelerant | Weapon | ×1.35 projectile speed; ×1.10 damage | 3 |
-| `extended_magazine` | Extended Magazine | Weapon | +4 magazine | 3 |
-| `quick_loader` | Quick Loader | Weapon | ×0.75 reload duration; −2 magazine | 3 |
-| `twin_shot` | Twin Shot | Weapon | +1 projectile; +10° total spread; ×0.70 damage | 2 |
-| `piercing_rounds` | Piercing Rounds | Weapon | +1 pierce; ×1.08 damage | 3 |
-| `ricochet_rounds` | Ricochet Rounds | Weapon | +1 ricochet; ×1.08 projectile speed | 3 |
+Every card declares one of five visible rarity tiers. When all tiers contain eligible cards, the chance that each offer slot selects that tier is Common 45%, Uncommon 28%, Rare 16%, Epic 8%, and Legendary 3%. After selecting a tier, choose uniformly among its eligible cards. Cards are never repeated within one five-card offer. If a tier has no eligible card, remove it and renormalize the remaining tier weights for that slot. These percentages are tier weights, not the probability of a particular card.
+
+### 7.3 Catalog
+
+| ID | Card | Category | Rarity | Effect per stack | Cap |
+| --- | --- | --- | --- | --- | ---: |
+| `reinforced_hull` | Reinforced Hull | Ship | Common | +25 maximum health; ×0.92 maximum speed | 3 |
+| `overcharged_thrusters` | Overcharged Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.15 acceleration | 3 |
+| `vector_jets` | Vector Jets | Ship | Common | ×1.20 acceleration; ×1.25 drag | 3 |
+| `auto_repair` | Auto-Repair | Ship | Rare | After 5 seconds without damage, repair 8 health/s until damaged or full | 1 |
+| `kinetic_plating` | Kinetic Plating | Ship | Common | +15 maximum health; ×1.05 drag | 4 |
+| `phase_thrusters` | Phase Thrusters | Ship | Uncommon | ×1.08 maximum speed; ×1.10 acceleration | 4 |
+| `glass_reactor` | Glass Reactor | Ship | Rare | ×1.18 maximum speed; ×1.22 acceleration; ×0.85 maximum health | 3 |
+| `emergency_bulkheads` | Emergency Bulkheads | Ship | Rare | +45 maximum health; ×0.90 maximum speed | 2 |
+| `inertial_dampers` | Inertial Dampers | Ship | Uncommon | ×1.35 drag; ×1.05 acceleration | 3 |
+| `nanite_reservoir` | Nanite Reservoir | Ship | Epic | Enable auto-repair; +35 maximum health | 2 |
+| `capacitor_bank` | Capacitor Bank | Shield | Uncommon | +30 capacity; ×1.10 regeneration | 3 |
+| `quick_charge` | Quick Charge | Shield | Uncommon | ×1.25 regeneration | 3 |
+| `wide_emitter` | Wide Emitter | Shield | Uncommon | +20° arc; ×1.15 continuous drain | 3 |
+| `efficient_field` | Efficient Field | Shield | Common | ×0.80 continuous drain | 3 |
+| `flux_reservoir` | Flux Reservoir | Shield | Common | +20 capacity | 4 |
+| `mirror_field` | Mirror Field | Shield | Rare | +10° arc; ×1.25 regeneration | 3 |
+| `fortress_emitter` | Fortress Emitter | Shield | Epic | +60 capacity; ×1.20 drain; ×0.90 maximum speed | 2 |
+| `blink_capacitor` | Blink Capacitor | Shield | Legendary | ×1.80 regeneration; ×0.75 regeneration delay | 2 |
+| `reactive_barrier` | Reactive Barrier | Shield | Uncommon | ×0.85 drain; ×0.85 regeneration delay | 3 |
+| `omnidirectional_field` | Omnidirectional Field | Shield | Legendary | +240° arc; ×2.00 drain | 1 |
+| `heavy_rounds` | Heavy Rounds | Weapon | Rare | ×1.35 damage; ×0.80 fire rate | 3 |
+| `rapid_cycling` | Rapid Cycling | Weapon | Uncommon | ×1.30 fire rate | 3 |
+| `rail_accelerant` | Rail Accelerant | Weapon | Rare | ×1.35 projectile speed; ×1.10 damage | 3 |
+| `extended_magazine` | Extended Magazine | Weapon | Common | +4 magazine | 3 |
+| `quick_loader` | Quick Loader | Weapon | Uncommon | ×0.75 reload duration; −2 magazine | 3 |
+| `twin_shot` | Twin Shot | Weapon | Epic | +1 projectile; +10° total spread; ×0.70 damage | 2 |
+| `piercing_rounds` | Piercing Rounds | Weapon | Rare | +1 pierce; ×1.08 damage | 3 |
+| `ricochet_rounds` | Ricochet Rounds | Weapon | Epic | +1 ricochet; ×1.08 projectile speed | 3 |
+| `scatter_array` | Scatter Array | Weapon | Uncommon | +2 projectiles; +18° spread; ×0.62 damage | 2 |
+| `beam_emitter` | Beam Emitter | Weapon | Rare | Enable pulse beams; ×1.05 damage; ×2.50 projectile speed | 1 |
+| `prismatic_lance` | Prismatic Lance | Weapon | Epic | Enable pulse beams; +2 pierces; ×1.25 damage; ×0.72 fire rate | 3 |
+| `laser_repeater` | Laser Repeater | Weapon | Uncommon | Enable pulse beams; ×1.28 fire rate; ×0.86 damage | 3 |
+| `siege_cannon` | Siege Cannon | Weapon | Rare | ×1.60 damage; ×0.65 fire rate; ×0.82 projectile speed | 3 |
+| `micro_barrage` | Micro Barrage | Weapon | Epic | +2 projectiles; +14° spread; ×0.80 speed; ×0.72 damage | 2 |
+| `endless_belt` | Endless Belt | Weapon | Common | +8 magazine | 4 |
+| `zero_point_loader` | Zero-Point Loader | Weapon | Legendary | ×0.50 reload duration; +4 magazine | 2 |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
@@ -296,7 +320,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `1` and a maximum of 32 client peers in addition to the server.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `2` and a maximum of 32 client peers in addition to the server. Version 2 carries the projectile beam flag.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -353,7 +377,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 1. **Connection:** Display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors.
 2. **Lobby:** Human/NPC player list, leader marker, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, waiting message for others, and connection status.
-3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Support clicking and keys 1–5.
+3. **Draft:** Five or fewer card panels with name, category, rarity, tier drop chance, exact effects, current/new stack count, selection state, and synchronized timer. Support clicking and keys 1–5.
 4. **Combat HUD:** Health, shield, ammunition/reload, heat wins, round wins, alive count, heat timer, overtime warning, current cards, and collapsible Tab scoreboard.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
 6. **Results:** Match winner, round totals, each player's final build, and automatic return-to-lobby countdown.
@@ -367,8 +391,9 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep critical HUD text at least 20 px at 1080p and scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Provide synthesized placeholders for fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
-- Support an optional singular `assets/audio/music/main_menu.mp3` track for menu/lobby and an optional `assets/audio/music/gameplay/` MP3 playlist for draft through match results. Missing music is a supported silent state, and all supplied audio must be original or properly licensed.
+- Start with an animated, skippable splash before the connection menu. Provide a persistent audio settings screen from the main menu and the in-match Escape pilot menu. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
+- Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
+- Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 
 ## 10. Observability and Failure Handling
 

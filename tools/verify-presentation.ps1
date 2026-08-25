@@ -37,7 +37,7 @@ foreach ($resolution in @(
     if ($process.ExitCode -ne 0 -or -not $combined.Contains("PRESENTATION_CAPTURE_OK=$($resolution.Label)") -or $combined.Contains('SCRIPT ERROR:') -or $combined.Contains('ERROR:')) {
         throw "Presentation capture failed for $($resolution.Label): $combined"
     }
-    foreach ($screen in @('menu', 'lobby_32', 'draft', 'combat', 'spectator', 'pause', 'results', 'error')) {
+    foreach ($screen in @('splash', 'menu', 'settings', 'lobby_32', 'draft', 'combat', 'spectator', 'pause', 'results', 'error')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Presentation capture $imagePath is missing or unexpectedly small."
@@ -45,4 +45,4 @@ foreach ($resolution in @(
     }
 }
 
-Write-Host "Presentation verification passed: menu, 32-player lobby, draft, combat, spectator, pause, results, and error screens rendered at 1280x720 and 1920x1080."
+Write-Host "Presentation verification passed: splash, menu, settings, 32-player lobby, draft, combat, spectator, pause, results, and error screens rendered at 1280x720 and 1920x1080."

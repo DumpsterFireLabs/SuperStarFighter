@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1_card")
-card_id = &"quick_charge"
-display_name = "Quick Charge"
-description = "Shield regeneration is multiplied by 1.25."
-category = 1
+card_id = &"inertial_dampers"
+display_name = "Inertial Dampers"
+description = "Flight damping ×1.35 and acceleration ×1.05 per stack."
+category = 0
 rarity = 1
 max_stacks = 3
-multiplicative_modifiers = {"shield_regeneration": 1.25}
+multiplicative_modifiers = {"drag": 1.35, "acceleration": 1.05}

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"zero_point_loader"
+display_name = "Zero-Point Loader"
+description = "Reload duration ×0.50 and +4 magazine capacity per stack."
+category = 2
+rarity = 4
+max_stacks = 2
+multiplicative_modifiers = {"reload_duration": 0.5}
+integer_modifiers = {"magazine_size": 4}

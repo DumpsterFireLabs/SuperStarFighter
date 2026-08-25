@@ -25,8 +25,13 @@ var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var results_panel: PanelContainer
 var results_label: Label
+var win_overlay: Control
 var pause_overlay: PanelContainer
 var pause_title: Label
+var settings_panel: Control
+var settings_return_to_pause: bool = false
+var splash_screen: Control
+var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
 var active_offer_token: String = ""
 var active_offer_deadline: int = -1
@@ -61,13 +66,24 @@ func _ready() -> void:
 	_create_connection_ui(configuration)
 	_create_match_ui()
 	_create_pause_overlay()
+	_create_settings_overlay()
+	_create_splash_screen()
 	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=enet" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
-		_toggle_pause_overlay()
+		if splash_screen != null and splash_screen.visible:
+			_dismiss_splash()
+		elif settings_panel != null and settings_panel.visible:
+			_hide_settings()
+		else:
+			_toggle_pause_overlay()
+		get_viewport().set_input_as_handled()
+		return
+	if splash_screen != null and splash_screen.visible and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
+		_dismiss_splash()
 		get_viewport().set_input_as_handled()
 		return
 	if pause_overlay != null and pause_overlay.visible:
@@ -108,13 +124,13 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	content.add_theme_constant_override("separation", 16)
 	panel.add_child(content)
 	var title := Label.new()
-	title.text = "SUPER STAR FIGHTER"
+	title.text = "✦ SUPER STAR FIGHTER ✦"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 44)
+	title.add_theme_font_size_override("font_size", 48)
 	content.add_child(title)
 	var subtitle := Label.new()
-	subtitle.text = "Authoritative Multiplayer Lab"
+	subtitle.text = "BUILD · BREAK · ASCEND"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_color_override("font_color", Color("d39cff"))
 	subtitle.add_theme_font_size_override("font_size", 25)
@@ -137,6 +153,11 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	offline_button.custom_minimum_size.y = 54.0
 	offline_button.pressed.connect(_play_offline)
 	buttons.add_child(offline_button)
+	var settings_button := Button.new()
+	settings_button.text = "Settings"
+	settings_button.custom_minimum_size.y = 54.0
+	settings_button.pressed.connect(_show_settings.bind(false))
+	buttons.add_child(settings_button)
 	var quit_button := Button.new()
 	quit_button.text = "Quit"
 	quit_button.custom_minimum_size = Vector2(110.0, 54.0)
@@ -285,14 +306,27 @@ func _create_match_ui() -> void:
 	scoreboard_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scoreboard_scroll.add_child(scoreboard_label)
 
+	win_overlay = Control.new()
+	win_overlay.name = "WinScreen"
+	win_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	win_overlay.visible = false
+	connection_canvas.add_child(win_overlay)
+	var win_background := NeonBackdrop.new()
+	win_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	win_overlay.add_child(win_background)
+	var win_tint := ColorRect.new()
+	win_tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	win_tint.color = Color("170b2f", 0.72)
+	win_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	win_overlay.add_child(win_tint)
 	results_panel = PanelContainer.new()
 	results_panel.set_anchors_preset(Control.PRESET_CENTER)
 	results_panel.position = Vector2(-480.0, -330.0)
 	results_panel.custom_minimum_size = Vector2(960.0, 660.0)
 	results_panel.theme = interface_theme
-	results_panel.add_theme_stylebox_override("panel", _panel_style(Color("fff36a"), 0.98))
-	results_panel.visible = false
-	connection_canvas.add_child(results_panel)
+	results_panel.add_theme_stylebox_override("panel", _panel_style(Color("fff36a"), 0.96))
+	results_panel.visible = true
+	win_overlay.add_child(results_panel)
 	var results_scroll := ScrollContainer.new()
 	results_scroll.custom_minimum_size = Vector2(920.0, 620.0)
 	results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -346,6 +380,11 @@ func _create_pause_overlay() -> void:
 	resume_button.custom_minimum_size.y = 58.0
 	resume_button.pressed.connect(_hide_pause_overlay)
 	content.add_child(resume_button)
+	var settings_button := Button.new()
+	settings_button.text = "Audio Settings"
+	settings_button.custom_minimum_size.y = 58.0
+	settings_button.pressed.connect(_show_settings.bind(true))
+	content.add_child(settings_button)
 	var disconnect_button := Button.new()
 	disconnect_button.text = "Disconnect / Return to Menu"
 	disconnect_button.custom_minimum_size.y = 58.0
@@ -356,6 +395,165 @@ func _create_pause_overlay() -> void:
 	quit_button.custom_minimum_size.y = 58.0
 	quit_button.pressed.connect(get_tree().quit)
 	content.add_child(quit_button)
+
+
+func _create_settings_overlay() -> void:
+	settings_panel = Control.new()
+	settings_panel.name = "SettingsScreen"
+	settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings_panel.visible = false
+	connection_canvas.add_child(settings_panel)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color("02040d", 0.88)
+	settings_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings_panel.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(720.0, 560.0)
+	panel.theme = interface_theme
+	panel.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
+	center.add_child(panel)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 20)
+	panel.add_child(content)
+	var title := Label.new()
+	title.text = "AUDIO SETTINGS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_color_override("font_color", Color("d39cff"))
+	content.add_child(title)
+	_add_volume_setting(content, "Master Volume", &"master", audio_director.master_volume_percent)
+	_add_volume_setting(content, "Music Volume", &"music", audio_director.music_volume_percent)
+	_add_volume_setting(content, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
+	var mute_button := CheckButton.new()
+	mute_button.text = "Mute all audio"
+	mute_button.button_pressed = audio_director.muted
+	mute_button.custom_minimum_size.y = 48.0
+	mute_button.toggled.connect(audio_director.set_muted)
+	content.add_child(mute_button)
+	var saved_note := Label.new()
+	saved_note.text = "Settings save automatically and persist between launches."
+	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	saved_note.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(saved_note)
+	var back_button := Button.new()
+	back_button.text = "Back"
+	back_button.custom_minimum_size.y = 58.0
+	back_button.pressed.connect(_hide_settings)
+	content.add_child(back_button)
+
+
+func _add_volume_setting(parent: VBoxContainer, title: String, channel: StringName, initial_value: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = title
+	label.custom_minimum_size.x = 190.0
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 100.0
+	slider.step = 1.0
+	slider.value = initial_value
+	slider.custom_minimum_size = Vector2(380.0, 48.0)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(slider)
+	var value_label := Label.new()
+	value_label.text = "%d%%" % roundi(initial_value)
+	value_label.custom_minimum_size.x = 70.0
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(value_label)
+	slider.value_changed.connect(_on_volume_changed.bind(channel, value_label))
+
+
+func _on_volume_changed(value: float, channel: StringName, value_label: Label) -> void:
+	value_label.text = "%d%%" % roundi(value)
+	match channel:
+		&"master": audio_director.set_master_volume(value)
+		&"music": audio_director.set_music_volume(value)
+		&"sfx": audio_director.set_sfx_volume(value)
+
+
+func _show_settings(return_to_pause: bool) -> void:
+	settings_return_to_pause = return_to_pause
+	if pause_overlay != null:
+		pause_overlay.visible = false
+	settings_panel.visible = true
+	if network_world != null:
+		network_world.input_blocked = return_to_pause
+
+
+func _hide_settings() -> void:
+	settings_panel.visible = false
+	if settings_return_to_pause and not connection_screen.visible:
+		pause_overlay.visible = true
+		network_world.input_blocked = true
+	else:
+		network_world.input_blocked = false
+	settings_return_to_pause = false
+
+
+func _create_splash_screen() -> void:
+	var splash_canvas := CanvasLayer.new()
+	splash_canvas.layer = 40
+	splash_canvas.name = "SplashUI"
+	add_child(splash_canvas)
+	splash_screen = Control.new()
+	splash_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_canvas.add_child(splash_screen)
+	var backdrop := NeonBackdrop.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_screen.add_child(backdrop)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_screen.add_child(center)
+	var content := VBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(content)
+	var logo := SplashLogo.new()
+	logo.custom_minimum_size = Vector2(520.0, 300.0)
+	content.add_child(logo)
+	var title := Label.new()
+	title.text = "SUPER STAR FIGHTER"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 68)
+	title.add_theme_color_override("font_color", Color("f4fbff"))
+	content.add_child(title)
+	var flare := Label.new()
+	flare.text = "✦  BUILD BEYOND CONTROL  ✦"
+	flare.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	flare.add_theme_font_size_override("font_size", 28)
+	flare.add_theme_color_override("font_color", Color("ff4fd8"))
+	content.add_child(flare)
+	var skip := Label.new()
+	skip.text = "PRESS ANY KEY"
+	skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	skip.add_theme_font_size_override("font_size", 18)
+	skip.add_theme_color_override("font_color", Color("73f7ff"))
+	content.add_child(skip)
+	content.modulate = Color(1, 1, 1, 0)
+	content.scale = Vector2(0.82, 0.82)
+	content.pivot_offset = Vector2(260.0, 220.0)
+	var intro := create_tween().set_parallel(true)
+	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	intro.tween_property(content, "modulate", Color.WHITE, 0.8)
+	intro.tween_property(content, "scale", Vector2.ONE, 1.05)
+	get_tree().create_timer(3.5).timeout.connect(_dismiss_splash)
+
+
+func _dismiss_splash(immediate: bool = false) -> void:
+	if splash_dismissed or splash_screen == null:
+		return
+	splash_dismissed = true
+	if immediate:
+		splash_screen.visible = false
+		return
+	var fade := create_tween()
+	fade.tween_property(splash_screen, "modulate", Color(1, 1, 1, 0), 0.35)
+	fade.finished.connect(func() -> void: splash_screen.visible = false)
 
 
 func _toggle_pause_overlay() -> void:
@@ -414,6 +612,8 @@ func _play_offline() -> void:
 	scoreboard_panel.visible = false
 	results_panel.visible = false
 	pause_overlay.visible = false
+	settings_panel.visible = false
+	win_overlay.visible = false
 	offline_sandbox.set_sandbox_active(true)
 	audio_director.set_context(&"gameplay")
 
@@ -438,6 +638,8 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	scoreboard_panel.visible = false
 	results_panel.visible = false
 	pause_overlay.visible = false
+	settings_panel.visible = false
+	win_overlay.visible = false
 	network_world.input_blocked = false
 	connection_status.text = message
 	connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
@@ -468,6 +670,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 		lines.append("%s%s" % [player.display_name, suffix])
 	var npc_count := int(state.get("npc_count", 0))
 	var total_count := (state.get("players", []) as Array).size()
+	lobby_panel.visible = not bool(state.get("match_active", false))
 	lobby_label.text = "Players %d/%d · Humans %d · NPCs %d\n%s\n%s" % [total_count, state.get("player_limit", 32), total_count - npc_count, npc_count, "\n".join(lines), "Match active" if state.get("match_active", false) else "NPCs fill open seats when Force Start is pressed" if state.get("npcs_enabled", false) else "Waiting in lobby"]
 	var is_leader := int(state.get("leader_id", 0)) == bridge.local_peer_id
 	_applying_lobby_state = true
@@ -550,10 +753,12 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			continue
 		var card := card_catalog.get_card(StringName(card_ids[index]))
 		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
-		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d / %d" % [
+		button.text = "%d\n\n%s\n%s\n%s · %.0f%% DROP\n\n%s\n\nSTACK %d → %d / %d" % [
 			index + 1,
 			card.display_name,
 			card.category_name().to_upper(),
+			card.rarity_name().to_upper(),
+			card.rarity_drop_chance(),
 			card.description,
 			current_stacks,
 			current_stacks + 1,
@@ -561,13 +766,13 @@ func _show_draft_offer(payload: Dictionary) -> void:
 		] if card != null else String(card_ids[index])
 		if card != null:
 			var category_color := _draft_category_color(card.category)
-			button.add_theme_color_override("font_color", category_color.lightened(0.42))
+			button.add_theme_color_override("font_color", card.rarity_color())
 			button.add_theme_stylebox_override("normal", _draft_card_style(category_color, false))
 			button.add_theme_stylebox_override("hover", _draft_card_style(category_color.lightened(0.18), true))
 			button.add_theme_stylebox_override("pressed", _draft_card_style(category_color.lightened(0.28), true))
 			button.add_theme_stylebox_override("focus", _draft_card_style(category_color.lightened(0.3), true))
 			button.add_theme_stylebox_override("disabled", _draft_card_style(category_color.darkened(0.35), false))
-			button.tooltip_text = "%s — %s" % [card.display_name, card.description]
+			button.tooltip_text = "%s — %s (%.0f%% rarity-tier chance) — %s" % [card.display_name, card.rarity_name(), card.rarity_drop_chance(), card.description]
 	draft_panel.visible = true
 	match_panel.visible = true
 	_update_match_presentation()
@@ -596,12 +801,14 @@ func _update_match_presentation() -> void:
 	if state_name == "LOBBY":
 		match_panel.visible = false
 		draft_panel.visible = false
-		results_panel.visible = false
+		_set_win_screen_visible(false)
+		lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
 		return
+	lobby_panel.visible = false
 	match_panel.visible = true
 	if state_name != "DRAFT":
 		draft_panel.visible = false
-	results_panel.visible = state_name == "MATCH_RESULT"
+	_set_win_screen_visible(state_name == "MATCH_RESULT")
 	var deadline := int(latest_match_payload.get("deadline_tick", -1))
 	if state_name == "DRAFT" and active_offer_deadline >= 0:
 		deadline = active_offer_deadline
@@ -623,7 +830,7 @@ func _update_match_presentation() -> void:
 	elif state_name == "ROUND_RESULT":
 		status += " · %s wins round" % _player_name(int(latest_match_payload.get("last_round_winner", 0)))
 	elif state_name == "MATCH_RESULT":
-		status = "★ %s WINS THE MATCH ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
+		status = "★ VICTORY · %s ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
 		results_label.text = _results_text(seconds_left)
 	match_label.text = status
 	if state_name == "DRAFT":
@@ -699,7 +906,7 @@ func _scoreboard_text(title: String) -> String:
 
 func _results_text(seconds_left: float) -> String:
 	var winner_id := int(latest_match_payload.get("match_winner", 0))
-	var headline := "★ MATCH CHAMPION ★\n%s\n\n" % _player_name(winner_id)
+	var headline := "✦ ✦ ✦\nVICTORY\n%s\nSUPER STAR CHAMPION\n✦ ✦ ✦\n\n" % _player_name(winner_id)
 	var standings := _scoreboard_text("FINAL STANDINGS")
 	return "%s%s\n\nReturning everyone to the lobby in %.1f seconds" % [headline, standings, seconds_left]
 
@@ -708,9 +915,9 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	last_state_name = state_name
 	if state_name == "LOBBY":
 		audio_director.set_context(&"lobby")
-		results_panel.visible = false
+		_set_win_screen_visible(false)
 		return
-	audio_director.set_context(&"gameplay")
+	audio_director.set_context(&"win" if state_name == "MATCH_RESULT" else &"gameplay")
 	if previous_state == "LOBBY" and state_name == "DRAFT":
 		audio_director.reset_match_deduplication()
 	if state_name == "COUNTDOWN":
@@ -720,6 +927,13 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
 	elif state_name == "MATCH_RESULT":
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
+
+
+func _set_win_screen_visible(visible: bool) -> void:
+	if win_overlay != null:
+		win_overlay.visible = visible
+	if results_panel != null:
+		results_panel.visible = visible
 
 
 func _update_timed_audio() -> void:
@@ -740,7 +954,7 @@ func _update_timed_audio() -> void:
 
 
 func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -> void:
-	var unique_key := "%s:%s" % [payload.get("owner_id", 0), payload.get("shot_sequence", 0)] if event_name == &"fire" else "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", 0)]
+	var unique_key := "%s:%s" % [payload.get("owner_id", 0), payload.get("shot_sequence", 0)] if event_name in [&"fire", &"beam_fire"] else "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", 0)]
 	audio_director.play_sfx(event_name, unique_key)
 
 

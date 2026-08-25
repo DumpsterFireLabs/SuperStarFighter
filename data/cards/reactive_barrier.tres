@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1_card")
-card_id = &"quick_charge"
-display_name = "Quick Charge"
-description = "Shield regeneration is multiplied by 1.25."
+card_id = &"reactive_barrier"
+display_name = "Reactive Barrier"
+description = "Shield drain ×0.85 and regeneration delay ×0.85 per stack."
 category = 1
 rarity = 1
 max_stacks = 3
-multiplicative_modifiers = {"shield_regeneration": 1.25}
+multiplicative_modifiers = {"shield_continuous_drain": 0.85, "shield_regeneration_delay": 0.85}

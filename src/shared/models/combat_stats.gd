@@ -15,6 +15,7 @@ var projectile_count: int = 1
 var projectile_spread_degrees: float = 0.0
 var pierce_count: int = 0
 var ricochet_count: int = 0
+var beam_weapon: bool = false
 
 var shield_capacity: float = 100.0
 var shield_regeneration: float = 30.0
@@ -38,6 +39,7 @@ func duplicate_stats() -> CombatStats:
 	copy.auto_repair_enabled = auto_repair_enabled
 	copy.auto_repair_delay = auto_repair_delay
 	copy.auto_repair_rate = auto_repair_rate
+	copy.beam_weapon = beam_weapon
 	return copy
 
 
@@ -62,4 +64,3 @@ static func get_stat_property_names() -> Array[StringName]:
 		&"shield_regeneration_delay",
 		&"shield_arc_degrees",
 	]
-

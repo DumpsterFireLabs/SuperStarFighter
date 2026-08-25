@@ -11,6 +11,7 @@ var radius: float = GameConstants.PROJECTILE_RADIUS
 var lifetime_remaining: float = GameConstants.PROJECTILE_LIFETIME_SECONDS
 var remaining_pierces: int = 0
 var remaining_ricochets: int = 0
+var is_beam: bool = false
 var hit_peer_ids: Dictionary = {}
 
 
@@ -27,8 +28,12 @@ static func create(
 	projectile.owner_id = owner
 	projectile.shot_sequence = sequence
 	projectile.position = spawn_position
-	projectile.velocity = Vector2.from_angle(angle) * stats.projectile_speed
+	projectile.is_beam = stats.beam_weapon
+	projectile.velocity = Vector2.from_angle(angle) * (4000.0 if projectile.is_beam else stats.projectile_speed)
 	projectile.damage = stats.projectile_damage
+	if projectile.is_beam:
+		projectile.radius = 7.0
+		projectile.lifetime_remaining = 0.18
 	projectile.remaining_pierces = stats.pierce_count
 	projectile.remaining_ricochets = stats.ricochet_count
 	return projectile

@@ -39,10 +39,8 @@ func start_draft(players: Dictionary, round_number: int) -> Dictionary:
 			"%d:%d:%d:%d" % [_match_seed, round_number, peer_id, _token_serial]
 		)
 		var eligible := _catalog.eligible_ids(player.card_stacks)
-		_shuffle(eligible)
 		var offer_count := mini(GameConstants.CARD_OFFER_SIZE, eligible.size())
-		for index in range(offer_count):
-			offer.card_ids.append(eligible[index])
+		offer.card_ids = _weighted_cards_without_replacement(eligible, offer_count)
 		if offer.card_ids.is_empty():
 			offer.build_complete = true
 			offer.locked = true
@@ -131,3 +129,30 @@ func _shuffle(values: Array[StringName]) -> void:
 		var temporary := values[index]
 		values[index] = values[swap_index]
 		values[swap_index] = temporary
+
+
+func _weighted_cards_without_replacement(eligible: Array[StringName], count: int) -> Array[StringName]:
+	var available := eligible.duplicate()
+	var selected: Array[StringName] = []
+	while selected.size() < count and not available.is_empty():
+		var available_rarities: Dictionary = {}
+		var total_weight := 0.0
+		for card_id in available:
+			var rarity := _catalog.get_card(card_id).rarity
+			if not available_rarities.has(rarity):
+				available_rarities[rarity] = []
+			(available_rarities[rarity] as Array).append(card_id)
+		for rarity_value in available_rarities:
+			total_weight += float(CardDefinition.RARITY_DROP_CHANCES.get(rarity_value, 0.0))
+		var roll := _rng.randf() * total_weight
+		var chosen_rarity: int = int(available_rarities.keys()[0])
+		for rarity_value in available_rarities:
+			roll -= float(CardDefinition.RARITY_DROP_CHANCES.get(rarity_value, 0.0))
+			if roll <= 0.0:
+				chosen_rarity = int(rarity_value)
+				break
+		var rarity_cards := available_rarities[chosen_rarity] as Array
+		var chosen_id := StringName(rarity_cards[_rng.randi_range(0, rarity_cards.size() - 1)])
+		selected.append(chosen_id)
+		available.erase(chosen_id)
+	return selected

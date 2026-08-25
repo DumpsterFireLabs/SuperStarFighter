@@ -8,8 +8,8 @@ card_id = &"twin_shot"
 display_name = "Twin Shot"
 description = "+1 projectile and +10 degrees total spread. Per-projectile damage is multiplied by 0.70."
 category = 2
+rarity = 3
 max_stacks = 2
 additive_modifiers = {"projectile_spread_degrees": 10.0}
 multiplicative_modifiers = {"projectile_damage": 0.7}
 integer_modifiers = {"projectile_count": 1}
-

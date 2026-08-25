@@ -14,15 +14,31 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_equal(audio.sfx_streams.size(), AudioDirector.SFX_NAMES.size(), "audio director provides every required combat cue")
 	context.expect_equal(audio.synthesized_placeholder_count(), AudioDirector.SFX_NAMES.size(), "missing authored SFX receive synthesized placeholders")
 	context.expect_true(FileAccess.file_exists("res://assets/audio/README.md"), "audio drop-in contract is documented beside the asset paths")
+	if FileAccess.file_exists("res://assets/audio/music/main_menu.mp3.wav"):
+		context.expect_true(audio.menu_player.stream != null, "authored menu music with a compound filename is discovered")
+	var expected_gameplay_tracks := _supported_audio_file_count(AudioDirector.GAMEPLAY_MUSIC_DIRECTORY)
+	context.expect_equal(audio.gameplay_tracks.size(), expected_gameplay_tracks, "all authored gameplay tracks are discovered")
+	context.expect_true(audio.win_player.stream != null, "win music always has an authored or generated stream")
 	audio.play_sfx(&"card_lock", "same-card")
 	audio.play_sfx(&"card_lock", "same-card")
 	context.expect_equal(audio._played_keys.size(), 1, "repeated reliable events cannot replay the same sound")
 	audio.set_context(&"menu")
-	context.expect_equal(audio.current_context, &"menu", "menu music context works when its optional MP3 is absent")
+	context.expect_equal(audio.current_context, &"menu", "menu music context selects the authored stream")
 	audio.set_context(&"gameplay")
 	context.expect_equal(audio.current_context, &"gameplay", "gameplay playlist context works when optional tracks are absent")
 	tree_parent.remove_child(audio)
 	audio.free()
+
+
+static func _supported_audio_file_count(directory_path: String) -> int:
+	var directory := DirAccess.open(directory_path)
+	if directory == null:
+		return 0
+	var count := 0
+	for file_name in directory.get_files():
+		if file_name.get_extension().to_lower() in ["mp3", "ogg", "wav"]:
+			count += 1
+	return count
 
 
 static func _validate_visual_feedback(context: TestContext) -> void:
@@ -86,6 +102,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.scoreboard_panel != null, "production scoreboard exists")
 	context.expect_true(client.results_panel != null, "production results screen exists")
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
+	context.expect_true(client.settings_panel != null, "shared audio settings screen exists")
+	context.expect_true(client.splash_screen != null, "animated splash screen exists")
+	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
 	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
 	var players: Array[Dictionary] = []
@@ -98,8 +117,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": 600, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()
-	context.expect_true(client.results_panel.visible, "match result opens the dedicated final standings screen")
-	context.expect_true(client.results_label.text.contains("MATCH CHAMPION"), "results screen clearly identifies the winner")
+	context.expect_true(client.win_overlay.visible and client.results_panel.visible, "match result opens the dedicated final standings screen")
+	context.expect_true(client.results_label.text.contains("VICTORY"), "results screen clearly identifies the winner")
+	context.expect_false(client.lobby_panel.visible, "lobby menu remains hidden throughout the game loop")
 	client.connection_screen.visible = false
 	client._toggle_pause_overlay()
 	context.expect_true(client.pause_overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")

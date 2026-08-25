@@ -265,7 +265,7 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			predicted_projectile_ids.erase(projectile.shot_sequence)
 			predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
 		authoritative_projectiles.add(projectile)
-		presentation_event.emit(&"fire", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id, "shot_sequence": projectile.shot_sequence})
+		presentation_event.emit(&"beam_fire" if projectile.is_beam else &"fire", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id, "shot_sequence": projectile.shot_sequence})
 	for projectile_id in decoded.removed:
 		var projectile := authoritative_projectiles.get_projectile(int(projectile_id))
 		if projectile != null and effects_layer != null:
@@ -340,7 +340,7 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 		predicted_projectile_ids[local_weapon.shot_sequence] = next_predicted_id
 		next_predicted_id -= 1
 	predicted_tracker.add(local_peer_id, local_weapon.shot_sequence, _now_seconds())
-	presentation_event.emit(&"fire", {"owner_id": local_peer_id, "shot_sequence": local_weapon.shot_sequence})
+	presentation_event.emit(&"beam_fire" if local_stats.beam_weapon else &"fire", {"owner_id": local_peer_id, "shot_sequence": local_weapon.shot_sequence})
 
 
 func _step_projectile_visuals(delta: float) -> void:
