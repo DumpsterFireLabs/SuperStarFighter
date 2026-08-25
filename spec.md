@@ -104,7 +104,7 @@ The server owns a single explicit state machine.
 | State | Duration | Entry behavior | Exit condition |
 | --- | ---: | --- | --- |
 | `LOBBY` | Indefinite | Clear match-only state; admit humans and configure optional NPC fill. | Leader force-starts with 2–32 ready participants. |
-| `DRAFT` | 20 s max | Generate private offers for every participant. | Everyone selects or the timer expires. |
+| `DRAFT` | 30 s max | Generate private offers for every participant. | Everyone selects or the timer expires. |
 | `COUNTDOWN` | 3 s | Spawn/reset ships with controls locked. | Timer reaches zero. |
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
 | `HEAT_RESULT` | 3 s | Freeze combat and show heat result. | Continue current round or resolve it. |
@@ -154,7 +154,7 @@ State transitions are reliable server events containing the new state, server ti
 - Provide exactly 32 spawn anchors distributed around two symmetric rings. Anchors must not overlap obstacles and must keep at least 160 pixels between neighboring ships.
 - Spawn anchors are assigned without replacement. Players receive no post-countdown invulnerability because all players gain control on the same server tick.
 - Ships collide with walls, obstacles, and other ships using slide response. Ship collisions deal no damage.
-- Each client uses a smoothing follow camera centered on its controlled or spectated ship. The camera clamps to arena bounds and uses a fixed gameplay zoom at supported aspect ratios.
+- Each client uses a smoothing follow camera centered on its controlled or spectated ship. The camera snaps to the local ship on every heat countdown, remains centered even near arena edges, and uses a fixed gameplay zoom at supported aspect ratios.
 - Show edge indicators for off-screen ships within 900 pixels and for the nearest incoming off-screen projectile. Indicators must use shape plus color so color alone does not carry meaning.
 - A spectator may cycle living ships with left/right mouse buttons or A/D. If no player is alive during a tie result, the camera returns to arena center.
 
@@ -363,7 +363,8 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Replace the system arrow over the gameplay viewport with a high-contrast crosshair centered on the aim point.
 - Give every participant a stable color chosen from a high-contrast palette, then add name, outline pattern, and local-player marker so identity never depends on color alone.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
-- Keep critical HUD text at least 18 px at 1080p and scale UI with window size. Card body text must remain readable at 1280×720 without scrolling.
+- Keep critical HUD text at least 20 px at 1080p and scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
+- Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
 - Provide synthesized effects for fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Music is out of scope.
 

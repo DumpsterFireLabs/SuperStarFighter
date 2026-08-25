@@ -145,8 +145,8 @@ func _create_hud() -> void:
 	hud_canvas.name = "CombatHUD"
 	add_child(hud_canvas)
 	var panel := PanelContainer.new()
-	panel.position = Vector2(20.0, 20.0)
-	panel.custom_minimum_size = Vector2(510.0, 0.0)
+	panel.position = Vector2(26.0, 24.0)
+	panel.custom_minimum_size = Vector2(620.0, 0.0)
 	hud_canvas.add_child(panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 8)
@@ -154,14 +154,14 @@ func _create_hud() -> void:
 	var title := Label.new()
 	title.text = "SUPER STAR FIGHTER · OFFLINE COMBAT LAB"
 	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_font_size_override("font_size", 28)
 	content.add_child(title)
 	status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", 16)
+	status_label.add_theme_font_size_override("font_size", 20)
 	content.add_child(status_label)
 	card_label = Label.new()
 	card_label.add_theme_color_override("font_color", Color("d39cff"))
-	card_label.add_theme_font_size_override("font_size", 16)
+	card_label.add_theme_font_size_override("font_size", 20)
 	content.add_child(card_label)
 	help_label = Label.new()
 	help_label.text = "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help"

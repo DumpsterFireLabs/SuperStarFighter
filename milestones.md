@@ -177,7 +177,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Add procedural neon ships, stable player palette, outline patterns, nameplates, local marker, projectile trails, shield arcs, impacts, elimination effects, and overtime boundary treatment.
 - Add off-screen ship/projectile indicators using both shape and color.
 - Add synthesized SFX for every event listed in the specification and prevent repeated network snapshots from replaying the same effect.
-- Add UI scaling, minimum resolution handling, camera smoothing/clamping, restrained screen shake, and readable 32-player scoreboard behavior.
+- Add UI scaling, minimum resolution handling, camera smoothing with heat-start recentering, restrained screen shake, and readable 32-player scoreboard behavior.
 - Add clear messages and recovery navigation for all rejection and disconnect reason codes.
 
 ### Verification

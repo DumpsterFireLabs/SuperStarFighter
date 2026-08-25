@@ -172,7 +172,14 @@ func apply_match_state(payload: Dictionary) -> void:
 	if String(payload.get("state_name", "")) == "COUNTDOWN":
 		local_weapon.reset(local_stats)
 		prediction_initialized = false
+		snap_camera_to_local_ship()
 	_update_spectator_target()
+
+
+func snap_camera_to_local_ship() -> void:
+	if camera == null or not ships.has(local_peer_id):
+		return
+	camera.position = (ships[local_peer_id] as SandboxShip).global_position
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -300,19 +307,15 @@ func _update_camera(local_ship: SandboxShip, delta: float) -> void:
 func _create_camera_and_hud() -> void:
 	camera = Camera2D.new()
 	camera.position = ArenaLayout.center()
-	camera.limit_left = 0
-	camera.limit_top = 0
-	camera.limit_right = int(GameConstants.ARENA_SIZE.x)
-	camera.limit_bottom = int(GameConstants.ARENA_SIZE.y)
 	camera.enabled = true
 	add_child(camera)
 	var canvas := CanvasLayer.new()
 	canvas.name = "NetworkDiagnostics"
 	add_child(canvas)
 	diagnostics_label = Label.new()
-	diagnostics_label.position = Vector2(20.0, 20.0)
+	diagnostics_label.position = Vector2(26.0, 24.0)
 	diagnostics_label.add_theme_color_override("font_color", Color("73f7ff"))
-	diagnostics_label.add_theme_font_size_override("font_size", 16)
+	diagnostics_label.add_theme_font_size_override("font_size", 21)
 	canvas.add_child(diagnostics_label)
 
 

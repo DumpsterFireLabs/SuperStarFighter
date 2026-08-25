@@ -27,6 +27,7 @@ var active_offer_token: String = ""
 var active_offer_deadline: int = -1
 var latest_match_payload: Dictionary = {}
 var _applying_lobby_state: bool = false
+var interface_theme: Theme
 
 
 func _ready() -> void:
@@ -62,12 +63,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
+	interface_theme = Theme.new()
+	interface_theme.default_font_size = 20
 	connection_canvas = CanvasLayer.new()
 	connection_canvas.layer = 20
 	connection_canvas.name = "ConnectionUI"
 	add_child(connection_canvas)
 	connection_screen = Control.new()
 	connection_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	connection_screen.theme = interface_theme
 	connection_canvas.add_child(connection_screen)
 	var background := ColorRect.new()
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -77,22 +81,22 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	connection_screen.add_child(center)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(560.0, 470.0)
+	panel.custom_minimum_size = Vector2(700.0, 570.0)
 	center.add_child(panel)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
+	content.add_theme_constant_override("separation", 16)
 	panel.add_child(content)
 	var title := Label.new()
 	title.text = "SUPER STAR FIGHTER"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 36)
+	title.add_theme_font_size_override("font_size", 44)
 	content.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "Authoritative Multiplayer Lab"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_color_override("font_color", Color("d39cff"))
-	subtitle.add_theme_font_size_override("font_size", 20)
+	subtitle.add_theme_font_size_override("font_size", 25)
 	content.add_child(subtitle)
 	host_field = _add_labeled_field(content, "Server host", configuration.get("host", "127.0.0.1"))
 	port_field = _add_labeled_field(content, "UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
@@ -104,10 +108,12 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	content.add_child(buttons)
 	var connect_button := Button.new()
 	connect_button.text = "Connect"
+	connect_button.custom_minimum_size.y = 54.0
 	connect_button.pressed.connect(_connect_online)
 	buttons.add_child(connect_button)
 	var offline_button := Button.new()
 	offline_button.text = "Offline Combat Lab"
+	offline_button.custom_minimum_size.y = 54.0
 	offline_button.pressed.connect(_play_offline)
 	buttons.add_child(offline_button)
 	connection_status = Label.new()
@@ -121,21 +127,29 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 
 func _create_lobby_panel() -> void:
 	lobby_panel = PanelContainer.new()
-	lobby_panel.position = Vector2(1380.0, 20.0)
-	lobby_panel.custom_minimum_size = Vector2(500.0, 410.0)
+	lobby_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	lobby_panel.position = Vector2(-664.0, 24.0)
+	lobby_panel.custom_minimum_size = Vector2(640.0, 650.0)
+	lobby_panel.theme = interface_theme
 	lobby_panel.visible = false
 	connection_canvas.add_child(lobby_panel)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 8)
+	content.add_theme_constant_override("separation", 12)
 	lobby_panel.add_child(content)
 	var title := Label.new()
 	title.text = "ONLINE LOBBY"
 	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_font_size_override("font_size", 30)
 	content.add_child(title)
+	var player_scroll := ScrollContainer.new()
+	player_scroll.custom_minimum_size = Vector2(610.0, 250.0)
+	player_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	player_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content.add_child(player_scroll)
 	lobby_label = Label.new()
-	lobby_label.add_theme_font_size_override("font_size", 16)
-	content.add_child(lobby_label)
+	lobby_label.add_theme_font_size_override("font_size", 20)
+	lobby_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	player_scroll.add_child(lobby_label)
 	var rounds_row := HBoxContainer.new()
 	content.add_child(rounds_row)
 	var rounds_label := Label.new()
@@ -145,6 +159,7 @@ func _create_lobby_panel() -> void:
 	rounds_control.min_value = GameConstants.MIN_ROUNDS_TO_WIN
 	rounds_control.max_value = GameConstants.MAX_ROUNDS_TO_WIN
 	rounds_control.value = GameConstants.DEFAULT_ROUNDS_TO_WIN
+	rounds_control.custom_minimum_size = Vector2(130.0, 48.0)
 	rounds_control.value_changed.connect(_on_rounds_changed)
 	rounds_row.add_child(rounds_control)
 	var limit_row := HBoxContainer.new()
@@ -156,18 +171,22 @@ func _create_lobby_panel() -> void:
 	player_limit_control.min_value = GameConstants.MIN_PLAYERS
 	player_limit_control.max_value = GameConstants.MAX_PLAYERS
 	player_limit_control.value = GameConstants.DEFAULT_MAX_PLAYERS
+	player_limit_control.custom_minimum_size = Vector2(130.0, 48.0)
 	player_limit_control.value_changed.connect(_on_player_limit_changed)
 	limit_row.add_child(player_limit_control)
 	npcs_button = CheckButton.new()
 	npcs_button.text = "Enable NPCs · fill empty seats when starting"
+	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
 	start_button = Button.new()
 	start_button.text = "Force Start Match"
+	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(bridge.send_start_match)
 	content.add_child(start_button)
 	var disconnect_button := Button.new()
 	disconnect_button.text = "Disconnect"
+	disconnect_button.custom_minimum_size.y = 54.0
 	disconnect_button.pressed.connect(_disconnect_online)
 	content.add_child(disconnect_button)
 
@@ -175,20 +194,22 @@ func _create_lobby_panel() -> void:
 func _create_match_ui() -> void:
 	match_panel = PanelContainer.new()
 	match_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	match_panel.position = Vector2(-270.0, 18.0)
-	match_panel.custom_minimum_size = Vector2(540.0, 88.0)
+	match_panel.position = Vector2(-380.0, 20.0)
+	match_panel.custom_minimum_size = Vector2(760.0, 112.0)
+	match_panel.theme = interface_theme
 	match_panel.visible = false
 	connection_canvas.add_child(match_panel)
 	match_label = Label.new()
 	match_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	match_label.add_theme_font_size_override("font_size", 18)
+	match_label.add_theme_font_size_override("font_size", 24)
 	match_label.add_theme_color_override("font_color", Color("73f7ff"))
 	match_panel.add_child(match_label)
 
 	draft_panel = PanelContainer.new()
 	draft_panel.set_anchors_preset(Control.PRESET_CENTER)
-	draft_panel.position = Vector2(-510.0, -230.0)
-	draft_panel.custom_minimum_size = Vector2(1020.0, 460.0)
+	draft_panel.position = Vector2(-600.0, -280.0)
+	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
+	draft_panel.theme = interface_theme
 	draft_panel.visible = false
 	connection_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
@@ -197,7 +218,7 @@ func _create_match_ui() -> void:
 	draft_title = Label.new()
 	draft_title.text = "CHOOSE YOUR UPGRADE"
 	draft_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	draft_title.add_theme_font_size_override("font_size", 28)
+	draft_title.add_theme_font_size_override("font_size", 34)
 	draft_title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(draft_title)
 	var cards := HBoxContainer.new()
@@ -206,10 +227,10 @@ func _create_match_ui() -> void:
 	content.add_child(cards)
 	for index in GameConstants.CARD_OFFER_SIZE:
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(190.0, 320.0)
+		button.custom_minimum_size = Vector2(224.0, 400.0)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-		button.add_theme_font_size_override("font_size", 16)
+		button.add_theme_font_size_override("font_size", 19)
 		button.add_theme_color_override("font_color", Color("e8f5ff"))
 		button.add_theme_color_override("font_hover_color", Color.WHITE)
 		button.pressed.connect(_select_draft_card.bind(index))
@@ -218,12 +239,13 @@ func _create_match_ui() -> void:
 
 	scoreboard_panel = PanelContainer.new()
 	scoreboard_panel.set_anchors_preset(Control.PRESET_CENTER)
-	scoreboard_panel.position = Vector2(-360.0, -260.0)
-	scoreboard_panel.custom_minimum_size = Vector2(720.0, 520.0)
+	scoreboard_panel.position = Vector2(-450.0, -310.0)
+	scoreboard_panel.custom_minimum_size = Vector2(900.0, 620.0)
+	scoreboard_panel.theme = interface_theme
 	scoreboard_panel.visible = false
 	connection_canvas.add_child(scoreboard_panel)
 	scoreboard_label = Label.new()
-	scoreboard_label.add_theme_font_size_override("font_size", 18)
+	scoreboard_label.add_theme_font_size_override("font_size", 22)
 	scoreboard_label.add_theme_color_override("font_color", Color("e8f5ff"))
 	scoreboard_panel.add_child(scoreboard_label)
 
@@ -234,6 +256,7 @@ func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text:
 	parent.add_child(label)
 	var field := LineEdit.new()
 	field.text = initial_text
+	field.custom_minimum_size.y = 48.0
 	parent.add_child(field)
 	return field
 
@@ -476,7 +499,7 @@ func _draft_category_color(category: int) -> Color:
 
 func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(color, 0.24 if emphasized else 0.12)
+	style.bg_color = Color(color.darkened(0.72), 0.94 if emphasized else 0.86)
 	style.border_color = Color(color, 0.95 if emphasized else 0.62)
 	style.set_border_width_all(3 if emphasized else 2)
 	style.set_corner_radius_all(12)

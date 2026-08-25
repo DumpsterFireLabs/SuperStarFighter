@@ -347,5 +347,12 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	context.expect_equal(view.client_tick, 0, "disconnect clears prior client tick")
 	context.expect_false(view.prediction_initialized, "disconnect clears prior prediction initialization")
 	context.expect_equal(view.camera.position, ArenaLayout.center(), "disconnect recenters network camera on the arena")
+	var local_ship := SandboxShip.new()
+	local_ship.setup(99, CombatStats.create_base(), Vector2(140.0, 220.0), Color.WHITE, true)
+	view.ships[99] = local_ship
+	view.local_peer_id = 99
+	view.apply_match_state({"state_name": "COUNTDOWN", "builds": {}})
+	context.expect_equal(view.camera.position, local_ship.global_position, "round countdown snaps the camera to the local ship")
+	local_ship.free()
 	view.camera.free()
 	view.free()
