@@ -11,7 +11,7 @@ func _ready() -> void:
 	var error := bridge.start_server(configuration)
 	if error != OK:
 		push_error(bridge.last_error)
-		get_tree().quit(1)
+		get_tree().quit(3)
 		return
 	print(
 		"SSF_MODE_READY=server port=%d max_players=%d rounds_to_win=%d auto_start=%s" % [
@@ -27,6 +27,9 @@ func _ready() -> void:
 
 
 func _on_test_duration_elapsed() -> void:
+	if bridge != null:
+		bridge.flush_metrics()
+		bridge.stop()
 	print("SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration")
 	get_tree().quit(0)
 

@@ -341,6 +341,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 - Never trust a peer ID supplied by a client; use the RPC sender identity.
 - Reject non-finite numbers, movement magnitudes above tolerance, impossible action bits, stale offer tokens, invalid card IDs, out-of-state requests, unauthorized lobby actions, and version mismatches.
+- Accept at most 20 reliable control requests per peer per second, bound offer tokens and card IDs to 64 characters before interning or lookup, and disconnect only the sender after sustained excessive control traffic.
 - Clamp accepted movement after validation. Do not clamp malformed or non-finite messages into validity.
 - Rejection reason codes are `SERVER_FULL`, `VERSION_MISMATCH`, `INVALID_NAME`, `HANDSHAKE_TIMEOUT`, `MALFORMED_TRAFFIC`, and `SERVER_CLOSED`.
 - Clients display a human-readable error and return to the connection screen after rejection or network loss.
@@ -373,7 +374,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 - The server writes JSON-line logs to stdout with UTC timestamp, level, event name, and bounded fields.
 - Log startup configuration, match seed, joins/leaves, rejected requests, state transitions, heat/round/match results, shutdown, and fatal errors. Do not log every input frame or a client's IP address.
-- Every 10 seconds during a match, log connected peers, active ships/projectiles, mean and maximum simulation duration, and outbound byte counts.
+- Every 10 seconds during a match, log connected peers, participant/entity counts, mean/p95/maximum simulation duration, outbound byte counts, static memory, object/node counts, and orphan-node count.
 - A debug-only client overlay shows FPS, round-trip time, interpolation delay, reconciliation error, last acknowledged input, and active entity counts.
 - Scene or payload decode failures must produce an error, reject the affected operation, and leave the server state valid. A single bad client message must not terminate the server.
 

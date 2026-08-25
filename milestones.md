@@ -15,8 +15,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 3 — Authoritative Networking and Lobby | Complete | Real ENet clients verified across three channels; rejection, lobby authority, prediction/interpolation, snapshots, projectiles, leader transfer, late spectator, and clean shutdown passed; 602 assertions and 61 project checks passed. |
 | 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; rendered five-card choice, last-survivor resolution, configurable 2–32 seats, server NPC fill, solo force-start, timeout, ties, extended rounds, forfeit, reset, and second match covered; 730 assertions and 65 project checks passed. |
 | 5 — Production UI, Neon Presentation, and Audio | Complete | Eight production screen states rendered at 1280×720 and 1920×1080; 32-player roster, neon identity/effects, off-screen threats, synchronized cues, optional MP3 pipeline, synthesized placeholders, and clean two-match reset verified; 780 assertions and 71 project checks passed. |
-| 6 — Validation, Diagnostics, and 32-Client Hardening | Next | Milestone 5 exit gate passed. |
-| 7 — Export, Documentation, and Release Candidate | Planned | Depends on Milestone 6. |
+| 6 — Validation, Diagnostics, and 32-Client Hardening | Complete | Malformed/excessive peers isolated; bounded JSON metrics and configurable smoke/soak tooling verified; 794 assertions and 72 project checks passed; 32-client, 600-second soak completed 65 windows with 10.678 ms worst-window p95, zero orphan nodes, bounded entities, overtime, combat disconnect, late spectator, and clean shutdown. |
+| 7 — Export, Documentation, and Release Candidate | Next | Milestone 6 exit gate passed. |
 
 ## Completion Rules
 
@@ -195,6 +195,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 6 — Validation, Diagnostics, and 32-Client Hardening
 
+**Status:** Complete — 2026-08-24
+
 **Outcome:** The authoritative server is observable, abuse-resistant within scope, and stable under the required local load.
 
 ### Work
@@ -213,6 +215,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Run the required 10-minute, 32-client soak scenario, including overtime, one combat disconnect, one late spectator, and clean shutdown.
 - Confirm 95th-percentile server simulation remains below 16.67 ms and entity collections do not grow without corresponding live entities.
 - Review logs to ensure they contain required events and metrics but no per-frame spam or client IP addresses.
+- Run `verify-milestone6.ps1` as the single full gate. The acceptance run completed 65 metric windows over at least 600 seconds with 32 initial clients, 25 heat results, 26 overtime activations, one combat disconnect, one late spectator, 97 peak projectiles, zero orphan nodes, and no unbounded object, node, memory, participant, or projectile trend.
+- Record 794 passing assertions, 72 project checks, and a worst per-window simulation p95 of 10,678 µs against the 16,667 µs budget.
 
 ### Exit Gate
 

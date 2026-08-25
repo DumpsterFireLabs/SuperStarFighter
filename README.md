@@ -21,6 +21,10 @@ From PowerShell in the repository root:
 .\tools\verify-match-loop.ps1
 .\tools\verify-npc-lobby.ps1
 .\tools\verify-presentation.ps1
+.\tools\verify-hardening.ps1
+.\tools\verify-smoke.ps1
+.\tools\verify-soak.ps1
+.\tools\verify-milestone6.ps1
 .\tools\start-server.ps1
 .\tools\start-client.ps1
 ```
@@ -29,9 +33,9 @@ The bootstrap script downloads the pinned portable Godot release and export temp
 
 ## Current Status
 
-Milestones 0–5 are complete. Human clients can play the authoritative online loop from lobby through rendered 30-second five-card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. Lobby leaders can cap a match at 2–32 total participants, enable server-owned NPC fill, and force-start alone; waiting NPCs yield their seats as humans join. The production interface now includes responsive neon menu/lobby screens, resource HUD, readable card panels, scrollable scoreboard, spectator guidance, pause/disconnect menu, final standings, and recoverable error screens. Named ships use stable color plus shape patterns, with trails, shields, impacts, damage direction, elimination pulses, overtime treatment, off-screen threats, and local-only camera feedback. Card modifiers deliberately compound into extreme builds; many cards are pure upgrades, while technical guardrails protect networking and physics without acting as narrow balance ceilings. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. The Milestone 5 gate passes 780 automated assertions, 71 project checks, every real-ENet match verifier, and 16 production-screen render captures.
+Milestones 0–6 are complete. Human clients can play the authoritative online loop from lobby through rendered 30-second five-card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. Lobby leaders can cap a match at 2–32 total participants, enable server-owned NPC fill, and force-start alone; waiting NPCs yield their seats as humans join. The production interface includes responsive neon menu/lobby screens, resource HUD, readable card panels, scrollable scoreboard, spectator guidance, pause/disconnect menu, final standings, and recoverable error screens. Named ships use stable color plus shape patterns, with trails, shields, impacts, damage direction, elimination pulses, overtime treatment, off-screen threats, and local-only camera feedback. Card modifiers deliberately compound into extreme builds; many cards are pure upgrades, while technical guardrails protect networking and physics without acting as narrow balance ceilings. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. Malformed inputs and sustained control/input floods isolate only their sender; bounded JSON-line logs report match events and ten-second p95 timing/entity/memory windows without client addresses. The Milestone 6 gate passes 794 automated assertions, 72 project checks, all real-ENet integration suites, and a 600-second 32-client soak whose worst timing-window p95 was 10.678 ms.
 
-Milestone 6 (validation, diagnostics, and 32-client hardening) is next.
+Milestone 7 (export, documentation, and release candidate) is next.
 
 ## Local Multiplayer
 
@@ -50,6 +54,10 @@ Start one or more clients with `.\tools\start-client.ps1`, enter the server host
 `verify-npc-lobby.ps1` launches one human protocol client, configures four total seats, enables NPC fill, force-starts with three server-owned NPCs, and verifies drafting, combat input, snapshots, and clean shutdown.
 
 `verify-presentation.ps1` renders menu, 32-player lobby, draft, combat, spectator, pause, results, and error screens at both 1280×720 and 1920×1080. It fails on parser/runtime errors or missing captures; images are written beneath the ignored `.tools/presentation-verification` directory.
+
+`verify-hardening.ps1` proves malformed and sustained excessive traffic disconnect only the offending peer while healthy clients continue. `verify-smoke.ps1` accepts 2–32 real ENet clients. `verify-soak.ps1` defaults to the acceptance configuration of 32 clients for 600 seconds and records an ignored JSON summary beneath `.tools/soak-verification/`.
+
+`verify-milestone6.ps1` is the single full gate: unit/project checks, protocol integration, two complete matches, NPC lobby, hostile traffic, smoke, and configurable soak. Its default invocation runs the required ten-minute 32-client scenario.
 
 ## Audio Assets
 

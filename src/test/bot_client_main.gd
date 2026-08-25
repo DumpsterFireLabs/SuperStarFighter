@@ -20,6 +20,17 @@ var match_result_count: int = 0
 var lobby_return_count: int = 0
 var enable_npcs: bool = false
 var desired_player_limit: int = 0
+var start_when_players: int = GameConstants.MIN_PLAYERS
+var randomized: bool = false
+var malformed_input: bool = false
+var excessive_input: bool = false
+var malicious_payload_sent: bool = false
+var random_decision_deadline: float = 0.0
+var random_movement := Vector2.ZERO
+var random_fire: bool = false
+var random_shield: bool = false
+var random_aim_offset: float = 0.0
+var rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -39,6 +50,13 @@ func _ready() -> void:
 	draft_timeout = bool(configuration.get("bot_draft_timeout", false))
 	enable_npcs = bool(configuration.get("bot_enable_npcs", false))
 	desired_player_limit = int(configuration.get("bot_player_limit", 0))
+	start_when_players = int(configuration.get("bot_start_at", GameConstants.MIN_PLAYERS))
+	if start_when_players <= 0:
+		start_when_players = GameConstants.MIN_PLAYERS
+	randomized = bool(configuration.get("bot_randomized", false))
+	malformed_input = bool(configuration.get("bot_malformed_input", false))
+	excessive_input = bool(configuration.get("bot_excessive_input", false))
+	rng.seed = absi(String(configuration.get("bot_name", "FoundationBot")).hash()) + 1
 	var connect_error := bridge.start_client(
 		configuration.get("host", "127.0.0.1"),
 		configuration.get("port", GameConstants.DEFAULT_PORT),
@@ -61,7 +79,23 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not welcomed:
 		return
+	if malformed_input:
+		if not malicious_payload_sent:
+			malicious_payload_sent = true
+			var malformed_packet := PackedByteArray()
+			malformed_packet.resize(InputPacketCodec.PACKET_SIZE)
+			malformed_packet[0] = 255
+			for index in NetworkProtocol.TRAFFIC_STRIKES_BEFORE_DISCONNECT:
+				bridge.send_test_input_packet(malformed_packet)
+			print("SSF_BOT_MALFORMED_SENT packets=%d" % NetworkProtocol.TRAFFIC_STRIKES_BEFORE_DISCONNECT)
+		return
 	elapsed += delta
+	if randomized and elapsed >= random_decision_deadline:
+		random_decision_deadline = elapsed + rng.randf_range(0.35, 1.1)
+		random_movement = Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)).limit_length(1.0)
+		random_fire = rng.randf() < 0.72
+		random_shield = not random_fire and rng.randf() < 0.6
+		random_aim_offset = rng.randf_range(-0.22, 0.22)
 	send_accumulator += delta
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	while send_accumulator >= send_interval:
@@ -73,17 +107,21 @@ func _physics_process(delta: float) -> void:
 		var target_position := _target_position()
 		if target_position != Vector2.INF and latest_states.has(bridge.local_peer_id):
 			var local_state := latest_states[bridge.local_peer_id] as Dictionary
-			aim_angle = (target_position - (local_state.position as Vector2)).angle()
-			movement = Vector2.ZERO if passive else Vector2(0.0, -0.85)
+			aim_angle = (target_position - (local_state.position as Vector2)).angle() + (random_aim_offset if randomized else 0.0)
+			movement = Vector2.ZERO if passive else (random_movement if randomized else Vector2(0.0, -0.85))
 		var frame := PlayerInputFrame.new(
 			input_sequence,
 			client_tick,
 			movement,
 			aim_angle,
-			not passive and match_state_name == "ACTIVE_HEAT",
-			not passive and fmod(elapsed, 5.0) > 4.2
+			not passive and match_state_name == "ACTIVE_HEAT" and (random_fire if randomized else true),
+			not passive and (random_shield if randomized else fmod(elapsed, 5.0) > 4.2)
 		)
 		bridge.send_input(frame)
+		if excessive_input:
+			for burst_index in 4:
+				bridge.send_test_input_packet(InputPacketCodec.encode(frame))
+				bridge.send_lobby_config(GameConstants.DEFAULT_ROUNDS_TO_WIN)
 
 
 func _on_welcome(peer_id: int) -> void:
@@ -101,7 +139,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	if enable_npcs and not bool(state.get("npcs_enabled", false)):
 		bridge.send_npcs_enabled(true)
 		return
-	if (state.get("players", []) as Array).size() >= 2 or bool(state.get("npcs_enabled", false)):
+	if (state.get("players", []) as Array).size() >= start_when_players or bool(state.get("npcs_enabled", false)):
 		bridge.send_start_match()
 
 
@@ -113,6 +151,8 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		latest_states[int(indexed_state.peer_id)] = indexed_state
 	if snapshot_count == 1:
 		print("SSF_BOT_SNAPSHOT server_tick=%d players=%d ack=%d rtt_ms=%d" % [decoded.server_tick, (decoded.states as Array).size(), decoded.acknowledged_input, bridge.get_round_trip_time_ms()])
+	elif snapshot_count % 200 == 0:
+		print("SSF_BOT_HEARTBEAT snapshots=%d server_tick=%d players=%d" % [snapshot_count, decoded.server_tick, (decoded.states as Array).size()])
 	if not observed_ack and int(decoded.acknowledged_input) > 0:
 		observed_ack = true
 		print("SSF_BOT_ACK sequence=%d" % decoded.acknowledged_input)
@@ -134,7 +174,8 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		var card_ids := payload.get("card_ids", []) as Array
 		print("SSF_BOT_DRAFT_OFFER cards=%d timeout=%s" % [card_ids.size(), str(draft_timeout).to_lower()])
 		if not draft_timeout and not card_ids.is_empty():
-			bridge.send_card_selection(String(payload.get("offer_token", "")), StringName(card_ids[0]))
+			var choice_index := rng.randi_range(0, card_ids.size() - 1) if randomized else 0
+			bridge.send_card_selection(String(payload.get("offer_token", "")), StringName(card_ids[choice_index]))
 		return
 	if event_type != &"STATE_CHANGED":
 		return

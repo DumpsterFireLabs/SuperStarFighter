@@ -54,7 +54,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
 - Unit-test stat recomputation, stacking caps, card-offer uniqueness, seeded RNG reproducibility, shield-angle detection, projectile damage, reload timing, overtime damage, and input validation.
 - Exercise the complete match state machine, including draft timeout, first-to-two heat scoring with multiplayer ties beyond three heats, configurable round targets, simultaneous deaths, leader transfer, active-player disconnects, and late spectators.
 - Run integration tests with one headless server and two protocol clients through a complete match, verifying authoritative card selection, combat, scores, rematch reset, and clean shutdown.
-- Run a 32-client, ten-minute local soak test using test clients. Require all peers to connect and remain synchronized, no unhandled errors or invalid states, and server simulation time to remain within its 16.67 ms tick budget on the development machine.
+- Run a 32-client, ten-minute local soak test using randomized real-protocol test clients. Require all peers to connect and remain synchronized, no unhandled errors, invalid states, orphan nodes, or unbounded entity/allocation trends, and server p95 simulation time to remain within its 16.67 ms tick budget on the development machine.
 - Manually verify prediction, interpolation, shield feedback, spectator cycling, card readability, and all HUD states at 1280×720 and 1920×1080.
 - Confirm the exported Windows client connects to the exported headless server over localhost and LAN, and document that public direct-IP hosting requires forwarding the configured UDP port.
 

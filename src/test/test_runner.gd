@@ -79,6 +79,8 @@ func _run_foundation_tests() -> void:
 		"--bot-draft-timeout",
 		"--bot-enable-npcs",
 		"--bot-player-limit=4",
+		"--bot-start-at=4",
+		"--bot-randomized",
 	]))
 	_context.expect_true(bot_config.ok, "test bot protocol override parses")
 	_context.expect_equal(bot_config.get("test_protocol_version"), 999, "test bot protocol override is retained")
@@ -86,6 +88,24 @@ func _run_foundation_tests() -> void:
 	_context.expect_true(bot_config.get("bot_draft_timeout"), "draft-timeout bot behavior parses")
 	_context.expect_true(bot_config.get("bot_enable_npcs"), "NPC lobby bot behavior parses")
 	_context.expect_equal(bot_config.get("bot_player_limit"), 4, "NPC lobby player limit parses")
+	_context.expect_equal(bot_config.get("bot_start_at"), 4, "deferred soak start count parses")
+	_context.expect_true(bot_config.get("bot_randomized"), "randomized soak behavior parses")
+	var malicious_bot_config := CommandLineConfig.parse(PackedStringArray([
+		"--bot-client=MalformedProbe",
+		"--bot-malformed-input",
+	]))
+	_context.expect_true(malicious_bot_config.ok, "malformed-traffic test bot mode parses")
+	var conflicting_traffic := CommandLineConfig.parse(PackedStringArray([
+		"--bot-client=ConflictProbe",
+		"--bot-malformed-input",
+		"--bot-excessive-input",
+	]))
+	_context.expect_false(conflicting_traffic.ok, "malicious traffic modes are mutually exclusive")
+	var soak_server_config := CommandLineConfig.parse(PackedStringArray([
+		"--server",
+		"--test-server-duration=600",
+	]))
+	_context.expect_true(soak_server_config.ok, "ten-minute soak duration parses")
 	var invalid_protocol_override := CommandLineConfig.parse(PackedStringArray([
 		"--server",
 		"--test-protocol-version=999",

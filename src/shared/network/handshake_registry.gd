@@ -28,3 +28,7 @@ func expired(now_seconds: float) -> Array[int]:
 
 func clear() -> void:
 	_deadlines.clear()
+
+
+func size() -> int:
+	return _deadlines.size()

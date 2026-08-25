@@ -8,6 +8,7 @@ static func run(context: TestContext) -> void:
 	_validate_snapshot_codec(context)
 	_validate_projectile_codec(context)
 	_validate_rate_limiting(context)
+	_validate_observability_bounds(context)
 	_validate_lobby_authority(context)
 	_validate_npc_lobby_and_inputs(context)
 	_validate_prediction_and_interpolation(context)
@@ -131,6 +132,27 @@ static func _validate_rate_limiting(context: TestContext) -> void:
 	context.expect_equal(malformed.register(3, 0.0, false), InputRateLimiter.Decision.DROP, "first malformed packet is dropped")
 	context.expect_equal(malformed.register(3, 0.1, false), InputRateLimiter.Decision.DROP, "second malformed packet is dropped")
 	context.expect_equal(malformed.register(3, 0.2, false), InputRateLimiter.Decision.DISCONNECT, "sustained malformed packets disconnect")
+	var control := RequestRateLimiter.new(2, 2)
+	context.expect_equal(control.register(4, 0.0), RequestRateLimiter.Decision.ACCEPT, "control request within its rate window is accepted")
+	context.expect_equal(control.register(4, 0.0), RequestRateLimiter.Decision.ACCEPT, "control request at its window limit is accepted")
+	context.expect_equal(control.register(4, 0.0), RequestRateLimiter.Decision.DROP, "excess control request is isolated")
+	control.register(4, 1.0)
+	control.register(4, 1.0)
+	context.expect_equal(control.register(4, 1.0), RequestRateLimiter.Decision.DISCONNECT, "sustained excessive control requests disconnect only their sender")
+	control.remove_peer(4)
+	context.expect_equal(control.register(4, 2.0), RequestRateLimiter.Decision.ACCEPT, "removed peer has no stale limiter state")
+
+
+static func _validate_observability_bounds(context: TestContext) -> void:
+	context.expect_equal(NetworkBridge.percentile_usec([10, 50, 20, 40, 30], 0.95), 50, "simulation diagnostics compute a deterministic p95")
+	context.expect_equal(NetworkBridge.percentile_usec([], 0.95), 0, "empty simulation diagnostics have a zero percentile")
+	var oversized := "x".repeat(NetworkProtocol.MAX_LOG_STRING_LENGTH + 20)
+	var bounded: Variant = NetworkBridge._bounded_log_value(oversized)
+	context.expect_equal((bounded as String).length(), NetworkProtocol.MAX_LOG_STRING_LENGTH, "structured log strings are bounded")
+	var collection: Array[int] = []
+	for index in NetworkProtocol.MAX_LOG_COLLECTION_LENGTH + 5:
+		collection.append(index)
+	context.expect_equal((NetworkBridge._bounded_log_value(collection) as Array).size(), NetworkProtocol.MAX_LOG_COLLECTION_LENGTH, "structured log collections are bounded")
 
 
 static func _validate_lobby_authority(context: TestContext) -> void:

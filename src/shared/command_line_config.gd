@@ -24,6 +24,10 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"bot_draft_timeout": false,
 		"bot_enable_npcs": false,
 		"bot_player_limit": 0,
+		"bot_start_at": 0,
+		"bot_randomized": false,
+		"bot_malformed_input": false,
+		"bot_excessive_input": false,
 	}
 	var explicit_modes: Array[String] = []
 
@@ -104,6 +108,22 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if not parsed_bot_limit.ok:
 				return parsed_bot_limit
 			result.bot_player_limit = parsed_bot_limit.value
+		elif argument.begins_with("--bot-start-at="):
+			var parsed_start_count := _parse_bounded_integer(
+				argument.trim_prefix("--bot-start-at="),
+				GameConstants.MIN_PLAYERS,
+				GameConstants.MAX_PLAYERS,
+				"--bot-start-at"
+			)
+			if not parsed_start_count.ok:
+				return parsed_start_count
+			result.bot_start_at = parsed_start_count.value
+		elif argument == "--bot-randomized":
+			result.bot_randomized = true
+		elif argument == "--bot-malformed-input":
+			result.bot_malformed_input = true
+		elif argument == "--bot-excessive-input":
+			result.bot_excessive_input = true
 		elif argument.begins_with("--test-protocol-version="):
 			var parsed_protocol := _parse_bounded_integer(
 				argument.trim_prefix("--test-protocol-version="),
@@ -119,7 +139,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			var parsed_duration := _parse_bounded_integer(
 				argument.trim_prefix("--test-server-duration="),
 				1,
-				300,
+				3600,
 				"--test-server-duration"
 			)
 			if not parsed_duration.ok:
@@ -144,8 +164,10 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("--test-fast-match is only valid with --server.")
 	if result.test_match_seed > 0 and result.mode != "server":
 		return _error("--test-match-seed is only valid with --server.")
-	if (result.bot_passive or result.bot_draft_timeout or result.bot_enable_npcs or result.bot_player_limit > 0) and result.mode != "bot_client":
+	if (result.bot_passive or result.bot_draft_timeout or result.bot_enable_npcs or result.bot_player_limit > 0 or result.bot_start_at > 0 or result.bot_randomized or result.bot_malformed_input or result.bot_excessive_input) and result.mode != "bot_client":
 		return _error("Bot behavior options are only valid with --bot-client.")
+	if result.bot_malformed_input and result.bot_excessive_input:
+		return _error("Choose only one malicious bot traffic mode.")
 	return result
 
 

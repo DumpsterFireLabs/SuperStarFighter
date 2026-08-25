@@ -32,13 +32,18 @@ var _enet_peer: ENetMultiplayerPeer
 var _pending_handshakes := HandshakeRegistry.new()
 var _pending_disconnects: Dictionary = {}
 var _rate_limiter := InputRateLimiter.new()
+var _control_rate_limiter := RequestRateLimiter.new()
+var _malformed_control_strikes: Dictionary = {}
 var _client_name: String = "Pilot"
 var _client_protocol_version: int = GameConstants.PROTOCOL_VERSION
 var _last_metrics_tick: int = 0
 var _simulation_total_usec: int = 0
 var _simulation_max_usec: int = 0
 var _simulation_samples: int = 0
+var _simulation_sample_usec: Array[int] = []
 var _outbound_bytes: int = 0
+var _metrics_window: int = 0
+var _logged_overtime_key: String = ""
 
 
 func start_server(configuration: Dictionary) -> Error:
@@ -58,6 +63,9 @@ func start_server(configuration: Dictionary) -> Error:
 	lobby = ServerLobby.new(match_config)
 	world = AuthoritativeWorld.new()
 	match_coordinator = null
+	_reset_metrics_window()
+	_metrics_window = 0
+	_logged_overtime_key = ""
 	_enet_peer = ENetMultiplayerPeer.new()
 	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, 3)
 	if error != OK:
@@ -108,6 +116,10 @@ func stop() -> void:
 	if role == Role.SERVER and _enet_peer != null:
 		_log("info", "server_shutdown", {
 			"connected_peers": lobby.human_count() if lobby != null else 0,
+			"participant_records": lobby.players.size() if lobby != null else 0,
+			"active_ships": world.combatants.size() if world != null else 0,
+			"active_projectiles": world.projectile_registry.size() if world != null else 0,
+			"pending_handshakes": _pending_handshakes.size(),
 		})
 	if _enet_peer != null:
 		_enet_peer.close()
@@ -116,10 +128,18 @@ func stop() -> void:
 		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_pending_handshakes.clear()
 	_pending_disconnects.clear()
+	_rate_limiter.clear()
+	_control_rate_limiter.clear()
+	_malformed_control_strikes.clear()
 	local_peer_id = 0
 	match_coordinator = null
 	npc_controller.clear()
 	role = Role.NONE
+
+
+func flush_metrics() -> void:
+	if role == Role.SERVER and _simulation_samples > 0 and lobby != null and lobby.match_active:
+		_log_metrics()
 
 
 func get_round_trip_time_ms() -> int:
@@ -160,7 +180,12 @@ func send_start_match() -> void:
 
 func send_card_selection(offer_token: String, card_id: StringName) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
-		select_card.rpc_id(NetworkProtocol.SERVER_PEER_ID, offer_token, card_id)
+		select_card.rpc_id(NetworkProtocol.SERVER_PEER_ID, offer_token, String(card_id))
+
+
+func send_test_input_packet(packet: PackedByteArray) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		submit_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, packet)
 
 
 func _physics_process(delta: float) -> void:
@@ -174,6 +199,7 @@ func _physics_process(delta: float) -> void:
 	if match_coordinator != null:
 		match_coordinator.step(delta)
 		_drain_match_coordinator()
+		_log_overtime_if_needed()
 		if match_coordinator.is_finished():
 			match_coordinator = null
 			_broadcast_lobby_state()
@@ -187,8 +213,12 @@ func _physics_process(delta: float) -> void:
 	_simulation_total_usec += duration_usec
 	_simulation_max_usec = maxi(_simulation_max_usec, duration_usec)
 	_simulation_samples += 1
+	_simulation_sample_usec.append(duration_usec)
 	if tick - _last_metrics_tick >= GameConstants.PHYSICS_TICKS_PER_SECOND * 10:
-		_log_metrics()
+		if lobby != null and lobby.match_active:
+			_log_metrics()
+		else:
+			_reset_metrics_window()
 		_last_metrics_tick = tick
 
 
@@ -198,7 +228,7 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _pending_handshakes.has(sender_id):
-		_reject_request(sender_id, "duplicate_or_unexpected_hello")
+		_reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
 		return
 	var rejection := ConnectionAdmission.validate_hello(
 		protocol_version,
@@ -244,6 +274,8 @@ func request_lobby_config(rounds_to_win: int) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "lobby_config"):
+		return
 	var result := lobby.request_rounds_to_win(sender_id, rounds_to_win)
 	if result.ok:
 		_broadcast_lobby_state()
@@ -256,6 +288,8 @@ func request_player_limit(player_limit: int) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "player_limit"):
+		return
 	var result := lobby.request_player_limit(sender_id, player_limit)
 	if result.ok:
 		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
@@ -269,6 +303,8 @@ func request_npcs_enabled(enabled: bool) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "npcs_enabled"):
+		return
 	var result := lobby.request_npcs_enabled(sender_id, enabled)
 	if result.ok:
 		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
@@ -282,6 +318,8 @@ func request_start_match() -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "start_match"):
+		return
 	var result := lobby.request_start(sender_id)
 	if result.ok:
 		_activate_added_npcs(result)
@@ -292,21 +330,26 @@ func request_start_match() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func select_card(offer_token: String, card_id: StringName) -> void:
+func select_card(offer_token: String, card_id: String) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "select_card"):
+		return
+	if offer_token.length() > NetworkProtocol.MAX_OFFER_TOKEN_LENGTH or card_id.length() > NetworkProtocol.MAX_CARD_ID_LENGTH:
+		_reject_malformed_control(sender_id, "oversized_card_selection")
+		return
 	if match_coordinator == null:
 		_send_request_rejected(sender_id, "Card selection is only accepted during the authoritative draft state.")
 		return
-	var result := match_coordinator.select_card(sender_id, offer_token, card_id)
+	var result := match_coordinator.select_card(sender_id, offer_token, StringName(card_id))
 	if result != DraftManager.SelectionResult.ACCEPTED:
 		var result_name: String = String(DraftManager.SelectionResult.keys()[result])
 		_send_request_rejected(sender_id, "Card selection rejected: %s." % result_name.to_lower())
 		_log("warning", "card_selection_rejected", {
 			"peer_id": sender_id,
 			"selection_result": result_name,
-			"card_id": String(card_id),
+			"card_id": card_id,
 		})
 	_drain_match_coordinator()
 
@@ -322,6 +365,7 @@ func submit_input(packet: PackedByteArray) -> void:
 	var decoded := InputPacketCodec.decode(packet)
 	var decision := _rate_limiter.register(sender_id, _now_seconds(), decoded.ok)
 	if decision == InputRateLimiter.Decision.DISCONNECT:
+		_log("warning", "traffic_peer_isolated", {"peer_id": sender_id, "traffic": "input", "detail": decoded.get("error", "rate_limit")})
 		_reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
 		return
 	if decision != InputRateLimiter.Decision.ACCEPT or not decoded.ok:
@@ -407,6 +451,8 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
+	_control_rate_limiter.remove_peer(peer_id)
+	_malformed_control_strikes.erase(peer_id)
 	if match_coordinator != null:
 		match_coordinator.disconnect_peer(peer_id)
 		_drain_match_coordinator()
@@ -463,6 +509,29 @@ func _reject_request(peer_id: int, detail: String) -> void:
 	_log("warning", "request_rejected", {"peer_id": peer_id, "detail": detail})
 
 
+func _accept_control_request(peer_id: int, request_name: String) -> bool:
+	if lobby == null or not lobby.players.has(peer_id):
+		_log("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "control", "detail": "request_before_handshake"})
+		_reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return false
+	var decision := _control_rate_limiter.register(peer_id, _now_seconds())
+	if decision == RequestRateLimiter.Decision.DISCONNECT:
+		_log("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "control", "detail": "%s_rate_limit" % request_name})
+		_reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return false
+	return decision == RequestRateLimiter.Decision.ACCEPT
+
+
+func _reject_malformed_control(peer_id: int, detail: String) -> void:
+	var strikes := int(_malformed_control_strikes.get(peer_id, 0)) + 1
+	_malformed_control_strikes[peer_id] = strikes
+	if strikes >= NetworkProtocol.TRAFFIC_STRIKES_BEFORE_DISCONNECT:
+		_log("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "control", "detail": detail})
+		_reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return
+	_reject_request(peer_id, detail)
+
+
 func _send_request_rejected(peer_id: int, message_text: String) -> void:
 	match_event.rpc_id(peer_id, &"REQUEST_REJECTED", world.server_tick if world != null else 0, {"message": message_text})
 
@@ -486,12 +555,14 @@ func _start_match_coordinator(leader_id: int) -> void:
 	var seed_value := configured_seed if configured_seed > 0 else int(Time.get_unix_time_from_system())
 	var overtime_start := 2.0 if bool(_configuration.get("test_fast_match", false)) else GameConstants.OVERTIME_START_SECONDS
 	match_coordinator = AuthoritativeMatchCoordinator.new(lobby, world, seed_value, overtime_start)
+	_logged_overtime_key = ""
 	if not match_coordinator.start(world.server_tick):
 		match_coordinator = null
 		lobby.return_to_lobby()
 		_broadcast_lobby_state()
 		_send_request_rejected(leader_id, "The match coordinator could not start.")
 		return
+	_log("info", "match_seed", {"seed": seed_value, "participants": lobby.participant_count()})
 	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": leader_id, "match_seed": seed_value})
 	_drain_match_coordinator()
 
@@ -575,19 +646,51 @@ func _log_metrics() -> void:
 	var mean_usec := 0.0
 	if _simulation_samples > 0:
 		mean_usec = float(_simulation_total_usec) / _simulation_samples
+	_metrics_window += 1
 	_log("info", "simulation_metrics", {
+		"window": _metrics_window,
+		"server_tick": world.server_tick if world != null else 0,
 		"connected_peers": lobby.human_count() if lobby != null else 0,
 		"npc_pilots": lobby.npc_count() if lobby != null else 0,
+		"participant_records": lobby.players.size() if lobby != null else 0,
 		"active_ships": world.combatants.size() if world != null else 0,
 		"active_projectiles": world.projectile_registry.size() if world != null else 0,
+		"object_count": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+		"node_count": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"orphan_node_count": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
+		"static_memory_bytes": int(Performance.get_monitor(Performance.MEMORY_STATIC)),
 		"mean_simulation_usec": mean_usec,
+		"p95_simulation_usec": percentile_usec(_simulation_sample_usec, 0.95),
 		"max_simulation_usec": _simulation_max_usec,
 		"outbound_bytes": _outbound_bytes,
 	})
+	_reset_metrics_window()
+
+
+func _reset_metrics_window() -> void:
 	_simulation_total_usec = 0
 	_simulation_max_usec = 0
 	_simulation_samples = 0
+	_simulation_sample_usec.clear()
 	_outbound_bytes = 0
+
+
+func _log_overtime_if_needed() -> void:
+	if match_coordinator == null or match_coordinator.state() != MatchStateMachine.State.ACTIVE_HEAT:
+		return
+	var payload := match_coordinator.current_state_payload()
+	var overtime_tick := int(payload.get("overtime_start_tick", -1))
+	if overtime_tick < 0 or world.server_tick < overtime_tick:
+		return
+	var overtime_key := "%d:%d" % [int(payload.get("round_number", 0)), int(payload.get("heat_number", 0))]
+	if overtime_key == _logged_overtime_key:
+		return
+	_logged_overtime_key = overtime_key
+	_log("info", "overtime_started", {
+		"server_tick": world.server_tick,
+		"round": payload.get("round_number", 0),
+		"heat": payload.get("heat_number", 0),
+	})
 
 
 func _log(level: String, event_name: String, fields: Dictionary = {}) -> void:
@@ -597,8 +700,40 @@ func _log(level: String, event_name: String, fields: Dictionary = {}) -> void:
 		"event": event_name,
 	}
 	for key in fields:
-		entry[key] = fields[key]
+		entry[key] = _bounded_log_value(fields[key])
 	print(JSON.stringify(entry))
+
+
+static func percentile_usec(samples: Array, percentile: float) -> int:
+	if samples.is_empty():
+		return 0
+	var ordered := samples.duplicate()
+	ordered.sort()
+	var index := clampi(ceili(clampf(percentile, 0.0, 1.0) * ordered.size()) - 1, 0, ordered.size() - 1)
+	return ordered[index]
+
+
+static func _bounded_log_value(value: Variant, depth: int = 0) -> Variant:
+	if depth >= 2:
+		return "[bounded]"
+	if value is String or value is StringName:
+		var text := String(value)
+		return text.left(NetworkProtocol.MAX_LOG_STRING_LENGTH)
+	if value is Array:
+		var bounded: Array = []
+		var source := value as Array
+		for index in mini(source.size(), NetworkProtocol.MAX_LOG_COLLECTION_LENGTH):
+			bounded.append(_bounded_log_value(source[index], depth + 1))
+		return bounded
+	if value is Dictionary:
+		var bounded_dictionary: Dictionary = {}
+		var source_dictionary := value as Dictionary
+		var keys := source_dictionary.keys()
+		for index in mini(keys.size(), NetworkProtocol.MAX_LOG_COLLECTION_LENGTH):
+			var key := String(keys[index]).left(NetworkProtocol.MAX_LOG_STRING_LENGTH)
+			bounded_dictionary[key] = _bounded_log_value(source_dictionary[keys[index]], depth + 1)
+		return bounded_dictionary
+	return value
 
 
 static func _now_seconds() -> float:
