@@ -2,6 +2,7 @@ extends SceneTree
 
 var capture_directory: String = ""
 var capture_label: String = "capture"
+var capture_resolution: Vector2i = Vector2i(1280, 720)
 
 
 func _initialize() -> void:
@@ -14,6 +15,12 @@ func _initialize() -> void:
 		printerr("PRESENTATION_CAPTURE_ERROR=missing_capture_directory")
 		quit(2)
 		return
+	var dimensions := capture_label.split("x")
+	if dimensions.size() != 2 or not dimensions[0].is_valid_int() or not dimensions[1].is_valid_int():
+		printerr("PRESENTATION_CAPTURE_ERROR=invalid_capture_resolution:%s" % capture_label)
+		quit(2)
+		return
+	capture_resolution = Vector2i(int(dimensions[0]), int(dimensions[1]))
 	DirAccess.make_dir_recursive_absolute(capture_directory)
 	_capture_sequence.call_deferred()
 
@@ -22,6 +29,9 @@ func _capture_sequence() -> void:
 	var packed_scene := load("res://scenes/client/client_main.tscn") as PackedScene
 	var client := packed_scene.instantiate()
 	root.add_child(client)
+	root.size = capture_resolution
+	client.current_resolution = capture_resolution
+	client.resolution_control.select(client.RESOLUTION_OPTIONS.find(capture_resolution))
 	await process_frame
 	await process_frame
 	await _capture(client, "splash")
@@ -74,7 +84,23 @@ func _capture_sequence() -> void:
 	await _capture(client, "pause")
 	client._hide_pause_overlay()
 
-	client.latest_match_payload = {"state_name": "MATCH_RESULT", "round_number": 3, "heat_number": 2, "deadline_tick": 800, "match_winner": 2, "alive_peer_ids": [2], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 0, "round_wins": 3}, 3: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {&"rapid_cycling": 2, &"twin_shot": 1}, 3: {&"reinforced_hull": 2}}}
+	client.latest_match_payload = {
+		"state_name": "MATCH_RESULT", "round_number": 3, "heat_number": 2,
+		"deadline_tick": 800, "match_winner": 2, "alive_peer_ids": [2],
+		"participant_peer_ids": [2, 3, 4, 5],
+		"scores": {
+			2: {"heat_wins": 0, "round_wins": 3},
+			3: {"heat_wins": 1, "round_wins": 1},
+			4: {"heat_wins": 0, "round_wins": 1},
+			5: {"heat_wins": 1, "round_wins": 0},
+		},
+		"builds": {
+			2: {&"rapid_cycling": 2, &"twin_shot": 1, &"sunbeam_core": 1},
+			3: {&"reinforced_hull": 2, &"ablative_shell": 1, &"scatter_array": 1},
+			4: {&"flux_reservoir": 1, &"endless_belt": 2},
+			5: {&"inertial_dampers": 1, &"hollow_points": 1, &"cycling_servo": 1},
+		},
+	}
 	client.network_world.latest_server_tick = 500
 	client._update_match_presentation()
 	await _capture(client, "results")
@@ -90,6 +116,10 @@ func _capture(_client: Node, screen_name: String) -> void:
 	RenderingServer.force_draw(false)
 	await process_frame
 	var image := root.get_texture().get_image()
+	if image.get_size() != capture_resolution:
+		printerr("PRESENTATION_CAPTURE_ERROR=%s:expected_%s:actual_%s" % [screen_name, capture_resolution, image.get_size()])
+		quit(4)
+		return
 	var path := capture_directory.path_join("%s_%s.png" % [capture_label, screen_name])
 	var result := image.save_png(path)
 	if result != OK:

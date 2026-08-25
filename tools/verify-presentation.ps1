@@ -11,7 +11,9 @@ New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
 
 foreach ($resolution in @(
     @{ Label = '1280x720'; Width = 1280; Height = 720 },
-    @{ Label = '1920x1080'; Width = 1920; Height = 1080 }
+    @{ Label = '1920x1080'; Width = 1920; Height = 1080 },
+    @{ Label = '2560x1080'; Width = 2560; Height = 1080 },
+    @{ Label = '3440x1440'; Width = 3440; Height = 1440 }
 )) {
     $arguments = @(
         '--path', '.', '--audio-driver', 'Dummy', '--resolution',
@@ -45,4 +47,4 @@ foreach ($resolution in @(
     }
 }
 
-Write-Host "Presentation verification passed: splash, menu, settings, 32-player lobby, draft, winner draft bye, combat, spectator, pause, results, and error screens rendered at 1280x720 and 1920x1080."
+Write-Host "Presentation verification passed: splash, menu, settings, 32-player lobby, draft, winner draft bye, combat, spectator, pause, structured results, and error screens rendered at 1280x720, 1920x1080, 2560x1080, and 3440x1440."

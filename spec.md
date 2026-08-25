@@ -56,7 +56,7 @@ For more than two players, a round is not limited to three heats. Heats continue
 
 - Use the non-.NET Godot 4.7.2 Standard build and typed GDScript.
 - Run gameplay physics at 60 ticks per second.
-- Support a resizable window with a minimum usable resolution of 1280×720 and a 1920×1080 virtual canvas. Settings provide persistent 1280×720, 1600×900, 1920×1080, and 2560×1440 window-size choices without changing authoritative gameplay.
+- Support a resizable window with a minimum usable resolution of 1280×720 and a 1920×1080 virtual canvas. Settings provide persistent 1280×720, 1600×900, 1920×1080, 2560×1080, 2560×1440, and 3440×1440 window-size choices without changing authoritative gameplay. Use `canvas_items` with expand aspect so wider windows expose additional horizontal space without nonuniformly stretching ships, arena geometry, or UI.
 - Support keyboard and mouse only: WASD, mouse aim, left mouse fire, right mouse shield, number keys 1–5 for card choice, left-click UI interaction, Tab scoreboard, and Escape pause/disconnect overlay.
 - Multiplayer never pauses the server simulation. The Escape overlay only captures local input.
 
@@ -404,7 +404,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Tab opens the detailed score/build view.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
-6. **Results:** Match winner, round totals, each player's final build, and automatic return-to-lobby countdown.
+6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, scroll for large lobbies, and keep the automatic return-to-lobby countdown separate from the standings.
 
 ### 9.2 Presentation Rules
 
@@ -415,7 +415,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated, skippable splash before the connection menu. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, and 1440p window resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
+- Start with an animated, skippable splash before the connection menu. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 
@@ -453,7 +453,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Every card's displayed values match the derived gameplay result.
 - Shooting, shield blocking/breaking, damage, elimination, overtime, heat wins, round wins, and match victory are visually and audibly distinguishable.
 - Connection failure, server full, version mismatch, leader disconnect, active-player disconnect, and server shutdown all return clients to a usable screen with a clear message.
-- UI remains usable at 1280×720 and 1920×1080 with 32 listed players.
+- UI remains usable at 1280×720, 1920×1080, 2560×1080, and 3440×1440 with 32 listed players, without nonuniform stretching.
 
 ### 11.4 Release Artifacts
 

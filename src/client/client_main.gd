@@ -4,7 +4,9 @@ const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
 	Vector2i(1600, 900),
 	Vector2i(1920, 1080),
+	Vector2i(2560, 1080),
 	Vector2i(2560, 1440),
+	Vector2i(3440, 1440),
 ]
 
 var bridge: NetworkBridge
@@ -34,6 +36,10 @@ var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var results_panel: PanelContainer
 var results_label: Label
+var results_winner_label: Label
+var results_standings_container: VBoxContainer
+var results_countdown_label: Label
+var _results_signature: String = ""
 var win_overlay: Control
 var pause_overlay: PanelContainer
 var pause_title: Label
@@ -353,23 +359,69 @@ func _create_match_ui() -> void:
 	win_overlay.add_child(win_tint)
 	results_panel = PanelContainer.new()
 	results_panel.set_anchors_preset(Control.PRESET_CENTER)
-	results_panel.position = Vector2(-480.0, -330.0)
-	results_panel.custom_minimum_size = Vector2(960.0, 660.0)
+	results_panel.position = Vector2(-560.0, -340.0)
+	results_panel.custom_minimum_size = Vector2(1120.0, 680.0)
 	results_panel.theme = interface_theme
 	results_panel.add_theme_stylebox_override("panel", _panel_style(Color("fff36a"), 0.96))
 	results_panel.visible = true
 	win_overlay.add_child(results_panel)
-	var results_scroll := ScrollContainer.new()
-	results_scroll.custom_minimum_size = Vector2(920.0, 620.0)
-	results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	results_panel.add_child(results_scroll)
+	var results_content := VBoxContainer.new()
+	results_content.add_theme_constant_override("separation", 10)
+	results_panel.add_child(results_content)
+	var results_kicker := Label.new()
+	results_kicker.text = "✦  MATCH COMPLETE  ✦"
+	results_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_kicker.add_theme_font_size_override("font_size", 18)
+	results_kicker.add_theme_color_override("font_color", Color("ff8ee8"))
+	results_content.add_child(results_kicker)
 	results_label = Label.new()
-	results_label.add_theme_font_size_override("font_size", 24)
-	results_label.add_theme_color_override("font_color", Color("fff36a"))
+	results_label.text = "VICTORY"
 	results_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	results_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	results_scroll.add_child(results_label)
+	results_label.add_theme_font_size_override("font_size", 52)
+	results_label.add_theme_color_override("font_color", Color("fff36a"))
+	results_content.add_child(results_label)
+	var champion_panel := PanelContainer.new()
+	champion_panel.custom_minimum_size.y = 92.0
+	champion_panel.add_theme_stylebox_override("panel", _results_row_style(Color("fff36a"), true))
+	results_content.add_child(champion_panel)
+	var champion_content := VBoxContainer.new()
+	champion_content.alignment = BoxContainer.ALIGNMENT_CENTER
+	champion_content.add_theme_constant_override("separation", 2)
+	champion_panel.add_child(champion_content)
+	var champion_kicker := Label.new()
+	champion_kicker.text = "SUPER STAR CHAMPION"
+	champion_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	champion_kicker.add_theme_font_size_override("font_size", 17)
+	champion_kicker.add_theme_color_override("font_color", Color("d6e2f2"))
+	champion_content.add_child(champion_kicker)
+	results_winner_label = Label.new()
+	results_winner_label.text = "PILOT"
+	results_winner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_winner_label.add_theme_font_size_override("font_size", 34)
+	results_winner_label.add_theme_color_override("font_color", Color("fff36a"))
+	champion_content.add_child(results_winner_label)
+	var standings_heading := HBoxContainer.new()
+	standings_heading.add_theme_constant_override("separation", 12)
+	results_content.add_child(standings_heading)
+	_add_results_column_heading(standings_heading, "RANK", 72.0)
+	_add_results_column_heading(standings_heading, "PILOT", 230.0)
+	_add_results_column_heading(standings_heading, "RESULT", 190.0)
+	_add_results_column_heading(standings_heading, "FINAL BUILD", 0.0, true)
+	var results_scroll := ScrollContainer.new()
+	results_scroll.custom_minimum_size = Vector2(1060.0, 300.0)
+	results_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	results_content.add_child(results_scroll)
+	results_standings_container = VBoxContainer.new()
+	results_standings_container.add_theme_constant_override("separation", 7)
+	results_standings_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	results_scroll.add_child(results_standings_container)
+	results_countdown_label = Label.new()
+	results_countdown_label.text = "RETURNING TO LOBBY"
+	results_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_countdown_label.add_theme_font_size_override("font_size", 17)
+	results_countdown_label.add_theme_color_override("font_color", Color("73f7ff"))
+	results_content.add_child(results_countdown_label)
 
 
 func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
@@ -539,11 +591,7 @@ func _on_resolution_selected(index: int) -> void:
 		return
 	current_resolution = RESOLUTION_OPTIONS[index]
 	if DisplayServer.get_name() != "headless":
-		DisplayServer.window_set_size(current_resolution)
-		var screen := DisplayServer.window_get_current_screen()
-		var usable_rect := DisplayServer.screen_get_usable_rect(screen)
-		var centered_position := usable_rect.position + (usable_rect.size - current_resolution) / 2
-		DisplayServer.window_set_position(centered_position)
+		_apply_window_resolution(current_resolution)
 	_save_video_settings()
 
 
@@ -561,7 +609,18 @@ func _load_video_settings() -> void:
 	if current_resolution not in RESOLUTION_OPTIONS:
 		current_resolution = RESOLUTION_OPTIONS[0]
 	if DisplayServer.get_name() != "headless":
-		DisplayServer.window_set_size(current_resolution)
+		_apply_window_resolution(current_resolution)
+
+
+func _apply_window_resolution(resolution: Vector2i) -> void:
+	DisplayServer.window_set_size(resolution)
+	var screen := DisplayServer.window_get_current_screen()
+	var usable_rect := DisplayServer.screen_get_usable_rect(screen)
+	var safe_offset := Vector2i(
+		maxi((usable_rect.size.x - resolution.x) / 2, 0),
+		maxi((usable_rect.size.y - resolution.y) / 2, 0)
+	)
+	DisplayServer.window_set_position(usable_rect.position + safe_offset)
 
 
 func _save_video_settings() -> void:
@@ -940,7 +999,7 @@ func _update_match_presentation() -> void:
 		status += " · %s wins round" % _player_name(int(latest_match_payload.get("last_round_winner", 0)))
 	elif state_name == "MATCH_RESULT":
 		status = "★ VICTORY · %s ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
-		results_label.text = _results_text(seconds_left)
+		_update_results_screen(seconds_left)
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
@@ -1035,11 +1094,145 @@ func _scoreboard_text(title: String) -> String:
 	return "\n".join(lines)
 
 
-func _results_text(seconds_left: float) -> String:
+func _update_results_screen(seconds_left: float) -> void:
 	var winner_id := int(latest_match_payload.get("match_winner", 0))
-	var headline := "✦ ✦ ✦\nVICTORY\n%s\nSUPER STAR CHAMPION\n✦ ✦ ✦\n\n" % _player_name(winner_id)
-	var standings := _scoreboard_text("FINAL STANDINGS")
-	return "%s%s\n\nReturning everyone to the lobby in %.1f seconds" % [headline, standings, seconds_left]
+	results_winner_label.text = "★  %s  ★" % _player_name(winner_id).to_upper()
+	results_countdown_label.text = "RETURNING TO LOBBY IN %.1f SECONDS" % seconds_left
+	var signature := "%d|%s|%s" % [winner_id, latest_match_payload.get("scores", {}), latest_match_payload.get("builds", {})]
+	if signature == _results_signature:
+		return
+	_results_signature = signature
+	for child in results_standings_container.get_children():
+		results_standings_container.remove_child(child)
+		child.free()
+	var peer_ids := _result_peer_ids()
+	for index in peer_ids.size():
+		_add_result_row(index + 1, peer_ids[index], peer_ids[index] == winner_id)
+
+
+func _result_peer_ids() -> Array[int]:
+	var result: Array[int] = []
+	for peer_value in latest_match_payload.get("participant_peer_ids", []):
+		var peer_id := int(peer_value)
+		if peer_id != 0 and peer_id not in result:
+			result.append(peer_id)
+	var scores := latest_match_payload.get("scores", {}) as Dictionary
+	for peer_value in scores.keys():
+		var peer_id := int(peer_value)
+		if peer_id != 0 and peer_id not in result:
+			result.append(peer_id)
+	var winner_id := int(latest_match_payload.get("match_winner", 0))
+	if winner_id != 0 and winner_id not in result:
+		result.append(winner_id)
+	result.sort_custom(func(first: int, second: int) -> bool:
+		var first_score := _result_score(first)
+		var second_score := _result_score(second)
+		var first_rounds := int(first_score.get("round_wins", 0))
+		var second_rounds := int(second_score.get("round_wins", 0))
+		if first_rounds != second_rounds:
+			return first_rounds > second_rounds
+		var first_heats := int(first_score.get("heat_wins", 0))
+		var second_heats := int(second_score.get("heat_wins", 0))
+		if first_heats != second_heats:
+			return first_heats > second_heats
+		return first < second
+	)
+	return result
+
+
+func _result_score(peer_id: int) -> Dictionary:
+	var scores := latest_match_payload.get("scores", {}) as Dictionary
+	return scores.get(peer_id, scores.get(str(peer_id), {})) as Dictionary
+
+
+func _result_build(peer_id: int) -> Dictionary:
+	var builds := latest_match_payload.get("builds", {}) as Dictionary
+	return builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary
+
+
+func _result_build_text(peer_id: int) -> String:
+	var build := _result_build(peer_id)
+	if build.is_empty():
+		return "BASE LOADOUT"
+	var card_ids := build.keys()
+	card_ids.sort_custom(func(first: Variant, second: Variant) -> bool:
+		var first_card := card_catalog.get_card(StringName(first))
+		var second_card := card_catalog.get_card(StringName(second))
+		var first_name := first_card.display_name if first_card != null else String(first)
+		var second_name := second_card.display_name if second_card != null else String(second)
+		return first_name < second_name
+	)
+	var parts := PackedStringArray()
+	for card_value in card_ids:
+		var card := card_catalog.get_card(StringName(card_value))
+		parts.append("%s ×%d" % [card.display_name if card != null else String(card_value), int(build[card_value])])
+	return "  •  ".join(parts)
+
+
+func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
+	var accent := Color("fff36a") if winner else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
+	var row_panel := PanelContainer.new()
+	row_panel.custom_minimum_size.y = 58.0
+	row_panel.set_meta("peer_id", peer_id)
+	row_panel.set_meta("rank", rank)
+	row_panel.set_meta("winner", winner)
+	row_panel.add_theme_stylebox_override("panel", _results_row_style(accent, winner))
+	results_standings_container.add_child(row_panel)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row_panel.add_child(row)
+	var rank_label := Label.new()
+	rank_label.text = "#%02d" % rank
+	rank_label.custom_minimum_size.x = 60.0
+	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rank_label.add_theme_font_size_override("font_size", 19)
+	rank_label.add_theme_color_override("font_color", accent)
+	row.add_child(rank_label)
+	var player_label := Label.new()
+	player_label.text = "%s%s" % [_player_name(peer_id), "  ★" if winner else ""]
+	player_label.custom_minimum_size.x = 230.0
+	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	player_label.add_theme_font_size_override("font_size", 20 if winner else 18)
+	player_label.add_theme_color_override("font_color", Color("fff36a") if winner else Color("f4fbff"))
+	row.add_child(player_label)
+	var score := _result_score(peer_id)
+	var score_label := Label.new()
+	score_label.text = "%d ROUNDS  ·  %d HEATS" % [int(score.get("round_wins", 0)), int(score.get("heat_wins", 0))]
+	score_label.custom_minimum_size.x = 190.0
+	score_label.add_theme_font_size_override("font_size", 16)
+	score_label.add_theme_color_override("font_color", Color("73f7ff"))
+	row.add_child(score_label)
+	var build_label := Label.new()
+	build_label.text = _result_build_text(peer_id)
+	build_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	build_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	build_label.add_theme_font_size_override("font_size", 16)
+	build_label.add_theme_color_override("font_color", Color("d6e2f2"))
+	row.add_child(build_label)
+
+
+func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> void:
+	var label := Label.new()
+	label.text = text_value
+	label.custom_minimum_size.x = width
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color("8ba1c7"))
+	if expand:
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(label)
+
+
+func _results_row_style(accent: Color, winner: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(accent.darkened(0.82), 0.9 if winner else 0.7)
+	style.border_color = Color(accent, 0.92 if winner else 0.38)
+	style.set_border_width_all(2 if winner else 1)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	return style
 
 
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
@@ -1065,6 +1258,8 @@ func _set_win_screen_visible(visible: bool) -> void:
 		win_overlay.visible = visible
 	if results_panel != null:
 		results_panel.visible = visible
+	if not visible:
+		_results_signature = ""
 
 
 func _update_timed_audio() -> void:
