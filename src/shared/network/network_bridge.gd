@@ -172,6 +172,11 @@ func send_npcs_enabled(enabled: bool) -> void:
 		request_npcs_enabled.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
+func send_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_npc_difficulty.rpc_id(NetworkProtocol.SERVER_PEER_ID, npc_peer_id, difficulty)
+
+
 func send_ready_state(ready: bool) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_ready_state.rpc_id(NetworkProtocol.SERVER_PEER_ID, ready)
@@ -208,7 +213,7 @@ func _physics_process(delta: float) -> void:
 	var start_usec := Time.get_ticks_usec()
 	_process_pending_connections()
 	if match_coordinator != null and match_coordinator.controls_enabled():
-		npc_controller.submit_inputs(world, lobby.npc_peer_ids())
+		npc_controller.submit_inputs(world, lobby.npc_peer_ids(), lobby.npc_difficulties())
 	world.step(delta, match_coordinator != null and match_coordinator.controls_enabled())
 	if match_coordinator != null:
 		match_coordinator.step(delta)
@@ -309,6 +314,7 @@ func request_player_limit(player_limit: int) -> void:
 	var result := lobby.request_player_limit(sender_id, player_limit)
 	if result.ok:
 		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
+		_activate_added_npcs(result)
 		_broadcast_lobby_state()
 	else:
 		_send_request_rejected(sender_id, result.error)
@@ -324,7 +330,23 @@ func request_npcs_enabled(enabled: bool) -> void:
 	var result := lobby.request_npcs_enabled(sender_id, enabled)
 	if result.ok:
 		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
+		_activate_added_npcs(result)
 		_broadcast_lobby_state()
+	else:
+		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "npc_difficulty"):
+		return
+	var result := lobby.request_npc_difficulty(sender_id, npc_peer_id, difficulty)
+	if result.ok:
+		if bool(result.get("changed", false)):
+			_broadcast_lobby_state()
 	else:
 		_send_request_rejected(sender_id, result.error)
 
@@ -360,6 +382,7 @@ func request_eject_player(target_peer_id: int) -> void:
 	_control_rate_limiter.remove_peer(target_peer_id)
 	_malformed_control_strikes.erase(target_peer_id)
 	_pending_handshakes.complete(target_peer_id)
+	_activate_added_npcs(result)
 	var reason := NetworkProtocol.REJECT_EJECTED
 	connection_rejected.rpc_id(target_peer_id, reason, NetworkProtocol.rejection_message(reason))
 	_pending_disconnects[target_peer_id] = _now_seconds() + 0.1
@@ -531,6 +554,10 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 		match_coordinator.disconnect_peer(peer_id)
 		_drain_match_coordinator()
 	var departed := lobby.remove(peer_id) if lobby != null else null
+	var replacement_npcs: Array[PlayerMatchState] = []
+	if departed != null and match_coordinator == null:
+		replacement_npcs = lobby.restore_npc_fill()
+		_activate_added_npcs({"added_npcs": replacement_npcs})
 	if world != null:
 		world.remove_peer(peer_id)
 	if departed != null:
@@ -645,9 +672,12 @@ func _activate_added_npcs(start_result: Dictionary) -> void:
 	for player_value in start_result.get("added_npcs", []):
 		var player := player_value as PlayerMatchState
 		world.add_peer(player.peer_id)
+		if not lobby.match_active:
+			world.set_spectator(player.peer_id)
 		_log("info", "npc_added", {
 			"peer_id": player.peer_id,
 			"display_name": player.display_name,
+			"difficulty": NpcPilotController.difficulty_name(player.npc_difficulty),
 		})
 
 

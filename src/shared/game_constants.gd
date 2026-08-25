@@ -3,7 +3,7 @@ extends RefCounted
 
 const GAME_NAME: String = "Super Star Fighter"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 5
+const PROTOCOL_VERSION: int = 6
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024

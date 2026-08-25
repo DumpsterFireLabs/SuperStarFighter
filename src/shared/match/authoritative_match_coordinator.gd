@@ -39,6 +39,7 @@ func _init(
 		)
 		player.participant = lobby_player.participant
 		player.is_npc = lobby_player.is_npc
+		player.npc_difficulty = lobby_player.npc_difficulty
 	draft = DraftManager.new(catalog, match_seed)
 
 

@@ -43,10 +43,14 @@ func _capture_sequence() -> void:
 
 	var players: Array[Dictionary] = []
 	for index in 32:
-		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": index >= 8, "ready": index != 5})
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": index >= 8, "npc_difficulty": index % NpcPilotController.DIFFICULTY_NAMES.size(), "ready": index != 5})
 	client.bridge.local_peer_id = 2
 	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
 	await _capture(client, "lobby_32")
+	var roster_scroll := client.lobby_roster.get_parent() as ScrollContainer
+	roster_scroll.scroll_vertical = 100000
+	await _capture(client, "lobby_npc_difficulties")
+	roster_scroll.scroll_vertical = 0
 
 	client.lobby_panel.visible = false
 	client.connection_screen.visible = false

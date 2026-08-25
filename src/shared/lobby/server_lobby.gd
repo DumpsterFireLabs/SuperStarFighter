@@ -82,12 +82,15 @@ func request_player_limit(sender_id: int, value: int) -> Dictionary:
 	if value < human_count():
 		return {"ok": false, "error": "Player limit cannot be lower than the connected human count."}
 	if player_limit == value:
-		return {"ok": true, "removed_npc_ids": []}
+		return {"ok": true, "removed_npc_ids": [], "added_npcs": []}
 	player_limit = value
 	var removed_npc_ids := _trim_npcs_to_limit()
+	var added_npcs: Array[PlayerMatchState] = []
+	if npcs_enabled:
+		added_npcs = _fill_npc_seats()
 	_clear_human_ready()
 	_revision_changed()
-	return {"ok": true, "removed_npc_ids": removed_npc_ids}
+	return {"ok": true, "removed_npc_ids": removed_npc_ids, "added_npcs": added_npcs}
 
 
 func request_npcs_enabled(sender_id: int, enabled: bool) -> Dictionary:
@@ -95,14 +98,34 @@ func request_npcs_enabled(sender_id: int, enabled: bool) -> Dictionary:
 	if not authority_error.is_empty():
 		return {"ok": false, "error": authority_error}
 	if npcs_enabled == enabled:
-		return {"ok": true, "removed_npc_ids": []}
+		return {"ok": true, "removed_npc_ids": [], "added_npcs": []}
 	npcs_enabled = enabled
 	var removed_npc_ids: Array[int] = []
+	var added_npcs: Array[PlayerMatchState] = []
 	if not enabled:
 		removed_npc_ids = remove_all_npcs()
+	else:
+		added_npcs = _fill_npc_seats()
 	_clear_human_ready()
 	_revision_changed()
-	return {"ok": true, "removed_npc_ids": removed_npc_ids}
+	return {"ok": true, "removed_npc_ids": removed_npc_ids, "added_npcs": added_npcs}
+
+
+func request_npc_difficulty(sender_id: int, npc_peer_id: int, difficulty: int) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	var npc := players.get(npc_peer_id) as PlayerMatchState
+	if npc == null or not npc.is_npc:
+		return {"ok": false, "error": "That NPC is no longer available in the lobby."}
+	if not NpcPilotController.is_valid_difficulty(difficulty):
+		return {"ok": false, "error": "NPC difficulty is outside the supported range."}
+	if npc.npc_difficulty == difficulty:
+		return {"ok": true, "changed": false}
+	npc.npc_difficulty = difficulty
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
 
 
 func request_start(sender_id: int) -> Dictionary:
@@ -147,7 +170,8 @@ func request_eject(sender_id: int, target_peer_id: int) -> Dictionary:
 	if target.is_npc:
 		return {"ok": false, "error": "Disable NPC fill to remove server-owned NPCs."}
 	var removed := remove(target_peer_id)
-	return {"ok": true, "removed_player": removed}
+	var added_npcs := restore_npc_fill()
+	return {"ok": true, "removed_player": removed, "added_npcs": added_npcs}
 
 
 func return_to_lobby() -> void:
@@ -218,11 +242,27 @@ func npc_peer_ids() -> Array[int]:
 	return result
 
 
+func npc_difficulties() -> Dictionary:
+	var result: Dictionary = {}
+	for peer_id in npc_peer_ids():
+		result[peer_id] = (players[peer_id] as PlayerMatchState).npc_difficulty
+	return result
+
+
 func remove_all_npcs() -> Array[int]:
 	var removed := npc_peer_ids()
 	for peer_id in removed:
 		players.erase(peer_id)
 	return removed
+
+
+func restore_npc_fill() -> Array[PlayerMatchState]:
+	if match_active or not npcs_enabled or human_count() == 0:
+		return []
+	var added := _fill_npc_seats()
+	if not added.is_empty():
+		_revision_changed()
+	return added
 
 
 func serialize() -> Dictionary:
@@ -238,6 +278,7 @@ func serialize() -> Dictionary:
 			"participant": player.participant,
 			"spectator": player.spectator,
 			"is_npc": player.is_npc,
+			"npc_difficulty": player.npc_difficulty,
 			"ready": player.lobby_ready,
 		})
 	return {

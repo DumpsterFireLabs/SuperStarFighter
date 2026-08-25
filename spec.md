@@ -34,12 +34,13 @@ The vertical slice targets PC players who enjoy short, chaotic, skill-based mult
 
 ### 1.4 Out of Scope
 
-The vertical slice does not include public matchmaking, a server browser, accounts, progression between matches, teams, chat, controller support, configurable NPC difficulty, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports.
+The vertical slice does not include public matchmaking, a server browser, accounts, progression between matches, teams, chat, controller support, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports.
 
 ## 2. Terminology
 
 - **Participant:** A human player or server-owned NPC admitted before a match starts and eligible to spawn in its heats.
 - **NPC:** A server-owned participant that consumes a configured match seat but does not consume an ENet client connection.
+- **NPC difficulty:** One authoritative per-NPC control profile selected by the lobby leader before launch; difficulty changes behavior quality but grants no hidden ship or weapon statistics.
 - **Spectator:** A connected client that cannot affect the current heat or match.
 - **Heat:** One last-ship-standing combat instance. Players respawn between heats.
 - **Round:** A sequence of heats that ends when one player has won two heats.
@@ -119,7 +120,8 @@ State transitions are reliable server events containing the new state, server ti
 - The leader may set `rounds_to_win` from 1 through 5 and set the total participant limit from 2 through the server's configured capacity, never above 32. Lobby settings cannot change during a match.
 - Every connected human, including the leader, enters the lobby not ready and must explicitly ready up before Start Match can succeed. Changing any lobby setting or returning from a completed match clears every human's ready state; NPCs are always ready. Readiness is authoritative and serialized in lobby state.
 - The leader may eject another connected human only while the match is inactive. The leader cannot eject themselves or server-owned NPCs. An ejected client receives the `EJECTED` reason and returns to the connection screen.
-- The leader may enable or disable NPC fill. Start Match requires two humans when NPC fill is disabled; when enabled, one human may start and the server immediately fills every vacant configured seat with NPC participants. The button reads `Start Match` for ready multiplayer lobbies, `Start Match with NPCs` for a ready solo leader with NPC fill, and otherwise explains the missing requirement.
+- The leader may enable or disable NPC fill. Enabling it immediately creates one waiting NPC for every vacant configured seat so each can be configured before launch. Increasing the seat limit while NPC fill is enabled creates additional waiting NPCs; disabling it removes all waiting NPCs. Start Match requires two humans when NPC fill is disabled; when enabled, one human may start with the configured NPC roster. The button reads `Start Match` for ready multiplayer lobbies, `Start Match with NPCs` for a ready solo leader with NPC fill, and otherwise explains the missing requirement.
+- Every waiting NPC has an independent leader-only difficulty dropdown with `Passive`, `Easy`, `Neutral`, `Skilled`, and `Insane`; `Neutral` is the default. Difficulty changes are authoritative lobby settings, clear human readiness, serialize with that NPC, and are locked after match start.
 - NPCs never become lobby leader. While the match is inactive, a joining human replaces one waiting NPC when all configured seats are occupied. Disabling NPC fill removes all waiting NPCs; lowering the participant limit removes enough waiting NPCs to meet the new limit and cannot reduce the limit below the connected human count.
 - Display names are trimmed, must contain 1–16 printable non-control Unicode characters, and are made unique for display by appending `#2`, `#3`, and so on.
 - A client joining during `DRAFT` or any later match state becomes a spectator until the server returns to `LOBBY`.
@@ -149,6 +151,20 @@ State transitions are reliable server events containing the new state, server ti
 - The first player to reach `rounds_to_win` wins the match.
 - A participant disconnecting during `ACTIVE_HEAT` is eliminated before survivor resolution. Disconnecting during another match state removes the participant from subsequent spawns.
 - If only one participant remains in the match after removals, that participant wins by forfeit. If none remain, return immediately to an empty lobby. NPC participants remain present without network peers.
+
+### 4.5 NPC Difficulty Profiles
+
+NPC difficulty modifies decision quality only. All tiers use the same derived card build, health, shields, movement limits, weapon rules, collision, and damage as a human participant. Decisions remain deterministic from server tick and NPC identity.
+
+| Difficulty | Reaction | Aim error | Awareness | Movement pressure | Fire behavior | Shield / leading |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| Passive | 36 ticks / 600 ms | Up to 24° | 900 px | Gentle 0.18 pursuit and strafe | Never fires | Never shields; no leading |
+| Easy | 20 ticks / 333 ms | Up to 14° | 1300 px | 0.42 pursuit, 0.32 strafe | 900 px range; 32% burst duty | 5% shield duty; no leading |
+| Neutral | 10 ticks / 167 ms | Up to 7° | 1900 px | 0.65 pursuit, 0.50 strafe | 1450 px range; 58% burst duty | 10% shield duty; 0.08 s leading |
+| Skilled | 5 ticks / 83 ms | Up to 2.5° | 2600 px | 0.85 pursuit, 0.68 strafe | 2100 px range; 80% burst duty | 16% shield duty; 0.18 s leading |
+| Insane | 2 ticks / 33 ms | Up to 0.4° | 4000 px | Full pursuit, 0.85 strafe | 3200 px range; 94% burst duty | 22% shield duty; 0.30 s leading |
+
+Each tier also maintains a progressively tighter preferred engagement band. NPCs select the nearest living target within their awareness range, periodically orbit/strafe, retreat when too close, and cannot fire while shielding.
 
 ## 5. Arena, Camera, and Spawning
 
@@ -347,7 +363,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `5` and a maximum of 32 client peers in addition to the server. Version 5 carries the projectile beam flag, authoritative lobby ready/eject and final-results exit messages, and unlimited-stack stat prediction rules.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `6` and a maximum of 32 client peers in addition to the server. Version 6 carries the projectile beam flag, authoritative lobby ready/eject, per-NPC difficulty and final-results exit messages, and unlimited-stack stat prediction rules.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -360,6 +376,7 @@ Client-to-server messages:
 - `request_lobby_config(rounds_to_win)` — reliable, lobby leader only.
 - `request_player_limit(total_participants)` — reliable, lobby leader and lobby state only; bounded by 2, server capacity, and 32.
 - `request_npcs_enabled(enabled)` — reliable, lobby leader and lobby state only.
+- `request_npc_difficulty(npc_peer_id, difficulty)` — reliable, lobby leader and lobby state only; target must be a current server-owned NPC and difficulty must be one of the five supported tiers.
 - `request_ready_state(ready)` — reliable, waiting human only.
 - `request_eject_player(peer_id)` — reliable, lobby leader and lobby state only; the sender cannot target themselves or an NPC.
 - `request_start_match()` — reliable, lobby leader only; all connected humans must be ready.
@@ -406,7 +423,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 9.1 Screens
 
 1. **Connection:** A centered menu over the non-gameplay neon backdrop with display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors. The arena and its map are not rendered before a match begins.
-2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
+2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, an individual difficulty dropdown on every NPC row, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Holding Tab displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing Tab immediately closes it while the match continues behind it.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
@@ -442,7 +459,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - **State tests:** Valid transition graph, first-to-two heat resolution with more than three heats, round target 1 and 5, draft early completion/timeout, forfeit, leader transfer, and lobby reset.
 - **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, authorization, rate limiting, version mismatch, and stale card tokens.
 - **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly.
-- **NPC lobby integration:** One human leader sets a four-participant limit, enables NPC fill, starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots and NPC-generated input.
+- **NPC lobby integration:** One human leader sets a four-participant limit, enables immediate NPC fill, configures the waiting NPC rows, starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots and difficulty-profiled NPC input.
 
 ### 11.2 Load and Soak Acceptance
 

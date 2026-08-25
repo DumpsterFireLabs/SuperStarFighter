@@ -148,6 +148,16 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 4, "leader receives an eject control for another human")
 	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
 	context.expect_equal(client.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
+	var configurable_players: Array[Dictionary] = [
+		{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": false},
+		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true},
+	]
+	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 2, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
+	var difficulty_control := client.lobby_roster.get_child(1).get_node("NpcDifficulty") as OptionButton
+	context.expect_true(difficulty_control != null, "each waiting NPC renders an individual difficulty dropdown")
+	context.expect_equal(difficulty_control.item_count, 5, "NPC dropdown exposes passive through insane")
+	context.expect_equal(difficulty_control.get_selected_id(), NpcPilotController.Difficulty.SKILLED, "NPC dropdown reflects authoritative per-NPC difficulty")
+	context.expect_false(difficulty_control.disabled, "lobby leader may edit an NPC difficulty before launch")
 	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
 	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
 	context.expect_true(client.start_button.disabled and client.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")

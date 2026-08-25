@@ -214,11 +214,19 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	context.expect_false(lobby.request_player_limit(999, 4).ok, "non-leader cannot change the player limit")
 	context.expect_true(lobby.request_player_limit(100, 4).ok, "leader can set a total player limit")
 	context.expect_equal(lobby.player_limit, 4, "authoritative lobby retains the selected player limit")
-	context.expect_true(lobby.request_npcs_enabled(100, true).ok, "leader can enable server NPCs")
+	var enable_result := lobby.request_npcs_enabled(100, true)
+	context.expect_true(enable_result.ok, "leader can enable server NPCs")
+	context.expect_equal((enable_result.added_npcs as Array).size(), 3, "enabling NPC fill creates configurable waiting NPC rows")
+	var npc_id := lobby.npc_peer_ids()[0]
+	context.expect_false(lobby.request_npc_difficulty(999, npc_id, NpcPilotController.Difficulty.SKILLED).ok, "non-leader cannot change NPC difficulty")
+	context.expect_false(lobby.request_npc_difficulty(100, 100, NpcPilotController.Difficulty.SKILLED).ok, "human players cannot be assigned NPC difficulty")
+	context.expect_false(lobby.request_npc_difficulty(100, npc_id, 99).ok, "invalid NPC difficulty is rejected")
+	context.expect_true(lobby.request_npc_difficulty(100, npc_id, NpcPilotController.Difficulty.SKILLED).ok, "leader can configure one waiting NPC independently")
+	context.expect_equal((lobby.players[npc_id] as PlayerMatchState).npc_difficulty, NpcPilotController.Difficulty.SKILLED, "configured NPC stores its authoritative difficulty")
 	context.expect_true(lobby.request_ready(100, true).ok, "solo human readies before NPC force start")
 	var start_result := lobby.request_start(100)
 	context.expect_true(start_result.ok, "one human can force-start when NPCs are enabled")
-	context.expect_equal((start_result.added_npcs as Array).size(), 3, "force start fills every open configured seat with an NPC")
+	context.expect_empty(start_result.added_npcs as Array, "already configured waiting NPCs require no hidden start-time fill")
 	context.expect_equal(lobby.participant_count(), 4, "solo force-start reaches the configured participant count")
 	context.expect_equal(lobby.npc_count(), 3, "authoritative lobby distinguishes NPC participants")
 	context.expect_equal(lobby.leader_id, 100, "NPCs never replace the human lobby leader")
@@ -227,9 +235,19 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	context.expect_true(serialized.npcs_enabled, "serialized lobby publishes NPC enablement")
 	context.expect_equal(serialized.npc_count, 3, "serialized lobby publishes its NPC count")
 	context.expect_true(serialized.all_humans_ready, "serialized lobby publishes aggregate readiness")
+	var serialized_npc := (serialized.players as Array).filter(func(player: Dictionary) -> bool: return int(player.peer_id) == npc_id)[0] as Dictionary
+	context.expect_equal(serialized_npc.npc_difficulty, NpcPilotController.Difficulty.SKILLED, "serialized NPC row publishes its individual difficulty")
+
+	for difficulty in range(NpcPilotController.Difficulty.EASY, NpcPilotController.Difficulty.INSANE + 1):
+		var lower := NpcPilotController.difficulty_profile(difficulty - 1)
+		var upper := NpcPilotController.difficulty_profile(difficulty)
+		context.expect_true(int(upper.reaction_ticks) < int(lower.reaction_ticks), "%s reacts faster than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+		context.expect_true(float(upper.aim_error_degrees) < float(lower.aim_error_degrees), "%s aims more accurately than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+		context.expect_true(float(upper.pursuit) > float(lower.pursuit), "%s applies more movement pressure than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+		context.expect_true(float(upper.fire_duty) > float(lower.fire_duty), "%s fires more decisively than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+		context.expect_true(float(upper.awareness_range) > float(lower.awareness_range), "%s detects targets farther away than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
 
 	var world := AuthoritativeWorld.new()
-	var npc_id := lobby.npc_peer_ids()[0]
 	var human := world.add_peer(100)
 	world.add_peer(npc_id)
 	var npc := world.combatants[npc_id] as CombatantState
@@ -237,12 +255,18 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	npc.position = Vector2(700.0, 900.0)
 	var controller := NpcPilotController.new()
 	world.server_tick = 40
-	controller.submit_inputs(world, lobby.npc_peer_ids())
+	controller.submit_inputs(world, lobby.npc_peer_ids(), lobby.npc_difficulties())
 	var npc_input := world.latest_inputs[npc_id] as PlayerInputFrame
 	context.expect_true(npc_input.firing, "server-owned NPC acquires a target and fires without a client")
-	context.expect_approx(npc_input.aim_angle, 0.0, "server-owned NPC aims toward its nearest target")
+	context.expect_true(absf(npc_input.aim_angle) <= deg_to_rad(2.6), "skilled NPC aim stays within its configured error envelope")
 	world.step(1.0 / 60.0)
 	context.expect_true(npc.velocity.length() > 0.0, "server-owned NPC produces authoritative movement")
+	var passive_controller := NpcPilotController.new()
+	world.server_tick = 80
+	passive_controller.submit_inputs(world, [npc_id], {npc_id: NpcPilotController.Difficulty.PASSIVE})
+	var passive_input := world.latest_inputs[npc_id] as PlayerInputFrame
+	context.expect_false(passive_input.firing or passive_input.shielding, "passive NPC remains non-hostile")
+	context.expect_true(passive_input.movement.length() <= 0.26, "passive NPC movement remains deliberately gentle")
 
 	lobby.return_to_lobby()
 	var replacement := lobby.admit(101, "SecondPilot")

@@ -148,6 +148,8 @@ static func _validate_npc_draft(context: TestContext) -> void:
 	lobby.admit(30, "HumanDrafter")
 	lobby.request_player_limit(30, 2)
 	lobby.request_npcs_enabled(30, true)
+	var npc_id := lobby.npc_peer_ids()[0]
+	lobby.request_npc_difficulty(30, npc_id, NpcPilotController.Difficulty.INSANE)
 	_ready_all(lobby)
 	lobby.request_start(30)
 	var world := AuthoritativeWorld.new()
@@ -157,8 +159,8 @@ static func _validate_npc_draft(context: TestContext) -> void:
 	coordinator.start(0)
 	var human_offers := coordinator.drain_private_offers()
 	context.expect_equal(human_offers.size(), 1, "only the human receives a private rendered draft offer")
-	var npc_id := lobby.npc_peer_ids()[0]
 	context.expect_true(coordinator.draft.get_offer(npc_id).locked, "NPC locks a deterministic server-owned draft choice")
+	context.expect_equal((coordinator.machine.players[npc_id] as PlayerMatchState).npc_difficulty, NpcPilotController.Difficulty.INSANE, "active match snapshots the NPC difficulty selected before coordinator creation")
 	var human_offer := human_offers[0] as Dictionary
 	coordinator.select_card(30, String(human_offer.offer_token), human_offer.card_ids[0])
 	_advance(world, coordinator, 1)

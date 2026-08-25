@@ -264,7 +264,7 @@ func _create_lobby_panel() -> void:
 	player_limit_control.value_changed.connect(_on_player_limit_changed)
 	limit_row.add_child(player_limit_control)
 	npcs_button = CheckButton.new()
-	npcs_button.text = "Enable NPCs · fill empty seats when starting"
+	npcs_button.text = "Enable NPCs · add configurable pilots to empty seats"
 	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
@@ -959,11 +959,23 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		role_label.custom_minimum_size.x = 90.0
 		role_label.add_theme_color_override("font_color", Color("d39cff"))
 		row.add_child(role_label)
-		var status_label := Label.new()
-		status_label.text = "READY" if is_ready else "NOT READY"
-		status_label.custom_minimum_size.x = 125.0
-		status_label.add_theme_color_override("font_color", Color("62ff9b") if is_ready else Color("ff7994"))
-		row.add_child(status_label)
+		if is_npc:
+			var difficulty_control := OptionButton.new()
+			difficulty_control.name = "NpcDifficulty"
+			difficulty_control.custom_minimum_size = Vector2(170.0, 38.0)
+			for difficulty in NpcPilotController.DIFFICULTY_NAMES.size():
+				difficulty_control.add_item(NpcPilotController.difficulty_name(difficulty), difficulty)
+			difficulty_control.select(clampi(int(player.get("npc_difficulty", NpcPilotController.Difficulty.NEUTRAL)), NpcPilotController.Difficulty.PASSIVE, NpcPilotController.Difficulty.INSANE))
+			difficulty_control.disabled = not is_leader or bool(state.get("match_active", false))
+			difficulty_control.tooltip_text = "NPC difficulty changes reaction speed, aim, movement, firing, shields, and awareness."
+			difficulty_control.item_selected.connect(_on_npc_difficulty_selected.bind(peer_id))
+			row.add_child(difficulty_control)
+		else:
+			var status_label := Label.new()
+			status_label.text = "READY" if is_ready else "NOT READY"
+			status_label.custom_minimum_size.x = 125.0
+			status_label.add_theme_color_override("font_color", Color("62ff9b") if is_ready else Color("ff7994"))
+			row.add_child(status_label)
 		if is_leader and peer_id != bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false)):
 			var eject_button := Button.new()
 			eject_button.text = "EJECT"
@@ -986,6 +998,10 @@ func _on_player_limit_changed(value: float) -> void:
 func _on_npcs_toggled(enabled: bool) -> void:
 	if not _applying_lobby_state:
 		bridge.send_npcs_enabled(enabled)
+
+
+func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
+	bridge.send_npc_difficulty(npc_peer_id, index)
 
 
 func _on_ready_toggled(ready: bool) -> void:
