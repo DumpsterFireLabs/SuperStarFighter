@@ -96,6 +96,10 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_true(&"damage" in feedback_events, "snapshot deltas emit damage feedback once")
 	context.expect_true(&"shield_break" in feedback_events, "snapshot deltas distinguish shield breaks")
 	context.expect_true(&"reload" in feedback_events, "snapshot deltas distinguish reload completion")
+	local_ship.combatant.alive = false
+	local_ship.set_eliminated()
+	view._apply_snapshot_resources(local_ship, {"position": Vector2(160.0, 120.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "shielding": false, "ammunition": 8, "alive": true})
+	context.expect_true(local_ship.combatant.alive and local_ship.collision_layer == 2, "a respawn snapshot fully revives an eliminated ship visual for the next heat")
 	context.expect_true(local_ship.z_index > 0, "ships render above arena geometry")
 	local_ship.free()
 	view.camera.free()
@@ -129,6 +133,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
+	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")
 	context.expect_true(client.network_world.match_status_label != null, "match timing and state integrate into the combat HUD")
 	context.expect_true(client.network_world.hud_panel.custom_minimum_size.x < 520.0 and client.network_world.hud_panel.custom_minimum_size.y < 190.0, "upper-left combat HUD uses the compact footprint")
 	context.expect_true(client.network_world.spectator_label != null, "production spectator banner exists")
@@ -186,7 +191,20 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
 	context.expect_true(client.network_world.visible and client.network_world.process_mode != Node.PROCESS_MODE_DISABLED, "match start reactivates world rendering and prediction")
 	context.expect_equal(client.network_world.local_peer_id, 2, "match start retains local identity for movement and predicted shots")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
+	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 120, "deadline_tick": 300, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
+	client.network_world.latest_server_tick = 180
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_title.text == "READY", "heat countdown opens the READY banner")
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 300, "deadline_tick": -1, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
+	client.network_world.latest_server_tick = 300
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_title.text == "BEGIN", "active heat briefly opens the BEGIN banner")
+	client.network_world.latest_server_tick = 360
+	client._update_match_presentation()
+	context.expect_false(client.heat_intro_panel.visible, "BEGIN banner clears quickly to restore the arena view")
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
@@ -219,6 +237,20 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
 	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")
 	context.expect_false(client.lobby_panel.visible, "lobby menu remains hidden throughout the game loop")
+	client.network_world._on_snapshot({"server_tick": 400, "acknowledged_input": 20, "states": [
+		{"peer_id": 2, "position": Vector2(500.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
+	]})
+	context.expect_true(client.network_world.ships.has(2), "first match renderer owns the local ship before lobby reset")
+	client._on_match_event(&"STATE_CHANGED", 420, {"state_name": "LOBBY", "round_number": 0, "heat_number": 0, "builds": {}})
+	context.expect_equal(client.network_world.local_peer_id, 2, "lobby return preserves the connected local peer identity")
+	context.expect_empty(client.network_world.ships, "lobby return clears first-match ship visuals")
+	client._on_match_event(&"STATE_CHANGED", 440, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
+	client._on_match_event(&"STATE_CHANGED", 500, {"state_name": "COUNTDOWN", "entered_tick": 500, "deadline_tick": 680, "round_number": 1, "heat_number": 1, "participant_peer_ids": [2], "alive_peer_ids": [2], "builds": {2: {}}})
+	client.network_world._on_snapshot({"server_tick": 520, "acknowledged_input": 0, "states": [
+		{"peer_id": 2, "position": Vector2(640.0, 440.0), "velocity": Vector2(120.0, 0.0), "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
+	]})
+	context.expect_true(client.network_world.visible and client.network_world.prediction_initialized, "second match initializes local rendering and prediction from its first snapshot")
+	context.expect_true((client.network_world.ships[2] as SandboxShip).local_control, "second-match ship is recognized as the local controllable ship")
 	client.connection_screen.visible = false
 	client._toggle_pause_overlay()
 	context.expect_true(client.pause_overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")

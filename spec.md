@@ -109,11 +109,11 @@ The server owns a single explicit state machine.
 | `DRAFT` | 30 s max | Generate private offers for every participant. | Everyone selects or the timer expires. |
 | `COUNTDOWN` | 3 s | Spawn/reset ships with controls locked. | Timer reaches zero. |
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
-| `HEAT_RESULT` | 3 s | Freeze combat and show heat result. | Continue current round or resolve it. |
-| `ROUND_RESULT` | 2.5 s | Award a non-final round win and clear all heat wins. | Start the next draft. |
+| `HEAT_RESULT` | 2 s | Freeze combat and show heat result. | Continue current round or resolve it. |
+| `ROUND_RESULT` | 2 s | Award a non-final round win and clear all heat wins. | Start the next draft. |
 | `MATCH_RESULT` | Indefinite | Show winner and final builds/scores. | Lobby leader selects Exit to Lobby. |
 
-State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. A decisive final heat transitions directly from `HEAT_RESULT` to `MATCH_RESULT`, skipping the redundant 2.5-second `ROUND_RESULT` intermission. `MATCH_RESULT` has no deadline and cannot advance from elapsed time.
+State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. A decisive final heat transitions directly from `HEAT_RESULT` to `MATCH_RESULT`, skipping the redundant two-second `ROUND_RESULT` intermission. `MATCH_RESULT` has no deadline and cannot advance from elapsed time.
 
 ### 4.2 Lobby Rules
 
@@ -144,7 +144,7 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.4 Heat, Round, and Match Resolution
 
 - Each heat starts every participant alive at full derived health, full shield energy, full magazine, and no active reload or repair timer.
-- Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown.
+- Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown. Every heat presents a centered `READY` alert during the lock, followed by a brief `BEGIN` alert when authoritative controls unlock.
 - A player at zero health is eliminated immediately and becomes a spectator for the remainder of the heat.
 - When exactly one participant remains alive after a complete authoritative damage tick, end the heat immediately and award that player one heat win. Their second heat win ends the round.
 - When zero participants remain because multiple deaths resolve during the same server tick, award no heat win and replay the heat after `HEAT_RESULT`.
@@ -448,7 +448,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated splash that displays `PRESS ANY KEY TO START`, accepts input immediately, and automatically proceeds to the connection menu after 10 seconds. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby.
+- Start with an animated splash that displays `PRESS ANY KEY TO START`, accepts input immediately, and automatically proceeds to the connection menu after 10 seconds. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Each heat countdown uses a high-contrast centered `READY` plate and briefly replaces it with `BEGIN` as combat unlocks. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby. Returning to the same connected lobby clears match-only renderer state without discarding the local peer identity required for prediction in a rematch.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 

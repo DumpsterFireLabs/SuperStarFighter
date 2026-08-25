@@ -41,6 +41,10 @@ var npcs_button: CheckButton
 var start_button: Button
 var match_panel: PanelContainer
 var match_label: Label
+var heat_intro_panel: PanelContainer
+var heat_intro_kicker: Label
+var heat_intro_title: Label
+var heat_intro_subtitle: Label
 var draft_panel: PanelContainer
 var draft_title: Label
 var draft_buttons: Array[Button] = []
@@ -380,6 +384,36 @@ func _create_match_ui() -> void:
 	match_label.add_theme_font_size_override("font_size", 24)
 	match_label.add_theme_color_override("font_color", Color("73f7ff"))
 	match_panel.add_child(match_label)
+
+	heat_intro_panel = PanelContainer.new()
+	heat_intro_panel.name = "HeatIntro"
+	heat_intro_panel.set_anchors_preset(Control.PRESET_CENTER)
+	heat_intro_panel.position = Vector2(-300.0, -125.0)
+	heat_intro_panel.custom_minimum_size = Vector2(600.0, 250.0)
+	heat_intro_panel.theme = interface_theme
+	heat_intro_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heat_intro_panel.add_theme_stylebox_override("panel", _heat_intro_style())
+	heat_intro_panel.visible = false
+	connection_canvas.add_child(heat_intro_panel)
+	var heat_intro_content := VBoxContainer.new()
+	heat_intro_content.alignment = BoxContainer.ALIGNMENT_CENTER
+	heat_intro_content.add_theme_constant_override("separation", 8)
+	heat_intro_panel.add_child(heat_intro_content)
+	heat_intro_kicker = Label.new()
+	heat_intro_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heat_intro_kicker.add_theme_font_size_override("font_size", 18)
+	heat_intro_kicker.add_theme_color_override("font_color", Color("d39cff"))
+	heat_intro_content.add_child(heat_intro_kicker)
+	heat_intro_title = Label.new()
+	heat_intro_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heat_intro_title.add_theme_font_size_override("font_size", 72)
+	heat_intro_title.add_theme_color_override("font_color", Color("fff36a"))
+	heat_intro_content.add_child(heat_intro_title)
+	heat_intro_subtitle = Label.new()
+	heat_intro_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heat_intro_subtitle.add_theme_font_size_override("font_size", 20)
+	heat_intro_subtitle.add_theme_color_override("font_color", Color("bdeeff"))
+	heat_intro_content.add_child(heat_intro_subtitle)
 
 	draft_panel = PanelContainer.new()
 	draft_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -1054,6 +1088,7 @@ func _play_offline() -> void:
 	connection_screen.visible = false
 	lobby_panel.visible = false
 	match_panel.visible = false
+	heat_intro_panel.visible = false
 	draft_panel.visible = false
 	scoreboard_panel.visible = false
 	results_panel.visible = false
@@ -1084,6 +1119,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	connection_form_panel.visible = true
 	lobby_panel.visible = false
 	match_panel.visible = false
+	heat_intro_panel.visible = false
 	draft_panel.visible = false
 	scoreboard_panel.visible = false
 	results_panel.visible = false
@@ -1254,7 +1290,11 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		latest_match_payload = payload.duplicate(true)
 		var entering_match := String(payload.get("state_name", "LOBBY")) != "LOBBY"
-		network_world.set_network_active(entering_match)
+		if entering_match:
+			network_world.set_network_active(true)
+		else:
+			network_world.reset_match_presentation()
+			network_world.set_network_active(false, false)
 		connection_screen.visible = not entering_match
 		if not entering_match:
 			connection_form_panel.visible = false
@@ -1357,6 +1397,7 @@ func _update_match_presentation() -> void:
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
 	if state_name == "LOBBY":
 		match_panel.visible = false
+		heat_intro_panel.visible = false
 		network_world.set_match_status("")
 		draft_panel.visible = false
 		_set_win_screen_visible(false)
@@ -1375,6 +1416,7 @@ func _update_match_presentation() -> void:
 	if state_name == "DRAFT" and active_offer_deadline >= 0:
 		deadline = active_offer_deadline
 	var seconds_left := maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0) if deadline >= 0 else 0.0
+	_update_heat_intro(state_name, seconds_left)
 	var status := "%s · Round %d · Heat %d" % [
 		state_name.replace("_", " ").capitalize(),
 		int(latest_match_payload.get("round_number", 0)),
@@ -1404,6 +1446,33 @@ func _update_match_presentation() -> void:
 			draft_title.text = "ROUND WINNER BYE · OTHERS DRAFTING · %.1fs" % seconds_left
 		elif not draft_bye_label.visible:
 			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
+
+
+func _update_heat_intro(state_name: String, seconds_left: float) -> void:
+	if heat_intro_panel == null:
+		return
+	if state_name == "COUNTDOWN":
+		heat_intro_panel.visible = true
+		heat_intro_kicker.text = "ROUND %d  //  HEAT %d" % [
+			int(latest_match_payload.get("round_number", 0)),
+			int(latest_match_payload.get("heat_number", 0)),
+		]
+		heat_intro_title.text = "READY"
+		heat_intro_subtitle.text = "WEAPONS LOCKED  ·  BEGIN IN %.1f" % seconds_left
+		return
+	if state_name == "ACTIVE_HEAT":
+		var entered_tick := int(latest_match_payload.get("entered_tick", network_world.latest_server_tick))
+		var elapsed := maxf(float(network_world.latest_server_tick - entered_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
+		if elapsed <= 0.85:
+			heat_intro_panel.visible = true
+			heat_intro_kicker.text = "ROUND %d  //  HEAT %d" % [
+				int(latest_match_payload.get("round_number", 0)),
+				int(latest_match_payload.get("heat_number", 0)),
+			]
+			heat_intro_title.text = "BEGIN"
+			heat_intro_subtitle.text = "WEAPONS HOT  ·  LAST SHIP STANDING"
+			return
+	heat_intro_panel.visible = false
 
 
 func _combat_hud_status(state_name: String, seconds_left: float) -> String:
@@ -1869,6 +1938,21 @@ func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
 	style.content_margin_right = 20.0
 	style.content_margin_top = 18.0
 	style.content_margin_bottom = 18.0
+	return style
+
+
+func _heat_intro_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("050b1de8")
+	style.border_color = Color("fff36a")
+	style.set_border_width_all(4)
+	style.set_corner_radius_all(22)
+	style.shadow_color = Color("42e8ff55")
+	style.shadow_size = 22
+	style.content_margin_left = 28.0
+	style.content_margin_right = 28.0
+	style.content_margin_top = 24.0
+	style.content_margin_bottom = 24.0
 	return style
 
 

@@ -114,6 +114,12 @@ func reset_session() -> void:
 		camera.offset = Vector2.ZERO
 
 
+func reset_match_presentation() -> void:
+	var connected_peer_id := local_peer_id
+	reset_session()
+	local_peer_id = connected_peer_id
+
+
 func _physics_process(delta: float) -> void:
 	if local_peer_id == 0 or not ships.has(local_peer_id):
 		return
@@ -309,6 +315,9 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 
 
 func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
+	var was_alive := ship.combatant.alive
+	if bool(state.alive) and not was_alive:
+		ship.reset_ship(local_stats, state.position)
 	ship.combatant.position = state.position
 	ship.combatant.velocity = state.velocity
 	ship.combatant.aim_angle = state.aim_angle

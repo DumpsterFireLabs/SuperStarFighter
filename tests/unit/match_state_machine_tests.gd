@@ -47,7 +47,7 @@ static func _validate_multiplayer_round_beyond_three_heats(context: TestContext)
 	var heat_result_deadline := machine.state_deadline_tick
 	machine.advance_time(heat_result_deadline)
 	context.expect_equal(machine.state, MatchStateMachine.State.ROUND_RESULT, "second heat win resolves the round")
-	context.expect_equal(machine.state_deadline_tick - heat_result_deadline, 150, "round result intermission uses the shared 2.5-second duration")
+	context.expect_equal(machine.state_deadline_tick - heat_result_deadline, 120, "round result intermission uses the shared two-second duration")
 	context.expect_equal(machine.last_round_winner, 4, "round winner is the first player with two heat wins")
 	context.expect_equal(machine.scores.get_score(4).round_wins, 1, "round winner gains one round win")
 	for peer_id in machine.participant_ids():
