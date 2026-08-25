@@ -24,7 +24,7 @@ func _init(catalog: CardCatalog, match_seed: int) -> void:
 	_rng.seed = match_seed
 
 
-func start_draft(players: Dictionary, round_number: int) -> Dictionary:
+func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array[int] = []) -> Dictionary:
 	_offers.clear()
 	_active = true
 	var peer_ids := players.keys()
@@ -38,6 +38,11 @@ func start_draft(players: Dictionary, round_number: int) -> Dictionary:
 			peer_id,
 			"%d:%d:%d:%d" % [_match_seed, round_number, peer_id, _token_serial]
 		)
+		if int(peer_id) in skipped_peer_ids:
+			offer.skipped = true
+			offer.locked = true
+			_offers[peer_id] = offer
+			continue
 		var eligible := _catalog.eligible_ids(player.card_stacks)
 		var offer_count := mini(GameConstants.CARD_OFFER_SIZE, eligible.size())
 		offer.card_ids = _weighted_cards_without_replacement(eligible, offer_count)
@@ -99,7 +104,7 @@ func apply_locked_selections(players: Dictionary) -> Dictionary:
 	peer_ids.sort()
 	for peer_id in peer_ids:
 		var offer := get_offer(peer_id)
-		if offer.build_complete:
+		if offer.build_complete or offer.skipped:
 			applied[peer_id] = &""
 			continue
 		var player := players.get(peer_id) as PlayerMatchState

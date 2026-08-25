@@ -16,6 +16,14 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_true(FileAccess.file_exists("res://assets/audio/README.md"), "audio drop-in contract is documented beside the asset paths")
 	if FileAccess.file_exists("res://assets/audio/music/main_menu.mp3.wav"):
 		context.expect_true(audio.menu_player.stream != null, "authored menu music with a compound filename is discovered")
+		context.expect_equal(audio.menu_crossfade_player.stream, audio.menu_player.stream, "menu music is prepared on two players for a seamless crossfade")
+		if audio.menu_player.stream is AudioStreamWAV:
+			context.expect_equal((audio.menu_player.stream as AudioStreamWAV).loop_mode, AudioStreamWAV.LOOP_DISABLED, "menu WAV avoids an abrupt literal end-to-start loop")
+		audio._begin_menu_crossfade()
+		audio._step_menu_crossfade(AudioDirector.MENU_CROSSFADE_SECONDS * 0.5)
+		context.expect_approx(audio.menu_player.volume_db, -3.0103, "menu fade tail uses an equal-power outgoing curve", 0.001)
+		context.expect_approx(audio.menu_crossfade_player.volume_db, -3.0103, "menu restart uses an equal-power incoming curve", 0.001)
+		audio._stop_menu_music()
 	var expected_gameplay_tracks := _supported_audio_file_count(AudioDirector.GAMEPLAY_MUSIC_DIRECTORY)
 	context.expect_equal(audio.gameplay_tracks.size(), expected_gameplay_tracks, "all authored gameplay tracks are discovered")
 	context.expect_true(audio.win_player.stream != null, "win music always has an authored or generated stream")

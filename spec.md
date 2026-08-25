@@ -126,7 +126,7 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.3 Draft Rules
 
 - Every participant drafts before round one and before each later round. No draft occurs between heats in the same round.
-- The server creates an offer token and samples five distinct eligible card IDs for each participant using the match PRNG. Human offers are private and rendered for selection; each NPC immediately locks a server-selected card from its own offer.
+- Before round one, the server creates an offer token and samples five distinct eligible card IDs for every participant using the match PRNG. Before later rounds, the previous round winner receives a locked draft bye and no card; every other participant receives an offer. Human offers are private and rendered for selection; each eligible NPC immediately locks a server-selected card from its own offer.
 - A card is eligible while the player's current stack count is below its stack cap.
 - Selecting a card requires the current offer token and one card ID from that offer. Invalid, stale, duplicate, or out-of-state selections are rejected without changing the build.
 - Choices lock immediately, but all chosen cards apply simultaneously when the draft ends. Other clients see only ready/not-ready status during the draft.
@@ -377,7 +377,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 1. **Connection:** Display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors.
 2. **Lobby:** Human/NPC player list, leader marker, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, waiting message for others, and connection status.
-3. **Draft:** Five or fewer card panels with name, category, rarity, tier drop chance, exact effects, current/new stack count, selection state, and synchronized timer. Support clicking and keys 1–5.
+3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** Health, shield, ammunition/reload, heat wins, round wins, alive count, heat timer, overtime warning, current cards, and collapsible Tab scoreboard.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
 6. **Results:** Match winner, round totals, each player's final build, and automatic return-to-lobby countdown.
@@ -393,7 +393,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
 - Start with an animated, skippable splash before the connection menu. Provide a persistent audio settings screen from the main menu and the in-match Escape pilot menu. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
-- Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
+- Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 
 ## 10. Observability and Failure Handling
 

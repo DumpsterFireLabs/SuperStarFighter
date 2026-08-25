@@ -46,8 +46,13 @@ func _capture_sequence() -> void:
 	client.network_world.latest_server_tick = 0
 	client._show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft")
+	client.latest_match_payload["draft_bye_peer_id"] = 2
+	client._show_draft_bye(1800)
+	client._update_match_presentation()
+	await _capture(client, "draft_bye")
 
 	client.draft_panel.visible = false
+	client.draft_bye_label.visible = false
 	client.match_panel.visible = true
 	client.network_world.local_peer_id = 2
 	client.network_world._on_snapshot({"server_tick": 200, "acknowledged_input": 10, "states": [

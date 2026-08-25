@@ -21,6 +21,8 @@ var match_label: Label
 var draft_panel: PanelContainer
 var draft_title: Label
 var draft_buttons: Array[Button] = []
+var draft_rarity_labels: Array[Label] = []
+var draft_bye_label: Label
 var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var results_panel: PanelContainer
@@ -286,6 +288,26 @@ func _create_match_ui() -> void:
 		button.pressed.connect(_select_draft_card.bind(index))
 		cards.add_child(button)
 		draft_buttons.append(button)
+		var rarity_label := Label.new()
+		rarity_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		rarity_label.offset_left = 10.0
+		rarity_label.offset_top = -38.0
+		rarity_label.offset_right = -10.0
+		rarity_label.offset_bottom = -10.0
+		rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rarity_label.add_theme_font_size_override("font_size", 14)
+		rarity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(rarity_label)
+		draft_rarity_labels.append(rarity_label)
+	draft_bye_label = Label.new()
+	draft_bye_label.text = "ROUND WINNER\n\nYou keep the build that won the round.\nEveryone else gets an upgrade this time.\n\nHold the lead."
+	draft_bye_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	draft_bye_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	draft_bye_label.add_theme_font_size_override("font_size", 28)
+	draft_bye_label.add_theme_color_override("font_color", Color("fff36a"))
+	draft_bye_label.custom_minimum_size.y = 390.0
+	draft_bye_label.visible = false
+	content.add_child(draft_bye_label)
 
 	scoreboard_panel = PanelContainer.new()
 	scoreboard_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -743,35 +765,39 @@ func _process(_delta: float) -> void:
 func _show_draft_offer(payload: Dictionary) -> void:
 	active_offer_token = String(payload.get("offer_token", ""))
 	active_offer_deadline = int(payload.get("deadline_tick", -1))
+	draft_bye_label.visible = false
 	var card_ids := payload.get("card_ids", []) as Array
 	for index in draft_buttons.size():
 		var button := draft_buttons[index]
 		button.visible = index < card_ids.size()
+		draft_rarity_labels[index].visible = button.visible
 		button.disabled = false
 		button.set_meta("card_id", StringName(card_ids[index]) if index < card_ids.size() else &"")
 		if index >= card_ids.size():
 			continue
 		var card := card_catalog.get_card(StringName(card_ids[index]))
 		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
-		button.text = "%d\n\n%s\n%s\n%s · %.0f%% DROP\n\n%s\n\nSTACK %d → %d / %d" % [
+		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d / %d" % [
 			index + 1,
 			card.display_name,
 			card.category_name().to_upper(),
-			card.rarity_name().to_upper(),
-			card.rarity_drop_chance(),
 			card.description,
 			current_stacks,
 			current_stacks + 1,
 			card.max_stacks,
 		] if card != null else String(card_ids[index])
 		if card != null:
-			var category_color := _draft_category_color(card.category)
-			button.add_theme_color_override("font_color", card.rarity_color())
-			button.add_theme_stylebox_override("normal", _draft_card_style(category_color, false))
-			button.add_theme_stylebox_override("hover", _draft_card_style(category_color.lightened(0.18), true))
-			button.add_theme_stylebox_override("pressed", _draft_card_style(category_color.lightened(0.28), true))
-			button.add_theme_stylebox_override("focus", _draft_card_style(category_color.lightened(0.3), true))
-			button.add_theme_stylebox_override("disabled", _draft_card_style(category_color.darkened(0.35), false))
+			var rarity_color := card.rarity_color()
+			button.set_meta("rarity_color", rarity_color)
+			button.add_theme_color_override("font_color", Color("f4fbff"))
+			button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
+			button.add_theme_stylebox_override("hover", _draft_card_style(rarity_color.lightened(0.12), true))
+			button.add_theme_stylebox_override("pressed", _draft_card_style(rarity_color.lightened(0.22), true))
+			button.add_theme_stylebox_override("focus", _draft_card_style(rarity_color.lightened(0.24), true))
+			button.add_theme_stylebox_override("disabled", _draft_card_style(rarity_color.darkened(0.25), false))
+			var rarity_label := draft_rarity_labels[index]
+			rarity_label.text = "%s  ·  %.0f%% TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance()]
+			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
 			button.tooltip_text = "%s — %s (%.0f%% rarity-tier chance) — %s" % [card.display_name, card.rarity_name(), card.rarity_drop_chance(), card.description]
 	draft_panel.visible = true
 	match_panel.visible = true
@@ -792,8 +818,19 @@ func _select_draft_card(index: int) -> void:
 	for draft_button in draft_buttons:
 		draft_button.disabled = true
 	button.text += "\n\nSELECTED"
-	var selected_color := Color("42e8ff")
+	var selected_color: Color = button.get_meta("rarity_color", Color("42e8ff"))
 	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
+
+
+func _show_draft_bye(deadline_tick: int) -> void:
+	active_offer_token = ""
+	active_offer_deadline = deadline_tick
+	for index in draft_buttons.size():
+		draft_buttons[index].visible = false
+		draft_rarity_labels[index].visible = false
+	draft_bye_label.visible = true
+	draft_panel.visible = true
+	match_panel.visible = true
 
 
 func _update_match_presentation() -> void:
@@ -834,7 +871,13 @@ func _update_match_presentation() -> void:
 		results_label.text = _results_text(seconds_left)
 	match_label.text = status
 	if state_name == "DRAFT":
-		draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
+		var bye_peer_id := int(latest_match_payload.get("draft_bye_peer_id", 0))
+		if bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id:
+			if not draft_bye_label.visible or not draft_panel.visible:
+				_show_draft_bye(deadline)
+			draft_title.text = "ROUND WINNER BYE · OTHERS DRAFTING · %.1fs" % seconds_left
+		elif not draft_bye_label.visible:
+			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
 
 
 func _draft_category_color(category: int) -> Color:

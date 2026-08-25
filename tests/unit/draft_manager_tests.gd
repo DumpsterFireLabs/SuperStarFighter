@@ -7,6 +7,7 @@ static func run(context: TestContext) -> void:
 	_validate_seeded_offers(context, catalog)
 	_validate_selection_and_timeout(context, catalog)
 	_validate_reduced_and_complete_offers(context, catalog)
+	_validate_skipped_winner(context, catalog)
 
 
 static func _validate_seeded_offers(context: TestContext, catalog: CardCatalog) -> void:
@@ -113,6 +114,22 @@ static func _validate_reduced_and_complete_offers(context: TestContext, catalog:
 	var applied := complete_manager.apply_locked_selections(complete_players)
 	context.expect_true(applied.has(2), "build-complete resolution records the player")
 	context.expect_equal(applied[2], &"", "build-complete resolution applies no card")
+
+
+static func _validate_skipped_winner(context: TestContext, catalog: CardCatalog) -> void:
+	var players := _create_players(3)
+	var manager := DraftManager.new(catalog, 31337)
+	manager.start_draft(players, 2, [2])
+	var winner_offer := manager.get_offer(2)
+	context.expect_true(winner_offer.skipped, "previous round winner is marked as skipping the draft")
+	context.expect_true(winner_offer.locked, "round-winner draft bye never blocks other players")
+	context.expect_empty(winner_offer.card_ids, "round winner receives no card offer")
+	context.expect_equal(manager.get_offer(1).card_ids.size(), 5, "non-winner still receives five cards")
+	manager.resolve_timeout()
+	var applied := manager.apply_locked_selections(players)
+	context.expect_equal(applied[2], &"", "round-winner draft bye applies no card")
+	context.expect_empty((players[2] as PlayerMatchState).card_stacks, "round winner gains no stack")
+	context.expect_equal((players[1] as PlayerMatchState).card_stacks.size(), 1, "non-winner gains an upgrade")
 
 
 static func _create_players(count: int) -> Dictionary:

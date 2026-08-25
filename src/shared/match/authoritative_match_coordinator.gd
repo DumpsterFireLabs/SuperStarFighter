@@ -14,6 +14,7 @@ var _emitted_history_count: int = 0
 var _events: Array[Dictionary] = []
 var _private_offers: Array[Dictionary] = []
 var _finished: bool = false
+var _next_draft_bye_peer_id: int = 0
 
 
 func _init(
@@ -172,6 +173,8 @@ func _handle_state_entry(new_state: int) -> void:
 			_prepare_world_heat()
 		MatchStateMachine.State.HEAT_RESULT:
 			world.clear_projectiles()
+		MatchStateMachine.State.ROUND_RESULT:
+			_next_draft_bye_peer_id = machine.last_round_winner
 		MatchStateMachine.State.MATCH_RESULT:
 			world.clear_projectiles()
 		MatchStateMachine.State.LOBBY:
@@ -183,13 +186,18 @@ func _handle_state_entry(new_state: int) -> void:
 
 
 func _start_draft() -> void:
-	var offers := draft.start_draft(machine.players, machine.round_number)
+	var skipped_peer_ids: Array[int] = []
+	if machine.round_number > 1 and _next_draft_bye_peer_id != 0:
+		skipped_peer_ids.append(_next_draft_bye_peer_id)
+	var offers := draft.start_draft(machine.players, machine.round_number, skipped_peer_ids)
 	var peer_ids := offers.keys()
 	peer_ids.sort()
 	for peer_value in peer_ids:
 		var peer_id := int(peer_value)
 		var offer := offers[peer_id] as DraftOffer
 		var player := machine.players[peer_id] as PlayerMatchState
+		if offer.skipped:
+			continue
 		if player.is_npc:
 			if not offer.locked and not offer.card_ids.is_empty():
 				var chosen_id := offer.card_ids[_rng.randi_range(0, offer.card_ids.size() - 1)]
@@ -255,6 +263,7 @@ func _state_payload() -> Dictionary:
 		"heat_number": machine.heat_number,
 		"last_heat_winner": machine.last_heat_winner,
 		"last_round_winner": machine.last_round_winner,
+		"draft_bye_peer_id": _next_draft_bye_peer_id if machine.state == MatchStateMachine.State.DRAFT and machine.round_number > 1 else 0,
 		"match_winner": machine.match_winner,
 		"tied_heat": machine.tied_heat,
 		"scores": machine.scores.snapshot(),

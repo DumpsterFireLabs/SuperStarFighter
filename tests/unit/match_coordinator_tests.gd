@@ -5,6 +5,7 @@ extends RefCounted
 static func run(context: TestContext) -> void:
 	_validate_complete_match_and_rematch(context)
 	_validate_last_survivor_resolution(context)
+	_validate_round_winner_draft_bye(context)
 	_validate_npc_draft(context)
 	_validate_forfeit(context)
 
@@ -156,6 +157,34 @@ static func _validate_npc_draft(context: TestContext) -> void:
 	_advance(world, coordinator, 1)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.COUNTDOWN, "human and NPC choices complete the draft together")
 	context.expect_equal((coordinator.machine.players[npc_id] as PlayerMatchState).card_stacks.size(), 1, "NPC selected card applies to its persistent build")
+
+
+static func _validate_round_winner_draft_bye(context: TestContext) -> void:
+	var config := _fast_config()
+	config.rounds_to_win = 2
+	var lobby := ServerLobby.new(config)
+	var world := AuthoritativeWorld.new()
+	for peer_id in [40, 41, 42]:
+		lobby.admit(peer_id, "Balance%d" % peer_id)
+		world.add_peer(peer_id)
+	lobby.request_start(40)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 4040)
+	coordinator.start(0)
+	coordinator.drain_private_offers()
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	_finish_heat(world, coordinator, 40)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	_finish_heat(world, coordinator, 40)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ROUND_RESULT)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.DRAFT)
+	context.expect_equal(coordinator.current_state_payload().draft_bye_peer_id, 40, "next draft publishes the previous round winner's bye")
+	context.expect_true(coordinator.draft.get_offer(40).skipped, "coordinator excludes the round winner from the next draft")
+	context.expect_empty(coordinator.draft.get_offer(40).card_ids, "round winner receives no private card draw")
+	var comeback_offers := coordinator.drain_private_offers()
+	context.expect_equal(comeback_offers.size(), 2, "only players who lost the round receive private draws")
+	for offer_value in comeback_offers:
+		var offer := offer_value as Dictionary
+		context.expect_true(int(offer.peer_id) in [41, 42], "comeback offer belongs to a non-winner")
 
 
 static func _fast_config() -> MatchConfig:

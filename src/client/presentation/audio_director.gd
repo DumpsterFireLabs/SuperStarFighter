@@ -7,6 +7,7 @@ const SFX_DIRECTORY: String = "res://assets/audio/sfx"
 const SETTINGS_PATH: String = "user://super_star_fighter_settings.cfg"
 const MUSIC_BUS: StringName = &"Music"
 const SFX_BUS: StringName = &"SFX"
+const MENU_CROSSFADE_SECONDS: float = 3.0
 const SFX_NAMES: Array[StringName] = [
 	&"fire", &"beam_fire", &"reload", &"shield_on", &"shield_block", &"shield_break",
 	&"damage", &"elimination", &"card_lock", &"countdown", &"overtime",
@@ -14,6 +15,7 @@ const SFX_NAMES: Array[StringName] = [
 ]
 
 var menu_player: AudioStreamPlayer
+var menu_crossfade_player: AudioStreamPlayer
 var gameplay_player: AudioStreamPlayer
 var win_player: AudioStreamPlayer
 var sfx_players: Array[AudioStreamPlayer] = []
@@ -27,6 +29,11 @@ var music_volume_percent: float = 72.0
 var sfx_volume_percent: float = 82.0
 var muted: bool = false
 var playback_enabled: bool = true
+var _active_menu_player: AudioStreamPlayer
+var _menu_crossfade_in_progress: bool = false
+var _menu_crossfade_elapsed: float = 0.0
+var _menu_crossfade_outgoing: AudioStreamPlayer
+var _menu_crossfade_incoming: AudioStreamPlayer
 var _played_keys: Dictionary = {}
 var _last_played_msec: Dictionary = {}
 
@@ -36,6 +43,8 @@ func _ready() -> void:
 	_ensure_audio_buses()
 	_load_settings()
 	menu_player = _make_player("MenuMusic", MUSIC_BUS)
+	menu_crossfade_player = _make_player("MenuMusicCrossfade", MUSIC_BUS)
+	_active_menu_player = menu_player
 	gameplay_player = _make_player("GameplayMusic", MUSIC_BUS)
 	win_player = _make_player("WinMusic", MUSIC_BUS)
 	gameplay_player.finished.connect(_play_next_gameplay_track)
@@ -47,7 +56,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	for player in [menu_player, gameplay_player, win_player]:
+	_stop_menu_music()
+	for player in [menu_player, menu_crossfade_player, gameplay_player, win_player]:
 		if player != null:
 			player.stop()
 			player.stream = null
@@ -66,22 +76,36 @@ func set_context(context: StringName) -> void:
 		&"menu", &"lobby":
 			gameplay_player.stop()
 			win_player.stop()
-			if playback_enabled and menu_player.stream != null and not menu_player.playing:
-				menu_player.play()
+			_start_menu_music()
 		&"gameplay":
-			menu_player.stop()
+			_stop_menu_music()
 			win_player.stop()
 			if playback_enabled and not gameplay_tracks.is_empty() and not gameplay_player.playing:
 				_play_next_gameplay_track()
 		&"win":
-			menu_player.stop()
+			_stop_menu_music()
 			gameplay_player.stop()
 			if playback_enabled and win_player.stream != null and not win_player.playing:
 				win_player.play()
 		_:
-			menu_player.stop()
+			_stop_menu_music()
 			gameplay_player.stop()
 			win_player.stop()
+
+
+func _process(delta: float) -> void:
+	if not playback_enabled or current_context not in [&"menu", &"lobby"]:
+		return
+	if _menu_crossfade_in_progress:
+		_step_menu_crossfade(delta)
+		return
+	if _active_menu_player == null or not _active_menu_player.playing:
+		return
+	var stream := _active_menu_player.stream
+	if stream == null or stream.get_length() <= MENU_CROSSFADE_SECONDS:
+		return
+	if _active_menu_player.get_playback_position() >= stream.get_length() - MENU_CROSSFADE_SECONDS:
+		_begin_menu_crossfade()
 
 
 func set_master_volume(value: float, save: bool = true) -> void:
@@ -196,7 +220,8 @@ func _load_music() -> void:
 	var menu_path := _find_named_music("main_menu")
 	if not menu_path.is_empty():
 		menu_player.stream = load(menu_path) as AudioStream
-		_set_stream_looping(menu_player.stream, true)
+		_set_stream_looping(menu_player.stream, false)
+		menu_crossfade_player.stream = menu_player.stream
 		loaded_music_paths[&"menu"] = menu_path
 	var win_path := _find_named_music("win")
 	if not win_path.is_empty():
@@ -252,9 +277,7 @@ func _set_stream_looping(stream: AudioStream, enabled: bool) -> void:
 		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD if enabled else AudioStreamWAV.LOOP_DISABLED
 		if enabled:
 			wav.loop_begin = 0
-			var bytes_per_sample := 2 if wav.format == AudioStreamWAV.FORMAT_16_BITS else 1
-			var channel_count := 2 if wav.stereo else 1
-			wav.loop_end = wav.data.size() / (bytes_per_sample * channel_count)
+			wav.loop_end = roundi(wav.get_length() * wav.mix_rate)
 
 
 func _play_next_gameplay_track() -> void:
@@ -263,6 +286,60 @@ func _play_next_gameplay_track() -> void:
 	current_gameplay_track = (current_gameplay_track + 1) % gameplay_tracks.size()
 	gameplay_player.stream = gameplay_tracks[current_gameplay_track]
 	gameplay_player.play()
+
+
+func _start_menu_music() -> void:
+	if not playback_enabled or menu_player.stream == null:
+		return
+	if menu_player.playing or menu_crossfade_player.playing:
+		return
+	_active_menu_player = menu_player
+	_active_menu_player.volume_db = 0.0
+	_active_menu_player.play()
+
+
+func _stop_menu_music() -> void:
+	_menu_crossfade_in_progress = false
+	_menu_crossfade_elapsed = 0.0
+	_menu_crossfade_outgoing = null
+	_menu_crossfade_incoming = null
+	for player in [menu_player, menu_crossfade_player]:
+		if player != null:
+			player.stop()
+			player.volume_db = 0.0
+	_active_menu_player = menu_player
+
+
+func _begin_menu_crossfade() -> void:
+	var outgoing := _active_menu_player
+	var incoming := menu_crossfade_player if outgoing == menu_player else menu_player
+	if incoming.stream == null:
+		return
+	_menu_crossfade_in_progress = true
+	_menu_crossfade_elapsed = 0.0
+	_menu_crossfade_outgoing = outgoing
+	_menu_crossfade_incoming = incoming
+	incoming.volume_db = linear_to_db(0.0001)
+	incoming.play()
+
+
+func _step_menu_crossfade(delta: float) -> void:
+	_menu_crossfade_elapsed += maxf(delta, 0.0)
+	var progress := clampf(_menu_crossfade_elapsed / MENU_CROSSFADE_SECONDS, 0.0, 1.0)
+	_menu_crossfade_outgoing.volume_db = linear_to_db(maxf(sqrt(1.0 - progress), 0.0001))
+	_menu_crossfade_incoming.volume_db = linear_to_db(maxf(sqrt(progress), 0.0001))
+	if progress >= 1.0:
+		_finish_menu_crossfade()
+
+
+func _finish_menu_crossfade() -> void:
+	_menu_crossfade_outgoing.stop()
+	_menu_crossfade_outgoing.volume_db = 0.0
+	_active_menu_player = _menu_crossfade_incoming
+	_menu_crossfade_in_progress = false
+	_menu_crossfade_elapsed = 0.0
+	_menu_crossfade_outgoing = null
+	_menu_crossfade_incoming = null
 
 
 func _apply_volumes() -> void:
