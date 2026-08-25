@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"gyroscopic_core"
+display_name = "Gyroscopic Core"
+description = "Flight damping ×1.25 and acceleration ×1.12 per stack."
+category = 0
+rarity = 2
+max_stacks = 3
+multiplicative_modifiers = {"drag": 1.25, "acceleration": 1.12}

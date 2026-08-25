@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"focused_deflector"
+display_name = "Focused Deflector"
+description = "Capacity ×1.25 and drain ×0.82, but shield arc narrows ×0.82."
+category = 1
+rarity = 2
+max_stacks = 3
+multiplicative_modifiers = {"shield_capacity": 1.25, "shield_continuous_drain": 0.82, "shield_arc_degrees": 0.82}

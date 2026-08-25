@@ -1,5 +1,12 @@
 extends Node
 
+const RESOLUTION_OPTIONS: Array[Vector2i] = [
+	Vector2i(1280, 720),
+	Vector2i(1600, 900),
+	Vector2i(1920, 1080),
+	Vector2i(2560, 1440),
+]
+
 var bridge: NetworkBridge
 var network_world: NetworkWorldView
 var offline_sandbox: OfflineSandbox
@@ -31,6 +38,8 @@ var win_overlay: Control
 var pause_overlay: PanelContainer
 var pause_title: Label
 var settings_panel: Control
+var resolution_control: OptionButton
+var current_resolution: Vector2i = Vector2i(1280, 720)
 var settings_return_to_pause: bool = false
 var splash_screen: Control
 var splash_dismissed: bool = false
@@ -60,6 +69,7 @@ func _ready() -> void:
 	audio_director = AudioDirector.new()
 	audio_director.name = "AudioDirector"
 	add_child(audio_director)
+	_load_video_settings()
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
@@ -403,7 +413,7 @@ func _create_pause_overlay() -> void:
 	resume_button.pressed.connect(_hide_pause_overlay)
 	content.add_child(resume_button)
 	var settings_button := Button.new()
-	settings_button.text = "Audio Settings"
+	settings_button.text = "Settings"
 	settings_button.custom_minimum_size.y = 58.0
 	settings_button.pressed.connect(_show_settings.bind(true))
 	content.add_child(settings_button)
@@ -433,7 +443,7 @@ func _create_settings_overlay() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	settings_panel.add_child(center)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720.0, 560.0)
+	panel.custom_minimum_size = Vector2(720.0, 650.0)
 	panel.theme = interface_theme
 	panel.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
 	center.add_child(panel)
@@ -441,11 +451,36 @@ func _create_settings_overlay() -> void:
 	content.add_theme_constant_override("separation", 20)
 	panel.add_child(content)
 	var title := Label.new()
-	title.text = "AUDIO SETTINGS"
+	title.text = "SETTINGS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(title)
+	var display_title := Label.new()
+	display_title.text = "DISPLAY"
+	display_title.add_theme_font_size_override("font_size", 23)
+	display_title.add_theme_color_override("font_color", Color("73f7ff"))
+	content.add_child(display_title)
+	var resolution_row := HBoxContainer.new()
+	resolution_row.add_theme_constant_override("separation", 16)
+	content.add_child(resolution_row)
+	var resolution_label := Label.new()
+	resolution_label.text = "Resolution"
+	resolution_label.custom_minimum_size.x = 190.0
+	resolution_row.add_child(resolution_label)
+	resolution_control = OptionButton.new()
+	resolution_control.custom_minimum_size = Vector2(430.0, 48.0)
+	resolution_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for resolution in RESOLUTION_OPTIONS:
+		resolution_control.add_item("%d × %d" % [resolution.x, resolution.y])
+	resolution_control.select(maxi(RESOLUTION_OPTIONS.find(current_resolution), 0))
+	resolution_control.item_selected.connect(_on_resolution_selected)
+	resolution_row.add_child(resolution_control)
+	var audio_title := Label.new()
+	audio_title.text = "AUDIO"
+	audio_title.add_theme_font_size_override("font_size", 23)
+	audio_title.add_theme_color_override("font_color", Color("73f7ff"))
+	content.add_child(audio_title)
 	_add_volume_setting(content, "Master Volume", &"master", audio_director.master_volume_percent)
 	_add_volume_setting(content, "Music Volume", &"music", audio_director.music_volume_percent)
 	_add_volume_setting(content, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
@@ -497,6 +532,44 @@ func _on_volume_changed(value: float, channel: StringName, value_label: Label) -
 		&"master": audio_director.set_master_volume(value)
 		&"music": audio_director.set_music_volume(value)
 		&"sfx": audio_director.set_sfx_volume(value)
+
+
+func _on_resolution_selected(index: int) -> void:
+	if index < 0 or index >= RESOLUTION_OPTIONS.size():
+		return
+	current_resolution = RESOLUTION_OPTIONS[index]
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_size(current_resolution)
+		var screen := DisplayServer.window_get_current_screen()
+		var usable_rect := DisplayServer.screen_get_usable_rect(screen)
+		var centered_position := usable_rect.position + (usable_rect.size - current_resolution) / 2
+		DisplayServer.window_set_position(centered_position)
+	_save_video_settings()
+
+
+func _load_video_settings() -> void:
+	if DisplayServer.get_name() != "headless":
+		current_resolution = DisplayServer.window_get_size()
+	var config := ConfigFile.new()
+	if config.load(AudioDirector.SETTINGS_PATH) == OK:
+		var configured := Vector2i(
+			int(config.get_value("video", "width", current_resolution.x)),
+			int(config.get_value("video", "height", current_resolution.y))
+		)
+		if configured in RESOLUTION_OPTIONS:
+			current_resolution = configured
+	if current_resolution not in RESOLUTION_OPTIONS:
+		current_resolution = RESOLUTION_OPTIONS[0]
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_size(current_resolution)
+
+
+func _save_video_settings() -> void:
+	var config := ConfigFile.new()
+	config.load(AudioDirector.SETTINGS_PATH)
+	config.set_value("video", "width", current_resolution.x)
+	config.set_value("video", "height", current_resolution.y)
+	config.save(AudioDirector.SETTINGS_PATH)
 
 
 func _show_settings(return_to_pause: bool) -> void:
@@ -756,7 +829,7 @@ func _process(_delta: float) -> void:
 	if not latest_match_payload.is_empty():
 		_update_match_presentation()
 	if scoreboard_panel != null:
-		scoreboard_panel.visible = match_panel.visible and Input.is_action_pressed("scoreboard")
+		scoreboard_panel.visible = network_world.hud_panel != null and network_world.hud_panel.visible and Input.is_action_pressed("scoreboard")
 		if scoreboard_panel.visible:
 			_update_scoreboard()
 	_update_timed_audio()
@@ -796,11 +869,10 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			button.add_theme_stylebox_override("focus", _draft_card_style(rarity_color.lightened(0.24), true))
 			button.add_theme_stylebox_override("disabled", _draft_card_style(rarity_color.darkened(0.25), false))
 			var rarity_label := draft_rarity_labels[index]
-			rarity_label.text = "%s  ·  %.0f%% TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance()]
+			rarity_label.text = "%s  ·  %s TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance_text()]
 			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
-			button.tooltip_text = "%s — %s (%.0f%% rarity-tier chance) — %s" % [card.display_name, card.rarity_name(), card.rarity_drop_chance(), card.description]
+			button.tooltip_text = "%s — %s (%s rarity-tier chance) — %s" % [card.display_name, card.rarity_name(), card.rarity_drop_chance_text(), card.description]
 	draft_panel.visible = true
-	match_panel.visible = true
 	_update_match_presentation()
 
 
@@ -830,19 +902,19 @@ func _show_draft_bye(deadline_tick: int) -> void:
 		draft_rarity_labels[index].visible = false
 	draft_bye_label.visible = true
 	draft_panel.visible = true
-	match_panel.visible = true
 
 
 func _update_match_presentation() -> void:
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
 	if state_name == "LOBBY":
 		match_panel.visible = false
+		network_world.set_match_status("")
 		draft_panel.visible = false
 		_set_win_screen_visible(false)
 		lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
 		return
 	lobby_panel.visible = false
-	match_panel.visible = true
+	match_panel.visible = false
 	if state_name != "DRAFT":
 		draft_panel.visible = false
 	_set_win_screen_visible(state_name == "MATCH_RESULT")
@@ -870,6 +942,7 @@ func _update_match_presentation() -> void:
 		status = "★ VICTORY · %s ★ · returning to lobby in %.1fs" % [_player_name(int(latest_match_payload.get("match_winner", 0))), seconds_left]
 		results_label.text = _results_text(seconds_left)
 	match_label.text = status
+	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
 		var bye_peer_id := int(latest_match_payload.get("draft_bye_peer_id", 0))
 		if bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id:
@@ -878,6 +951,21 @@ func _update_match_presentation() -> void:
 			draft_title.text = "ROUND WINNER BYE · OTHERS DRAFTING · %.1fs" % seconds_left
 		elif not draft_bye_label.visible:
 			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
+
+
+func _combat_hud_status(state_name: String, seconds_left: float) -> String:
+	var parts := PackedStringArray([
+		state_name.replace("_", " ").to_upper(),
+		"R%d H%d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))],
+	])
+	if state_name == "ACTIVE_HEAT":
+		parts.append("%d ALIVE" % (latest_match_payload.get("alive_peer_ids", []) as Array).size())
+		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
+		if overtime_tick >= 0:
+			parts.append("OVERTIME" if network_world.latest_server_tick >= overtime_tick else "OT %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
+	elif state_name in ["COUNTDOWN", "HEAT_RESULT", "ROUND_RESULT"]:
+		parts.append("%.1fs" % seconds_left)
+	return " · ".join(parts)
 
 
 func _draft_category_color(category: int) -> Color:

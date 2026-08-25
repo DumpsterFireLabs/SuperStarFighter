@@ -20,6 +20,7 @@ var local_stats := CombatStats.create_base()
 var camera: Camera2D
 var diagnostics_label: Label
 var hud_panel: PanelContainer
+var match_status_label: Label
 var resources_label: Label
 var combat_status_label: Label
 var spectator_label: Label
@@ -224,6 +225,11 @@ func snap_camera_to_local_ship() -> void:
 	camera.position = (ships[local_peer_id] as SandboxShip).global_position
 
 
+func set_match_status(status: String) -> void:
+	if match_status_label != null:
+		match_status_label.text = status
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
@@ -370,16 +376,21 @@ func _create_camera_and_hud() -> void:
 	canvas.layer = 10
 	add_child(canvas)
 	hud_panel = PanelContainer.new()
-	hud_panel.position = Vector2(24.0, 24.0)
-	hud_panel.custom_minimum_size = Vector2(520.0, 190.0)
+	hud_panel.position = Vector2(16.0, 16.0)
+	hud_panel.custom_minimum_size = Vector2(430.0, 148.0)
 	hud_panel.add_theme_stylebox_override("panel", _hud_panel_style())
 	hud_panel.visible = false
 	canvas.add_child(hud_panel)
 	var hud_content := VBoxContainer.new()
-	hud_content.add_theme_constant_override("separation", 6)
+	hud_content.add_theme_constant_override("separation", 3)
 	hud_panel.add_child(hud_content)
+	match_status_label = Label.new()
+	match_status_label.add_theme_font_size_override("font_size", 16)
+	match_status_label.add_theme_color_override("font_color", Color("73f7ff"))
+	match_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	hud_content.add_child(match_status_label)
 	resources_label = Label.new()
-	resources_label.add_theme_font_size_override("font_size", 22)
+	resources_label.add_theme_font_size_override("font_size", 17)
 	resources_label.add_theme_color_override("font_color", Color("e8f5ff"))
 	hud_content.add_child(resources_label)
 	health_bar = _make_resource_bar(Color("54ff8b"))
@@ -387,7 +398,7 @@ func _create_camera_and_hud() -> void:
 	shield_bar = _make_resource_bar(Color("5cf6ff"))
 	hud_content.add_child(shield_bar)
 	combat_status_label = Label.new()
-	combat_status_label.add_theme_font_size_override("font_size", 18)
+	combat_status_label.add_theme_font_size_override("font_size", 14)
 	combat_status_label.add_theme_color_override("font_color", Color("aebbd4"))
 	hud_content.add_child(combat_status_label)
 	spectator_label = Label.new()
@@ -419,7 +430,7 @@ func _update_diagnostics() -> void:
 		shield_bar.max_value = local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
-		combat_status = "%d ALIVE   ·   ROUND %d   HEAT %d   ·   F3 diagnostics" % [(match_payload.get("alive_peer_ids", []) as Array).size(), int(match_payload.get("round_number", 0)), int(match_payload.get("heat_number", 0))]
+		combat_status = "F3 diagnostics   ·   Hold Tab scoreboard"
 		if not local_ship.combatant.alive:
 			resources = "SHIP ELIMINATED"
 			spectator_label.text = "SPECTATING %s   ◀ A / LMB     D / RMB ▶" % _display_name(spectator_target_id) if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
@@ -584,7 +595,7 @@ func _display_name(peer_id: int) -> String:
 
 func _make_resource_bar(color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(480.0, 18.0)
+	bar.custom_minimum_size = Vector2(390.0, 12.0)
 	bar.show_percentage = false
 	bar.add_theme_stylebox_override("background", _flat_style(Color("101a36"), Color("31466c"), 1))
 	bar.add_theme_stylebox_override("fill", _flat_style(Color(color.darkened(0.45), 0.94), color, 1))
@@ -593,10 +604,10 @@ func _make_resource_bar(color: Color) -> ProgressBar:
 
 func _hud_panel_style() -> StyleBoxFlat:
 	var style := _flat_style(Color("071024", 0.9), Color("42e8ff", 0.75), 2)
-	style.content_margin_left = 18.0
-	style.content_margin_right = 18.0
-	style.content_margin_top = 14.0
-	style.content_margin_bottom = 14.0
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 9.0
+	style.content_margin_bottom = 9.0
 	return style
 
 

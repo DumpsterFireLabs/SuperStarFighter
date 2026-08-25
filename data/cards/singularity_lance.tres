@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"singularity_lance"
+display_name = "Singularity Lance"
+description = "Adds beam tech, damage ×1.75, +3 pierces and +1 ricochet."
+category = 2
+rarity = 5
+max_stacks = 2
+multiplicative_modifiers = {"projectile_damage": 1.75}
+integer_modifiers = {"pierce_count": 3, "ricochet_count": 1}
+special_behavior_id = &"beam_weapon"

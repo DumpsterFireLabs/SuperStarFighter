@@ -105,12 +105,15 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
+	context.expect_true(client.network_world.match_status_label != null, "match timing and state integrate into the combat HUD")
+	context.expect_true(client.network_world.hud_panel.custom_minimum_size.x < 520.0 and client.network_world.hud_panel.custom_minimum_size.y < 190.0, "upper-left combat HUD uses the compact footprint")
 	context.expect_true(client.network_world.spectator_label != null, "production spectator banner exists")
 	context.expect_false(client.offline_sandbox.camera.enabled, "inactive offline camera cannot steal the online viewport")
 	context.expect_true(client.scoreboard_panel != null, "production scoreboard exists")
 	context.expect_true(client.results_panel != null, "production results screen exists")
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
-	context.expect_true(client.settings_panel != null, "shared audio settings screen exists")
+	context.expect_true(client.settings_panel != null, "shared display and audio settings screen exists")
+	context.expect_equal(client.resolution_control.item_count, client.RESOLUTION_OPTIONS.size(), "settings exposes every supported resolution")
 	context.expect_true(client.splash_screen != null, "animated splash screen exists")
 	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
@@ -122,6 +125,12 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
 	context.expect_equal(client.lobby_label.text.count("Pilot "), 32, "scrollable lobby roster renders all 32 participants")
 	context.expect_true(client.lobby_label.get_parent() is ScrollContainer, "32-player lobby roster is scrollable")
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
+	client.network_world.latest_server_tick = 300
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	context.expect_false(client.match_panel.visible, "former top-center match banner stays hidden during combat")
+	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("R2 H3"), "compact upper-left HUD carries match state and round details")
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": 600, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()

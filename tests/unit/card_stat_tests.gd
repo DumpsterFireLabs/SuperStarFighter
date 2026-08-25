@@ -38,12 +38,36 @@ const EXPECTED_CARDS := {
 	&"micro_barrage": [CardDefinition.Category.WEAPON, 2],
 	&"endless_belt": [CardDefinition.Category.WEAPON, 4],
 	&"zero_point_loader": [CardDefinition.Category.WEAPON, 2],
+	&"ablative_shell": [CardDefinition.Category.SHIP, 5],
+	&"plasma_thrusters": [CardDefinition.Category.SHIP, 4],
+	&"gyroscopic_core": [CardDefinition.Category.SHIP, 3],
+	&"phoenix_chassis": [CardDefinition.Category.SHIP, 3],
+	&"starheart_reactor": [CardDefinition.Category.SHIP, 2],
+	&"event_horizon_drive": [CardDefinition.Category.SHIP, 2],
+	&"quantum_reconstruction": [CardDefinition.Category.SHIP, 1],
+	&"impossible_engine": [CardDefinition.Category.SHIP, 1],
+	&"reserve_cell": [CardDefinition.Category.SHIELD, 5],
+	&"regenerative_coils": [CardDefinition.Category.SHIELD, 4],
+	&"focused_deflector": [CardDefinition.Category.SHIELD, 3],
+	&"shield_siphon": [CardDefinition.Category.SHIELD, 3],
+	&"aegis_matrix": [CardDefinition.Category.SHIELD, 3],
+	&"solar_barrier": [CardDefinition.Category.SHIELD, 2],
+	&"chronal_shield": [CardDefinition.Category.SHIELD, 2],
+	&"infinite_refraction": [CardDefinition.Category.SHIELD, 1],
+	&"hollow_points": [CardDefinition.Category.WEAPON, 5],
+	&"cycling_servo": [CardDefinition.Category.WEAPON, 4],
+	&"accelerator_coil": [CardDefinition.Category.WEAPON, 3],
+	&"trident_array": [CardDefinition.Category.WEAPON, 2],
+	&"sunbeam_core": [CardDefinition.Category.WEAPON, 2],
+	&"causality_cannon": [CardDefinition.Category.WEAPON, 2],
+	&"singularity_lance": [CardDefinition.Category.WEAPON, 2],
+	&"reality_shredder": [CardDefinition.Category.WEAPON, 1],
 }
 
 
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	context.expect_equal(catalog.size(), 36, "default card catalog contains all 36 cards")
+	context.expect_equal(catalog.size(), 60, "default card catalog contains all five dozen cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
@@ -74,10 +98,20 @@ static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalo
 	for chance in CardDefinition.RARITY_DROP_CHANCES.values():
 		rarity_total += float(chance)
 	context.expect_approx(rarity_total, 100.0, "rarity tier chances total 100 percent")
+	context.expect_equal(CardDefinition.RARITY_DROP_CHANCES.size(), 7, "catalog exposes all seven rarity tiers")
+	var expected_chances := [60.0, 25.0, 10.0, 3.5, 1.2, 0.25, 0.05]
+	for rarity in expected_chances.size():
+		context.expect_approx(float(CardDefinition.RARITY_DROP_CHANCES[rarity]), expected_chances[rarity], "%s has the specified tier chance" % CardDefinition.Rarity.keys()[rarity].capitalize())
+		if rarity > 0:
+			context.expect_true(expected_chances[rarity] < expected_chances[rarity - 1], "higher rarity %s is scarcer than the tier below" % CardDefinition.Rarity.keys()[rarity].capitalize())
+	context.expect_equal(catalog.get_card(&"chronal_shield").rarity_drop_chance_text(), "0.25%", "mythical chance keeps meaningful decimal precision")
+	context.expect_equal(catalog.get_card(&"reality_shredder").rarity_drop_chance_text(), "0.05%", "unobtanium chance keeps meaningful decimal precision")
 	var beam_stats := StatSystem.derive({&"beam_emitter": 1, &"prismatic_lance": 2}, catalog)
 	context.expect_true(beam_stats.beam_weapon, "beam cards transform the authoritative weapon type")
 	context.expect_equal(beam_stats.pierce_count, 4, "beam lance stacks add pierces")
 	context.expect_true(beam_stats.projectile_damage > CombatStats.create_base().projectile_damage, "beam cards compound damage multiplicatively")
+	var unobtanium_stats := StatSystem.derive({&"reality_shredder": 1}, catalog)
+	context.expect_true(unobtanium_stats.beam_weapon and unobtanium_stats.projectile_count == 3, "unobtanium weapon applies its authoritative beam and multishot effects")
 
 
 static func _validate_one_stack_values(context: TestContext, catalog: CardCatalog) -> void:

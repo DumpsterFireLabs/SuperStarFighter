@@ -49,5 +49,12 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	context.expect_true((client.draft_buttons[0] as Button).text.contains("SELECTED"), "chosen draft card renders its locked selection")
 	for button_value in client.draft_buttons:
 		context.expect_true((button_value as Button).disabled, "all draft choices lock after selection")
+	client._show_draft_offer({
+		"offer_token": "rarity-precision-token",
+		"card_ids": [&"reality_shredder", &"chronal_shield", &"sunbeam_core", &"aegis_matrix", &"hollow_points"],
+		"deadline_tick": 1800,
+	})
+	context.expect_true(client.draft_rarity_labels[0].text.contains("0.05%"), "unobtanium card badge renders the exceedingly low chance")
+	context.expect_true(client.draft_rarity_labels[1].text.contains("0.25%"), "mythical card badge renders fractional chance precision")
 	tree_parent.remove_child(client)
 	client.free()

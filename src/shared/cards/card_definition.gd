@@ -13,14 +13,18 @@ enum Rarity {
 	RARE,
 	EPIC,
 	LEGENDARY,
+	MYTHICAL,
+	UNOBTANIUM,
 }
 
 const RARITY_DROP_CHANCES := {
-	Rarity.COMMON: 45.0,
-	Rarity.UNCOMMON: 28.0,
-	Rarity.RARE: 16.0,
-	Rarity.EPIC: 8.0,
-	Rarity.LEGENDARY: 3.0,
+	Rarity.COMMON: 60.0,
+	Rarity.UNCOMMON: 25.0,
+	Rarity.RARE: 10.0,
+	Rarity.EPIC: 3.5,
+	Rarity.LEGENDARY: 1.2,
+	Rarity.MYTHICAL: 0.25,
+	Rarity.UNOBTANIUM: 0.05,
 }
 
 @export var card_id: StringName
@@ -66,10 +70,21 @@ func rarity_drop_chance() -> float:
 	return float(RARITY_DROP_CHANCES.get(rarity, 0.0))
 
 
+func rarity_drop_chance_text() -> String:
+	var chance := rarity_drop_chance()
+	if chance >= 10.0 or is_equal_approx(chance, roundf(chance)):
+		return "%.0f%%" % chance
+	if chance >= 1.0:
+		return "%.1f%%" % chance
+	return "%.2f%%" % chance
+
+
 func rarity_color() -> Color:
 	match rarity:
 		Rarity.UNCOMMON: return Color("62ff9b")
 		Rarity.RARE: return Color("42e8ff")
 		Rarity.EPIC: return Color("d39cff")
 		Rarity.LEGENDARY: return Color("fff36a")
+		Rarity.MYTHICAL: return Color("ff4fd8")
+		Rarity.UNOBTANIUM: return Color("ff4f78")
 		_: return Color("d6e2f2")

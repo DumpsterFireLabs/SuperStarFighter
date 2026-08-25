@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"cycling_servo"
+display_name = "Cycling Servo"
+description = "Fire rate ×1.18 per stack."
+category = 2
+rarity = 1
+max_stacks = 4
+multiplicative_modifiers = {"fire_rate": 1.18}

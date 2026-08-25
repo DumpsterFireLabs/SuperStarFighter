@@ -369,6 +369,7 @@ func _load_settings() -> void:
 
 func _save_settings() -> void:
 	var config := ConfigFile.new()
+	config.load(SETTINGS_PATH)
 	config.set_value("audio", "master", master_volume_percent)
 	config.set_value("audio", "music", music_volume_percent)
 	config.set_value("audio", "sfx", sfx_volume_percent)

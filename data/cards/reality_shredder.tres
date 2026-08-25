@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"reality_shredder"
+display_name = "Reality Shredder"
+description = "Beam tech, damage ×2.50, fire rate ×1.60, +2 shots, +4 pierces and +2 ricochets."
+category = 2
+rarity = 6
+max_stacks = 1
+multiplicative_modifiers = {"projectile_damage": 2.5, "fire_rate": 1.6}
+integer_modifiers = {"projectile_count": 2, "pierce_count": 4, "ricochet_count": 2}
+special_behavior_id = &"beam_weapon"

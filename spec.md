@@ -56,7 +56,7 @@ For more than two players, a round is not limited to three heats. Heats continue
 
 - Use the non-.NET Godot 4.7.2 Standard build and typed GDScript.
 - Run gameplay physics at 60 ticks per second.
-- Support a resizable window with a minimum usable resolution of 1280×720 and a default of 1920×1080.
+- Support a resizable window with a minimum usable resolution of 1280×720 and a 1920×1080 virtual canvas. Settings provide persistent 1280×720, 1600×900, 1920×1080, and 2560×1440 window-size choices without changing authoritative gameplay.
 - Support keyboard and mouse only: WASD, mouse aim, left mouse fire, right mouse shield, number keys 1–5 for card choice, left-click UI interaction, Tab scoreboard, and Escape pause/disconnect overlay.
 - Multiplayer never pauses the server simulation. The Escape overlay only captures local input.
 
@@ -271,7 +271,7 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 
 ### 7.2 Rarity and Offer Weighting
 
-Every card declares one of five visible rarity tiers. When all tiers contain eligible cards, the chance that each offer slot selects that tier is Common 45%, Uncommon 28%, Rare 16%, Epic 8%, and Legendary 3%. After selecting a tier, choose uniformly among its eligible cards. Cards are never repeated within one five-card offer. If a tier has no eligible card, remove it and renormalize the remaining tier weights for that slot. These percentages are tier weights, not the probability of a particular card.
+Every card declares one of seven visible rarity tiers. When all tiers contain eligible cards, the chance that each offer slot selects that tier is Common 60%, Uncommon 25%, Rare 10%, Epic 3.5%, Legendary 1.2%, Mythical 0.25%, and Unobtanium 0.05%. After selecting a tier, choose uniformly among its eligible cards. Cards are never repeated within one five-card offer. If a tier has no eligible card, remove it and renormalize the remaining tier weights for that slot. These percentages are tier weights, not the probability of a particular card. Fractional high-tier chances remain visible on the card rather than rounding to zero.
 
 ### 7.3 Catalog
 
@@ -313,6 +313,30 @@ Every card declares one of five visible rarity tiers. When all tiers contain eli
 | `micro_barrage` | Micro Barrage | Weapon | Epic | +2 projectiles; +14° spread; ×0.80 speed; ×0.72 damage | 2 |
 | `endless_belt` | Endless Belt | Weapon | Common | +8 magazine | 4 |
 | `zero_point_loader` | Zero-Point Loader | Weapon | Legendary | ×0.50 reload duration; +4 magazine | 2 |
+| `ablative_shell` | Ablative Shell | Ship | Common | +20 maximum hull | 5 |
+| `plasma_thrusters` | Plasma Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.10 acceleration | 4 |
+| `gyroscopic_core` | Gyroscopic Core | Ship | Rare | ×1.25 drag; ×1.12 acceleration | 3 |
+| `phoenix_chassis` | Phoenix Chassis | Ship | Epic | ×1.30 maximum hull; ×1.08 maximum speed | 3 |
+| `starheart_reactor` | Starheart Reactor | Ship | Legendary | ×1.35 hull; ×1.35 acceleration; ×1.18 speed | 2 |
+| `event_horizon_drive` | Event Horizon Drive | Ship | Mythical | ×1.60 speed; ×1.60 acceleration; ×1.30 drag | 2 |
+| `quantum_reconstruction` | Quantum Reconstruction | Ship | Mythical | Enable auto-repair; ×1.50 maximum hull | 1 |
+| `impossible_engine` | Impossible Engine | Ship | Unobtanium | ×2.00 speed; ×2.00 acceleration; ×1.50 drag | 1 |
+| `reserve_cell` | Reserve Cell | Shield | Common | +20 shield capacity | 5 |
+| `regenerative_coils` | Regenerative Coils | Shield | Uncommon | ×1.25 shield regeneration | 4 |
+| `focused_deflector` | Focused Deflector | Shield | Rare | ×1.25 capacity; ×0.82 drain; ×0.82 arc | 3 |
+| `shield_siphon` | Shield Siphon | Shield | Rare | ×0.65 drain; ×1.20 regeneration | 3 |
+| `aegis_matrix` | Aegis Matrix | Shield | Epic | ×1.35 capacity; ×1.25 regeneration | 3 |
+| `solar_barrier` | Solar Barrier | Shield | Legendary | ×1.50 capacity; ×1.50 regeneration; ×0.70 drain | 2 |
+| `chronal_shield` | Chronal Shield | Shield | Mythical | ×0.30 regeneration delay; ×1.75 regeneration | 2 |
+| `infinite_refraction` | Infinite Refraction | Shield | Unobtanium | ×3.00 arc; ×2.00 capacity; ×2.00 regeneration | 1 |
+| `hollow_points` | Hollow Points | Weapon | Common | ×1.08 projectile damage | 5 |
+| `cycling_servo` | Cycling Servo | Weapon | Uncommon | ×1.18 fire rate | 4 |
+| `accelerator_coil` | Accelerator Coil | Weapon | Rare | ×1.25 projectile speed; ×1.12 damage | 3 |
+| `trident_array` | Trident Array | Weapon | Epic | +2 projectiles; +14° spread; ×0.78 damage | 2 |
+| `sunbeam_core` | Sunbeam Core | Weapon | Legendary | Enable beams; ×1.45 damage; ×1.15 fire rate; +1 pierce | 2 |
+| `causality_cannon` | Causality Cannon | Weapon | Mythical | ×2.00 damage; ×1.50 projectile speed | 2 |
+| `singularity_lance` | Singularity Lance | Weapon | Mythical | Enable beams; ×1.75 damage; +3 pierces; +1 ricochet | 2 |
+| `reality_shredder` | Reality Shredder | Weapon | Unobtanium | Enable beams; ×2.50 damage; ×1.60 fire rate; +2 projectiles; +4 pierces; +2 ricochets | 1 |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
@@ -378,7 +402,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 1. **Connection:** Display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors.
 2. **Lobby:** Human/NPC player list, leader marker, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, waiting message for others, and connection status.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
-4. **Combat HUD:** Health, shield, ammunition/reload, heat wins, round wins, alive count, heat timer, overtime warning, current cards, and collapsible Tab scoreboard.
+4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Tab opens the detailed score/build view.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
 6. **Results:** Match winner, round totals, each player's final build, and automatic return-to-lobby countdown.
 
@@ -388,10 +412,10 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Replace the system arrow over the gameplay viewport with a high-contrast crosshair centered on the aim point.
 - Give every participant a stable color chosen from a high-contrast palette, then add name, outline pattern, and local-player marker so identity never depends on color alone.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
-- Keep critical HUD text at least 20 px at 1080p and scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
+- Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated, skippable splash before the connection menu. Provide a persistent audio settings screen from the main menu and the in-match Escape pilot menu. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
+- Start with an animated, skippable splash before the connection menu. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, and 1440p window resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Match completion opens a dedicated victory screen until lobby return.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 

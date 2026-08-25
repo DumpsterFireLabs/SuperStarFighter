@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"starheart_reactor"
+display_name = "Starheart Reactor"
+description = "Hull ×1.35, acceleration ×1.35 and speed ×1.18 per stack."
+category = 0
+rarity = 4
+max_stacks = 2
+multiplicative_modifiers = {"max_health": 1.35, "acceleration": 1.35, "max_speed": 1.18}

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"infinite_refraction"
+display_name = "Infinite Refraction"
+description = "Shield arc ×3.00, capacity ×2.00 and regeneration ×2.00."
+category = 1
+rarity = 6
+max_stacks = 1
+multiplicative_modifiers = {"shield_arc_degrees": 3.0, "shield_capacity": 2.0, "shield_regeneration": 2.0}

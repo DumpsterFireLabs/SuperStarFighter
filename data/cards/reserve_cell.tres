@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"reserve_cell"
+display_name = "Reserve Cell"
+description = "+20 shield capacity per stack."
+category = 1
+rarity = 0
+max_stacks = 5
+additive_modifiers = {"shield_capacity": 20.0}
