@@ -5,6 +5,7 @@ extends RefCounted
 static func run(context: TestContext) -> void:
 	_validate_complete_match_and_rematch(context)
 	_validate_last_survivor_resolution(context)
+	_validate_npc_draft(context)
 	_validate_forfeit(context)
 
 
@@ -133,6 +134,28 @@ static func _validate_last_survivor_resolution(context: TestContext) -> void:
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "second last-survivor result closes combat")
 	_advance_until_state(world, coordinator, MatchStateMachine.State.ROUND_RESULT)
 	context.expect_equal(coordinator.machine.last_round_winner, 20, "two last-survivor heat wins end the round")
+
+
+static func _validate_npc_draft(context: TestContext) -> void:
+	var lobby := ServerLobby.new(_fast_config())
+	lobby.admit(30, "HumanDrafter")
+	lobby.request_player_limit(30, 2)
+	lobby.request_npcs_enabled(30, true)
+	lobby.request_start(30)
+	var world := AuthoritativeWorld.new()
+	for player_value in lobby.players.values():
+		world.add_peer((player_value as PlayerMatchState).peer_id)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 3030)
+	coordinator.start(0)
+	var human_offers := coordinator.drain_private_offers()
+	context.expect_equal(human_offers.size(), 1, "only the human receives a private rendered draft offer")
+	var npc_id := lobby.npc_peer_ids()[0]
+	context.expect_true(coordinator.draft.get_offer(npc_id).locked, "NPC locks a deterministic server-owned draft choice")
+	var human_offer := human_offers[0] as Dictionary
+	coordinator.select_card(30, String(human_offer.offer_token), human_offer.card_ids[0])
+	_advance(world, coordinator, 1)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.COUNTDOWN, "human and NPC choices complete the draft together")
+	context.expect_equal((coordinator.machine.players[npc_id] as PlayerMatchState).card_stacks.size(), 1, "NPC selected card applies to its persistent build")
 
 
 static func _fast_config() -> MatchConfig:

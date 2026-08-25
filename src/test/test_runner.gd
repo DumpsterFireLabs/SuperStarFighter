@@ -76,11 +76,15 @@ func _run_foundation_tests() -> void:
 		"--test-protocol-version=999",
 		"--bot-passive",
 		"--bot-draft-timeout",
+		"--bot-enable-npcs",
+		"--bot-player-limit=4",
 	]))
 	_context.expect_true(bot_config.ok, "test bot protocol override parses")
 	_context.expect_equal(bot_config.get("test_protocol_version"), 999, "test bot protocol override is retained")
 	_context.expect_true(bot_config.get("bot_passive"), "passive bot behavior parses")
 	_context.expect_true(bot_config.get("bot_draft_timeout"), "draft-timeout bot behavior parses")
+	_context.expect_true(bot_config.get("bot_enable_npcs"), "NPC lobby bot behavior parses")
+	_context.expect_equal(bot_config.get("bot_player_limit"), 4, "NPC lobby player limit parses")
 	var invalid_protocol_override := CommandLineConfig.parse(PackedStringArray([
 		"--server",
 		"--test-protocol-version=999",

@@ -22,6 +22,7 @@ var role: Role = Role.NONE
 var lobby: ServerLobby
 var world: AuthoritativeWorld
 var match_coordinator: AuthoritativeMatchCoordinator
+var npc_controller := NpcPilotController.new()
 var local_peer_id: int = 0
 var latest_lobby_state: Dictionary = {}
 var last_error: String = ""
@@ -106,7 +107,7 @@ func start_client(
 func stop() -> void:
 	if role == Role.SERVER and _enet_peer != null:
 		_log("info", "server_shutdown", {
-			"connected_peers": lobby.players.size() if lobby != null else 0,
+			"connected_peers": lobby.human_count() if lobby != null else 0,
 		})
 	if _enet_peer != null:
 		_enet_peer.close()
@@ -117,6 +118,7 @@ func stop() -> void:
 	_pending_disconnects.clear()
 	local_peer_id = 0
 	match_coordinator = null
+	npc_controller.clear()
 	role = Role.NONE
 
 
@@ -141,6 +143,16 @@ func send_lobby_config(rounds_to_win: int) -> void:
 		request_lobby_config.rpc_id(NetworkProtocol.SERVER_PEER_ID, rounds_to_win)
 
 
+func send_player_limit(player_limit: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_player_limit.rpc_id(NetworkProtocol.SERVER_PEER_ID, player_limit)
+
+
+func send_npcs_enabled(enabled: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_npcs_enabled.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
+
+
 func send_start_match() -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_start_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
@@ -156,6 +168,8 @@ func _physics_process(delta: float) -> void:
 		return
 	var start_usec := Time.get_ticks_usec()
 	_process_pending_connections()
+	if match_coordinator != null and match_coordinator.controls_enabled():
+		npc_controller.submit_inputs(world, lobby.npc_peer_ids())
 	world.step(delta, match_coordinator != null and match_coordinator.controls_enabled())
 	if match_coordinator != null:
 		match_coordinator.step(delta)
@@ -189,8 +203,8 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 	var rejection := ConnectionAdmission.validate_hello(
 		protocol_version,
 		display_name,
-		lobby.players.size(),
-		lobby.config.max_players
+		lobby.players.size() if lobby.match_active else lobby.human_count(),
+		lobby.player_limit
 	)
 	if not rejection.is_empty():
 		_reject_connection(sender_id, rejection)
@@ -200,6 +214,7 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 		_reject_connection(sender_id, result.reason)
 		return
 	_pending_handshakes.complete(sender_id)
+	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
 	var player := result.player as PlayerMatchState
 	world.add_peer(sender_id)
 	if match_coordinator != null:
@@ -219,6 +234,7 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 	if bool(_configuration.get("auto_start", false)) and lobby.participant_count() >= GameConstants.MIN_PLAYERS and not lobby.match_active:
 		var start_result := lobby.request_start(lobby.leader_id)
 		if start_result.ok:
+			_activate_added_npcs(start_result)
 			_broadcast_lobby_state()
 			_start_match_coordinator(lobby.leader_id)
 
@@ -236,12 +252,39 @@ func request_lobby_config(rounds_to_win: int) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_player_limit(player_limit: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	var result := lobby.request_player_limit(sender_id, player_limit)
+	if result.ok:
+		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
+		_broadcast_lobby_state()
+	else:
+		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_npcs_enabled(enabled: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	var result := lobby.request_npcs_enabled(sender_id, enabled)
+	if result.ok:
+		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
+		_broadcast_lobby_state()
+	else:
+		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
 func request_start_match() -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
 	var result := lobby.request_start(sender_id)
 	if result.ok:
+		_activate_added_npcs(result)
 		_broadcast_lobby_state()
 		_start_match_coordinator(sender_id)
 	else:
@@ -429,7 +472,7 @@ func _broadcast_lobby_state() -> void:
 		return
 	var state := lobby.serialize()
 	lobby_state.rpc(state)
-	_outbound_bytes += JSON.stringify(state).length() * maxi(lobby.players.size(), 1)
+	_outbound_bytes += JSON.stringify(state).length() * maxi(lobby.human_count(), 1)
 
 
 func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void:
@@ -453,6 +496,24 @@ func _start_match_coordinator(leader_id: int) -> void:
 	_drain_match_coordinator()
 
 
+func _activate_added_npcs(start_result: Dictionary) -> void:
+	for player_value in start_result.get("added_npcs", []):
+		var player := player_value as PlayerMatchState
+		world.add_peer(player.peer_id)
+		_log("info", "npc_added", {
+			"peer_id": player.peer_id,
+			"display_name": player.display_name,
+		})
+
+
+func _remove_npc_entities(peer_ids: Array) -> void:
+	for peer_value in peer_ids:
+		var peer_id := int(peer_value)
+		world.remove_peer(peer_id)
+		npc_controller.remove_peer(peer_id)
+		_log("info", "npc_removed", {"peer_id": peer_id})
+
+
 func _drain_match_coordinator() -> void:
 	if match_coordinator == null:
 		return
@@ -473,7 +534,8 @@ func _drain_match_coordinator() -> void:
 	for offer_value in match_coordinator.drain_private_offers():
 		var offer := offer_value as Dictionary
 		var peer_id := int(offer.peer_id)
-		if lobby.players.has(peer_id):
+		var player := lobby.players.get(peer_id) as PlayerMatchState
+		if player != null and not player.is_npc:
 			draft_offer.rpc_id(
 				peer_id,
 				String(offer.offer_token),
@@ -486,8 +548,7 @@ func _send_player_snapshots() -> void:
 	if lobby == null or lobby.players.is_empty():
 		return
 	var states := world.snapshot_states()
-	for peer_value in lobby.players.keys():
-		var peer_id := int(peer_value)
+	for peer_id in lobby.human_peer_ids():
 		var packet := PlayerSnapshotCodec.encode(world.server_tick, world.acknowledged_input(peer_id), states)
 		world_snapshot.rpc_id(peer_id, packet)
 		_outbound_bytes += packet.size()
@@ -499,7 +560,7 @@ func _send_projectile_batch() -> void:
 		return
 	var packet := ProjectilePacketCodec.encode_batch(world.server_tick, batch.spawned, batch.removed)
 	projectile_batch.rpc(packet)
-	_outbound_bytes += packet.size() * maxi(lobby.players.size(), 1)
+	_outbound_bytes += packet.size() * maxi(lobby.human_count(), 1)
 
 
 func _send_projectile_correction() -> void:
@@ -507,7 +568,7 @@ func _send_projectile_correction() -> void:
 		return
 	var packet := ProjectilePacketCodec.encode_correction(world.server_tick, world.active_projectiles())
 	projectile_correction.rpc(packet)
-	_outbound_bytes += packet.size() * lobby.players.size()
+	_outbound_bytes += packet.size() * lobby.human_count()
 
 
 func _log_metrics() -> void:
@@ -515,7 +576,8 @@ func _log_metrics() -> void:
 	if _simulation_samples > 0:
 		mean_usec = float(_simulation_total_usec) / _simulation_samples
 	_log("info", "simulation_metrics", {
-		"connected_peers": lobby.players.size() if lobby != null else 0,
+		"connected_peers": lobby.human_count() if lobby != null else 0,
+		"npc_pilots": lobby.npc_count() if lobby != null else 0,
 		"active_ships": world.combatants.size() if world != null else 0,
 		"active_projectiles": world.projectile_registry.size() if world != null else 0,
 		"mean_simulation_usec": mean_usec,

@@ -4,7 +4,7 @@
 
 Build a Windows-first, top-down 2D arena shooter in **Godot 4.7.2 Standard with GDScript**. Godot 4.7.2 is the current stable release, while its ENet multiplayer API and dedicated-server export support the required authoritative 32-player architecture. [Godot download](https://godotengine.org/download/windows/) · [ENet multiplayer](https://docs.godotengine.org/en/4.6/tutorials/networking/high_level_multiplayer.html) · [Dedicated-server exports](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_dedicated_servers.html)
 
-The empty workspace will become a complete vertical slice containing a Windows client, headless server, one arena, card drafting, match flow, neon-vector presentation, tests, load-test bots, export scripts, and operating instructions.
+The empty workspace will become a complete vertical slice containing a Windows client, headless server, one arena, card drafting, match flow, server-owned NPC opponents, neon-vector presentation, tests, load-test clients, export scripts, and operating instructions.
 
 ## Documentation Set
 
@@ -14,8 +14,9 @@ The empty workspace will become a complete vertical slice containing a Windows c
 
 ## Gameplay and Content
 
-- Support 2–32 players in free-for-all matches. Players move in ship-relative space with `W`/`S` for forward/back and `A`/`D` for strafing, using acceleration, drag, and independent mouse-facing; hold left-click to fire and right-click for a forward shield.
-- Each round starts with a simultaneous 20-second draft. Every player normally receives five distinct, private, server-generated card offers and chooses one; timeout causes a random offered card to be selected. A fully capped build follows the reduced-offer/build-complete rules in `spec.md`.
+- Support 2–32 total participants in free-for-all matches, consisting of human players and optional server-owned NPC opponents. A lobby leader may set the total seat limit from 2 through the server capacity (never above 32), enable NPC fill, and force-start alone; NPC fill occupies every vacant configured seat and waiting NPCs yield seats to joining humans.
+- Players move in ship-relative space with `W`/`S` for forward/back and `A`/`D` for strafing, using acceleration, drag, and independent mouse-facing; hold left-click to fire and right-click for a forward shield.
+- Each round starts with a simultaneous 20-second draft. Every participant normally receives five distinct server-generated card offers; humans choose from a private rendered draw while NPCs lock a server-selected offer. Human timeout causes a random offered card to be selected. A fully capped build follows the reduced-offer/build-complete rules in `spec.md`.
 - Cards stack and persist until the match ends. All players draft before round one and every subsequent round.
 - A heat ends when one ship remains. Eliminated players spectate surviving ships until the next heat. The first player to win two heats wins the round; heat scores then reset.
 - The first player to win the configured number of rounds wins the match. The lobby leader selects 1–5 round wins, defaulting to 3.
@@ -44,6 +45,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
 - Use compact snapshot payloads with stable entity IDs. Reject malformed, stale, non-finite, out-of-range, excessive-rate, and protocol-incompatible input.
 - Provide server options: `--server`, `--port=7000`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
 - Clients connect through an IP/hostname and UDP port. The first connected player becomes lobby leader; leadership transfers to the earliest remaining player on disconnect.
+- NPCs consume match participant seats but no ENet client connections. Their movement, targeting, firing, shielding, and draft choices run exclusively on the authoritative server through the same validated combat-input and card systems used for humans.
 - Add a headless test-client mode that connects through the real protocol, drafts cards, and generates scripted movement/combat input. It remains developer tooling and is not exposed as playable AI.
 - Initialize Git, add Godot-appropriate ignores, and provide PowerShell commands for tests, client/server exports, local server startup, and multi-client smoke tests.
 
@@ -59,6 +61,6 @@ The empty workspace will become a complete vertical slice containing a Windows c
 ## Assumptions and Defaults
 
 - Godot and its export templates are not currently installed; implementation will bootstrap the official portable Godot 4.7.2 Standard tools.
-- The vertical slice has no public server browser, matchmaking, accounts, persistence, teams, chat, controller support, player-facing bots, cosmetics, monetization, or reconnect restoration.
+- The vertical slice has no public server browser, matchmaking, accounts, persistence, teams, chat, controller support, configurable NPC difficulty, cosmetics, monetization, or reconnect restoration.
 - Balance values are initial playable defaults stored as data resources so they can be tuned without changing networking or combat code.
 - Direct-IP traffic is unauthenticated and unencrypted for this milestone; server authority protects game state but is not a substitute for a production account or anti-abuse service.

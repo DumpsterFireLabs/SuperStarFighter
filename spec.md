@@ -11,7 +11,7 @@ This document is the authoritative contract for the vertical slice. It defines o
 
 ### 1.1 Goal
 
-Deliver a complete, replayable multiplayer vertical slice in which 2–32 players connect directly to an authoritative server, draft persistent build-modifying cards, and fight through heats and rounds until one player wins the match.
+Deliver a complete, replayable multiplayer vertical slice in which at least one human connects directly to an authoritative server and 2–32 total human/NPC participants draft persistent build-modifying cards and fight through heats and rounds until one participant wins the match.
 
 The slice succeeds when it proves all of the following:
 
@@ -34,11 +34,12 @@ The vertical slice targets PC players who enjoy short, chaotic, skill-based mult
 
 ### 1.4 Out of Scope
 
-The vertical slice does not include public matchmaking, a server browser, accounts, progression between matches, teams, chat, controller support, gameplay bots, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports.
+The vertical slice does not include public matchmaking, a server browser, accounts, progression between matches, teams, chat, controller support, configurable NPC difficulty, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports.
 
 ## 2. Terminology
 
-- **Participant:** A connected player admitted before a match starts and eligible to spawn in its heats.
+- **Participant:** A human player or server-owned NPC admitted before a match starts and eligible to spawn in its heats.
+- **NPC:** A server-owned participant that consumes a configured match seat but does not consume an ENet client connection.
 - **Spectator:** A connected client that cannot affect the current heat or match.
 - **Heat:** One last-ship-standing combat instance. Players respawn between heats.
 - **Round:** A sequence of heats that ends when one player has won two heats.
@@ -102,7 +103,7 @@ The server owns a single explicit state machine.
 
 | State | Duration | Entry behavior | Exit condition |
 | --- | ---: | --- | --- |
-| `LOBBY` | Indefinite | Clear match-only state; admit participants. | Leader starts with 2–32 ready participants. |
+| `LOBBY` | Indefinite | Clear match-only state; admit humans and configure optional NPC fill. | Leader force-starts with 2–32 ready participants. |
 | `DRAFT` | 20 s max | Generate private offers for every participant. | Everyone selects or the timer expires. |
 | `COUNTDOWN` | 3 s | Spawn/reset ships with controls locked. | Timer reaches zero. |
 | `ACTIVE_HEAT` | Variable | Enable controls and combat. | One survivor remains or all survivors die in one tick. |
@@ -115,7 +116,9 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.2 Lobby Rules
 
 - The first admitted client is lobby leader. On leader disconnect, leadership transfers to the admitted client with the earliest join sequence.
-- The leader may set `rounds_to_win` from 1 through 5 and start when at least two participants are connected.
+- The leader may set `rounds_to_win` from 1 through 5 and set the total participant limit from 2 through the server's configured capacity, never above 32. Lobby settings cannot change during a match.
+- The leader may enable or disable NPC fill. Force Start requires two humans when NPC fill is disabled; when enabled, one human may force-start and the server immediately fills every vacant configured seat with NPC participants.
+- NPCs never become lobby leader. While the match is inactive, a joining human replaces one waiting NPC when all configured seats are occupied. Disabling NPC fill removes all waiting NPCs; lowering the participant limit removes enough waiting NPCs to meet the new limit and cannot reduce the limit below the connected human count.
 - Display names are trimmed, must contain 1–16 printable non-control Unicode characters, and are made unique for display by appending `#2`, `#3`, and so on.
 - A client joining during `DRAFT` or any later match state becomes a spectator until the server returns to `LOBBY`.
 - When a match returns to the lobby, connected spectators become normal participants and all builds and scores are cleared.
@@ -123,7 +126,7 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.3 Draft Rules
 
 - Every participant drafts before round one and before each later round. No draft occurs between heats in the same round.
-- The server creates a private offer token and samples five distinct eligible card IDs for each player using the match PRNG.
+- The server creates an offer token and samples five distinct eligible card IDs for each participant using the match PRNG. Human offers are private and rendered for selection; each NPC immediately locks a server-selected card from its own offer.
 - A card is eligible while the player's current stack count is below its stack cap.
 - Selecting a card requires the current offer token and one card ID from that offer. Invalid, stale, duplicate, or out-of-state selections are rejected without changing the build.
 - Choices lock immediately, but all chosen cards apply simultaneously when the draft ends. Other clients see only ready/not-ready status during the draft.
@@ -142,7 +145,7 @@ State transitions are reliable server events containing the new state, server ti
 - The first player to reach two heat wins gains one round win. All heat-win counters then reset to zero.
 - The first player to reach `rounds_to_win` wins the match.
 - A participant disconnecting during `ACTIVE_HEAT` is eliminated before survivor resolution. Disconnecting during another match state removes the participant from subsequent spawns.
-- If only one participant remains connected anywhere during a match, that participant wins by forfeit. If none remain, return immediately to an empty lobby.
+- If only one participant remains in the match after removals, that participant wins by forfeit. If none remain, return immediately to an empty lobby. NPC participants remain present without network peers.
 
 ## 5. Arena, Camera, and Spawning
 
@@ -304,6 +307,8 @@ Client-to-server messages:
 
 - `client_hello(protocol_version, display_name)` — reliable, required within 10 seconds of ENet connection.
 - `request_lobby_config(rounds_to_win)` — reliable, lobby leader only.
+- `request_player_limit(total_participants)` — reliable, lobby leader and lobby state only; bounded by 2, server capacity, and 32.
+- `request_npcs_enabled(enabled)` — reliable, lobby leader and lobby state only.
 - `request_start_match()` — reliable, lobby leader only.
 - `select_card(offer_token, card_id)` — reliable, current participant and draft only.
 - `submit_input(sequence, client_tick, move_x, move_y, aim_angle, action_bits)` — unreliable ordered.
@@ -346,7 +351,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 9.1 Screens
 
 1. **Connection:** Display name, address defaulting to `127.0.0.1`, port defaulting to `7000`, Connect, Quit, and inline connection errors.
-2. **Lobby:** Player list, leader marker, round target, Start button for leader, waiting message for others, and connection status.
+2. **Lobby:** Human/NPC player list, leader marker, round target, total-player limit, NPC-fill toggle, Force Start button for the leader, waiting message for others, and connection status.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Support clicking and keys 1–5.
 4. **Combat HUD:** Health, shield, ammunition/reload, heat wins, round wins, alive count, heat timer, overtime warning, current cards, and collapsible Tab scoreboard.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
@@ -379,6 +384,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - **State tests:** Valid transition graph, first-to-two heat resolution with more than three heats, round target 1 and 5, draft early completion/timeout, forfeit, leader transfer, and lobby reset.
 - **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, authorization, rate limiting, version mismatch, and stale card tokens.
 - **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly.
+- **NPC lobby integration:** One human leader sets a four-participant limit, enables NPC fill, force-starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots and NPC-generated input.
 
 ### 11.2 Load and Soak Acceptance
 

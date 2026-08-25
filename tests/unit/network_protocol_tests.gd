@@ -9,6 +9,7 @@ static func run(context: TestContext) -> void:
 	_validate_projectile_codec(context)
 	_validate_rate_limiting(context)
 	_validate_lobby_authority(context)
+	_validate_npc_lobby_and_inputs(context)
 	_validate_prediction_and_interpolation(context)
 	_validate_authoritative_world(context)
 	_validate_connection_admission(context)
@@ -161,6 +162,50 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	var serialized := lobby.serialize()
 	context.expect_equal(serialized.leader_id, 3, "serialized lobby contains authoritative leader")
 	context.expect_equal((serialized.players as Array).size(), 4, "serialized lobby contains all admitted peers")
+
+
+static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
+	var config := MatchConfig.new()
+	config.max_players = GameConstants.MAX_PLAYERS
+	var lobby := ServerLobby.new(config)
+	context.expect_true(lobby.admit(100, "SoloPilot").ok, "solo NPC fixture admits its human leader")
+	context.expect_false(lobby.request_player_limit(999, 4).ok, "non-leader cannot change the player limit")
+	context.expect_true(lobby.request_player_limit(100, 4).ok, "leader can set a total player limit")
+	context.expect_equal(lobby.player_limit, 4, "authoritative lobby retains the selected player limit")
+	context.expect_true(lobby.request_npcs_enabled(100, true).ok, "leader can enable server NPCs")
+	var start_result := lobby.request_start(100)
+	context.expect_true(start_result.ok, "one human can force-start when NPCs are enabled")
+	context.expect_equal((start_result.added_npcs as Array).size(), 3, "force start fills every open configured seat with an NPC")
+	context.expect_equal(lobby.participant_count(), 4, "solo force-start reaches the configured participant count")
+	context.expect_equal(lobby.npc_count(), 3, "authoritative lobby distinguishes NPC participants")
+	context.expect_equal(lobby.leader_id, 100, "NPCs never replace the human lobby leader")
+	var serialized := lobby.serialize()
+	context.expect_equal(serialized.player_limit, 4, "serialized lobby publishes the configured player limit")
+	context.expect_true(serialized.npcs_enabled, "serialized lobby publishes NPC enablement")
+	context.expect_equal(serialized.npc_count, 3, "serialized lobby publishes its NPC count")
+
+	var world := AuthoritativeWorld.new()
+	var npc_id := lobby.npc_peer_ids()[0]
+	var human := world.add_peer(100)
+	world.add_peer(npc_id)
+	var npc := world.combatants[npc_id] as CombatantState
+	human.position = Vector2(1100.0, 900.0)
+	npc.position = Vector2(700.0, 900.0)
+	var controller := NpcPilotController.new()
+	world.server_tick = 40
+	controller.submit_inputs(world, lobby.npc_peer_ids())
+	var npc_input := world.latest_inputs[npc_id] as PlayerInputFrame
+	context.expect_true(npc_input.firing, "server-owned NPC acquires a target and fires without a client")
+	context.expect_approx(npc_input.aim_angle, 0.0, "server-owned NPC aims toward its nearest target")
+	world.step(1.0 / 60.0)
+	context.expect_true(npc.velocity.length() > 0.0, "server-owned NPC produces authoritative movement")
+
+	lobby.return_to_lobby()
+	var replacement := lobby.admit(101, "SecondPilot")
+	context.expect_true(replacement.ok, "a joining human can replace an NPC in the waiting lobby")
+	context.expect_equal((replacement.removed_npc_ids as Array).size(), 1, "human admission reports the replaced NPC entity")
+	context.expect_equal(lobby.human_count(), 2, "human replacement increases the connected human count")
+	context.expect_equal(lobby.players.size(), 4, "human replacement preserves the configured total-player limit")
 
 
 static func _validate_prediction_and_interpolation(context: TestContext) -> void:

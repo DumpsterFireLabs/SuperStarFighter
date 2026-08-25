@@ -12,6 +12,8 @@ var name_field: LineEdit
 var connection_status: Label
 var lobby_label: Label
 var rounds_control: SpinBox
+var player_limit_control: SpinBox
+var npcs_button: CheckButton
 var start_button: Button
 var match_panel: PanelContainer
 var match_label: Label
@@ -120,7 +122,7 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 func _create_lobby_panel() -> void:
 	lobby_panel = PanelContainer.new()
 	lobby_panel.position = Vector2(1380.0, 20.0)
-	lobby_panel.custom_minimum_size = Vector2(500.0, 300.0)
+	lobby_panel.custom_minimum_size = Vector2(500.0, 410.0)
 	lobby_panel.visible = false
 	connection_canvas.add_child(lobby_panel)
 	var content := VBoxContainer.new()
@@ -145,8 +147,23 @@ func _create_lobby_panel() -> void:
 	rounds_control.value = GameConstants.DEFAULT_ROUNDS_TO_WIN
 	rounds_control.value_changed.connect(_on_rounds_changed)
 	rounds_row.add_child(rounds_control)
+	var limit_row := HBoxContainer.new()
+	content.add_child(limit_row)
+	var limit_label := Label.new()
+	limit_label.text = "Player limit"
+	limit_row.add_child(limit_label)
+	player_limit_control = SpinBox.new()
+	player_limit_control.min_value = GameConstants.MIN_PLAYERS
+	player_limit_control.max_value = GameConstants.MAX_PLAYERS
+	player_limit_control.value = GameConstants.DEFAULT_MAX_PLAYERS
+	player_limit_control.value_changed.connect(_on_player_limit_changed)
+	limit_row.add_child(player_limit_control)
+	npcs_button = CheckButton.new()
+	npcs_button.text = "Enable NPCs · fill empty seats when starting"
+	npcs_button.toggled.connect(_on_npcs_toggled)
+	content.add_child(npcs_button)
 	start_button = Button.new()
-	start_button.text = "Start Match"
+	start_button.text = "Force Start Match"
 	start_button.pressed.connect(bridge.send_start_match)
 	content.add_child(start_button)
 	var disconnect_button := Button.new()
@@ -291,20 +308,41 @@ func _on_lobby_state(state: Dictionary) -> void:
 			badges.append("leader")
 		if bool(player.spectator):
 			badges.append("spectator")
+		if bool(player.get("is_npc", false)):
+			badges.append("NPC")
 		var suffix := " [%s]" % ", ".join(badges) if not badges.is_empty() else ""
 		lines.append("%s%s" % [player.display_name, suffix])
-	lobby_label.text = "Players %d/%d\n%s\n%s" % [(state.get("players", []) as Array).size(), state.get("max_players", 32), "\n".join(lines), "Match active" if state.get("match_active", false) else "Waiting in lobby"]
+	var npc_count := int(state.get("npc_count", 0))
+	var total_count := (state.get("players", []) as Array).size()
+	lobby_label.text = "Players %d/%d · Humans %d · NPCs %d\n%s\n%s" % [total_count, state.get("player_limit", 32), total_count - npc_count, npc_count, "\n".join(lines), "Match active" if state.get("match_active", false) else "NPCs fill open seats when Force Start is pressed" if state.get("npcs_enabled", false) else "Waiting in lobby"]
 	var is_leader := int(state.get("leader_id", 0)) == bridge.local_peer_id
 	_applying_lobby_state = true
 	rounds_control.value = int(state.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
+	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
+	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
+	npcs_button.button_pressed = bool(state.get("npcs_enabled", false))
 	_applying_lobby_state = false
-	rounds_control.editable = is_leader and not bool(state.get("match_active", false))
-	start_button.disabled = not is_leader or bool(state.get("match_active", false)) or (state.get("players", []) as Array).size() < GameConstants.MIN_PLAYERS
+	var settings_editable := is_leader and not bool(state.get("match_active", false))
+	rounds_control.editable = settings_editable
+	player_limit_control.editable = settings_editable
+	npcs_button.disabled = not settings_editable
+	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
+	start_button.disabled = not settings_editable or not can_supply_opponent
 
 
 func _on_rounds_changed(value: float) -> void:
 	if not _applying_lobby_state:
 		bridge.send_lobby_config(roundi(value))
+
+
+func _on_player_limit_changed(value: float) -> void:
+	if not _applying_lobby_state:
+		bridge.send_player_limit(roundi(value))
+
+
+func _on_npcs_toggled(enabled: bool) -> void:
+	if not _applying_lobby_state:
+		bridge.send_npcs_enabled(enabled)
 
 
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:

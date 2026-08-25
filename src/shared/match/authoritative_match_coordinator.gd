@@ -37,6 +37,7 @@ func _init(
 			lobby_player.join_sequence
 		)
 		player.participant = lobby_player.participant
+		player.is_npc = lobby_player.is_npc
 	draft = DraftManager.new(catalog, match_seed)
 
 
@@ -100,6 +101,7 @@ func select_card(peer_id: int, offer_token: String, card_id: StringName) -> int:
 
 func add_late_spectator(player: PlayerMatchState) -> void:
 	var added := machine.add_player(player.peer_id, player.display_name, player.join_sequence)
+	added.is_npc = player.is_npc
 	added.participant = false
 	added.spectator = true
 	world.set_spectator(player.peer_id)
@@ -187,6 +189,12 @@ func _start_draft() -> void:
 	for peer_value in peer_ids:
 		var peer_id := int(peer_value)
 		var offer := offers[peer_id] as DraftOffer
+		var player := machine.players[peer_id] as PlayerMatchState
+		if player.is_npc:
+			if not offer.locked and not offer.card_ids.is_empty():
+				var chosen_id := offer.card_ids[_rng.randi_range(0, offer.card_ids.size() - 1)]
+				draft.select_card(peer_id, offer.token, chosen_id)
+			continue
 		_private_offers.append({
 			"peer_id": peer_id,
 			"offer_token": offer.token,

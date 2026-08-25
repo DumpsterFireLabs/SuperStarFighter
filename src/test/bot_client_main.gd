@@ -18,6 +18,8 @@ var match_state_name: String = "LOBBY"
 var latest_states: Dictionary = {}
 var match_result_count: int = 0
 var lobby_return_count: int = 0
+var enable_npcs: bool = false
+var desired_player_limit: int = 0
 
 
 func _ready() -> void:
@@ -35,6 +37,8 @@ func _ready() -> void:
 	bridge.client_connection_lost.connect(_on_connection_lost)
 	passive = bool(configuration.get("bot_passive", false))
 	draft_timeout = bool(configuration.get("bot_draft_timeout", false))
+	enable_npcs = bool(configuration.get("bot_enable_npcs", false))
+	desired_player_limit = int(configuration.get("bot_player_limit", 0))
 	var connect_error := bridge.start_client(
 		configuration.get("host", "127.0.0.1"),
 		configuration.get("port", GameConstants.DEFAULT_PORT),
@@ -88,8 +92,16 @@ func _on_welcome(peer_id: int) -> void:
 
 
 func _on_lobby_state(state: Dictionary) -> void:
-	print("SSF_BOT_LOBBY revision=%d players=%d leader=%d" % [state.get("revision", 0), (state.get("players", []) as Array).size(), state.get("leader_id", 0)])
-	if welcomed and int(state.get("leader_id", 0)) == bridge.local_peer_id and (state.get("players", []) as Array).size() >= 2 and not bool(state.get("match_active", false)):
+	print("SSF_BOT_LOBBY revision=%d players=%d leader=%d limit=%d npcs=%d enabled=%s" % [state.get("revision", 0), (state.get("players", []) as Array).size(), state.get("leader_id", 0), state.get("player_limit", 0), state.get("npc_count", 0), str(state.get("npcs_enabled", false)).to_lower()])
+	if not welcomed or int(state.get("leader_id", 0)) != bridge.local_peer_id or bool(state.get("match_active", false)):
+		return
+	if desired_player_limit > 0 and int(state.get("player_limit", 0)) != desired_player_limit:
+		bridge.send_player_limit(desired_player_limit)
+		return
+	if enable_npcs and not bool(state.get("npcs_enabled", false)):
+		bridge.send_npcs_enabled(true)
+		return
+	if (state.get("players", []) as Array).size() >= 2 or bool(state.get("npcs_enabled", false)):
 		bridge.send_start_match()
 
 

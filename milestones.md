@@ -13,7 +13,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 1 — Shared Rules, Cards, and Match Model | Complete | 16 card resources validated; deterministic stats, draft, and scoring/state-machine rules covered; 345 assertions passed; forced-failure exit verified. |
 | 2 — Offline Combat Sandbox | Complete | Final-size arena and combat lab operational; 32 spawns validated; 15-minute accelerated lifecycle soak passed; 427 assertions and 43 project checks passed. |
 | 3 — Authoritative Networking and Lobby | Complete | Real ENet clients verified across three channels; rejection, lobby authority, prediction/interpolation, snapshots, projectiles, leader transfer, late spectator, and clean shutdown passed; 602 assertions and 61 project checks passed. |
-| 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; rendered five-card choice, last-survivor resolution, timeout, ties, extended rounds, forfeit, reset, and second match covered; 704 assertions and 64 project checks passed. |
+| 4 — Complete Multiplayer Match Loop | Complete | Authoritative draft-to-rematch loop verified over real ENet; rendered five-card choice, last-survivor resolution, configurable 2–32 seats, server NPC fill, solo force-start, timeout, ties, extended rounds, forfeit, reset, and second match covered; 730 assertions and 65 project checks passed. |
 | 5 — Production UI, Neon Presentation, and Audio | Next | Milestone 4 exit gate passed. |
 | 6 — Validation, Diagnostics, and 32-Client Hardening | Planned | Depends on Milestone 5. |
 | 7 — Export, Documentation, and Release Candidate | Planned | Depends on Milestone 6. |
@@ -149,6 +149,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Add server-timed overtime boundary behavior and client synchronization.
 - Implement death-to-spectator transition, target cycling, active disconnect elimination, between-state removal, forfeit victory, and late-join spectator behavior.
 - Implement match results, 10-second return to lobby, score/build reset, spectator promotion, and second-match startup.
+- Add leader-owned total-player limits, optional server-owned NPC fill, human replacement of waiting NPC seats, NPC combat input/card selection, and a one-human Force Start path.
 - Add the `--auto-start` behavior needed by integration tests.
 
 ### Verification
@@ -157,6 +158,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Exercise a round longer than three heats, a simultaneous-death replay, a draft timeout, a combat disconnect, a mid-match late join, and a forfeit.
 - Assert cards persist across heats/rounds but all cards and scores reset on lobby return.
 - Verify client countdowns, scores, and state labels are derived from the same server tick and revision.
+- Run the one-human NPC lobby verifier through four configured seats, a rendered human draft, active combat, world snapshots, and clean server shutdown.
 
 ### Exit Gate
 

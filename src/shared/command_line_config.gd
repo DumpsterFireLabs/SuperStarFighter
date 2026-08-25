@@ -22,6 +22,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"test_match_seed": 0,
 		"bot_passive": false,
 		"bot_draft_timeout": false,
+		"bot_enable_npcs": false,
+		"bot_player_limit": 0,
 	}
 	var explicit_modes: Array[String] = []
 
@@ -90,6 +92,18 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			result.bot_passive = true
 		elif argument == "--bot-draft-timeout":
 			result.bot_draft_timeout = true
+		elif argument == "--bot-enable-npcs":
+			result.bot_enable_npcs = true
+		elif argument.begins_with("--bot-player-limit="):
+			var parsed_bot_limit := _parse_bounded_integer(
+				argument.trim_prefix("--bot-player-limit="),
+				GameConstants.MIN_PLAYERS,
+				GameConstants.MAX_PLAYERS,
+				"--bot-player-limit"
+			)
+			if not parsed_bot_limit.ok:
+				return parsed_bot_limit
+			result.bot_player_limit = parsed_bot_limit.value
 		elif argument.begins_with("--test-protocol-version="):
 			var parsed_protocol := _parse_bounded_integer(
 				argument.trim_prefix("--test-protocol-version="),
@@ -130,7 +144,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("--test-fast-match is only valid with --server.")
 	if result.test_match_seed > 0 and result.mode != "server":
 		return _error("--test-match-seed is only valid with --server.")
-	if (result.bot_passive or result.bot_draft_timeout) and result.mode != "bot_client":
+	if (result.bot_passive or result.bot_draft_timeout or result.bot_enable_npcs or result.bot_player_limit > 0) and result.mode != "bot_client":
 		return _error("Bot behavior options are only valid with --bot-client.")
 	return result
 

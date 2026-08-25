@@ -5,6 +5,7 @@ var peer_id: int
 var display_name: String
 var join_sequence: int
 var connected: bool = true
+var is_npc: bool = false
 var participant: bool = true
 var alive: bool = false
 var spectator: bool = true
