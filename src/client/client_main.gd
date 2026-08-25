@@ -828,7 +828,7 @@ func _on_connected(peer_id: int) -> void:
 	connection_screen.visible = true
 	connection_form_panel.visible = false
 	lobby_panel.visible = true
-	network_world.set_network_active(false)
+	network_world.set_network_active(false, false)
 	connection_status.text = "Connected as peer %d." % peer_id
 	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
@@ -841,7 +841,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	if not match_active:
 		connection_screen.visible = true
 		connection_form_panel.visible = false
-		network_world.set_network_active(false)
+		network_world.set_network_active(false, false)
 	lobby_panel.visible = not match_active
 	lobby_label.text = "PLAYERS  %d / %d    ·    READY  %d / %d    ·    NPCS  %d" % [
 		total_count,
@@ -1061,7 +1061,7 @@ func _update_match_presentation() -> void:
 		connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
 		if connection_screen.visible:
 			connection_form_panel.visible = false
-		network_world.set_network_active(false)
+		network_world.set_network_active(false, false)
 		return
 	lobby_panel.visible = false
 	match_panel.visible = false

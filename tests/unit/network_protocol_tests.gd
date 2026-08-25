@@ -391,6 +391,11 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	context.expect_equal(view.client_tick, 0, "disconnect clears prior client tick")
 	context.expect_false(view.prediction_initialized, "disconnect clears prior prediction initialization")
 	context.expect_equal(view.camera.position, ArenaLayout.center(), "disconnect recenters network camera on the arena")
+	view.local_peer_id = 99
+	view.set_network_active(false, false)
+	context.expect_equal(view.local_peer_id, 99, "hiding the arena in a connected lobby preserves local peer identity")
+	view.set_network_active(true)
+	context.expect_equal(view.local_peer_id, 99, "match activation restores rendering with the same local peer identity")
 	var local_ship := SandboxShip.new()
 	local_ship.setup(99, CombatStats.create_base(), Vector2(140.0, 220.0), Color.WHITE, true)
 	view.ships[99] = local_ship

@@ -67,8 +67,8 @@ func setup(network_bridge: NetworkBridge) -> void:
 	set_network_active(false)
 
 
-func set_network_active(active: bool) -> void:
-	if not active:
+func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
+	if not active and reset_when_inactive:
 		reset_session()
 	visible = active
 	process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
