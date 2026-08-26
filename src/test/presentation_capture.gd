@@ -128,6 +128,10 @@ func _capture_sequence() -> void:
 		4: {&"flux_reservoir": 6, &"endless_belt": 8},
 		5: {&"inertial_dampers": 2, &"hollow_points": 9},
 	}
+	client.audio_director.gameplay_track_paths.clear()
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Heavy Electronic Edge Main.wav")
+	client.audio_director.current_gameplay_track = 0
+	client.audio_director.current_context = &"gameplay"
 	client._set_scoreboard_open(true)
 	await _capture(client, "scoreboard")
 	var scoreboard_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer

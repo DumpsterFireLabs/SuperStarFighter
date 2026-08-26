@@ -77,6 +77,7 @@ var draft_bye_label: Label
 var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var scoreboard_context_label: Label
+var scoreboard_media_label: Label
 var scoreboard_rows_container: VBoxContainer
 var scoreboard_hint_label: Label
 var scoreboard_open: bool = false
@@ -565,6 +566,12 @@ func _create_match_ui() -> void:
 	scoreboard_context_label.add_theme_font_size_override("font_size", 17)
 	scoreboard_context_label.add_theme_color_override("font_color", Color("aebbd4"))
 	scoreboard_content.add_child(scoreboard_context_label)
+	scoreboard_media_label = Label.new()
+	scoreboard_media_label.name = "ScoreboardMedia"
+	scoreboard_media_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_media_label.add_theme_font_size_override("font_size", 16)
+	scoreboard_media_label.add_theme_color_override("font_color", Color("73f7ff"))
+	scoreboard_content.add_child(scoreboard_media_label)
 	var scoreboard_heading := HBoxContainer.new()
 	scoreboard_heading.add_theme_constant_override("separation", 12)
 	scoreboard_content.add_child(scoreboard_heading)
@@ -573,7 +580,7 @@ func _create_match_ui() -> void:
 	_add_results_column_heading(scoreboard_heading, "ROUNDS", 100.0)
 	_add_results_column_heading(scoreboard_heading, "CURRENT BUILD", 0.0, true)
 	var scoreboard_scroll := ScrollContainer.new()
-	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 430.0)
+	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 400.0)
 	scoreboard_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scoreboard_content.add_child(scoreboard_scroll)
@@ -1902,12 +1909,18 @@ func _player_name(peer_id: int) -> String:
 
 func _update_scoreboard() -> void:
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
-	scoreboard_context_label.text = "%s  ·  %s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
+	scoreboard_context_label.text = "%s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
 		state_name,
-		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 		int(latest_match_payload.get("round_number", 0)),
 		int(latest_match_payload.get("heat_number", 0)),
 		_result_peer_ids().size(),
+	]
+	var track_name := audio_director.current_gameplay_track_name()
+	if track_name.is_empty():
+		track_name = "No Gameplay Music"
+	scoreboard_media_label.text = "MAP  ·  %s     ♫     NOW PLAYING  ·  %s" % [
+		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
+		track_name.to_upper(),
 	]
 	var signature := "%s|%s|%s|%s" % [
 		latest_match_payload.get("participant_peer_ids", []),

@@ -21,6 +21,7 @@ var win_player: AudioStreamPlayer
 var sfx_players: Array[AudioStreamPlayer] = []
 var sfx_streams: Dictionary = {}
 var gameplay_tracks: Array[AudioStream] = []
+var gameplay_track_paths: Array[String] = []
 var loaded_music_paths: Dictionary = {}
 var current_context: StringName = &"silent"
 var current_gameplay_track: int = -1
@@ -65,6 +66,7 @@ func _exit_tree() -> void:
 		player.stop()
 		player.stream = null
 	gameplay_tracks.clear()
+	gameplay_track_paths.clear()
 	sfx_streams.clear()
 
 
@@ -174,6 +176,19 @@ func synthesized_placeholder_count() -> int:
 	return count
 
 
+func current_gameplay_track_name() -> String:
+	if current_context != &"gameplay" or current_gameplay_track < 0 or current_gameplay_track >= gameplay_track_paths.size():
+		return ""
+	return music_display_name(gameplay_track_paths[current_gameplay_track])
+
+
+static func music_display_name(path: String) -> String:
+	var file_name := path.get_file()
+	while file_name.get_extension().to_lower() in ["mp3", "ogg", "wav"]:
+		file_name = file_name.get_basename()
+	return file_name.replace("_", " ").replace("-", " ").capitalize()
+
+
 func _ensure_audio_buses() -> void:
 	for bus_name in [MUSIC_BUS, SFX_BUS]:
 		if AudioServer.get_bus_index(bus_name) >= 0:
@@ -246,6 +261,7 @@ func _load_music() -> void:
 		if stream != null:
 			_set_stream_looping(stream, false)
 			gameplay_tracks.append(stream)
+			gameplay_track_paths.append(path)
 			loaded_music_paths["gameplay_%02d" % gameplay_tracks.size()] = path
 
 

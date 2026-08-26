@@ -27,6 +27,8 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 		audio._stop_menu_music()
 	var expected_gameplay_tracks := _supported_audio_file_count(AudioDirector.GAMEPLAY_MUSIC_DIRECTORY)
 	context.expect_equal(audio.gameplay_tracks.size(), expected_gameplay_tracks, "all authored gameplay tracks are discovered")
+	context.expect_equal(audio.gameplay_track_paths.size(), audio.gameplay_tracks.size(), "every gameplay stream retains its display-name source path")
+	context.expect_equal(AudioDirector.music_display_name("res://music/heavy_electronic-edge_main.mp3.wav"), "Heavy Electronic Edge Main", "compound gameplay filenames become readable song titles")
 	context.expect_true(audio.win_player.stream != null, "win music always has an authored or generated stream")
 	audio.play_sfx(&"card_lock", "same-card")
 	audio.play_sfx(&"card_lock", "same-card")
@@ -35,6 +37,12 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_equal(audio.current_context, &"menu", "menu music context selects the authored stream")
 	audio.set_context(&"gameplay")
 	context.expect_equal(audio.current_context, &"gameplay", "gameplay playlist context works when optional tracks are absent")
+	audio.gameplay_track_paths.clear()
+	audio.gameplay_track_paths.append("res://music/heavy_electronic-edge_main.mp3.wav")
+	audio.current_gameplay_track = 0
+	context.expect_equal(audio.current_gameplay_track_name(), "Heavy Electronic Edge Main", "active gameplay track exposes a readable song name")
+	audio.current_context = &"win"
+	context.expect_equal(audio.current_gameplay_track_name(), "", "victory context never reports a gameplay song")
 	tree_parent.remove_child(audio)
 	audio.free()
 
@@ -274,8 +282,14 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.keycode = KEY_TAB
 	tab_event.physical_keycode = KEY_TAB
 	tab_event.pressed = true
+	client.audio_director.gameplay_track_paths.clear()
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Heavy Electronic Edge Main.wav")
+	client.audio_director.current_gameplay_track = 0
+	client.audio_director.current_context = &"gameplay"
 	client._input(tab_event)
 	context.expect_true(client.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
+	context.expect_true(client.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
+	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  HEAVY ELECTRONIC EDGE MAIN"), "scoreboard identifies the active gameplay song")
 	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
 	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
 	var scoreboard_build_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer

@@ -390,7 +390,7 @@ The complete 120-card reference is in [section 7.3 of the specification](../spec
 
 The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena.
 
-Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay is momentary and closes as soon as the action is released. Builds are public after every draft.
+Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Builds are public after every draft.
 
 When eliminated, you immediately spectate. Use the configured previous/next-target actions (`A`/`D` or the controller bumpers by default) to move among living ships. Late joiners also spectate until the current match returns to the lobby.
 
