@@ -246,7 +246,12 @@ func _physics_process(delta: float) -> void:
 	var start_usec := Time.get_ticks_usec()
 	_process_pending_connections()
 	if match_coordinator != null and match_coordinator.controls_enabled():
-		npc_controller.submit_inputs(world, lobby.npc_peer_ids(), lobby.npc_difficulties())
+		npc_controller.submit_inputs(
+			world,
+			lobby.npc_peer_ids(),
+			lobby.npc_difficulties(),
+			match_coordinator.npc_overtime_elapsed()
+		)
 	world.step(delta, match_coordinator != null and match_coordinator.controls_enabled())
 	if match_coordinator != null:
 		match_coordinator.step(delta)

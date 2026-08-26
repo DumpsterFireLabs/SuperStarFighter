@@ -134,6 +134,20 @@ func controls_enabled() -> bool:
 	return machine.state == MatchStateMachine.State.ACTIVE_HEAT
 
 
+func npc_overtime_elapsed() -> float:
+	if machine.state != MatchStateMachine.State.ACTIVE_HEAT:
+		return -1.0
+	var heat_elapsed := maxf(
+		float(world.server_tick - machine.state_entered_tick) /
+		GameConstants.PHYSICS_TICKS_PER_SECOND,
+		0.0
+	)
+	return (
+		GameConstants.OVERTIME_START_SECONDS +
+		heat_elapsed - overtime_start_seconds
+	)
+
+
 func is_finished() -> bool:
 	return _finished
 

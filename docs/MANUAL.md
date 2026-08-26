@@ -216,6 +216,8 @@ NPC difficulty changes behavior, not stats:
 
 Every NPC uses the same cards, health, weapon rules, movement limits, collision, and damage model as a human.
 
+NPCs respect arena cover and overtime. They do not deliberately fire through blocking geometry. When two NPCs lose line of sight behind the same object, one holds while the other commits to a deterministic flank instead of matching the same counter-strafe forever. During overtime, moving inside the shrinking safe circle takes priority over ordinary pursuit—even for Passive NPCs.
+
 ## 6. Match Flow
 
 ### Draft
@@ -294,6 +296,8 @@ Shots cannot spawn through a wall when the ship's nose is pressed against it.
 After 90 seconds of active combat, a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
 
 Overtime exists to force a conclusion. Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
+
+NPC pilots also react to the warning and shrinking radius. An NPC near or outside the boundary prioritizes an inward route over its preferred engagement distance; when cover blocks an engagement, its flank behavior continues to seek a viable firing lane rather than waiting for circle damage to decide the heat.
 
 ## 8. Cards and Builds
 

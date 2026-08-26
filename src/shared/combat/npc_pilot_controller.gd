@@ -10,6 +10,9 @@ enum Difficulty {
 }
 
 const DIFFICULTY_NAMES: Array[String] = ["Passive", "Easy", "Neutral", "Skilled", "Insane"]
+const OVERTIME_NAVIGATION_MARGIN: float = 170.0
+const OBSTACLE_FLANK_CLEARANCE: float = 64.0
+const FLANK_DIRECTION_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND * 8
 const DIFFICULTY_PROFILES := {
 	Difficulty.PASSIVE: {
 		"reaction_ticks": 36, "aim_error_degrees": 24.0, "lead_seconds": 0.0,
@@ -47,7 +50,12 @@ var _sequences: Dictionary = {}
 var _next_decision_ticks: Dictionary = {}
 
 
-func submit_inputs(world: AuthoritativeWorld, npc_peer_ids: Array[int], difficulties: Dictionary = {}) -> void:
+func submit_inputs(
+	world: AuthoritativeWorld,
+	npc_peer_ids: Array[int],
+	difficulties: Dictionary = {},
+	overtime_elapsed: float = -1.0
+) -> void:
 	for peer_id in npc_peer_ids:
 		var combatant := world.combatants.get(peer_id) as CombatantState
 		if combatant == null or not combatant.alive:
@@ -57,9 +65,17 @@ func submit_inputs(world: AuthoritativeWorld, npc_peer_ids: Array[int], difficul
 		if world.server_tick < int(_next_decision_ticks.get(peer_id, 0)):
 			continue
 		_next_decision_ticks[peer_id] = world.server_tick + int(profile.reaction_ticks)
+		var zone_steering := overtime_steering(combatant.position, overtime_elapsed)
 		var target := _nearest_target(world, combatant, float(profile.awareness_range))
 		if target == null:
-			_submit_decision(world, peer_id, Vector2.ZERO, combatant.aim_angle, false, false)
+			_submit_decision(
+				world,
+				peer_id,
+				_world_to_ship_input(zone_steering, combatant.aim_angle),
+				combatant.aim_angle,
+				false,
+				false
+			)
 			continue
 		var offset := target.position - combatant.position
 		var distance := offset.length()
@@ -70,11 +86,37 @@ func submit_inputs(world: AuthoritativeWorld, npc_peer_ids: Array[int], difficul
 		var phase := float(world.server_tick + peer_id % 997) * 0.035
 		var forward := -float(profile.pursuit) if distance > float(profile.preferred_max) else (float(profile.pursuit) * 0.75 if distance < float(profile.preferred_min) else 0.0)
 		var strafe := sin(phase) * float(profile.strafe)
-		var movement := Vector2(strafe, forward).limit_length(1.0)
+		var tactical_movement := MovementSystem.ship_relative_to_world(
+			Vector2(strafe, forward).limit_length(1.0),
+			aim_angle
+		)
+		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position)
+		var has_line_of_sight := blocking_obstacle.is_empty()
+		if not has_line_of_sight:
+			# One member of an occluded pair holds while the other takes a shared,
+			# deterministic flank. This deliberately breaks mirrored counter-strafing.
+			tactical_movement = (
+				Vector2.ZERO
+				if peer_id < target.peer_id
+				else _obstacle_flank_steering(
+					combatant.position,
+					target.position,
+					blocking_obstacle,
+					peer_id,
+					target.peer_id,
+					world.server_tick
+				) * maxf(float(profile.pursuit), float(profile.strafe))
+			)
+		if not zone_steering.is_zero_approx():
+			var boundary_radius := OvertimeSystem.radius_at(overtime_elapsed)
+			var outside_boundary := combatant.position.distance_to(ArenaLayout.center()) > boundary_radius
+			var tactical_weight := 0.08 if outside_boundary else 0.28
+			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
+		var movement := _world_to_ship_input(tactical_movement, aim_angle)
 		var shield_phase := float(posmod(world.server_tick + peer_id, 180)) / 180.0
 		var shielding := distance < float(profile.shield_range) and shield_phase < float(profile.shield_duty)
 		var fire_phase := float(posmod(world.server_tick + peer_id * 3, 120)) / 120.0
-		var firing := not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
+		var firing := has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding)
 
 
@@ -100,10 +142,143 @@ func clear() -> void:
 	_next_decision_ticks.clear()
 
 
+static func overtime_steering(position: Vector2, heat_elapsed: float) -> Vector2:
+	if not OvertimeSystem.is_warning(heat_elapsed) and not OvertimeSystem.is_active(heat_elapsed):
+		return Vector2.ZERO
+	var center := ArenaLayout.center()
+	var from_center := position - center
+	var distance := from_center.length()
+	if distance <= 0.001:
+		return Vector2.ZERO
+	var safe_radius := OvertimeSystem.radius_at(heat_elapsed)
+	if distance <= safe_radius - OVERTIME_NAVIGATION_MARGIN:
+		return Vector2.ZERO
+	var minimum_navigable_radius := (
+		ArenaLayout.CENTRAL_RADIUS + GameConstants.SHIP_COLLISION_RADIUS + 12.0
+	)
+	var desired_radius := maxf(
+		safe_radius - OVERTIME_NAVIGATION_MARGIN,
+		minimum_navigable_radius
+	)
+	if distance <= desired_radius:
+		return Vector2.ZERO
+	var desired_position := center + from_center.normalized() * desired_radius
+	var urgency := 1.0 if distance > safe_radius else clampf(
+		(distance - (safe_radius - OVERTIME_NAVIGATION_MARGIN)) /
+		OVERTIME_NAVIGATION_MARGIN,
+		0.35,
+		1.0
+	)
+	return (desired_position - position).normalized() * urgency
+
+
 func _submit_decision(world: AuthoritativeWorld, peer_id: int, movement: Vector2, aim_angle: float, firing: bool, shielding: bool) -> void:
 	var sequence := SequenceMath.increment(int(_sequences.get(peer_id, world.acknowledged_inputs.get(peer_id, 0))))
 	_sequences[peer_id] = sequence
 	world.submit_input(peer_id, PlayerInputFrame.new(sequence, world.server_tick, movement, aim_angle, firing, shielding))
+
+
+static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> Vector2:
+	var movement := MovementSystem.sanitize_input(world_movement)
+	if movement.is_zero_approx():
+		return Vector2.ZERO
+	var forward := Vector2.from_angle(MovementSystem.normalize_aim_angle(aim_angle))
+	var right := -forward.orthogonal()
+	return MovementSystem.sanitize_input(Vector2(
+		movement.dot(right),
+		-movement.dot(forward)
+	))
+
+
+static func _first_blocking_obstacle(from: Vector2, to: Vector2) -> Dictionary:
+	for rectangle in ArenaLayout.cover_rectangles():
+		var expanded := rectangle.grow(GameConstants.PROJECTILE_RADIUS + 2.0)
+		if _segment_intersects_rect(from, to, expanded):
+			return {"kind": &"rectangle", "rect": rectangle}
+	if _segment_intersects_circle(
+		from,
+		to,
+		ArenaLayout.center(),
+		ArenaLayout.CENTRAL_RADIUS + GameConstants.PROJECTILE_RADIUS
+	):
+		return {"kind": &"circle"}
+	return {}
+
+
+static func _obstacle_flank_steering(
+	from: Vector2,
+	to: Vector2,
+	obstacle: Dictionary,
+	peer_id: int,
+	target_peer_id: int,
+	server_tick: int
+) -> Vector2:
+	var epoch := floori(float(server_tick) / float(FLANK_DIRECTION_TICKS))
+	var pair_seed := mini(peer_id, target_peer_id) * 31 + maxi(peer_id, target_peer_id) * 17 + epoch
+	var positive_side := posmod(pair_seed, 2) == 0
+	if obstacle.get("kind", &"") == &"rectangle":
+		var rectangle := (obstacle.rect as Rect2).grow(
+			GameConstants.SHIP_COLLISION_RADIUS + OBSTACLE_FLANK_CLEARANCE
+		)
+		var target_offset := to - from
+		var waypoint := rectangle.get_center()
+		if absf(target_offset.x) >= absf(target_offset.y):
+			waypoint.x = rectangle.position.x if from.x < rectangle.get_center().x else rectangle.end.x
+			waypoint.y = rectangle.end.y if positive_side else rectangle.position.y
+		else:
+			waypoint.x = rectangle.end.x if positive_side else rectangle.position.x
+			waypoint.y = rectangle.position.y if from.y < rectangle.get_center().y else rectangle.end.y
+		return (waypoint - from).normalized()
+	var radial := from - ArenaLayout.center()
+	if radial.is_zero_approx():
+		radial = Vector2.RIGHT
+	var tangent := radial.normalized().orthogonal()
+	if not positive_side:
+		tangent = -tangent
+	return (tangent + (to - from).normalized() * 0.12).normalized()
+
+
+static func _segment_intersects_rect(from: Vector2, to: Vector2, rectangle: Rect2) -> bool:
+	var direction := to - from
+	var minimum_time := 0.0
+	var maximum_time := 1.0
+	for axis in 2:
+		var origin := from.x if axis == 0 else from.y
+		var delta := direction.x if axis == 0 else direction.y
+		var minimum := rectangle.position.x if axis == 0 else rectangle.position.y
+		var maximum := rectangle.end.x if axis == 0 else rectangle.end.y
+		if absf(delta) <= 0.00001:
+			if origin < minimum or origin > maximum:
+				return false
+			continue
+		var first_time := (minimum - origin) / delta
+		var second_time := (maximum - origin) / delta
+		if first_time > second_time:
+			var swap := first_time
+			first_time = second_time
+			second_time = swap
+		minimum_time = maxf(minimum_time, first_time)
+		maximum_time = minf(maximum_time, second_time)
+		if minimum_time > maximum_time:
+			return false
+	return maximum_time > 0.001 and minimum_time < 0.999
+
+
+static func _segment_intersects_circle(
+	from: Vector2,
+	to: Vector2,
+	center: Vector2,
+	radius: float
+) -> bool:
+	var segment := to - from
+	var length_squared := segment.length_squared()
+	if length_squared <= 0.00001:
+		return false
+	var closest_time := clampf((center - from).dot(segment) / length_squared, 0.0, 1.0)
+	if closest_time <= 0.001 or closest_time >= 0.999:
+		return false
+	var closest := from + segment * closest_time
+	return closest.distance_squared_to(center) <= radius * radius
 
 
 func _nearest_target(world: AuthoritativeWorld, source: CombatantState, awareness_range: float) -> CombatantState:

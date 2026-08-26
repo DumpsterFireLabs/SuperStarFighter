@@ -304,6 +304,82 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	context.expect_false(passive_input.firing or passive_input.shielding, "passive NPC remains non-hostile")
 	context.expect_true(passive_input.movement.length() <= 0.26, "passive NPC movement remains deliberately gentle")
 
+	var overtime_world := AuthoritativeWorld.new()
+	var endangered_npc_id := ServerLobby.NPC_PEER_ID_BASE + 20
+	var endangered_npc := overtime_world.add_peer(endangered_npc_id)
+	endangered_npc.position = Vector2(400.0, ArenaLayout.center().y)
+	overtime_world.server_tick = 120
+	var overtime_controller := NpcPilotController.new()
+	overtime_controller.submit_inputs(
+		overtime_world,
+		[endangered_npc_id],
+		{endangered_npc_id: NpcPilotController.Difficulty.PASSIVE},
+		120.0
+	)
+	var overtime_input := overtime_world.latest_inputs[endangered_npc_id] as PlayerInputFrame
+	var overtime_world_movement := MovementSystem.ship_relative_to_world(
+		overtime_input.movement,
+		overtime_input.aim_angle
+	)
+	context.expect_true(
+		overtime_world_movement.dot((ArenaLayout.center() - endangered_npc.position).normalized()) > 0.95,
+		"even a passive NPC urgently steers toward safety outside the overtime circle"
+	)
+
+	var cover_world := AuthoritativeWorld.new()
+	var holding_npc_id := ServerLobby.NPC_PEER_ID_BASE + 30
+	var flanking_npc_id := holding_npc_id + 1
+	var holding_npc := cover_world.add_peer(holding_npc_id)
+	var flanking_npc := cover_world.add_peer(flanking_npc_id)
+	holding_npc.position = Vector2(700.0, 550.0)
+	flanking_npc.position = Vector2(1200.0, 550.0)
+	cover_world.server_tick = 120
+	var cover_controller := NpcPilotController.new()
+	var cover_difficulties := {
+		holding_npc_id: NpcPilotController.Difficulty.NEUTRAL,
+		flanking_npc_id: NpcPilotController.Difficulty.NEUTRAL,
+	}
+	cover_controller.submit_inputs(
+		cover_world,
+		[holding_npc_id, flanking_npc_id],
+		cover_difficulties
+	)
+	var holding_input := cover_world.latest_inputs[holding_npc_id] as PlayerInputFrame
+	var flanking_input := cover_world.latest_inputs[flanking_npc_id] as PlayerInputFrame
+	var initial_flank_world_movement := MovementSystem.ship_relative_to_world(
+		flanking_input.movement,
+		flanking_input.aim_angle
+	)
+	context.expect_equal(
+		holding_input.movement,
+		Vector2.ZERO,
+		"lower-ID member of an occluded NPC pair holds instead of mirror-strafing"
+	)
+	context.expect_false(
+		holding_input.firing or flanking_input.firing,
+		"NPCs do not waste shots through blocking cover"
+	)
+	context.expect_true(
+		absf(initial_flank_world_movement.y) > 0.55,
+		"higher-ID member of an occluded NPC pair commits to a cover flank"
+	)
+	var flank_start := flanking_npc.position
+	for _tick in 240:
+		cover_controller.submit_inputs(
+			cover_world,
+			[holding_npc_id, flanking_npc_id],
+			cover_difficulties
+		)
+		cover_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(
+		flanking_npc.position.distance_to(flank_start) > 100.0,
+		"deterministic flanker escapes the symmetric cover loop"
+	)
+	context.expect_true(
+		absf(flanking_npc.position.y - 550.0) > 70.0 or holding_npc.health < holding_npc.stats.max_health,
+		"cover flank opens a new lane or converts into combat"
+	)
+
 	lobby.return_to_lobby()
 	var replacement := lobby.admit(101, "SecondPilot")
 	context.expect_true(replacement.ok, "a joining human can replace an NPC in the waiting lobby")
