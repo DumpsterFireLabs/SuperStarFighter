@@ -262,12 +262,14 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world.latest_server_tick = 306
 	client._update_match_presentation()
 	context.expect_false(client.heat_intro_panel.visible, "BEGIN clears after its 0.10-second post-roll")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 2, "heat_number": 3}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	context.expect_false(client.match_panel.visible, "former top-center match banner stays hidden during combat")
 	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("R2 H3"), "compact upper-left HUD carries match state and round details")
+	context.expect_equal(client.network_world.arena.map_id, &"riftline", "client rebuilds the arena from the authoritative map ID")
+	context.expect_true(client.network_world.match_status_label.text.contains("RIFTLINE"), "combat HUD identifies the active round map")
 	var tab_event := InputEventKey.new()
 	tab_event.keycode = KEY_TAB
 	tab_event.physical_keycode = KEY_TAB

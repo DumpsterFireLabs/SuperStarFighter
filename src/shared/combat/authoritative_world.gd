@@ -6,6 +6,7 @@ var combatants: Dictionary = {}
 var latest_inputs: Dictionary = {}
 var acknowledged_inputs: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
+var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
@@ -14,7 +15,7 @@ var _removed_since_batch: Array[int] = []
 func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
 	if combatants.has(peer_id):
 		return combatants[peer_id] as CombatantState
-	var anchors := ArenaLayout.spawn_anchors()
+	var anchors := ArenaLayout.spawn_anchors(map_id)
 	var spawn_index := combatants.size() % anchors.size()
 	var combat_stats := stats if stats != null else CombatStats.create_base()
 	var combatant := CombatantState.create(peer_id, combat_stats, anchors[spawn_index])
@@ -56,7 +57,7 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 		var frame := latest_inputs[peer_id] as PlayerInputFrame
 		var world_movement := MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle)
 		combatant.step(world_movement, frame.aim_angle, frame.shielding, delta)
-		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta)
+		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
 		if frame.firing and combatant.try_fire():
@@ -86,6 +87,11 @@ func prepare_heat(
 			combatant.shield.active = false
 
 
+func set_map_id(value: StringName) -> void:
+	map_id = ArenaLayout.normalized_map_id(value)
+	clear_projectiles()
+
+
 func set_spectator(peer_id: int) -> void:
 	var combatant := combatants.get(peer_id) as CombatantState
 	if combatant == null:
@@ -110,7 +116,8 @@ func apply_overtime(heat_elapsed: float, delta: float) -> Array[int]:
 		var damage := OvertimeSystem.damage_for_position(
 			combatant.position,
 			heat_elapsed,
-			delta
+			delta,
+			ArenaLayout.center(map_id)
 		)
 		if damage > 0.0:
 			damage_events.append({
@@ -178,7 +185,8 @@ func _spawn_shot(combatant: CombatantState) -> void:
 		_next_projectile_id = SequenceMath.increment(_next_projectile_id)
 		var spawn_normal := ArenaCollisionSystem.projectile_obstacle_normal(
 			projectile.position,
-			projectile.radius
+			projectile.radius,
+			map_id
 		)
 		if not spawn_normal.is_zero_approx():
 			if not projectile.ricochet(spawn_normal):
@@ -200,7 +208,8 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			continue
 		var obstacle_normal := ArenaCollisionSystem.projectile_obstacle_normal(
 			projectile.position,
-			projectile.radius
+			projectile.radius,
+			map_id
 		)
 		if not obstacle_normal.is_zero_approx():
 			if projectile.ricochet(obstacle_normal):

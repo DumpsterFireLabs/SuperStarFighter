@@ -8,6 +8,7 @@ var draft: DraftManager
 var catalog: CardCatalog
 var match_seed: int
 var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
+var current_map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 
 var _rng := RandomNumberGenerator.new()
 var _emitted_history_count: int = 0
@@ -15,6 +16,8 @@ var _events: Array[Dictionary] = []
 var _private_offers: Array[Dictionary] = []
 var _finished: bool = false
 var _next_draft_bye_peer_id: int = 0
+var _map_rotation: Array[StringName] = []
+var _map_round_number: int = 0
 
 
 func _init(
@@ -29,6 +32,14 @@ func _init(
 	match_seed = seed_value
 	overtime_start_seconds = overtime_start_override
 	_rng.seed = match_seed
+	_map_rotation = ArenaLayout.map_ids()
+	var map_rng := RandomNumberGenerator.new()
+	map_rng.seed = match_seed ^ 0x5A17_2026
+	for index in range(_map_rotation.size() - 1, 0, -1):
+		var swap_index := map_rng.randi_range(0, index)
+		var temporary := _map_rotation[index]
+		_map_rotation[index] = _map_rotation[swap_index]
+		_map_rotation[swap_index] = temporary
 	machine = MatchStateMachine.new(lobby.config, catalog)
 	for player_value in lobby.players.values():
 		var lobby_player := player_value as PlayerMatchState
@@ -179,6 +190,8 @@ func _capture_transitions() -> void:
 	while _emitted_history_count < machine.event_history.size():
 		var transition := machine.event_history[_emitted_history_count] as Dictionary
 		_emitted_history_count += 1
+		if int(transition.state) == MatchStateMachine.State.DRAFT:
+			_select_map_for_round(int(transition.round_number))
 		_events.append({
 			"event_type": &"STATE_CHANGED",
 			"server_tick": int(transition.entered_tick),
@@ -242,7 +255,7 @@ func _start_draft() -> void:
 func _prepare_world_heat() -> void:
 	var participant_stats: Dictionary = {}
 	var spawn_assignments: Dictionary = {}
-	var anchors := ArenaLayout.spawn_anchors()
+	var anchors := ArenaLayout.spawn_anchors(current_map_id)
 	_shuffle_anchors(anchors)
 	var participant_ids := machine.participant_ids()
 	for index in participant_ids.size():
@@ -251,6 +264,14 @@ func _prepare_world_heat() -> void:
 		participant_stats[peer_id] = StatSystem.derive(player.card_stacks, catalog)
 		spawn_assignments[peer_id] = anchors[index]
 	world.prepare_heat(participant_stats, spawn_assignments)
+
+
+func _select_map_for_round(round_number: int) -> void:
+	if round_number <= 0 or round_number == _map_round_number or _map_rotation.is_empty():
+		return
+	_map_round_number = round_number
+	current_map_id = _map_rotation[posmod(round_number - 1, _map_rotation.size())]
+	world.set_map_id(current_map_id)
 
 
 func _sync_combat_and_resolve(tick: int) -> void:
@@ -283,6 +304,8 @@ func _state_payload() -> Dictionary:
 		"deadline_tick": machine.state_deadline_tick,
 		"round_number": machine.round_number,
 		"heat_number": machine.heat_number,
+		"map_id": current_map_id,
+		"map_name": ArenaLayout.display_name(current_map_id),
 		"last_heat_winner": machine.last_heat_winner,
 		"last_round_winner": machine.last_round_winner,
 		"draft_bye_peer_id": _next_draft_bye_peer_id if machine.state == MatchStateMachine.State.DRAFT and machine.round_number > 1 else 0,

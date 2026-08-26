@@ -40,7 +40,7 @@ foreach ($resolution in @(
     if ($process.ExitCode -ne 0 -or -not $combined.Contains("PRESENTATION_CAPTURE_OK=$($resolution.Label)") -or $combined.Contains('SCRIPT ERROR:') -or $combined.Contains('ERROR:')) {
         throw "Presentation capture failed for $($resolution.Label): $combined"
     }
-    foreach ($screen in @('splash', 'menu', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'lobby_32', 'lobby_npc_difficulties', 'draft', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
+    foreach ($screen in @('splash', 'menu', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'lobby_32', 'lobby_npc_difficulties', 'draft', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'map_core_arena', 'map_riftline', 'map_prism_array', 'map_twin_suns', 'map_dead_freight', 'map_longwave_array', 'map_broken_orbit', 'map_switchyard', 'map_solar_tide', 'map_relay_zero', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Presentation capture $imagePath is missing or unexpectedly small."
@@ -48,4 +48,4 @@ foreach ($resolution in @(
     }
 }
 
-Write-Host "Presentation verification passed: splash, LAN browser, host menu, windowed/fullscreen settings, controller bindings, 32-player lobby, per-NPC difficulties, draft, winner draft bye, READY/BEGIN heat alerts, combat, live scoreboard with card hover, spectator, pause, structured results with card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 3440x1440, and 5120x1440."
+Write-Host "Presentation verification passed: all ten round maps plus splash, menus, settings, controller bindings, 32-player lobby, draft, READY/BEGIN alerts, combat, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 3440x1440, and 5120x1440."

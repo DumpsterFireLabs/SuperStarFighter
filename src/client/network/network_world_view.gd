@@ -111,9 +111,10 @@ func reset_session() -> void:
 	if effects_layer != null:
 		effects_layer.clear_effects()
 	if arena != null:
+		arena.set_map_id(ArenaLayout.DEFAULT_MAP_ID)
 		arena.set_overtime(false, OvertimeSystem.initial_radius())
 	if camera != null:
-		camera.position = ArenaLayout.center()
+		camera.position = ArenaLayout.center(ArenaLayout.DEFAULT_MAP_ID)
 		camera.offset = Vector2.ZERO
 
 
@@ -215,6 +216,9 @@ func _on_snapshot(decoded: Dictionary) -> void:
 
 func apply_match_state(payload: Dictionary) -> void:
 	match_payload = payload.duplicate(true)
+	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
+	if arena != null:
+		arena.set_map_id(payload_map_id)
 	var state_name := String(payload.get("state_name", ""))
 	controls_enabled = state_name == "ACTIVE_HEAT"
 	if hud_panel != null:
@@ -369,13 +373,13 @@ func _update_camera(local_ship: SandboxShip, delta: float) -> void:
 		if spectator_target_id != 0 and ships.has(spectator_target_id):
 			target_position = (ships[spectator_target_id] as SandboxShip).global_position
 		else:
-			target_position = ArenaLayout.center()
+			target_position = ArenaLayout.center(arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID)
 	camera.position = camera.position.lerp(target_position, 1.0 - exp(-8.0 * delta))
 
 
 func _create_camera_and_hud() -> void:
 	camera = Camera2D.new()
-	camera.position = ArenaLayout.center()
+	camera.position = ArenaLayout.center(arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID)
 	camera.enabled = true
 	add_child(camera)
 	var canvas := CanvasLayer.new()

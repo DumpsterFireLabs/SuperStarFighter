@@ -12,6 +12,7 @@ Up to 32 human and NPC pilots fight through last-ship-standing heats. Before eac
 - 24 numeric build stats plus beam and auto-repair transformations.
 - Two to 32 total participants with individually configurable NPC difficulty.
 - One-click local hosting, LAN server discovery, and direct-IP joining.
+- Ten authoritative arena layouts in a shuffled no-repeat rotation, changing between rounds while every heat stays on the same map.
 - Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
 - Persistent display, audio, control-profile, deadzone, and per-action binding settings, plus ultrawide support, spectating, live standings, and rematches.
 
@@ -81,7 +82,7 @@ Mapped Xbox-, PlayStation-, and similar controllers use these defaults. Flight s
 - [Documentation Index](./docs/README.md) — the best document for each audience and task.
 - [Authoritative Specification](./spec.md) — exact gameplay, networking, balance, and acceptance contract.
 - [Product Plan](./plan.md) — product intent and scope.
-- [Ten-Map Expansion Plan](./maps.md) — nine additional arena designs, map-system architecture, 32-spawn guarantees, and staged acceptance gates.
+- [Ten-Map Roster and Expansion Plan](./maps.md) — implemented static layouts and round rotation plus the advanced-mechanics roadmap.
 - [Implementation Milestones](./milestones.md) — delivered work and verification evidence.
 - [Audio Drop-in Contract](./assets/audio/README.md) — accepted music and sound-effect filenames.
 
@@ -117,13 +118,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,585 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,629 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, 120 cards, and validated 32-client server behavior.
 
-The next release milestone is packaging and release-candidate validation. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, map selection, and non-Windows exports are not part of the current slice.
+The next release milestone is packaging and release-candidate validation. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
 
 ## License and Assets
 

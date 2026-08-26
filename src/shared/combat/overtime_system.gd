@@ -53,11 +53,11 @@ static func damage_rate_at(heat_elapsed: float) -> float:
 static func damage_for_position(
 	position: Vector2,
 	heat_elapsed: float,
-	delta: float
+	delta: float,
+	zone_center: Vector2 = GameConstants.ARENA_SIZE * 0.5
 ) -> float:
 	if not is_active(heat_elapsed):
 		return 0.0
-	var center := GameConstants.ARENA_SIZE * 0.5
-	if position.distance_to(center) <= radius_at(heat_elapsed):
+	if position.distance_to(zone_center) <= radius_at(heat_elapsed):
 		return 0.0
 	return damage_rate_at(heat_elapsed) * maxf(delta, 0.0)

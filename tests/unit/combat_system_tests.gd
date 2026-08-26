@@ -18,9 +18,21 @@ static func run(context: TestContext) -> void:
 static func _validate_arena(context: TestContext) -> void:
 	var anchors := ArenaLayout.spawn_anchors()
 	context.expect_equal(anchors.size(), 32, "arena exposes exactly 32 spawn anchors")
-	context.expect_empty(ArenaLayout.validate(), "arena spawn anchors satisfy layout constraints")
+	context.expect_equal(ArenaLayout.map_ids().size(), 10, "arena registry exposes all ten built-in maps")
+	context.expect_empty(ArenaLayout.validate(), "every built-in map satisfies layout constraints")
 	context.expect_equal(ArenaLayout.cover_rectangles().size(), 4, "arena contains four cover islands")
 	context.expect_equal(ArenaLayout.central_octagon().size(), 8, "central obstacle is octagonal")
+	var topology_signatures: Dictionary = {}
+	for map_id in ArenaLayout.map_ids():
+		context.expect_equal(ArenaLayout.spawn_anchors(map_id).size(), 32, "%s provides all 32 authoritative spawns" % map_id)
+		context.expect_empty(ArenaLayout.validate_map(map_id), "%s passes its individual geometry validation" % map_id)
+		context.expect_false(ArenaLayout.display_name(map_id).is_empty(), "%s has a visible map name" % map_id)
+		var signature := "%s|%s" % [ArenaLayout.cover_rectangles(map_id), ArenaLayout.circle_obstacles(map_id)]
+		topology_signatures[signature] = map_id
+	context.expect_equal(topology_signatures.size(), 10, "all ten maps have mechanically distinct obstacle topologies")
+	var twin_collision := ArenaCollisionSystem.move_ship(Vector2(860.0, 900.0), Vector2(100.0, 0.0), 0.2, &"twin_suns")
+	context.expect_true((twin_collision.position as Vector2).x <= 865.001, "selected Twin Suns geometry blocks ships at its western reactor")
+	context.expect_false(ArenaCollisionSystem.projectile_obstacle_normal(Vector2(1600.0, 300.0), 5.0, &"riftline").is_zero_approx(), "selected Riftline geometry blocks projectiles at its divider")
 
 
 static func _validate_movement_and_aim(context: TestContext) -> void:

@@ -3,12 +3,23 @@ extends Node2D
 
 var overtime_visible: bool = false
 var overtime_radius: float = OvertimeSystem.initial_radius()
+var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+var obstacle_root: Node2D
 
 
 func _ready() -> void:
 	_create_outer_walls()
-	_create_central_obstacle()
-	_create_cover_islands()
+	_rebuild_map_collision()
+	queue_redraw()
+
+
+func set_map_id(value: StringName) -> void:
+	var normalized := ArenaLayout.normalized_map_id(value)
+	if normalized == map_id and obstacle_root != null:
+		return
+	map_id = normalized
+	if is_inside_tree():
+		_rebuild_map_collision()
 	queue_redraw()
 
 
@@ -19,26 +30,26 @@ func set_overtime(active: bool, radius: float) -> void:
 
 
 func _draw() -> void:
+	var palette := ArenaLayout.theme(map_id)
 	draw_rect(ArenaLayout.arena_rect().grow(1600.0), Color("030716"), true)
-	draw_rect(ArenaLayout.arena_rect(), Color("071024"), true)
+	draw_rect(ArenaLayout.arena_rect(), palette.floor, true)
 	_draw_stars()
 	_draw_grid()
-	draw_rect(ArenaLayout.arena_rect(), Color("36d7ff"), false, 8.0)
-	var obstacle_fill := Color("18274a")
-	var obstacle_line := Color("a35cff")
-	var octagon := ArenaLayout.central_octagon()
-	draw_colored_polygon(octagon, obstacle_fill)
-	draw_polyline(octagon + PackedVector2Array([octagon[0]]), obstacle_line, 6.0)
-	for rectangle in ArenaLayout.cover_rectangles():
-		draw_rect(rectangle, obstacle_fill, true)
-		draw_rect(rectangle, obstacle_line, false, 5.0)
-	for anchor in ArenaLayout.spawn_anchors():
+	draw_rect(ArenaLayout.arena_rect(), palette.border, false, 8.0)
+	for rectangle in ArenaLayout.cover_rectangles(map_id):
+		draw_rect(rectangle, palette.obstacle, true)
+		draw_rect(rectangle, palette.line, false, 5.0)
+	for circle in ArenaLayout.circle_obstacles(map_id):
+		draw_circle(circle.center, float(circle.radius), palette.obstacle)
+		draw_arc(circle.center, float(circle.radius), 0.0, TAU, 64, palette.line, 6.0)
+	for anchor in ArenaLayout.spawn_anchors(map_id):
 		draw_circle(anchor, 5.0, Color(0.2, 0.85, 1.0, 0.35))
+	draw_string(ThemeDB.fallback_font, Vector2(70.0, 92.0), ArenaLayout.display_name(map_id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 30, Color(palette.border, 0.34))
 	if overtime_visible:
 		var pulse := 0.72 + sin(Time.get_ticks_msec() * 0.008) * 0.2
-		draw_circle(ArenaLayout.center(), overtime_radius, Color(1.0, 0.2, 0.42, 0.1))
-		draw_arc(ArenaLayout.center(), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse * 0.2), 22.0)
-		draw_arc(ArenaLayout.center(), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse), 8.0)
+		draw_circle(ArenaLayout.center(map_id), overtime_radius, Color(1.0, 0.2, 0.42, 0.1))
+		draw_arc(ArenaLayout.center(map_id), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse * 0.2), 22.0)
+		draw_arc(ArenaLayout.center(map_id), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse), 8.0)
 		queue_redraw()
 
 
@@ -70,25 +81,24 @@ func _create_outer_walls() -> void:
 	_create_rectangle_body(Vector2(GameConstants.ARENA_SIZE.x + thickness * 0.5, GameConstants.ARENA_SIZE.y * 0.5), Vector2(thickness, GameConstants.ARENA_SIZE.y))
 
 
-func _create_central_obstacle() -> void:
-	var body := StaticBody2D.new()
-	body.name = "CentralOctagon"
-	body.collision_layer = 1
-	body.collision_mask = 0
-	var collision := CollisionPolygon2D.new()
-	collision.polygon = ArenaLayout.central_octagon()
-	body.add_child(collision)
-	add_child(body)
-
-
-func _create_cover_islands() -> void:
+func _rebuild_map_collision() -> void:
+	if obstacle_root != null:
+		remove_child(obstacle_root)
+		obstacle_root.free()
+	obstacle_root = Node2D.new()
+	obstacle_root.name = "MapObstacles"
+	add_child(obstacle_root)
 	var index := 0
-	for rectangle in ArenaLayout.cover_rectangles():
-		_create_rectangle_body(rectangle.get_center(), rectangle.size, "Cover%d" % index)
+	for rectangle in ArenaLayout.cover_rectangles(map_id):
+		_create_rectangle_body(rectangle.get_center(), rectangle.size, "Cover%d" % index, obstacle_root)
+		index += 1
+	index = 0
+	for circle in ArenaLayout.circle_obstacles(map_id):
+		_create_circle_body(circle.center, float(circle.radius), "Circle%d" % index)
 		index += 1
 
 
-func _create_rectangle_body(body_position: Vector2, size: Vector2, body_name: String = "Boundary") -> void:
+func _create_rectangle_body(body_position: Vector2, size: Vector2, body_name: String = "Boundary", parent: Node = null) -> void:
 	var body := StaticBody2D.new()
 	body.name = body_name
 	body.position = body_position
@@ -99,4 +109,18 @@ func _create_rectangle_body(body_position: Vector2, size: Vector2, body_name: St
 	shape.size = size
 	collision.shape = shape
 	body.add_child(collision)
-	add_child(body)
+	(parent if parent != null else self).add_child(body)
+
+
+func _create_circle_body(body_position: Vector2, radius: float, body_name: String) -> void:
+	var body := StaticBody2D.new()
+	body.name = body_name
+	body.position = body_position
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var collision := CollisionShape2D.new()
+	var shape := CircleShape2D.new()
+	shape.radius = radius
+	collision.shape = shape
+	body.add_child(collision)
+	obstacle_root.add_child(body)

@@ -40,7 +40,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.17 — Multi-Shot Projectile Reconciliation | Complete | Reconciled every predicted pellet in a shared shot sequence instead of retaining collisionless extra visuals; verified Scatter Array creates three authoritative projectiles, removes the full predicted volley, and collides every pellet with arena barriers; 1,575 assertions, 78 project checks, and the real network/match flows passed. |
 | 7 — Export, Documentation, and Release Candidate | In Progress | Repository README, full player/host manual, contributor guide, troubleshooting, networking, content-authoring, and verification documentation completed; export/package work remains. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
-| 8 — Ten-Map Expansion | Planned | Migrate the hard-coded arena to validated map data, preserve Core Arena, add nine mechanically distinct maps and lobby selection, and prove 32 clear, reachable starting positions on every map. |
+| 8 — Ten-Map Expansion | In progress | Ten validated static topologies, authoritative seeded per-round rotation, synchronized collision/presentation, map-aware NPC behavior, and 32 spawns per map are implemented; advanced mechanics and manual selection remain planned. |
 
 ## Completion Rules
 
@@ -319,7 +319,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 - Follow the staged [Ten-Map Expansion Plan](./maps.md): data foundation, lobby/network synchronization, static layouts, dynamic mechanics, presentation/balance, and full-capacity acceptance.
 - Replace hard-coded arena geometry with validated dedicated-server-safe map definitions and shared geometry queries.
-- Add leader-controlled map selection plus Random, resolve one map for the full match, and synchronize the stable map ID, revision, and mechanic seed before countdown.
+- Keep the implemented seeded per-round rotation as the default; optionally add leader-controlled rotation pools/order while preserving one stable map across every heat in a round and synchronizing future mechanic revisions/seeds before countdown.
 - Preserve Core Arena, then add Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero.
 - Update NPC sightlines, navigation, flanking, and overtime behavior to use selected-map geometry and mechanics.
 - Update the authoritative specification, protocol version, player/host manual, developer documentation, and diagnostics as each stage becomes implemented behavior.

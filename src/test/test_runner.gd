@@ -24,7 +24,7 @@ func _ready() -> void:
 
 
 func _run_foundation_tests() -> void:
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 6, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 7, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")

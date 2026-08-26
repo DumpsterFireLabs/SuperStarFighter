@@ -307,9 +307,13 @@ Shielding prevents firing and normally reduces acceleration, so timing matters: 
 
 ### 7.4 Collision and cover
 
-Ships slide against arena walls, the central obstacle, cover islands, and other ships. Ship collisions do no damage. Projectiles collide authoritatively with arena geometry, so cover can stop normal shots and redirect ricochet builds.
+Ships slide against arena walls, map obstacles, and other ships. Ship collisions do no damage. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
 
 Shots cannot spawn through a wall when the ship's nose is pressed against it.
+
+The built-in rotation contains Core Arena, Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero. The server shuffles all ten from the match seed without repeats. Every heat—including tied replays—stays on the round's current map. Winning the round advances the next round to the next map in that deck.
+
+The active map appears in the countdown banner, combat HUD, and live scoreboard. Its synchronized ID controls server collision, projectiles, NPC sightlines/flanking, spawn assignment, overtime navigation, and client presentation.
 
 ### 7.5 Overtime
 
@@ -564,6 +568,6 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, map selection, anti-DDoS infrastructure, or console/mobile/web builds.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web builds.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.

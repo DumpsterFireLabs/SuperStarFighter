@@ -34,7 +34,7 @@ The vertical slice targets PC players who enjoy short, chaotic, skill-based mult
 
 ### 1.4 Out of Scope
 
-The vertical slice does not include public matchmaking, a public internet server directory, accounts, progression between matches, teams, chat, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports. It does include bounded local-subnet discovery.
+The vertical slice does not include public matchmaking, a public internet server directory, accounts, progression between matches, teams, chat, reconnect restoration, cosmetics, monetization, downloadable content, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web exports. It does include bounded local-subnet discovery and automatic built-in map rotation.
 
 ## 2. Terminology
 
@@ -169,8 +169,11 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 
 ## 5. Arena, Camera, and Spawning
 
-- The logical arena is 3200×1800 pixels with an impermeable outer boundary.
-- The layout is rotationally symmetric: one central octagonal obstacle, four mirrored rectangular cover islands, and open circulation lanes between them.
+- Every built-in map uses a 3200×1800 logical arena with an impermeable outer boundary.
+- The roster contains Core Arena, Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero. Each has distinct server-authoritative rectangle/circle obstacle geometry and a visible palette.
+- The server derives a shuffled no-repeat map deck from the match seed without consuming draft or spawn randomness. Entering round one selects the first map; entering each later round advances once. All countdowns, active heats, ties, heat results, and the round result retain that round's map.
+- The authoritative state payload includes `map_id` and `map_name`. Clients rebuild arena presentation/collision before countdown; late spectators receive the same current map.
+- Every map exposes 32 validated spawn anchors. Spawn assignment is shuffled independently for every heat even though map selection remains fixed within the round.
 - Provide exactly 32 spawn anchors distributed around two symmetric rings. Anchors must not overlap obstacles and must keep at least 160 pixels between neighboring ships.
 - Spawn anchors are assigned without replacement. Players receive no post-countdown invulnerability because all players gain control on the same server tick.
 - Ships collide with walls, obstacles, and other ships using slide response. Ship collisions deal no damage.
@@ -432,7 +435,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `6` and a maximum of 32 client peers in addition to the server. Version 6 carries the projectile beam flag, authoritative lobby ready/eject, per-NPC difficulty and final-results exit messages, and unlimited-stack stat prediction rules.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `7` and a maximum of 32 client peers in addition to the server. Version 7 carries authoritative per-round map identity in addition to the projectile beam flag, lobby ready/eject, per-NPC difficulty, final-results exit messages, and unlimited-stack stat prediction rules.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.

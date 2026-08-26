@@ -68,7 +68,7 @@ func submit_inputs(
 		if world.server_tick < int(_next_decision_ticks.get(peer_id, 0)):
 			continue
 		_next_decision_ticks[peer_id] = world.server_tick + int(profile.reaction_ticks)
-		var zone_steering := overtime_steering(combatant.position, overtime_elapsed)
+		var zone_steering := overtime_steering(combatant.position, overtime_elapsed, world.map_id)
 		var target := _nearest_target(world, combatant, float(profile.awareness_range))
 		if target == null:
 			_blocked_engagements.erase(peer_id)
@@ -94,7 +94,7 @@ func submit_inputs(
 			Vector2(strafe, forward).limit_length(1.0),
 			aim_angle
 		)
-		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position)
+		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position, world.map_id)
 		var has_line_of_sight := blocking_obstacle.is_empty()
 		var breaking_blocked_loop := false
 		if has_line_of_sight:
@@ -121,12 +121,13 @@ func submit_inputs(
 					peer_id,
 					target.peer_id,
 					world.server_tick,
-					peer_id < target.peer_id
+					peer_id < target.peer_id,
+					world.map_id
 				) * maxf(float(profile.pursuit), float(profile.strafe))
 			)
 		if not zone_steering.is_zero_approx():
 			var boundary_radius := OvertimeSystem.radius_at(overtime_elapsed)
-			var outside_boundary := combatant.position.distance_to(ArenaLayout.center()) > boundary_radius
+			var outside_boundary := combatant.position.distance_to(ArenaLayout.center(world.map_id)) > boundary_radius
 			var tactical_weight := 0.08 if outside_boundary else 0.28
 			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
 		var movement := _world_to_ship_input(tactical_movement, aim_angle)
@@ -193,10 +194,10 @@ func _note_clear_engagement(peer_id: int, server_tick: int) -> void:
 		_blocked_engagements.erase(peer_id)
 
 
-static func overtime_steering(position: Vector2, heat_elapsed: float) -> Vector2:
+static func overtime_steering(position: Vector2, heat_elapsed: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Vector2:
 	if not OvertimeSystem.is_warning(heat_elapsed) and not OvertimeSystem.is_active(heat_elapsed):
 		return Vector2.ZERO
-	var center := ArenaLayout.center()
+	var center := ArenaLayout.center(map_id)
 	var from_center := position - center
 	var distance := from_center.length()
 	if distance <= 0.001:
@@ -205,7 +206,7 @@ static func overtime_steering(position: Vector2, heat_elapsed: float) -> Vector2
 	if distance <= safe_radius - OVERTIME_NAVIGATION_MARGIN:
 		return Vector2.ZERO
 	var minimum_navigable_radius := (
-		ArenaLayout.CENTRAL_RADIUS + GameConstants.SHIP_COLLISION_RADIUS + 12.0
+		ArenaLayout.central_radius(map_id) + GameConstants.SHIP_COLLISION_RADIUS + 12.0
 	)
 	var desired_radius := maxf(
 		safe_radius - OVERTIME_NAVIGATION_MARGIN,
@@ -241,25 +242,23 @@ static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> V
 	))
 
 
-static func _first_blocking_obstacle(from: Vector2, to: Vector2) -> Dictionary:
-	var rectangles := ArenaLayout.cover_rectangles()
+static func _first_blocking_obstacle(from: Vector2, to: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Dictionary:
+	var rectangles := ArenaLayout.cover_rectangles(map_id)
 	for rectangle_index in rectangles.size():
 		var rectangle := rectangles[rectangle_index]
 		var expanded := rectangle.grow(GameConstants.PROJECTILE_RADIUS + 2.0)
 		if _segment_intersects_rect(from, to, expanded):
 			return {"kind": &"rectangle", "index": rectangle_index, "rect": rectangle}
-	if _segment_intersects_circle(
-		from,
-		to,
-		ArenaLayout.center(),
-		ArenaLayout.CENTRAL_RADIUS + GameConstants.PROJECTILE_RADIUS
-	):
-		return {"kind": &"circle"}
+	var circles := ArenaLayout.circle_obstacles(map_id)
+	for circle_index in circles.size():
+		var circle := circles[circle_index] as Dictionary
+		if _segment_intersects_circle(from, to, circle.center, float(circle.radius) + GameConstants.PROJECTILE_RADIUS):
+			return {"kind": &"circle", "index": circle_index, "center": circle.center, "radius": circle.radius}
 	return {}
 
 
 static func _obstacle_id(obstacle: Dictionary) -> int:
-	return int(obstacle.get("index", -1)) if obstacle.get("kind", &"") == &"rectangle" else -2
+	return int(obstacle.get("index", -1)) if obstacle.get("kind", &"") == &"rectangle" else -100 - int(obstacle.get("index", 0))
 
 
 static func _obstacle_flank_steering(
@@ -269,7 +268,8 @@ static func _obstacle_flank_steering(
 	peer_id: int,
 	target_peer_id: int,
 	server_tick: int,
-	invert_side: bool = false
+	invert_side: bool = false,
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 ) -> Vector2:
 	var epoch := floori(float(server_tick) / float(FLANK_DIRECTION_TICKS))
 	var pair_seed := mini(peer_id, target_peer_id) * 31 + maxi(peer_id, target_peer_id) * 17 + epoch
@@ -289,7 +289,8 @@ static func _obstacle_flank_steering(
 			waypoint.x = rectangle.end.x if positive_side else rectangle.position.x
 			waypoint.y = rectangle.position.y if from.y < rectangle.get_center().y else rectangle.end.y
 		return (waypoint - from).normalized()
-	var radial := from - ArenaLayout.center()
+	var circle_center: Vector2 = obstacle.get("center", ArenaLayout.center(map_id))
+	var radial := from - circle_center
 	if radial.is_zero_approx():
 		radial = Vector2.RIGHT
 	var tangent := radial.normalized().orthogonal()

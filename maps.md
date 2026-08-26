@@ -1,18 +1,18 @@
 # Super Star Fighter — Ten-Map Expansion Plan
 
-**Status:** Planned; the current arena remains the only implemented map.
+**Status:** Static ten-map roster and authoritative per-round rotation implemented. Advanced map mechanics and manual lobby selection remain planned.
 
-**Scope:** Preserve the existing arena and add nine distinct maps, lobby selection, authoritative map synchronization, and full-capacity validation.
+**Scope:** Preserve the existing arena, add nine distinct static topologies, rotate them authoritatively between rounds, and retain the advanced-mechanics/full-capacity roadmap.
 
 **Related documents:** [Product plan](./plan.md) · [Specification](./spec.md) · [Implementation milestones](./milestones.md)
 
 ## 1. Outcome
 
-Super Star Fighter will have a ten-map roster. The existing 3200×1800 arena remains the neutral competitive benchmark; nine additional arenas introduce materially different sightlines, routing, cover, movement, and weapon interactions without changing the core ship or card rules.
+Super Star Fighter has a ten-map static roster. The existing 3200×1800 arena remains the neutral competitive benchmark; nine additional arenas introduce materially different sightlines, routing, cover, and weapon interactions without changing the core ship or card rules.
 
 Every map must support all 32 participants at once. “Supports 32” means every map definition contains exactly 32 simultaneously usable spawn anchors and passes automated clearance, separation, reachability, and hazard-safety checks. Lower-capacity matches use a server-shuffled subset of the same validated anchors.
 
-The map is selected in the lobby and remains fixed for the full match. **Random** selects once when the match begins, not once per heat, so players can adapt their card choices to the arena. Returning to the lobby allows the leader to choose another map before a rematch.
+At match start the server creates a deterministic shuffled deck containing all ten maps. A map is selected when a round begins and remains fixed through every heat, tied replay, and the round-result presentation. Only a completed round advances to the next map; the deck does not repeat until all ten maps have appeared. Manual lobby selection and voting are future options and will not change this heat-stability rule.
 
 ## 2. Non-Negotiable Map Contract
 
@@ -165,12 +165,11 @@ The same map definition drives authoritative collision and client drawing. Clien
 
 ### 4.3 Match and lobby integration
 
-- Add `map_id` to authoritative lobby settings and match configuration.
-- Add a leader-only map selector with ten named maps plus **Random**. All clients may see the current choice.
-- Include map ID and revision in LAN discovery details and the pre-match synchronization event.
-- Prevent ready-up while a client lacks the selected built-in map revision.
-- Clear dynamic map state on every heat, lobby return, disconnect cleanup, and rematch.
-- Preserve the chosen map for the complete match; resolve Random to a concrete map ID before the first draft.
+- The authoritative match payload carries the current `map_id` and visible map name through draft, countdown, combat, results, and late-spectator synchronization.
+- The match seed creates a stable shuffled rotation without consuming draft or spawn randomness.
+- Change maps only when entering a new round; every heat and tied replay retains the current geometry.
+- Rebuild client collision/presentation before countdown and clear stale projectile state when geometry changes.
+- A future leader-only selector may choose the rotation pool or order, but must not permit per-heat changes.
 
 ### 4.4 Dynamic mechanics
 
@@ -238,7 +237,7 @@ Mechanic state must be deterministic or explicitly synchronized at a bounded rat
 ## 7. Scope Guardrails
 
 - The pack ships as built-in content; downloadable maps and user-authored map loading are not part of this milestone.
-- Map voting, playlists, per-round map changes, procedural maps, and public-server content distribution are deferred.
+- Map voting, custom playlists, procedural maps, and public-server content distribution are deferred; built-in per-round rotation is implemented.
 - Environmental mechanics must create routing choices, not unavoidable damage or random deaths.
 - No map-specific card balance modifiers. Cards retain the same authoritative definitions on every map.
 - The current specification continues to describe the implemented one-map slice until Stage A begins. Implementation must update `spec.md`, network protocol versioning, tests, manual text, and milestone evidence together.

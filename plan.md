@@ -4,13 +4,13 @@
 
 Build a Windows-first, top-down 2D arena shooter in **Godot 4.7.2 Standard with GDScript**. Godot 4.7.2 is the current stable release, while its ENet multiplayer API and dedicated-server export support the required authoritative 32-player architecture. [Godot download](https://godotengine.org/download/windows/) · [ENet multiplayer](https://docs.godotengine.org/en/4.6/tutorials/networking/high_level_multiplayer.html) · [Dedicated-server exports](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_dedicated_servers.html)
 
-The empty workspace will become a complete vertical slice containing a Windows client, headless server, one arena, card drafting, match flow, server-owned NPC opponents, neon-vector presentation, tests, load-test clients, export scripts, and operating instructions.
+The workspace contains a complete vertical slice with a Windows client, headless server, ten rotating static arenas, card drafting, match flow, server-owned NPC opponents, neon-vector presentation, tests, load-test clients, export scripts, and operating instructions.
 
 ## Documentation Set
 
 - [spec.md](./spec.md) is the authoritative, decision-complete gameplay and technical specification. Implementation behavior, constants, interfaces, edge cases, and acceptance requirements come from that document.
 - [milestones.md](./milestones.md) divides the specification into ordered, independently verifiable implementation stages. A milestone is complete only when its stated exit criteria pass.
-- [maps.md](./maps.md) plans the post-slice ten-map roster, the map-data migration, nine new arena identities, and automated guarantees for 32 clear starting positions per map.
+- [maps.md](./maps.md) documents the implemented static ten-map rotation and the remaining advanced-mechanics and manual-selection roadmap.
 - This plan remains the concise product direction. If wording here conflicts with `spec.md`, the specification takes precedence; intentional behavior changes must update all affected documents in the same change.
 
 ## Gameplay and Content
@@ -23,7 +23,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
 - The first player to win the configured number of rounds wins the match. The lobby leader selects 1–5 round wins, defaulting to 3.
 - At 90 seconds, a circular damage boundary shrinks to the arena center over 45 seconds and deals 30 health per second through shields. If every survivor dies during the same server tick, replay the heat without awarding a point.
 - Disconnecting during a heat counts as elimination. Late joiners spectate until the next match; reconnect recovery is not included.
-- Use one symmetric 3200×1800 arena with outer walls, a central octagonal obstacle, four mirrored cover islands, and 32 shuffled spawn anchors.
+- Use ten 3200×1800 built-in arenas with distinct authoritative obstacle topologies, visual palettes, and 32 validated spawn anchors. Shuffle a no-repeat map deck per match, keep every heat of a round on one map, and advance only after a round win.
 - Starting combat values: 100 health, 480 px/s maximum speed, 900 px/s² acceleration, 25 projectile damage, four shots/second, eight-round magazine, 1.5-second automatic reload, and 900 px/s projectile speed.
 - The directional shield covers a 120-degree forward arc. It has 100 energy, drains 20/second while held plus 25 per blocked shot, and regenerates at 30/second after a 1.25-second delay. Shielding disables firing and reduces acceleration by 25%.
 - The launch catalog contains exactly 120 unlimited-stack cards across ship, shield, and weapon categories. Catalog validation rejects exact mechanical duplicates and same-stat/same-direction magnitude swaps, while 24 numeric stats plus beam and auto-repair behavior switches provide distinct stacking axes. Seven rarity tiers use visible tier weights (Common 45%, Uncommon 27%, Rare 15%, Epic 8%, Legendary 3.3%, Mythical 1.2%, Unobtanium 0.5%); the server rolls tiers and cards authoritatively without replacement for each offer. Multiple cards enable pulse-beam builds, including exceptional Mythical and Unobtanium transformations.

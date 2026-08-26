@@ -1782,8 +1782,9 @@ func _update_match_presentation() -> void:
 		deadline = active_offer_deadline
 	var seconds_left := maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0) if deadline >= 0 else 0.0
 	_update_heat_intro(state_name, seconds_left)
-	var status := "%s · Round %d · Heat %d" % [
+	var status := "%s · %s · Round %d · Heat %d" % [
 		state_name.replace("_", " ").capitalize(),
+		String(latest_match_payload.get("map_name", ArenaLayout.display_name())),
 		int(latest_match_payload.get("round_number", 0)),
 		int(latest_match_payload.get("heat_number", 0)),
 	]
@@ -1819,7 +1820,8 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 	if state_name == "COUNTDOWN":
 		heat_intro_panel.visible = true
 		heat_intro_panel.modulate.a = 1.0
-		heat_intro_kicker.text = "ROUND %d  //  HEAT %d" % [
+		heat_intro_kicker.text = "%s  //  ROUND %d  //  HEAT %d" % [
+			String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 			int(latest_match_payload.get("round_number", 0)),
 			int(latest_match_payload.get("heat_number", 0)),
 		]
@@ -1833,7 +1835,8 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 		if elapsed < HEAT_BEGIN_FADE_SECONDS:
 			heat_intro_panel.visible = true
 			heat_intro_panel.modulate.a = 1.0 - clampf(elapsed / HEAT_BEGIN_FADE_SECONDS, 0.0, 1.0)
-			heat_intro_kicker.text = "ROUND %d  //  HEAT %d" % [
+			heat_intro_kicker.text = "%s  //  ROUND %d  //  HEAT %d" % [
+				String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 				int(latest_match_payload.get("round_number", 0)),
 				int(latest_match_payload.get("heat_number", 0)),
 			]
@@ -1847,6 +1850,7 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	var parts := PackedStringArray([
 		state_name.replace("_", " ").to_upper(),
+		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 		"R%d H%d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))],
 	])
 	if state_name == "ACTIVE_HEAT":
@@ -1898,8 +1902,9 @@ func _player_name(peer_id: int) -> String:
 
 func _update_scoreboard() -> void:
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
-	scoreboard_context_label.text = "%s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
+	scoreboard_context_label.text = "%s  ·  %s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
 		state_name,
+		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 		int(latest_match_payload.get("round_number", 0)),
 		int(latest_match_payload.get("heat_number", 0)),
 		_result_peer_ids().size(),

@@ -109,6 +109,12 @@ func _capture_sequence() -> void:
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	await _capture(client, "combat")
+	for map_id in ArenaLayout.map_ids():
+		client.latest_match_payload["map_id"] = map_id
+		client.latest_match_payload["map_name"] = ArenaLayout.display_name(map_id)
+		client.network_world.apply_match_state(client.latest_match_payload)
+		client._update_match_presentation()
+		await _capture(client, "map_%s" % map_id)
 	client.latest_match_payload["participant_peer_ids"] = [2, 3, 4, 5]
 	client.latest_match_payload["scores"] = {
 		2: {"heat_wins": 1, "round_wins": 1},
@@ -141,6 +147,7 @@ func _capture_sequence() -> void:
 	client.latest_match_payload = {
 		"state_name": "MATCH_RESULT", "round_number": 3, "heat_number": 2,
 		"deadline_tick": -1, "match_winner": 2, "alive_peer_ids": [2],
+		"map_id": &"relay_zero", "map_name": "Relay Zero",
 		"participant_peer_ids": [2, 3, 4, 5],
 		"scores": {
 			2: {"heat_wins": 0, "round_wins": 3},
