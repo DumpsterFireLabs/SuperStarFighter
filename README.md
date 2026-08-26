@@ -41,6 +41,8 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 
 Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
+Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Fifteen selectable resolutions cover common 16:9, 16:10, 21:9, and 32:9 displays through 5120×2160, including 5120×1440 super-ultrawide.
+
 ### Keyboard and mouse
 
 | Input | Action |
@@ -115,7 +117,7 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,556 automated assertions and 78 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,562 automated assertions and 78 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 

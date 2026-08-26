@@ -4,13 +4,32 @@ const InputProfileManagerScript = preload("res://src/client/input/input_profile_
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
+enum WindowModeOption {
+	WINDOWED,
+	BORDERLESS_FULLSCREEN,
+	EXCLUSIVE_FULLSCREEN,
+}
+const WINDOW_MODE_LABELS: Array[String] = [
+	"Windowed",
+	"Borderless Fullscreen",
+	"Exclusive Fullscreen",
+]
 const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
+	Vector2i(1366, 768),
+	Vector2i(1440, 900),
 	Vector2i(1600, 900),
 	Vector2i(1920, 1080),
+	Vector2i(1920, 1200),
 	Vector2i(2560, 1080),
 	Vector2i(2560, 1440),
+	Vector2i(2560, 1600),
 	Vector2i(3440, 1440),
+	Vector2i(3840, 1080),
+	Vector2i(3840, 1600),
+	Vector2i(3840, 2160),
+	Vector2i(5120, 1440),
+	Vector2i(5120, 2160),
 ]
 
 var bridge: NetworkBridge
@@ -73,7 +92,9 @@ var pause_overlay: PanelContainer
 var pause_title: Label
 var settings_panel: Control
 var settings_tabs: TabContainer
+var window_mode_control: OptionButton
 var resolution_control: OptionButton
+var display_mode_note: Label
 var control_scheme_control: OptionButton
 var controller_status_label: Label
 var controller_deadzone_row: HBoxContainer
@@ -84,6 +105,7 @@ var binding_buttons: Dictionary = {}
 var binding_capture_status: Label
 var binding_capture_action: StringName = &""
 var binding_capture_seconds: float = 0.0
+var current_window_mode: int = WindowModeOption.WINDOWED
 var current_resolution: Vector2i = Vector2i(1280, 720)
 var settings_return_to_pause: bool = false
 var splash_screen: Control
@@ -759,6 +781,21 @@ func _create_display_audio_settings_tab() -> void:
 	display_title.add_theme_font_size_override("font_size", 23)
 	display_title.add_theme_color_override("font_color", Color("73f7ff"))
 	tab.add_child(display_title)
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 16)
+	tab.add_child(mode_row)
+	var mode_label := Label.new()
+	mode_label.text = "Display mode"
+	mode_label.custom_minimum_size.x = 190.0
+	mode_row.add_child(mode_label)
+	window_mode_control = OptionButton.new()
+	window_mode_control.custom_minimum_size = Vector2(430.0, 48.0)
+	window_mode_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for mode_index in WINDOW_MODE_LABELS.size():
+		window_mode_control.add_item(WINDOW_MODE_LABELS[mode_index], mode_index)
+	window_mode_control.select(current_window_mode)
+	window_mode_control.item_selected.connect(_on_window_mode_selected)
+	mode_row.add_child(window_mode_control)
 	var resolution_row := HBoxContainer.new()
 	resolution_row.add_theme_constant_override("separation", 16)
 	tab.add_child(resolution_row)
@@ -774,6 +811,11 @@ func _create_display_audio_settings_tab() -> void:
 	resolution_control.select(maxi(RESOLUTION_OPTIONS.find(current_resolution), 0))
 	resolution_control.item_selected.connect(_on_resolution_selected)
 	resolution_row.add_child(resolution_control)
+	display_mode_note = Label.new()
+	display_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	display_mode_note.add_theme_color_override("font_color", Color("aebbd4"))
+	tab.add_child(display_mode_note)
+	_update_resolution_control_state()
 	var audio_title := Label.new()
 	audio_title.text = "AUDIO"
 	audio_title.add_theme_font_size_override("font_size", 23)
@@ -998,7 +1040,17 @@ func _on_resolution_selected(index: int) -> void:
 		return
 	current_resolution = RESOLUTION_OPTIONS[index]
 	if DisplayServer.get_name() != "headless":
-		_apply_window_resolution(current_resolution)
+		_apply_video_settings()
+	_save_video_settings()
+
+
+func _on_window_mode_selected(index: int) -> void:
+	if index < 0 or index >= WINDOW_MODE_LABELS.size():
+		return
+	current_window_mode = window_mode_control.get_item_id(index)
+	_update_resolution_control_state()
+	if DisplayServer.get_name() != "headless":
+		_apply_video_settings()
 	_save_video_settings()
 
 
@@ -1007,6 +1059,9 @@ func _load_video_settings() -> void:
 		current_resolution = DisplayServer.window_get_size()
 	var config := ConfigFile.new()
 	if config.load(AudioDirector.SETTINGS_PATH) == OK:
+		var configured_mode := int(config.get_value("video", "window_mode", WindowModeOption.WINDOWED))
+		if configured_mode >= WindowModeOption.WINDOWED and configured_mode <= WindowModeOption.EXCLUSIVE_FULLSCREEN:
+			current_window_mode = configured_mode
 		var configured := Vector2i(
 			int(config.get_value("video", "width", current_resolution.x)),
 			int(config.get_value("video", "height", current_resolution.y))
@@ -1016,23 +1071,48 @@ func _load_video_settings() -> void:
 	if current_resolution not in RESOLUTION_OPTIONS:
 		current_resolution = RESOLUTION_OPTIONS[0]
 	if DisplayServer.get_name() != "headless":
-		_apply_window_resolution(current_resolution)
+		_apply_video_settings()
 
 
-func _apply_window_resolution(resolution: Vector2i) -> void:
-	DisplayServer.window_set_size(resolution)
-	var screen := DisplayServer.window_get_current_screen()
-	var usable_rect := DisplayServer.screen_get_usable_rect(screen)
-	var safe_offset := Vector2i(
-		maxi((usable_rect.size.x - resolution.x) / 2, 0),
-		maxi((usable_rect.size.y - resolution.y) / 2, 0)
-	)
-	DisplayServer.window_set_position(usable_rect.position + safe_offset)
+func _apply_video_settings() -> void:
+	match current_window_mode:
+		WindowModeOption.BORDERLESS_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		WindowModeOption.EXCLUSIVE_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_size(current_resolution)
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+		_:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_size(current_resolution)
+			var screen := DisplayServer.window_get_current_screen()
+			var usable_rect := DisplayServer.screen_get_usable_rect(screen)
+			var safe_offset := Vector2i(
+				maxi((usable_rect.size.x - current_resolution.x) / 2, 0),
+				maxi((usable_rect.size.y - current_resolution.y) / 2, 0)
+			)
+			DisplayServer.window_set_position(usable_rect.position + safe_offset)
+
+
+func _update_resolution_control_state() -> void:
+	if resolution_control == null:
+		return
+	var uses_desktop_resolution := current_window_mode == WindowModeOption.BORDERLESS_FULLSCREEN
+	resolution_control.disabled = uses_desktop_resolution
+	if display_mode_note == null:
+		return
+	if uses_desktop_resolution:
+		display_mode_note.text = "Borderless fullscreen uses the desktop's current resolution. Your selected resolution remains saved for other modes."
+	elif current_window_mode == WindowModeOption.EXCLUSIVE_FULLSCREEN:
+		display_mode_note.text = "Exclusive fullscreen requests the selected display mode; availability depends on the connected monitor and graphics driver."
+	else:
+		display_mode_note.text = "Windowed mode uses the selected client-area resolution."
 
 
 func _save_video_settings() -> void:
 	var config := ConfigFile.new()
 	config.load(AudioDirector.SETTINGS_PATH)
+	config.set_value("video", "window_mode", current_window_mode)
 	config.set_value("video", "width", current_resolution.x)
 	config.set_value("video", "height", current_resolution.y)
 	config.save(AudioDirector.SETTINGS_PATH)

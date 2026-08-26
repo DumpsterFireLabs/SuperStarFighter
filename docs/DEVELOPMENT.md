@@ -32,7 +32,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Protocol version | 6 |
-| Automated suite | 1,556 assertions |
+| Automated suite | 1,562 assertions |
 | Project gate | 78 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
@@ -256,15 +256,16 @@ Treat clamps as encoding/physics guardrails rather than quiet balance caps. The 
 
 ## 8. UI and Presentation Work
 
-The production UI is created by `ClientMain` and rendered at six selectable window sizes. Godot uses a 1920×1080 virtual canvas with `canvas_items` stretch and `expand` aspect, so ultrawide modes expose more world without nonuniform distortion.
+The production UI is created by `ClientMain` and supports fifteen selectable resolutions across windowed and exclusive-fullscreen modes; borderless fullscreen follows the desktop resolution. Godot uses a 1920×1080 virtual canvas with `canvas_items` stretch and `expand` aspect, so ultrawide modes expose more world without nonuniform distortion.
 
 Any material UI change should be checked at minimum at:
 
 - 1280×720 for the tightest supported layout.
 - 1920×1080 for the design canvas.
 - 2560×1080 and 3440×1440 for ultrawide behavior.
+- 5120×1440 for 32:9 super-ultrawide behavior.
 
-`verify-presentation.ps1` captures 16 production states at all four acceptance resolutions. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
+`verify-presentation.ps1` captures 18 production states at all five acceptance resolutions, including both ordinary and exclusive-fullscreen settings states. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
 
 Keep combat center space free where possible. Durable match information belongs in the compact upper-left HUD. Temporary center overlays should have precise authoritative timing and short exits.
 
@@ -299,13 +300,13 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,556 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | 1,562 deterministic assertions | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 78 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
-| `.\tools\verify-presentation.ps1` | 64 production captures at four resolutions | UI, text, theme, timing changes |
+| `.\tools\verify-presentation.ps1` | 90 production captures at five resolutions | UI, text, theme, timing changes |
 | `.\tools\verify-hardening.ps1` | Malformed/excessive peers isolated while healthy clients continue | Validation/rate-limit changes |
 | `.\tools\verify-smoke.ps1` | Configurable 2–32 real-client short run | Capacity/performance smoke |
 | `.\tools\verify-soak.ps1` | Long load, disconnect, late spectator, overtime, metrics summary | Performance/release acceptance |

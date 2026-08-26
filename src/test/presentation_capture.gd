@@ -48,12 +48,21 @@ func _capture_sequence() -> void:
 	client.connection_tabs.current_tab = 0
 	client._show_settings(false)
 	await _capture(client, "settings")
+	client.current_window_mode = client.WindowModeOption.EXCLUSIVE_FULLSCREEN
+	client.window_mode_control.select(client.WindowModeOption.EXCLUSIVE_FULLSCREEN)
+	client.current_resolution = Vector2i(5120, 1440)
+	client.resolution_control.select(client.RESOLUTION_OPTIONS.find(client.current_resolution))
+	client._update_resolution_control_state()
+	await _capture(client, "fullscreen_settings")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
 	client.settings_tabs.current_tab = 1
 	client._refresh_input_settings_ui()
 	await _capture(client, "controls")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
 	client.settings_tabs.current_tab = 0
+	client.current_window_mode = client.WindowModeOption.WINDOWED
+	client.current_resolution = capture_resolution
+	client._update_resolution_control_state()
 	client._hide_settings()
 
 	var players: Array[Dictionary] = []

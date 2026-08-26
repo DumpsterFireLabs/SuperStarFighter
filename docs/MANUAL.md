@@ -91,7 +91,7 @@ The connection screen has three online paths:
 The same screen also offers:
 
 - **Offline Combat Lab** for solo movement, combat, card, shield, and overtime experimentation.
-- **Settings** for resolution and audio.
+- **Settings** for display mode, resolution, audio, and controls.
 - **Quit** to close the game.
 
 Display names may contain 1–16 printable characters. When names collide, the server adds suffixes such as `#2` for display clarity.
@@ -398,16 +398,31 @@ The configured diagnostics action (`F3` or Y / Triangle by default) shows networ
 
 Settings are available from the main menu and the in-match pilot menu. They are divided into **Display & Audio** and **Controls** tabs.
 
-Supported window resolutions:
+Display mode choices:
+
+- **Windowed** uses the selected client-area resolution and is the default.
+- **Borderless Fullscreen** uses the desktop's current native resolution; the resolution selector is disabled while this mode is active.
+- **Exclusive Fullscreen** requests the selected resolution from the monitor and graphics driver. Unsupported hardware modes may be rejected or scaled by the platform.
+
+Supported selectable resolutions:
 
 - 1280×720
+- 1366×768
+- 1440×900
 - 1600×900
 - 1920×1080
+- 1920×1200
 - 2560×1080 ultrawide
 - 2560×1440
+- 2560×1600
 - 3440×1440 ultrawide
+- 3840×1080 super-ultrawide
+- 3840×1600 ultrawide
+- 3840×2160
+- 5120×1440 super-ultrawide
+- 5120×2160 ultrawide
 
-Wider modes reveal additional horizontal arena space without stretching ships or UI nonuniformly.
+Wider modes reveal additional horizontal arena space without stretching ships or UI nonuniformly. A 5120×1440 display is supported at 32:9; use Borderless Fullscreen when the desktop already runs at that resolution, or Exclusive Fullscreen to request it directly.
 
 Audio controls include master, music, and effects volume plus a mute toggle.
 
@@ -549,6 +564,6 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, fullscreen selection, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, map selection, anti-DDoS infrastructure, or console/mobile/web builds.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, map selection, anti-DDoS infrastructure, or console/mobile/web builds.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.
