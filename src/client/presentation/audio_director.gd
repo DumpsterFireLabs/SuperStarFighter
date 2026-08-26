@@ -54,6 +54,8 @@ func _ready() -> void:
 	_load_sfx()
 	_load_music()
 	_apply_volumes()
+	var inventory := authored_music_inventory()
+	print("SSF_AUDIO_READY menu=%d gameplay=%d win=%d" % [inventory.menu, inventory.gameplay, inventory.win])
 
 
 func _exit_tree() -> void:
@@ -182,6 +184,14 @@ func current_gameplay_track_name() -> String:
 	return music_display_name(gameplay_track_paths[current_gameplay_track])
 
 
+func authored_music_inventory() -> Dictionary:
+	return {
+		"menu": 1 if loaded_music_paths.has(&"menu") else 0,
+		"gameplay": gameplay_tracks.size(),
+		"win": 1 if loaded_music_paths.get(&"win", "").begins_with("res://") else 0,
+	}
+
+
 static func music_display_name(path: String) -> String:
 	var file_name := path.get_file()
 	while file_name.get_extension().to_lower() in ["mp3", "ogg", "wav"]:
@@ -246,12 +256,11 @@ func _load_music() -> void:
 	else:
 		win_player.stream = _synthesize_victory_theme()
 		loaded_music_paths[&"win"] = "generated:victory_theme"
-	var directory := DirAccess.open(GAMEPLAY_MUSIC_DIRECTORY)
-	if directory == null:
-		return
-	var files: Array = Array(directory.get_files())
+	var files: Array = Array(ResourceLoader.list_directory(GAMEPLAY_MUSIC_DIRECTORY))
 	files.sort_custom(func(left: String, right: String) -> bool: return left.naturalnocasecmp_to(right) < 0)
 	for file_name in files:
+		if file_name.ends_with("/"):
+			continue
 		if not _is_supported_audio_file(file_name):
 			continue
 		var path := "%s/%s" % [GAMEPLAY_MUSIC_DIRECTORY, file_name]
@@ -266,12 +275,11 @@ func _load_music() -> void:
 
 
 func _find_named_music(prefix: String) -> String:
-	var directory := DirAccess.open(MUSIC_DIRECTORY)
-	if directory == null:
-		return ""
-	var files: Array = Array(directory.get_files())
+	var files: Array = Array(ResourceLoader.list_directory(MUSIC_DIRECTORY))
 	files.sort_custom(func(left: String, right: String) -> bool: return left.naturalnocasecmp_to(right) < 0)
 	for file_name in files:
+		if file_name.ends_with("/"):
+			continue
 		if file_name.to_lower().begins_with(prefix.to_lower() + ".") and _is_supported_audio_file(file_name):
 			var path := "%s/%s" % [MUSIC_DIRECTORY, file_name]
 			if ResourceLoader.exists(path):

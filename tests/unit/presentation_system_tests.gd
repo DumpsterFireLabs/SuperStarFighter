@@ -27,6 +27,7 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 		audio._stop_menu_music()
 	var expected_gameplay_tracks := _supported_audio_file_count(AudioDirector.GAMEPLAY_MUSIC_DIRECTORY)
 	context.expect_equal(audio.gameplay_tracks.size(), expected_gameplay_tracks, "all authored gameplay tracks are discovered")
+	context.expect_equal(audio.authored_music_inventory().gameplay, expected_gameplay_tracks, "export diagnostics report the discovered gameplay inventory")
 	context.expect_equal(audio.gameplay_track_paths.size(), audio.gameplay_tracks.size(), "every gameplay stream retains its display-name source path")
 	context.expect_equal(AudioDirector.music_display_name("res://music/heavy_electronic-edge_main.mp3.wav"), "Heavy Electronic Edge Main", "compound gameplay filenames become readable song titles")
 	context.expect_true(audio.win_player.stream != null, "win music always has an authored or generated stream")
@@ -48,11 +49,8 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 
 
 static func _supported_audio_file_count(directory_path: String) -> int:
-	var directory := DirAccess.open(directory_path)
-	if directory == null:
-		return 0
 	var count := 0
-	for file_name in directory.get_files():
+	for file_name in ResourceLoader.list_directory(directory_path):
 		if file_name.get_extension().to_lower() in ["mp3", "ogg", "wav"]:
 			count += 1
 	return count

@@ -11,6 +11,25 @@ $archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta1-Windows-x64.zip'
 $smokeLog = Join-Path $buildRoot 'beta-smoke.log'
 $friendReadme = Join-Path $buildRoot 'README-BETA.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES.txt'
+$musicRoot = Join-Path $SsfRepositoryRoot 'assets\audio\music'
+$gameplayMusicRoot = Join-Path $musicRoot 'gameplay'
+$supportedAudioExtensions = @('.wav', '.ogg', '.mp3')
+
+function Get-SupportedAudioFiles {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        return @()
+    }
+    return @(Get-ChildItem -LiteralPath $Path -File | Where-Object {
+        $supportedAudioExtensions -contains $_.Extension.ToLowerInvariant()
+    })
+}
+
+$sourceRootMusic = @(Get-SupportedAudioFiles -Path $musicRoot)
+$expectedMenuMusic = if (@($sourceRootMusic | Where-Object { $_.Name.ToLowerInvariant().StartsWith('main_menu.') }).Count -gt 0) { 1 } else { 0 }
+$expectedWinMusic = if (@($sourceRootMusic | Where-Object { $_.Name.ToLowerInvariant().StartsWith('win.') }).Count -gt 0) { 1 } else { 0 }
+$expectedGameplayMusic = @(Get-SupportedAudioFiles -Path $gameplayMusicRoot).Count
 
 function Assert-BetaBuildPath {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -61,6 +80,17 @@ $smokeText = Get-Content -LiteralPath $smokeLog -Raw
 if (-not $smokeText.Contains('SSF_MODE_READY=client') -or $smokeText.Contains('SCRIPT ERROR:') -or $smokeText.Contains('ERROR:')) {
     throw 'Exported client smoke log failed ready/error validation.'
 }
+$audioReadyMatch = [regex]::Match($smokeText, 'SSF_AUDIO_READY menu=(\d+) gameplay=(\d+) win=(\d+)')
+if (-not $audioReadyMatch.Success) {
+    throw 'Exported client did not report its authored music inventory.'
+}
+$exportedMenuMusic = [int]$audioReadyMatch.Groups[1].Value
+$exportedGameplayMusic = [int]$audioReadyMatch.Groups[2].Value
+$exportedWinMusic = [int]$audioReadyMatch.Groups[3].Value
+if ($exportedMenuMusic -ne $expectedMenuMusic -or $exportedGameplayMusic -ne $expectedGameplayMusic -or $exportedWinMusic -ne $expectedWinMusic) {
+    throw "Exported music inventory mismatch. Source: menu=$expectedMenuMusic gameplay=$expectedGameplayMusic win=$expectedWinMusic; export: menu=$exportedMenuMusic gameplay=$exportedGameplayMusic win=$exportedWinMusic."
+}
+Write-Host "Exported music inventory verified: menu=$exportedMenuMusic gameplay=$exportedGameplayMusic win=$exportedWinMusic"
 
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices

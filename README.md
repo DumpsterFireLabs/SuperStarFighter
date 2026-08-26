@@ -52,7 +52,7 @@ The main menu identifies the current release as **Beta 1**, version `0.1.0-beta.
 .\tools\build-beta.ps1
 ```
 
-The script runs the complete foundation gate, exports a single embedded-PCK executable, launches that executable through its normal rendered startup path, and creates `builds\beta-1\SuperStarFighter-Beta1-Windows-x64.zip` with the friend README and Godot third-party notice. Generated builds remain ignored by Git.
+The script runs the complete foundation gate, exports a single embedded-PCK executable, launches that executable through its normal rendered startup path, verifies that its packaged menu/gameplay/victory music inventory matches the source, and creates `builds\beta-1\SuperStarFighter-Beta1-Windows-x64.zip` with the friend README and Godot third-party notice. Generated builds remain ignored by Git.
 
 ### Keyboard and mouse
 
@@ -128,7 +128,7 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,639 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,640 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 

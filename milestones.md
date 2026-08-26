@@ -41,7 +41,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.18 — Card Rarity Rebalance and Visual Build Inspection | Complete | Rebalanced all seven offer-slot weights, raising the five-card Epic-or-better chance to about 50.2%; audited all 120 cards and corrected five mismatched tiers; replaced scoreboard and victory stat text boxes with rarity-styled card previews showing exact per-stack and compounded effects; 1,585 assertions, 79 project checks, and 100 production-screen captures passed. |
 | 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and the verified Beta 1 Windows client package are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
-| 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; exported a 127,507,240-byte embedded-PCK Windows x64 client with verified version metadata and rendered startup; packaged a 57,036,056-byte friend ZIP with instructions and Godot notices; 1,639 assertions, 79 project checks, and 180 production captures passed. |
+| 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; exported a 127,507,544-byte embedded-PCK Windows x64 client with verified version metadata, rendered startup, and all six authored music tracks discovered; packaged a 57,036,318-byte friend ZIP with instructions and Godot notices; 1,640 assertions, 79 project checks, and 180 production captures passed. |
 | 8 — Ten-Map Expansion | In Progress | The static ten-map roster and automatic round rotation are playable; advanced per-map mechanics, optional rotation controls, full-capacity map simulations, and the rotating-map soak remain. |
 | 8.1 — Static Ten-Map Roster and Per-Round Rotation | Complete | Added ten visually distinct static topologies with 32 validated spawns each; a seeded shuffled deck changes maps only after a round is won and retains the same map through all heats and ties; authoritative collision, projectiles, overtime, NPC behavior, client reconstruction, HUD names, and protocol state are synchronized; 1,629 assertions, 79 project checks, real network/match-loop gates, and 150 production captures passed. |
 
@@ -303,9 +303,10 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Pinned `0.1.0-beta.1` as the shared/project game version and displayed **BETA 1 · VERSION 0.1.0-beta.1** on the main connection screen.
 - Added 2880×1920 as the sixteenth supported display resolution and extended visual acceptance to six resolutions and 180 captures.
 - Added a Windows x64 client export preset with an embedded PCK and Windows product/file metadata.
-- Added `build-beta.ps1`, which runs the full project gate, exports the client, launches the exported executable through its rendered startup path, rejects runtime errors, calculates SHA-256 hashes, and creates the friend ZIP.
+- Added `build-beta.ps1`, which runs the full project gate, exports the client, launches the exported executable through its rendered startup path, rejects runtime errors or missing packaged music, calculates SHA-256 hashes, and creates the friend ZIP.
 - Added friend-facing extraction, LAN/direct-connect, firewall/port-forwarding, unsigned-build, controls, and known-limitation guidance plus the Godot third-party license notice.
-- Produced `SuperStarFighter-Beta1.exe` at 127,507,240 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,036,056 bytes; both are generated under ignored `builds/beta-1/`.
+- Corrected exported music discovery to use Godot's remap-aware resource inventory, then verified the package finds one menu track, four gameplay tracks, and one victory track.
+- Produced `SuperStarFighter-Beta1.exe` at 127,507,544 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,036,318 bytes; both are generated under ignored `builds/beta-1/`.
 
 ### Remaining Work
 
@@ -318,8 +319,8 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ### Verification
 
-- Beta 1 client acceptance passed 1,639 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
-- The exported executable passed embedded-resource creation, Windows metadata inspection, and off-screen rendered startup without runtime errors; the friend ZIP contains only the executable, Beta README, and third-party notice.
+- Beta 1 client acceptance passed 1,640 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
+- The exported executable passed embedded-resource creation, Windows metadata inspection, off-screen rendered startup, real Windows audio-driver startup, and packaged inventory validation for all six authored music tracks without runtime errors; the friend ZIP contains only the executable, Beta README, and third-party notice.
 
 - Produce both release artifacts from a clean checkout using only the documented bootstrap and export commands.
 - Connect two Windows clients to the exported server over localhost and LAN and complete two consecutive matches.
