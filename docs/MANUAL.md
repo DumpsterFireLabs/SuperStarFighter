@@ -216,7 +216,7 @@ NPC difficulty changes behavior, not stats:
 
 Every NPC uses the same cards, health, weapon rules, movement limits, collision, and damage model as a human.
 
-NPCs respect arena cover and overtime. They do not deliberately fire through blocking geometry. When two NPCs lose line of sight behind the same object, one holds while the other commits to a deterministic flank instead of matching the same counter-strafe forever. During overtime, moving inside the shrinking safe circle takes priority over ordinary pursuit—even for Passive NPCs.
+NPCs respect arena cover and overtime. They do not deliberately fire through blocking geometry. When two NPCs lose line of sight behind the same object, one initially holds while the other commits to a deterministic flank. If the obstruction persists for three seconds, the holder takes the opposite route; brief sightline flickers do not restart that clock, while a sustained clear lane resets it. This keeps fights progressing before overtime without turning normal cover use into constant motion. During overtime, moving inside the shrinking safe circle takes priority over ordinary pursuit—even for Passive NPCs.
 
 ## 6. Match Flow
 

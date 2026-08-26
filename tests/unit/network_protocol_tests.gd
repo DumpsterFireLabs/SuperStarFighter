@@ -380,6 +380,124 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 		"cover flank opens a new lane or converts into combat"
 	)
 
+	var loop_world := AuthoritativeWorld.new()
+	var loop_holder := loop_world.add_peer(holding_npc_id)
+	var loop_flanker := loop_world.add_peer(flanking_npc_id)
+	loop_holder.position = Vector2(700.0, 550.0)
+	loop_flanker.position = Vector2(1200.0, 550.0)
+	var loop_controller := NpcPilotController.new()
+	for decision_tick in range(0, GameConstants.PHYSICS_TICKS_PER_SECOND * 4, 10):
+		loop_world.server_tick = decision_tick
+		loop_controller.submit_inputs(
+			loop_world,
+			[holding_npc_id, flanking_npc_id],
+			cover_difficulties
+		)
+	var loop_holder_input := loop_world.latest_inputs[holding_npc_id] as PlayerInputFrame
+	var loop_flanker_input := loop_world.latest_inputs[flanking_npc_id] as PlayerInputFrame
+	var loop_holder_world_movement := MovementSystem.ship_relative_to_world(
+		loop_holder_input.movement,
+		loop_holder_input.aim_angle
+	)
+	var loop_flanker_world_movement := MovementSystem.ship_relative_to_world(
+		loop_flanker_input.movement,
+		loop_flanker_input.aim_angle
+	)
+	context.expect_true(
+		loop_holder_world_movement.length() > 0.4,
+		"a persistently blocked holder eventually joins the breakout instead of waiting for overtime"
+	)
+	context.expect_true(
+		loop_holder_world_movement.y * loop_flanker_world_movement.y < -0.1,
+		"loop breakout sends the paired NPCs around opposite sides of cover"
+	)
+	loop_flanker.position = Vector2(700.0, 900.0)
+	loop_world.server_tick = GameConstants.PHYSICS_TICKS_PER_SECOND * 5
+	loop_controller.submit_inputs(loop_world, [holding_npc_id, flanking_npc_id], cover_difficulties)
+	loop_flanker.position = Vector2(1200.0, 550.0)
+	loop_world.server_tick += 10
+	loop_controller.submit_inputs(loop_world, [holding_npc_id, flanking_npc_id], cover_difficulties)
+	loop_holder_input = loop_world.latest_inputs[holding_npc_id] as PlayerInputFrame
+	context.expect_equal(
+		loop_holder_input.movement,
+		Vector2.ZERO,
+		"a sustained clear sightline resets the blocked-loop breakout state"
+	)
+
+	var flicker_world := AuthoritativeWorld.new()
+	var flicker_holder := flicker_world.add_peer(holding_npc_id)
+	var flicker_flanker := flicker_world.add_peer(flanking_npc_id)
+	flicker_holder.position = Vector2(700.0, 550.0)
+	flicker_flanker.position = Vector2(1200.0, 550.0)
+	var flicker_controller := NpcPilotController.new()
+	for decision_tick in range(0, 150, 10):
+		flicker_world.server_tick = decision_tick
+		flicker_controller.submit_inputs(flicker_world, [holding_npc_id, flanking_npc_id], cover_difficulties)
+	flicker_flanker.position = Vector2(700.0, 900.0)
+	for decision_tick in range(150, 180, 10):
+		flicker_world.server_tick = decision_tick
+		flicker_controller.submit_inputs(flicker_world, [holding_npc_id, flanking_npc_id], cover_difficulties)
+	flicker_flanker.position = Vector2(1200.0, 550.0)
+	for decision_tick in range(180, 240, 10):
+		flicker_world.server_tick = decision_tick
+		flicker_controller.submit_inputs(flicker_world, [holding_npc_id, flanking_npc_id], cover_difficulties)
+	var flicker_holder_input := flicker_world.latest_inputs[holding_npc_id] as PlayerInputFrame
+	context.expect_true(
+		flicker_holder_input.movement.length() > 0.4,
+		"brief sightline flickers do not restart a persistent cover loop"
+	)
+
+	var central_loop_world := AuthoritativeWorld.new()
+	var central_holder := central_loop_world.add_peer(holding_npc_id)
+	var central_flanker := central_loop_world.add_peer(flanking_npc_id)
+	central_holder.position = ArenaLayout.center() - Vector2(280.0, 0.0)
+	central_flanker.position = ArenaLayout.center() + Vector2(280.0, 0.0)
+	var central_loop_controller := NpcPilotController.new()
+	for decision_tick in range(0, GameConstants.PHYSICS_TICKS_PER_SECOND * 4, 10):
+		central_loop_world.server_tick = decision_tick
+		central_loop_controller.submit_inputs(
+			central_loop_world,
+			[holding_npc_id, flanking_npc_id],
+			cover_difficulties
+		)
+	var central_holder_input := central_loop_world.latest_inputs[holding_npc_id] as PlayerInputFrame
+	var central_flanker_input := central_loop_world.latest_inputs[flanking_npc_id] as PlayerInputFrame
+	var central_holder_movement := MovementSystem.ship_relative_to_world(
+		central_holder_input.movement,
+		central_holder_input.aim_angle
+	)
+	var central_flanker_movement := MovementSystem.ship_relative_to_world(
+		central_flanker_input.movement,
+		central_flanker_input.aim_angle
+	)
+	context.expect_true(
+		central_holder_movement.length() > 0.4,
+		"persistent occlusion around the central obstacle also triggers a breakout"
+	)
+	var holder_orbit_direction := (central_holder.position - ArenaLayout.center()).cross(central_holder_movement)
+	var flanker_orbit_direction := (central_flanker.position - ArenaLayout.center()).cross(central_flanker_movement)
+	context.expect_true(
+		holder_orbit_direction * flanker_orbit_direction < 0.0,
+		"central-obstacle breakout closes angular separation instead of preserving a mirrored orbit"
+	)
+	var central_lane_opened := false
+	for _tick in GameConstants.PHYSICS_TICKS_PER_SECOND * 4:
+		central_loop_controller.submit_inputs(
+			central_loop_world,
+			[holding_npc_id, flanking_npc_id],
+			cover_difficulties
+		)
+		central_loop_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+		if NpcPilotController._first_blocking_obstacle(
+			central_holder.position,
+			central_flanker.position
+		).is_empty():
+			central_lane_opened = true
+	context.expect_true(
+		central_lane_opened,
+		"central-obstacle breakout produces a clear engagement lane before overtime"
+	)
+
 	lobby.return_to_lobby()
 	var replacement := lobby.admit(101, "SecondPilot")
 	context.expect_true(replacement.ok, "a joining human can replace an NPC in the waiting lobby")

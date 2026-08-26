@@ -13,6 +13,8 @@ const DIFFICULTY_NAMES: Array[String] = ["Passive", "Easy", "Neutral", "Skilled"
 const OVERTIME_NAVIGATION_MARGIN: float = 170.0
 const OBSTACLE_FLANK_CLEARANCE: float = 64.0
 const FLANK_DIRECTION_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND * 8
+const BLOCKED_LOOP_BREAKOUT_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND * 3
+const BLOCKED_LOOP_RESET_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND
 const DIFFICULTY_PROFILES := {
 	Difficulty.PASSIVE: {
 		"reaction_ticks": 36, "aim_error_degrees": 24.0, "lead_seconds": 0.0,
@@ -48,6 +50,7 @@ const DIFFICULTY_PROFILES := {
 
 var _sequences: Dictionary = {}
 var _next_decision_ticks: Dictionary = {}
+var _blocked_engagements: Dictionary = {}
 
 
 func submit_inputs(
@@ -68,6 +71,7 @@ func submit_inputs(
 		var zone_steering := overtime_steering(combatant.position, overtime_elapsed)
 		var target := _nearest_target(world, combatant, float(profile.awareness_range))
 		if target == null:
+			_blocked_engagements.erase(peer_id)
 			_submit_decision(
 				world,
 				peer_id,
@@ -92,19 +96,32 @@ func submit_inputs(
 		)
 		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position)
 		var has_line_of_sight := blocking_obstacle.is_empty()
+		var breaking_blocked_loop := false
+		if has_line_of_sight:
+			_note_clear_engagement(peer_id, world.server_tick)
+		else:
+			breaking_blocked_loop = _blocked_engagement_requires_breakout(
+				peer_id,
+				target.peer_id,
+				blocking_obstacle,
+				world.server_tick
+			)
 		if not has_line_of_sight:
-			# One member of an occluded pair holds while the other takes a shared,
-			# deterministic flank. This deliberately breaks mirrored counter-strafing.
+			# One member initially holds while the other takes a deterministic flank.
+			# If the pair remains occluded, the holder commits to the opposite side so
+			# brief sightline flickers cannot restart the same cover loop forever.
+			var should_flank := peer_id > target.peer_id or breaking_blocked_loop
 			tactical_movement = (
 				Vector2.ZERO
-				if peer_id < target.peer_id
+				if not should_flank
 				else _obstacle_flank_steering(
 					combatant.position,
 					target.position,
 					blocking_obstacle,
 					peer_id,
 					target.peer_id,
-					world.server_tick
+					world.server_tick,
+					peer_id < target.peer_id
 				) * maxf(float(profile.pursuit), float(profile.strafe))
 			)
 		if not zone_steering.is_zero_approx():
@@ -135,11 +152,45 @@ static func difficulty_profile(difficulty: int) -> Dictionary:
 func remove_peer(peer_id: int) -> void:
 	_sequences.erase(peer_id)
 	_next_decision_ticks.erase(peer_id)
+	_blocked_engagements.erase(peer_id)
 
 
 func clear() -> void:
 	_sequences.clear()
 	_next_decision_ticks.clear()
+	_blocked_engagements.clear()
+
+
+func _blocked_engagement_requires_breakout(
+	peer_id: int,
+	target_peer_id: int,
+	obstacle: Dictionary,
+	server_tick: int
+) -> bool:
+	var obstacle_id := _obstacle_id(obstacle)
+	var state := _blocked_engagements.get(peer_id, {}) as Dictionary
+	var continues_same_engagement := (
+		int(state.get("target_peer_id", -1)) == target_peer_id and
+		int(state.get("obstacle_id", -999)) == obstacle_id and
+		server_tick - int(state.get("last_blocked_tick", server_tick)) <= BLOCKED_LOOP_RESET_TICKS
+	)
+	if not continues_same_engagement:
+		state = {
+			"target_peer_id": target_peer_id,
+			"obstacle_id": obstacle_id,
+			"blocked_since_tick": server_tick,
+		}
+	state["last_blocked_tick"] = server_tick
+	_blocked_engagements[peer_id] = state
+	return server_tick - int(state.blocked_since_tick) >= BLOCKED_LOOP_BREAKOUT_TICKS
+
+
+func _note_clear_engagement(peer_id: int, server_tick: int) -> void:
+	var state := _blocked_engagements.get(peer_id, {}) as Dictionary
+	if state.is_empty():
+		return
+	if server_tick - int(state.get("last_blocked_tick", server_tick)) >= BLOCKED_LOOP_RESET_TICKS:
+		_blocked_engagements.erase(peer_id)
 
 
 static func overtime_steering(position: Vector2, heat_elapsed: float) -> Vector2:
@@ -191,10 +242,12 @@ static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> V
 
 
 static func _first_blocking_obstacle(from: Vector2, to: Vector2) -> Dictionary:
-	for rectangle in ArenaLayout.cover_rectangles():
+	var rectangles := ArenaLayout.cover_rectangles()
+	for rectangle_index in rectangles.size():
+		var rectangle := rectangles[rectangle_index]
 		var expanded := rectangle.grow(GameConstants.PROJECTILE_RADIUS + 2.0)
 		if _segment_intersects_rect(from, to, expanded):
-			return {"kind": &"rectangle", "rect": rectangle}
+			return {"kind": &"rectangle", "index": rectangle_index, "rect": rectangle}
 	if _segment_intersects_circle(
 		from,
 		to,
@@ -205,17 +258,24 @@ static func _first_blocking_obstacle(from: Vector2, to: Vector2) -> Dictionary:
 	return {}
 
 
+static func _obstacle_id(obstacle: Dictionary) -> int:
+	return int(obstacle.get("index", -1)) if obstacle.get("kind", &"") == &"rectangle" else -2
+
+
 static func _obstacle_flank_steering(
 	from: Vector2,
 	to: Vector2,
 	obstacle: Dictionary,
 	peer_id: int,
 	target_peer_id: int,
-	server_tick: int
+	server_tick: int,
+	invert_side: bool = false
 ) -> Vector2:
 	var epoch := floori(float(server_tick) / float(FLANK_DIRECTION_TICKS))
 	var pair_seed := mini(peer_id, target_peer_id) * 31 + maxi(peer_id, target_peer_id) * 17 + epoch
 	var positive_side := posmod(pair_seed, 2) == 0
+	if invert_side:
+		positive_side = not positive_side
 	if obstacle.get("kind", &"") == &"rectangle":
 		var rectangle := (obstacle.rect as Rect2).grow(
 			GameConstants.SHIP_COLLISION_RADIUS + OBSTACLE_FLANK_CLEARANCE

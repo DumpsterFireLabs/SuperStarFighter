@@ -48,7 +48,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
 - Provide server options: `--server`, `--port=7000`, `--server-name=Super Star Fighter Server`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
 - Clients connect through an IP/hostname and UDP port. The first connected player becomes lobby leader; leadership transfers to the earliest remaining player on disconnect.
 - The client also provides Host & Join through an isolated in-process authority, plus bounded UDP local-subnet discovery and a one-click LAN server browser. Direct IP/hostname remains the routed-LAN and internet fallback.
-- NPCs consume match participant seats but no ENet client connections. Their movement, targeting, firing, shielding, and draft choices run exclusively on the authoritative server through the same validated combat-input and card systems used for humans.
+- NPCs consume match participant seats but no ENet client connections. Their movement, targeting, firing, shielding, and draft choices run exclusively on the authoritative server through the same validated combat-input and card systems used for humans. Obstacle navigation tracks persistent blocked engagements and escalates a hold/flank pair into an opposite-side breakout before overtime can become the only source of progress.
 - Add a headless test-client mode that connects through the real protocol, drafts cards, and generates scripted movement/combat input. It remains developer tooling and is not exposed as playable AI.
 - Initialize Git, add Godot-appropriate ignores, and provide PowerShell commands for tests, client/server exports, local server startup, and multi-client smoke tests.
 
