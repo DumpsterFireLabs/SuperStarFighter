@@ -153,6 +153,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var client := packed_scene.instantiate()
 	tree_parent.add_child(client)
 	context.expect_true(client.connection_screen != null, "production connection screen exists")
+	context.expect_equal(client.version_label.text, "BETA 1  ·  VERSION 0.1.0-beta.1", "main screen displays the canonical Beta 1 version")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
 	var discovered_servers: Array[Dictionary] = [
@@ -195,6 +196,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(Vector2i(3840, 2160) in client.RESOLUTION_OPTIONS and Vector2i(5120, 2160) in client.RESOLUTION_OPTIONS, "settings includes common 4K and 5K2K resolutions")
 	context.expect_true(Vector2i(2560, 1080) in client.RESOLUTION_OPTIONS and Vector2i(3440, 1440) in client.RESOLUTION_OPTIONS, "settings preserves common ultrawide resolutions")
 	context.expect_true(Vector2i(3840, 1080) in client.RESOLUTION_OPTIONS and Vector2i(5120, 1440) in client.RESOLUTION_OPTIONS, "settings includes 32:9 super-ultrawide resolutions")
+	context.expect_true(Vector2i(2880, 1920) in client.RESOLUTION_OPTIONS, "settings includes the requested 2880x1920 resolution")
 	client.current_window_mode = client.WindowModeOption.BORDERLESS_FULLSCREEN
 	client._update_resolution_control_state()
 	context.expect_true(client.resolution_control.disabled, "borderless fullscreen clearly defers resolution selection to the desktop")

@@ -25,6 +25,7 @@ const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(2560, 1080),
 	Vector2i(2560, 1440),
 	Vector2i(2560, 1600),
+	Vector2i(2880, 1920),
 	Vector2i(3440, 1440),
 	Vector2i(3840, 1080),
 	Vector2i(3840, 1600),
@@ -57,6 +58,7 @@ var _hosted_server_root: Node
 var _hosted_server_bridge: NetworkBridge
 var _hosted_server_multiplayer: MultiplayerAPI
 var lobby_label: Label
+var version_label: Label
 var lobby_roster: VBoxContainer
 var ready_button: CheckButton
 var rounds_control: SpinBox
@@ -260,6 +262,13 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	subtitle.add_theme_color_override("font_color", Color("d39cff"))
 	subtitle.add_theme_font_size_override("font_size", 25)
 	content.add_child(subtitle)
+	version_label = Label.new()
+	version_label.name = "VersionLabel"
+	version_label.text = "%s  ·  VERSION %s" % [GameConstants.RELEASE_LABEL, GameConstants.GAME_VERSION]
+	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	version_label.add_theme_color_override("font_color", Color("73f7ff"))
+	version_label.add_theme_font_size_override("font_size", 15)
+	content.add_child(version_label)
 	name_field = _add_labeled_field(content, "Display name", "Pilot")
 	name_field.max_length = 16
 	connection_tabs = TabContainer.new()

@@ -13,6 +13,7 @@ foreach ($resolution in @(
     @{ Label = '1280x720'; Width = 1280; Height = 720 },
     @{ Label = '1920x1080'; Width = 1920; Height = 1080 },
     @{ Label = '2560x1080'; Width = 2560; Height = 1080 },
+    @{ Label = '2880x1920'; Width = 2880; Height = 1920 },
     @{ Label = '3440x1440'; Width = 3440; Height = 1440 },
     @{ Label = '5120x1440'; Width = 5120; Height = 1440 }
 )) {
@@ -48,4 +49,4 @@ foreach ($resolution in @(
     }
 }
 
-Write-Host "Presentation verification passed: all ten round maps plus splash, menus, settings, controller bindings, 32-player lobby, draft, READY/BEGIN alerts, combat, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 3440x1440, and 5120x1440."
+Write-Host "Presentation verification passed: all ten round maps plus splash, menus, settings, controller bindings, 32-player lobby, draft, READY/BEGIN alerts, combat, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 2880x1920, 3440x1440, and 5120x1440."

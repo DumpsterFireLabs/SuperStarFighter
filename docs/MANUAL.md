@@ -80,6 +80,8 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
+The main screen displays **BETA 1 · VERSION 0.1.0-beta.1** so players can confirm they are using the same build before joining one another.
+
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
 The connection screen has three online paths:
@@ -419,6 +421,7 @@ Supported selectable resolutions:
 - 2560×1080 ultrawide
 - 2560×1440
 - 2560×1600
+- 2880×1920
 - 3440×1440 ultrawide
 - 3840×1080 super-ultrawide
 - 3840×1600 ultrawide

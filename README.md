@@ -42,7 +42,17 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 
 Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
-Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Fifteen selectable resolutions cover common 16:9, 16:10, 21:9, and 32:9 displays through 5120×2160, including 5120×1440 super-ultrawide.
+Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Sixteen selectable resolutions cover common 16:9, 16:10, 3:2, 21:9, and 32:9 displays through 5120×2160, including 2880×1920 and 5120×1440 super-ultrawide.
+
+## Windows Beta Build
+
+The main menu identifies the current release as **Beta 1**, version `0.1.0-beta.1`. Build and verify the friend-ready Windows x64 client with:
+
+```powershell
+.\tools\build-beta.ps1
+```
+
+The script runs the complete foundation gate, exports a single embedded-PCK executable, launches that executable through its normal rendered startup path, and creates `builds\beta-1\SuperStarFighter-Beta1-Windows-x64.zip` with the friend README and Godot third-party notice. Generated builds remain ignored by Git.
 
 ### Keyboard and mouse
 
@@ -118,13 +128,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,635 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,639 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, 120 cards, and validated 32-client server behavior.
 
-The next release milestone is packaging and release-candidate validation. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
+The Beta 1 Windows client export and packaging path is operational. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
 
 ## License and Assets
 
