@@ -39,8 +39,9 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.16 — Persistent NPC Cover-Loop Breakouts | Complete | Added per-NPC/target/obstacle blocked-engagement memory, three-second opposite-side breakouts, sub-second sightline-flicker tolerance, and sustained-clear reset behavior for both cover islands and the central obstacle; 1,569 assertions, 78 project checks, and the real NPC lobby/combat flow passed. |
 | 6.17 — Multi-Shot Projectile Reconciliation | Complete | Reconciled every predicted pellet in a shared shot sequence instead of retaining collisionless extra visuals; verified Scatter Array creates three authoritative projectiles, removes the full predicted volley, and collides every pellet with arena barriers; 1,575 assertions, 78 project checks, and the real network/match flows passed. |
 | 6.18 — Card Rarity Rebalance and Visual Build Inspection | Complete | Rebalanced all seven offer-slot weights, raising the five-card Epic-or-better chance to about 50.2%; audited all 120 cards and corrected five mismatched tiers; replaced scoreboard and victory stat text boxes with rarity-styled card previews showing exact per-stack and compounded effects; 1,585 assertions, 79 project checks, and 100 production-screen captures passed. |
-| 7 — Export, Documentation, and Release Candidate | In Progress | Repository README, full player/host manual, contributor guide, troubleshooting, networking, content-authoring, and verification documentation completed; export/package work remains. |
+| 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and the verified Beta 1 Windows client package are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
+| 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; exported a 127,507,240-byte embedded-PCK Windows x64 client with verified version metadata and rendered startup; packaged a 57,036,056-byte friend ZIP with instructions and Godot notices; 1,639 assertions, 79 project checks, and 180 production captures passed. |
 | 8 — Ten-Map Expansion | In Progress | The static ten-map roster and automatic round rotation are playable; advanced per-map mechanics, optional rotation controls, full-capacity map simulations, and the rotating-map soak remain. |
 | 8.1 — Static Ten-Map Roster and Per-Round Rotation | Complete | Added ten visually distinct static topologies with 32 validated spawns each; a seeded shuffled deck changes maps only after a round is won and retains the same map through all heats and ties; authoritative collision, projectiles, overtime, NPC behavior, client reconstruction, HUD names, and protocol state are synchronized; 1,629 assertions, 79 project checks, real network/match-loop gates, and 150 production captures passed. |
 
@@ -90,6 +91,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 | 6.17 | Whole-volley predicted projectile reconciliation and barrier collision for every Scatter Array pellet | `5c53e38` |
 | 6.18 | Seven-tier offer rebalance, complete 120-card rarity audit, five corrected tiers, and rarity-styled build-card previews | `701dcb8` |
 | 7.1 | Complete repository README, player/host manual, contributor guide, documentation index, and troubleshooting/reference suite | `5833b04` |
+| 7.2 | Beta 1 version identity, 2880×1920 mode, Windows client export preset, repeatable verified package pipeline, and friend ZIP | `c1a932a` |
 | 8 plan | Ten-map roster, map-data architecture, dynamic mechanic boundaries, and 320-spawn acceptance contract | `5ea2fe9` |
 | 8.1 | Ten static arenas, seeded no-repeat per-round rotation, authoritative geometry/state synchronization, map-aware NPCs, and full presentation coverage | `fbf7d27` |
 
@@ -291,20 +293,33 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ## Milestone 7 — Export, Documentation, and Release Candidate
 
-**Status:** In Progress — documentation complete 2026-08-25; export and release-candidate work remains
+**Status:** In Progress — documentation completed 2026-08-25 and Windows Beta 1 client package completed 2026-08-26; dedicated-server and final release-candidate work remains
 
 **Outcome:** A clean checkout can produce and operate the deliverable Windows client and dedicated server.
 
-### Work
+### Delivered in 7.1–7.2
 
-- Configure Windows x64 client and dedicated-server export presets; strip client-only visual/audio resources from the server while retaining shared collision/gameplay data.
-- Add an export script that runs automated tests before producing `SuperStarFighter.exe` and `SuperStarFighterServer.exe`, and fails immediately on errors.
+- Completed the repository README, player/host manual, contributor guide, documentation index, controls, architecture, local/LAN/internet hosting, troubleshooting, content authoring, tests, logs, limitations, and verification guidance.
+- Pinned `0.1.0-beta.1` as the shared/project game version and displayed **BETA 1 · VERSION 0.1.0-beta.1** on the main connection screen.
+- Added 2880×1920 as the sixteenth supported display resolution and extended visual acceptance to six resolutions and 180 captures.
+- Added a Windows x64 client export preset with an embedded PCK and Windows product/file metadata.
+- Added `build-beta.ps1`, which runs the full project gate, exports the client, launches the exported executable through its rendered startup path, rejects runtime errors, calculates SHA-256 hashes, and creates the friend ZIP.
+- Added friend-facing extraction, LAN/direct-connect, firewall/port-forwarding, unsigned-build, controls, and known-limitation guidance plus the Godot third-party license notice.
+- Produced `SuperStarFighter-Beta1.exe` at 127,507,240 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,036,056 bytes; both are generated under ignored `builds/beta-1/`.
+
+### Remaining Work
+
+- Configure the Windows x64 dedicated-server export preset and strip client-only visual/audio resources while retaining shared collision/gameplay data.
+- Extend release packaging to produce and validate `SuperStarFighterServer.exe` alongside the completed Beta 1 client.
 - Add a release smoke script that starts the exported server, connects exported/headless clients, completes the minimum deterministic scenario, and shuts down cleanly.
-- Maintain the completed README, player/host manual, contributor guide, documentation index, controls, architecture summary, local hosting, direct-IP joining, UDP port forwarding, tests, logs, known limitations, and troubleshooting; add final export instructions with the packaging work.
+- Maintain the completed documentation and add final dedicated-server/export instructions with the remaining packaging work.
 - Audit repository contents for generated files, local paths, downloaded executables, secrets, and unlicensed assets.
 - Run the complete manual acceptance matrix and record defects; fix every release-blocking defect before declaring the candidate complete.
 
 ### Verification
+
+- Beta 1 client acceptance passed 1,639 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
+- The exported executable passed embedded-resource creation, Windows metadata inspection, and off-screen rendered startup without runtime errors; the friend ZIP contains only the executable, Beta README, and third-party notice.
 
 - Produce both release artifacts from a clean checkout using only the documented bootstrap and export commands.
 - Connect two Windows clients to the exported server over localhost and LAN and complete two consecutive matches.
