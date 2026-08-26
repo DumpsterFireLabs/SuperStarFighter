@@ -2,91 +2,106 @@
 
 Super Star Fighter is a Windows-first, server-authoritative, top-down multiplayer arena shooter built with Godot 4.7.2 and GDScript.
 
-The project is currently implementing the vertical slice described in:
+Up to 32 human and NPC pilots fight through last-ship-standing heats. Before each round, eligible pilots choose one upgrade from a private five-card draw. Cards stack without limit, their effects compound, and a sensible little starter ship can become a screen-filling mechanical disaster. The first pilot to win two heats wins the round; the first to reach the configured round target wins the match.
 
-- [Product plan](./plan.md)
-- [Authoritative specification](./spec.md)
-- [Implementation milestones](./milestones.md)
+## Highlights
 
-## Development Commands
+- Ship-relative WASD flight: `W` always means forward, with mouse aim independent of movement.
+- Automatic weapons, directional energy shields, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
+- 120 unlimited-stack cards across seven increasingly scarce rarity tiers.
+- 24 numeric build stats plus beam and auto-repair transformations.
+- Two to 32 total participants with individually configurable NPC difficulty.
+- One-click local hosting, LAN server discovery, and direct-IP joining.
+- Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
+- Persistent audio and resolution settings, ultrawide support, spectating, live standings, and rematches.
 
-From PowerShell in the repository root:
+## Quick Start
+
+The repository includes a pinned, self-contained Godot setup. From PowerShell in the repository root:
 
 ```powershell
 .\tools\bootstrap.ps1
-.\tools\run-editor.ps1
-.\tools\run-tests.ps1
-.\tools\verify-foundation.ps1
-.\tools\verify-network.ps1
-.\tools\verify-match-loop.ps1
-.\tools\verify-npc-lobby.ps1
-.\tools\verify-local-host.ps1
-.\tools\verify-presentation.ps1
-.\tools\verify-hardening.ps1
-.\tools\verify-smoke.ps1
-.\tools\verify-soak.ps1
-.\tools\verify-milestone6.ps1
-.\tools\start-server.ps1
 .\tools\start-client.ps1
 ```
 
-The bootstrap script downloads the pinned portable Godot release and export templates into the ignored `.tools` directory. Nothing is installed system-wide.
+`bootstrap.ps1` downloads Godot 4.7.2 and its Windows export templates into the ignored `.tools` directory, verifies the official SHA-512 checksums and executable signature, and installs nothing system-wide.
 
-## Current Status
+In the game:
 
-Milestones 0–6 are complete. Human clients can play the authoritative online loop from lobby through rendered 30-second five-card drafts, countdowns, heats, rounds, overtime, match results, spectator mode, lobby reset, and rematch. The connection screen offers one-click Host & Join, automatic LAN discovery, and direct-IP fallback; an in-process authoritative server remains isolated from the joining client through its own multiplayer API. Every connected human must ready up before launch; lobby leaders can eject other waiting humans, cap a match at 2–32 total participants, enable server-owned NPC fill, configure every NPC independently from Passive through Insane, and start alone with NPC fill after readying. Waiting NPCs yield their seats as humans join. The connection and lobby screens use centered non-gameplay menus and keep the arena hidden until the match begins. The production interface includes an animated splash that accepts any key immediately and auto-advances after ten seconds, responsive neon menu/lobby screens, persistent audio and standard/ultrawide resolution settings, a compact upper-left combat HUD, centered READY/BEGIN alerts for every heat, readable rarity-colored card panels, a polished hold-to-view live scoreboard, spectator guidance, an in-match Escape menu, a structured champion-and-standings victory screen with hoverable rarity-colored final-build cards and a leader-controlled Exit to Lobby action, and recoverable error screens. `BEGIN` appears for the final 0.10 seconds before control unlock and fades across the first 0.10 seconds of play. Heat results and completed non-final rounds use two-second authoritative intermissions; a decisive final round skips the redundant round result and proceeds to victory. Returning to the same connected lobby clears old ships and match visuals while retaining client identity and monotonic input sequencing for a correctly predicted, server-accepted rematch. The 120-card catalog spans Common, Uncommon, Rare, Epic, Legendary, Mythical, and Unobtanium tiers, rejects exact duplicates and same-shape magnitude swaps, modifies 24 numeric combat stats, and includes authoritative pulse-beam weapons at Epic rarity or above; modifiers and unlimited card stacks deliberately compound into extreme builds. Tier weights fall steeply from 60% Common to 0.05% Unobtanium. Everyone drafts before round one, while each later round winner keeps their build and sits out the next draft so losing players receive the comeback upgrades. Named ships use stable color plus shape patterns, speed-responsive light thruster particles, trails, shields, impacts, damage direction, elimination pulses, overtime treatment, off-screen threats, and local-only camera feedback. ENet networking uses server-owned simulation, bounded binary input/snapshot/projectile packets, 30 Hz input, 20 Hz player snapshots, 5 Hz projectile corrections, local prediction/reconciliation, and remote interpolation. Malformed inputs and sustained control/input floods isolate only their sender; bounded JSON-line logs report match events and ten-second p95 timing/entity/memory windows without client addresses. The expanded foundation gate passes 1,509 automated assertions and 76 project checks; the completed Milestone 6 acceptance record remains 794 assertions, 72 project checks, and a 600-second 32-client soak whose worst timing-window p95 was 10.678 ms.
+1. Press any key on the splash screen.
+2. Open **Host Game**.
+3. Choose a server name and gameplay UDP port, then select **Host & Join**.
+4. In the lobby, choose the player limit and round target. Enable NPCs if desired.
+5. Every human selects **Ready for Launch**.
+6. The lobby leader selects **Start Match**.
 
-Milestone 7 (export, documentation, and release candidate) is next.
+Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address and gameplay port.
 
-## Local Multiplayer
+## Controls
 
-The simplest path is the connection screen's **Host Game** tab: choose a server name and gameplay port, then select **Host & Join**. Other clients on the same subnet see the session automatically under **LAN Servers** and can join it in one click. **Direct Connect** remains available for localhost, a known LAN address, or a manually forwarded public address.
+| Input | Action |
+| --- | --- |
+| `W` / `S` | Fly forward / backward relative to the ship's nose |
+| `A` / `D` | Strafe left / right relative to the ship's nose |
+| Mouse | Aim ship and weapon |
+| Left mouse | Fire automatically while held |
+| Right mouse | Hold the directional shield |
+| `1`–`5` or click | Choose a draft card |
+| Hold `Tab` | Show live standings and public builds |
+| `Escape` | Open the non-pausing pilot menu |
+| `F3` | Toggle network diagnostics |
+| `A` / `D` or mouse buttons while spectating | Cycle living pilots |
 
-LAN discovery uses fixed UDP port `7359`; gameplay uses the selected ENet UDP port (`7000` by default), so a hosted gameplay server cannot also use `7359`. Discovery only advertises sessions on the local subnet and does not expose them through a public internet directory.
+## Documentation
 
-Start the authoritative server in one PowerShell window:
+- [Player and Host Manual](./docs/MANUAL.md) — complete instructions, match rules, card strategy, hosting, settings, and troubleshooting.
+- [Development Guide](./docs/DEVELOPMENT.md) — repository architecture, setup, content authoring, testing, and contribution workflow.
+- [Documentation Index](./docs/README.md) — the best document for each audience and task.
+- [Authoritative Specification](./spec.md) — exact gameplay, networking, balance, and acceptance contract.
+- [Product Plan](./plan.md) — product intent and scope.
+- [Implementation Milestones](./milestones.md) — delivered work and verification evidence.
+- [Audio Drop-in Contract](./assets/audio/README.md) — accepted music and sound-effect filenames.
+
+## Dedicated Server
+
+Start a headless authoritative server with:
 
 ```powershell
 .\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -MaxPlayers 32 -RoundsToWin 3
 ```
 
-Start one or more clients with `.\tools\start-client.ps1`, enter the server host and UDP port, and connect. The first admitted player is lobby leader. Every human must select **Ready for Launch** before the leader can start; changing lobby settings clears readiness. The leader can eject other waiting humans, choose the round target, and set a total player limit up to the server capacity (maximum 32). Enable NPCs to immediately fill every empty seat, then set each NPC independently to Passive, Easy, Neutral, Skilled, or Insane from its roster dropdown. Neutral is the default, and difficulty changes decision quality without bonus stats. One readied human may start with NPC fill; leave NPCs disabled to require at least two humans.
+Super Star Fighter uses ENet over UDP. LAN discovery uses UDP `7359`; gameplay uses the selected UDP port, `7000` by default. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting currently requires direct IP/hostname access and manual router/firewall configuration; UPnP traversal is not implemented.
 
-`verify-network.ps1` launches isolated protocol clients and verifies handshake acceptance/rejection, authoritative inputs and snapshots, projectile traffic, leader transfer, late-spectator admission, and clean shutdown.
+See the [hosting chapter](./docs/MANUAL.md#4-hosting-and-joining) for practical LAN and internet setup.
 
-`verify-match-loop.ps1` launches one server and two protocol clients through deterministic full matches, including a private card choice, timeout auto-pick, scoring, reset, rematch, and clean shutdown.
+## Development
 
-`verify-npc-lobby.ps1` launches one human protocol client, configures four total seats, enables NPC fill, starts with three server-owned NPCs, and verifies drafting, combat input, snapshots, and clean shutdown.
+Open the project editor:
 
-`verify-local-host.ps1` exercises the production one-click flow: it starts the in-process authority, joins it through loopback as a normal client, verifies authoritative lobby admission, discovers the advertised session through the LAN browser, and shuts down both network roles cleanly.
+```powershell
+.\tools\run-editor.ps1
+```
 
-`verify-presentation.ps1` renders splash, populated LAN browser, host-game form, settings, 32-player lobby, draft, winner draft bye, READY and BEGIN heat alerts, combat, live scoreboard, spectator, pause, structured victory, and error screens at 1280×720, 1920×1080, 2560×1080, and 3440×1440. It asserts the real framebuffer dimensions and fails on parser/runtime errors or missing captures; images are written beneath the ignored `.tools/presentation-verification` directory.
+Run the fast test suite:
 
-`verify-hardening.ps1` proves malformed and sustained excessive traffic disconnect only the offending peer while healthy clients continue. `verify-smoke.ps1` accepts 2–32 real ENet clients. `verify-soak.ps1` defaults to the acceptance configuration of 32 clients for 600 seconds and records an ignored JSON summary beneath `.tools/soak-verification/`.
+```powershell
+.\tools\run-tests.ps1
+```
 
-`verify-milestone6.ps1` is the single full gate: unit/project checks, protocol integration, two complete matches, NPC lobby, hostile traffic, smoke, and configurable soak. Its default invocation runs the required ten-minute 32-client scenario.
+Run the complete foundation gate:
 
-## Audio Assets
+```powershell
+.\tools\verify-foundation.ps1
+```
 
-The game is fully operational before authored audio arrives. It generates short placeholder SFX and victory music at runtime, while safely skipping absent menu/gameplay tracks.
+The current gate passes 1,509 automated assertions and 76 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
-- Put the singular menu track at `assets/audio/music/main_menu.mp3` (or `.wav`/`.ogg`; compound names such as `main_menu.mp3.wav` work).
-- Put any number of `.mp3`, `.wav`, or `.ogg` gameplay tracks in `assets/audio/music/gameplay/`; they play in filename order as a playlist.
-- Put authored victory music at `assets/audio/music/win.mp3` (recommended exact filename), or use `win.wav` / `win.ogg`. The generated victory theme remains the fallback.
-- Replace placeholder SFX by following [the audio drop-in contract](./assets/audio/README.md). No code changes are required.
+## Current Scope
 
-## Online Match Controls
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, 120 cards, and validated 32-client server behavior.
 
-- `W` / `S`: forward/back relative to ship aim; `A` / `D`: strafe left/right; mouse: aim; left mouse: fire; right mouse: shield.
-- Draft cards: click a card or press `1`–`5`.
-- Hold `Tab` to inspect scores and public card builds.
-- After elimination, use `A` / `D` or the left/right mouse buttons to cycle living ships.
-- `Escape`: open the non-pausing pilot menu; `F3`: toggle network diagnostics.
+The next release milestone is packaging and release-candidate validation. Public matchmaking, accounts, progression, teams, chat, controller support, automatic NAT traversal, reconnect restoration during an active match, map selection, and non-Windows exports are not part of the current slice.
 
-## Offline Sandbox Controls
+## License and Assets
 
-- `W` / `S`: move forward/back relative to ship aim; `A` / `D`: strafe left/right; mouse: aim with the custom crosshair; left mouse: automatic fire; right mouse: directional shield.
-- `Q` / `E`: select a card; `G`: grant one stack; `C`: clear the current build.
-- `T`: toggle target shields; `B`: toggle target fire; `Y`: reset the heat.
-- `O`: start overtime or reset an active/warning overtime to a full 90-second heat clock; `Shift+O`: cycle diagnostic overtime stages.
-- `F1`: toggle the on-screen help.
+No project license has been declared in this repository yet. Treat the source and bundled assets as all-rights-reserved until a license file is added. Any replacement music or sound effects must be original or properly licensed for the project.

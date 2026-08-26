@@ -27,7 +27,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.9 — One-Click Hosting and LAN Discovery | Complete | Added an isolated in-process authority with loopback join, bounded subnet discovery and a populated browser, direct-connect fallback, protocol compatibility and live occupancy/state details; 1,218 assertions, 76 project checks, a real host/admission/discovery lifecycle, and 56 production-screen captures passed. |
 | 6.10 — Heat Pacing, Launch Alerts, and Rematch Rendering | Complete | Reduced heat-result and non-final round-result intermissions to two seconds; added centered READY/BEGIN alerts to every heat; separated match-visual cleanup from connection identity so same-lobby rematches recreate the local predicted ship correctly; 1,228 assertions, 76 project checks, the real two-match loop, and 64 production-screen captures passed. |
 | 6.11 — Rematch Input Continuity and Twelve-Dozen Catalog | Complete | Preserved monotonic client input sequence/tick state through same-connection lobby resets so rematch movement remains server-accepted; tightened BEGIN to a 0.10-second pre-roll plus fading 0.10-second post-roll; audited and differentiated the prior catalog, expanded it to 120 unlimited-stack cards, and grew the numeric modifier surface from 18 to 24 stats; 1,509 assertions, 76 project checks, the real two-match/host loop, and 64 production-screen captures passed. |
-| 7 — Export, Documentation, and Release Candidate | Next | Milestone 6 exit gate passed. |
+| 7 — Export, Documentation, and Release Candidate | In Progress | Repository README, full player/host manual, contributor guide, troubleshooting, networking, content-authoring, and verification documentation completed; export/package work remains. |
 
 ## Completion Rules
 
@@ -236,6 +236,8 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 
 ## Milestone 7 — Export, Documentation, and Release Candidate
 
+**Status:** In Progress — documentation complete 2026-08-25; export and release-candidate work remains
+
 **Outcome:** A clean checkout can produce and operate the deliverable Windows client and dedicated server.
 
 ### Work
@@ -243,7 +245,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Configure Windows x64 client and dedicated-server export presets; strip client-only visual/audio resources from the server while retaining shared collision/gameplay data.
 - Add an export script that runs automated tests before producing `SuperStarFighter.exe` and `SuperStarFighterServer.exe`, and fails immediately on errors.
 - Add a release smoke script that starts the exported server, connects exported/headless clients, completes the minimum deterministic scenario, and shuts down cleanly.
-- Write the README with controls, architecture summary, local hosting, direct-IP joining, UDP port forwarding, tests, exports, logs, known limitations, and troubleshooting.
+- Maintain the completed README, player/host manual, contributor guide, documentation index, controls, architecture summary, local hosting, direct-IP joining, UDP port forwarding, tests, logs, known limitations, and troubleshooting; add final export instructions with the packaging work.
 - Audit repository contents for generated files, local paths, downloaded executables, secrets, and unlicensed assets.
 - Run the complete manual acceptance matrix and record defects; fix every release-blocking defect before declaring the candidate complete.
 

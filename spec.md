@@ -3,7 +3,7 @@
 **Status:** Approved implementation baseline  
 **Engine:** Godot 4.7.2 Standard, GDScript  
 **Primary platform:** Windows x64 client and Windows x64 headless server  
-**Related documents:** [Product plan](./plan.md) · [Implementation milestones](./milestones.md)
+**Related documents:** [Product plan](./plan.md) · [Implementation milestones](./milestones.md) · [Player/host manual](./docs/MANUAL.md) · [Development guide](./docs/DEVELOPMENT.md)
 
 This document is the authoritative contract for the vertical slice. It defines observable behavior, starting balance, technical interfaces, failure handling, and acceptance criteria. If it conflicts with `plan.md`, this document takes precedence. Intentional changes must update this specification and any affected milestone acceptance criteria together.
 

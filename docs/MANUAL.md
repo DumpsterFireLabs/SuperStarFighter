@@ -1,0 +1,510 @@
+# Super Star Fighter — Player and Host Manual
+
+**Applies to:** current Windows vertical slice  
+**Engine:** Godot 4.7.2  
+**Players:** 2–32 total human/NPC participants; one human may start when NPC fill is enabled
+
+This manual explains how to launch, host, join, play, troubleshoot, and run a good Super Star Fighter session. Exact implementation values live in the [authoritative specification](../spec.md).
+
+## Contents
+
+1. [What Kind of Game Is This?](#1-what-kind-of-game-is-this)
+2. [Running the Game From This Repository](#2-running-the-game-from-this-repository)
+3. [Main Menu](#3-main-menu)
+4. [Hosting and Joining](#4-hosting-and-joining)
+5. [Lobby Manual](#5-lobby-manual)
+6. [Match Flow](#6-match-flow)
+7. [Flight and Combat](#7-flight-and-combat)
+8. [Cards and Builds](#8-cards-and-builds)
+9. [HUD, Scoreboard, Spectating, and Menus](#9-hud-scoreboard-spectating-and-menus)
+10. [Settings and Audio](#10-settings-and-audio)
+11. [Offline Combat Lab](#11-offline-combat-lab)
+12. [Disconnects and Rejoining](#12-disconnects-and-rejoining)
+13. [Troubleshooting](#13-troubleshooting)
+14. [Hosting Checklist](#14-hosting-checklist)
+15. [Current Limitations](#15-current-limitations)
+
+## 1. What Kind of Game Is This?
+
+Super Star Fighter is a free-for-all top-down space shooter about mechanical skill and increasingly unreasonable upgrades.
+
+Every match is made of rounds. Every round is made of last-ship-standing heats. Before round one, every pilot receives a private draw of five cards and chooses one. Before later rounds, everyone except the previous round winner drafts another card. The cards permanently modify that pilot's build for the remainder of the match.
+
+There are no card stack limits. Flat bonuses add, multipliers compound, and complementary cards interact. A build can become extremely fast, extremely durable, flood the arena with projectiles, fire long-lived ricochets, repair itself, or convert its weapon into pulse beams. This escalation is intentional.
+
+The victory structure is:
+
+```text
+Win 2 heats → win the round
+Win the configured number of rounds → win the match
+```
+
+With three or more pilots, a round can take more than three heats because several pilots may each hold one heat win.
+
+## 2. Running the Game From This Repository
+
+### Requirements
+
+- Windows x64.
+- PowerShell 7 or a compatible modern PowerShell.
+- Internet access for the first bootstrap only.
+- Keyboard and mouse.
+- A GPU/driver capable of Godot's OpenGL compatibility renderer.
+
+No separate Godot installation is necessary.
+
+### First launch
+
+Open PowerShell in the repository root and run:
+
+```powershell
+.\tools\bootstrap.ps1
+.\tools\start-client.ps1
+```
+
+The bootstrap process downloads the pinned Godot 4.7.2 engine and Windows export templates to `.tools/`. It validates official checksums and the Windows executable signature. The download is self-contained and ignored by Git.
+
+On later launches, only run:
+
+```powershell
+.\tools\start-client.ps1
+```
+
+If the bootstrap is incomplete or damaged, rerun it with:
+
+```powershell
+.\tools\bootstrap.ps1 -Force
+```
+
+This replaces only the repository's local `.tools` engine/template files.
+
+## 3. Main Menu
+
+The splash screen accepts a keyboard or mouse press immediately and otherwise advances after ten seconds.
+
+The connection screen has three online paths:
+
+- **LAN Servers** discovers compatible sessions on the local subnet.
+- **Direct Connect** joins a known hostname or IP address and UDP port.
+- **Host Game** starts an authoritative server locally and joins it through the normal network protocol.
+
+The same screen also offers:
+
+- **Offline Combat Lab** for solo movement, combat, card, shield, and overtime experimentation.
+- **Settings** for resolution and audio.
+- **Quit** to close the game.
+
+Display names may contain 1–16 printable characters. When names collide, the server adds suffixes such as `#2` for display clarity.
+
+## 4. Hosting and Joining
+
+### 4.1 One-click local hosting
+
+For most playtests, use **Host Game**:
+
+1. Enter your display name.
+2. Open the **Host Game** tab.
+3. Enter a server name. This is what nearby players see in the LAN list.
+4. Choose a gameplay UDP port from `1024` through `65535`. Port `7359` is reserved for discovery and cannot be used for gameplay.
+5. Select **Host & Join**.
+
+The game starts an authoritative server inside an isolated multiplayer subtree, then connects your playable client to it over loopback. The host's player does not receive special simulation authority or gameplay advantages.
+
+Closing or disconnecting the hosting client shuts down its in-process server, so use the dedicated server path when the authority should outlive any particular player's window.
+
+### 4.2 Joining from the LAN browser
+
+1. Enter your display name.
+2. Open **LAN Servers**.
+3. Select **Refresh** if the desired host has not appeared.
+4. Review the server name, occupancy, player limit, match state, compatibility, and ping.
+5. Join a compatible row.
+
+LAN discovery uses UDP port `7359` and works within one broadcast domain. Guest Wi-Fi isolation, VLAN boundaries, VPN routing, or operating-system firewall rules may prevent discovery even when direct connection works.
+
+An incompatible protocol server remains visible but cannot be joined. All players and the server must run compatible builds.
+
+### 4.3 Direct connection
+
+Use **Direct Connect** when you know the server address:
+
+1. Enter a hostname or IPv4/IPv6 address in **Server host or IP**.
+2. Enter the server's gameplay UDP port.
+3. Select **Connect to Server**.
+
+For the same computer, use `127.0.0.1`. For another computer on the LAN, use that computer's private address, such as `192.168.1.50`. For an internet server, use its public hostname or public IP.
+
+### 4.4 Dedicated server
+
+From the repository root:
+
+```powershell
+.\tools\start-server.ps1 `
+    -Port 7000 `
+    -ServerName "Friday Fight Night" `
+    -MaxPlayers 32 `
+    -RoundsToWin 3
+```
+
+Parameters:
+
+| Parameter | Range | Default | Meaning |
+| --- | ---: | ---: | --- |
+| `Port` | 1024–65535 | 7000 | ENet gameplay UDP port |
+| `ServerName` | 1–40 printable characters | Super Star Fighter Server | LAN browser name |
+| `MaxPlayers` | 2–32 | 32 | Maximum server/lobby participant capacity |
+| `RoundsToWin` | 1–5 | 3 | Initial lobby round target |
+
+The dedicated process runs headlessly and prints bounded JSON-line events and metrics to standard output. Stop it with `Ctrl+C` when the session is over.
+
+### 4.5 Internet hosting and firewalls
+
+Super Star Fighter uses ENet over UDP, not TCP.
+
+For internet play, the host normally needs to:
+
+1. Allow the Godot/server executable through the host firewall for the chosen UDP gameplay port.
+2. Forward that UDP port from the router to the server computer when behind NAT.
+3. Give players the public hostname/IP and gameplay port.
+
+UPnP, NAT punch-through, relay hosting, and a public server directory are not implemented. UDP `7359` is only for local discovery and should not be exposed as a public matchmaking service.
+
+## 5. Lobby Manual
+
+The first admitted human is the lobby leader. If that player disconnects, leadership passes to the earliest remaining human. NPCs never become leader.
+
+### Every human player
+
+- Reviews the roster and lobby rules.
+- Selects **Ready for Launch** when prepared.
+- Becomes not ready whenever the leader changes a lobby setting.
+- May disconnect voluntarily before or during a match.
+
+### Lobby leader
+
+- Sets **Rounds to win** from 1 through 5.
+- Sets the **Player limit** from 2 through server capacity, never above 32 or below the number of connected humans.
+- Enables or disables NPC fill.
+- Selects each NPC's difficulty.
+- Ejects other waiting human players.
+- Starts the match once the launch conditions are satisfied.
+- Selects **Exit to Lobby** from final results after the match.
+
+The leader cannot eject players during an active match and cannot eject themselves. Ejected players return to the connection screen with a clear reason.
+
+### Launch conditions
+
+- Every connected human must be ready.
+- With NPCs disabled, at least two humans are required.
+- With NPCs enabled, one ready human may start with the configured NPC roster.
+
+The start button explains whichever requirement is missing. When a normal human lobby is ready it reads **Start Match**; a solo NPC-assisted launch reads **Start Match with NPCs**.
+
+### NPC fill
+
+Enabling NPCs fills all open configured seats immediately. Each waiting NPC appears in the roster and can be configured before launch. If a human joins a full waiting lobby, that human replaces one NPC rather than being rejected. Disabling NPCs removes all waiting NPCs.
+
+NPC difficulty changes behavior, not stats:
+
+| Difficulty | Intended experience |
+| --- | --- |
+| Passive | Movement target; never fires or shields |
+| Easy | Slow reactions, broad aim error, conservative firing |
+| Neutral | General-purpose opponent with moderate leading and pressure |
+| Skilled | Fast reactions, accurate leading, strong movement and shield use |
+| Insane | Near-immediate reactions, extremely accurate aim, relentless pressure |
+
+Every NPC uses the same cards, health, weapon rules, movement limits, collision, and damage model as a human.
+
+## 6. Match Flow
+
+### Draft
+
+Every participant drafts before round one. Before later rounds, the pilot who just won the round receives no card; everyone else receives a comeback draft. This prevents the leader from automatically snowballing through extra upgrades.
+
+Human players see five private cards and have 30 seconds to choose. Click a card or press `1` through `5`. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
+
+The cards apply simultaneously. Builds become public after the draft and can be inspected while holding `Tab`.
+
+### Countdown and BEGIN
+
+Ships spawn at full derived health, full shield energy, and a full magazine. Controls remain locked during the three-second countdown. The center plate shows **READY**, changes to **BEGIN** with `0.10` seconds remaining, and fades through the first `0.10` seconds of active combat.
+
+The camera snaps to your ship at the start of every heat.
+
+### Active heat
+
+Fight until one ship remains. That survivor gains one heat win. Two heat wins award the round.
+
+If every remaining ship dies during the same authoritative tick, the heat is a tie: nobody receives a heat win and the heat is replayed after the result screen.
+
+### Round and match results
+
+After a non-final round, heat-win counters clear and the next comeback draft begins. The first pilot to reach the configured round target wins the match.
+
+The final victory screen stays open. Hover any card in a final build to inspect its per-stack and compounded effects. The lobby leader selects **Exit to Lobby** when the group is ready. Everyone returns to the same connected lobby with builds, scores, and readiness cleared.
+
+## 7. Flight and Combat
+
+### 7.1 Controls
+
+| Input | During combat |
+| --- | --- |
+| `W` | Accelerate forward along the ship's nose |
+| `S` | Accelerate backward |
+| `A` | Strafe left |
+| `D` | Strafe right |
+| Mouse | Point ship and weapon |
+| Hold left mouse | Automatic fire |
+| Hold right mouse | Directional shield |
+| Hold `Tab` | Live standings and public builds |
+| `Escape` | Pilot menu; online combat continues |
+| `F3` | Network diagnostic overlay |
+
+Movement is ship-relative, not screen-relative. If the ship faces down, `W` moves down. A useful mental model is that the mouse steers the nose while WASD commands forward, reverse, and lateral thrusters.
+
+Diagonal input is normalized, so combining directions does not increase top speed.
+
+### 7.2 Weapons
+
+The base weapon deals 25 damage, fires four shots per second, holds eight rounds, reloads automatically in 1.5 seconds, and launches projectiles at 900 pixels per second for 2.5 seconds.
+
+There is no manual reload. When the magazine empties, reload begins automatically. Firing is disabled during reload and while shielding.
+
+Cards can alter damage, cadence, magazine size, reload, projectile count, spread, speed, lifetime, pierces, and ricochets. Beam cards transform shots into fast, short-lived pulse beams while retaining authoritative collision and damage.
+
+### 7.3 Directional shields
+
+The base shield covers a 120-degree arc centered on the ship's aim. It starts with 100 energy, drains 20 energy per second while held, and spends 25 energy for each blocked projectile.
+
+A projectile is blocked only if it strikes inside the visible forward arc. Rear and side shots outside the arc continue to the hull. A blocked projectile is consumed even if it had pierces or ricochets remaining.
+
+After shield activity, regeneration waits 1.25 seconds, then restores 30 energy per second. Fully depleting the shield locks it until it reaches the recovery threshold. Cards can modify capacity, drain, regeneration, delay, block cost, recovery threshold, arc, and acceleration while shielding.
+
+Shielding prevents firing and normally reduces acceleration, so timing matters: turn the arc into danger, absorb the burst, then release to shoot and recover maneuverability.
+
+### 7.4 Collision and cover
+
+Ships slide against arena walls, the central obstacle, cover islands, and other ships. Ship collisions do no damage. Projectiles collide authoritatively with arena geometry, so cover can stop normal shots and redirect ricochet builds.
+
+Shots cannot spawn through a wall when the ship's nose is pressed against it.
+
+### 7.5 Overtime
+
+After 90 seconds of active combat, a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
+
+Overtime exists to force a conclusion. Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
+
+## 8. Cards and Builds
+
+### Categories
+
+- **Ship** cards modify hull, speed, acceleration, braking, shielded movement, and repair behavior.
+- **Shield** cards modify shield economy, coverage, recovery, and mobility.
+- **Weapon** cards modify firing, ammunition, damage, projectile behavior, and beam transformations.
+
+Category is a navigation hint, not an isolation rule. Some cards deliberately touch another system to create hybrid builds.
+
+### Rarity
+
+| Tier | Offer-tier weight | Card color |
+| --- | ---: | --- |
+| Common | 60% | Pale steel |
+| Uncommon | 25% | Green |
+| Rare | 10% | Cyan |
+| Epic | 3.5% | Violet |
+| Legendary | 1.2% | Gold |
+| Mythical | 0.25% | Magenta |
+| Unobtanium | 0.05% | Hot red |
+
+The displayed percentage is the chance to select that rarity tier for an offer slot when all tiers are eligible. After the tier is chosen, the server selects uniformly among eligible cards in that tier. It is not the exact probability of one named card.
+
+Five offered cards are always distinct. A card may return in a later draft and stacks have no limit.
+
+### How stacking works
+
+For every derived numeric stat:
+
+1. Flat additions from all owned stacks are summed.
+2. Multipliers from all owned stacks compound.
+3. Integer additions such as extra projectiles, pierces, and ricochets are applied.
+4. Broad technical guardrails prevent broken network encoding, physics, or entity budgets.
+
+Acquisition order does not change the result. `×1.20` taken three times means `1.20³`, not a one-time 60% flat bonus.
+
+Auto-repair and beam cards enable behaviors. Other cards can improve repair delay/rate before repair is enabled, creating deliberate setup-and-payoff combinations.
+
+### Reading a card
+
+Each draft card shows:
+
+- Its input number and title.
+- Ship, Shield, or Weapon category.
+- Exact per-stack effect.
+- Current stack transition, such as `STACK 2 → 3`.
+- Rarity and rarity-tier weight in smaller text at the bottom.
+
+Cards do not always contain a downside. Higher rarity means scarcity, not a guarantee that the card is correct for the current build.
+
+### Build advice
+
+- Pair projectile count with spread control or pierces instead of evaluating each stat alone.
+- Magazine, fire rate, and reload form one sustained-damage economy. Improving only cadence can empty the magazine faster than expected.
+- Projectile lifetime and speed both affect practical range; ricochets benefit especially from added lifetime.
+- Shield block cost matters more against high projectile counts, while continuous drain matters more during long holds.
+- Recovery threshold and regeneration delay solve different depletion problems.
+- Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
+- Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
+
+The complete 120-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+
+## 9. HUD, Scoreboard, Spectating, and Menus
+
+The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena.
+
+Hold `Tab` to show live standings. The overlay is momentary and closes as soon as `Tab` is released. Builds are public after every draft.
+
+When eliminated, you immediately spectate. Use `A`/`D` or the left/right mouse buttons to move among living ships. Late joiners also spectate until the current match returns to the lobby.
+
+Press `Escape` to open the pilot menu. Online combat does not pause: the overlay blocks only your local controls. From it you may resume, open settings, disconnect to the main menu, or quit.
+
+`F3` shows network diagnostics such as frame rate, round-trip time, input acknowledgment, prediction error, snapshot count, player count, and projectile count. It is primarily a playtest and troubleshooting tool.
+
+## 10. Settings and Audio
+
+Settings are available from the main menu and the in-match pilot menu.
+
+Supported window resolutions:
+
+- 1280×720
+- 1600×900
+- 1920×1080
+- 2560×1080 ultrawide
+- 2560×1440
+- 3440×1440 ultrawide
+
+Wider modes reveal additional horizontal arena space without stretching ships or UI nonuniformly.
+
+Audio controls include master, music, and effects volume plus a mute toggle. Settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
+
+The game safely runs without authored audio: combat effects are synthesized, victory has a generated fallback, and absent music is skipped. Repository maintainers can add real music and sound effects without code changes by following the [audio drop-in contract](../assets/audio/README.md).
+
+## 11. Offline Combat Lab
+
+The lab is a local sandbox for learning controls and testing card interactions without a server.
+
+| Input | Lab action |
+| --- | --- |
+| WASD / mouse / mouse buttons | Normal movement, aim, fire, and shield |
+| `Q` / `E` | Select previous / next card |
+| `G` | Grant one stack of the selected card |
+| `C` | Clear the current build |
+| `T` | Toggle target shields |
+| `B` | Toggle target firing |
+| `Y` | Reset the heat |
+| `O` | Start overtime, or reset warning/overtime to a full 90-second clock |
+| `Shift+O` | Cycle diagnostic overtime stages |
+| `F1` | Toggle laboratory help |
+
+The lab uses shared movement, combat, collision, card, and overtime rules, but it is not a substitute for network testing.
+
+## 12. Disconnects and Rejoining
+
+- Disconnecting during a heat eliminates that participant before survivor resolution.
+- Disconnecting in another match state removes the participant from future spawns.
+- Joining after a match has started admits the client as a spectator.
+- A late spectator becomes a normal lobby participant after the match returns to the lobby.
+- Returning to the same lobby after victory supports a clean rematch without reconnecting.
+
+Active-match reconnect restoration is not implemented. A rejoining player does not reclaim their earlier ship/build during the current match.
+
+## 13. Troubleshooting
+
+### The project says Godot is not bootstrapped
+
+Run:
+
+```powershell
+.\tools\bootstrap.ps1
+```
+
+If files are incomplete, use `-Force`.
+
+### A LAN server does not appear
+
+- Select **Refresh**.
+- Confirm both machines are on the same subnet and are not isolated by guest Wi-Fi/VLAN settings.
+- Allow UDP `7359` through the host firewall for local discovery.
+- Try **Direct Connect** with the host's private LAN address and gameplay port.
+- Confirm client and server builds use the same protocol version.
+
+### Direct connection fails
+
+- Confirm the address and UDP gameplay port.
+- Confirm the dedicated server reports `server_started` rather than `server_bind_failed`.
+- Allow the selected UDP port through the server firewall.
+- For internet play, verify the router forwards UDP—not TCP—to the correct internal machine.
+- Do not choose gameplay port `7359`.
+
+### The lobby will not start
+
+- Every connected human must be ready.
+- Changing rounds, seats, NPC settings, or difficulty clears readiness.
+- Without NPCs, at least two humans are required.
+- A solo leader must enable NPCs before starting.
+- Only the lobby leader can start or change settings.
+
+### I cannot shoot
+
+- Release the shield; firing is disabled while shielding.
+- Wait for the automatic reload to finish.
+- Confirm the heat is active rather than in READY/countdown/result state.
+- Extremely stacked builds still obey the global and per-owner projectile budgets.
+
+### My shield is held but shots pass through
+
+The shield is directional. Turn the visible arc toward the incoming projectile. Also check whether the shield is depletion-locked below its recovery threshold.
+
+### The game continues behind the Escape menu
+
+That is intentional for online play. The server never pauses for one client. Use the menu quickly or move to safety before opening it.
+
+### I rejoined and cannot control my old ship
+
+Reconnect restoration is outside the current slice. Mid-match rejoiners spectate until the lobby returns. A connected same-lobby rematch is supported normally.
+
+### Music or sound is missing
+
+- Check master, music, effects, and mute settings.
+- Confirm the files use accepted `.mp3`, `.wav`, or `.ogg` extensions and documented paths.
+- Let Godot finish importing newly added audio.
+- Missing authored effects intentionally fall back to generated audio; missing menu/gameplay music is skipped.
+
+### Performance becomes chaotic late in a match
+
+Hold `F3` to inspect network and entity diagnostics. Card scaling is intentionally excessive, but the server caps active projectiles at 64 per owner and 1024 globally. If diagnosing a regression, record the build, participant count, state, and server log window.
+
+## 14. Hosting Checklist
+
+Before inviting players:
+
+- Run the same revision/build on server and clients.
+- Choose a gameplay UDP port other than `7359`.
+- Confirm the port is allowed through the host firewall.
+- Test LAN discovery or direct connection from a second machine.
+- Decide the total seats, round target, and whether NPC fill is appropriate.
+- For an internet session, verify UDP forwarding and the public address.
+- Ask every human to ready again after the final lobby change.
+
+After the session:
+
+- Let the leader return the victory screen to the lobby before starting another match.
+- Stop a dedicated server with `Ctrl+C`.
+- Preserve relevant JSON-line server logs when reporting a bug.
+- Include reproduction steps, player count, card builds, and whether the problem occurred before or after a rematch.
+
+## 15. Current Limitations
+
+The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, controller support, key rebinding, fullscreen selection, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, map selection, anti-DDoS infrastructure, or console/mobile/web builds.
+
+Those omissions are deliberate scope boundaries, not hidden menu options.
