@@ -1,5 +1,6 @@
 extends Node
 
+const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
@@ -16,6 +17,7 @@ var bridge: NetworkBridge
 var network_world: NetworkWorldView
 var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
+var input_profiles: Node
 var connection_canvas: CanvasLayer
 var connection_screen: Control
 var connection_form_panel: PanelContainer
@@ -56,6 +58,7 @@ var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var scoreboard_context_label: Label
 var scoreboard_rows_container: VBoxContainer
+var scoreboard_hint_label: Label
 var scoreboard_open: bool = false
 var _scoreboard_signature: String = ""
 var results_panel: PanelContainer
@@ -69,7 +72,18 @@ var win_overlay: Control
 var pause_overlay: PanelContainer
 var pause_title: Label
 var settings_panel: Control
+var settings_tabs: TabContainer
 var resolution_control: OptionButton
+var control_scheme_control: OptionButton
+var controller_status_label: Label
+var controller_deadzone_row: HBoxContainer
+var controller_deadzone_slider: HSlider
+var controller_deadzone_value: Label
+var binding_rows: GridContainer
+var binding_buttons: Dictionary = {}
+var binding_capture_status: Label
+var binding_capture_action: StringName = &""
+var binding_capture_seconds: float = 0.0
 var current_resolution: Vector2i = Vector2i(1280, 720)
 var settings_return_to_pause: bool = false
 var splash_screen: Control
@@ -83,12 +97,21 @@ var interface_theme: Theme
 var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = "LOBBY"
+var connection_primary_button: Button
+var pause_resume_button: Button
 
 
 func _ready() -> void:
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	offline_sandbox = $OfflineSandbox as OfflineSandbox
 	offline_sandbox.set_sandbox_active(false)
+	input_profiles = InputProfileManagerScript.new()
+	input_profiles.name = "InputProfileManager"
+	input_profiles.scheme_changed.connect(_on_control_scheme_changed)
+	input_profiles.bindings_changed.connect(_on_control_bindings_changed)
+	input_profiles.controller_connections_changed.connect(_update_controller_status)
+	add_child(input_profiles)
+	offline_sandbox.set_input_profile_manager(input_profiles)
 	bridge = NetworkBridge.new()
 	bridge.name = "NetworkBridge"
 	add_child(bridge)
@@ -104,7 +127,7 @@ func _ready() -> void:
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
-	network_world.setup(bridge)
+	network_world.setup(bridge, input_profiles)
 	network_world.presentation_event.connect(_on_world_presentation_event)
 	_create_connection_ui(configuration)
 	lan_browser = LanDiscoveryService.new()
@@ -130,11 +153,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_pause_overlay()
 		get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed(&"ui_cancel") and not (event is InputEventKey and event.echo):
+		if settings_panel != null and settings_panel.visible:
+			_hide_settings()
+			get_viewport().set_input_as_handled()
+			return
+		if pause_overlay != null and pause_overlay.visible:
+			_hide_pause_overlay()
+			get_viewport().set_input_as_handled()
+			return
 	if pause_overlay != null and pause_overlay.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
 		_show_connection_screen("Choose online play or the offline combat lab.")
-	if event is InputEventKey and event.pressed and not event.echo and draft_panel != null and draft_panel.visible:
+	if draft_panel != null and draft_panel.visible:
 		for index in draft_buttons.size():
 			if event.is_action_pressed("draft_%d" % (index + 1)):
 				_select_draft_card(index)
@@ -143,17 +175,28 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if not binding_capture_action.is_empty():
+		if input_profiles.accepts_rebind_event(event):
+			_complete_binding_capture(event)
+			get_viewport().set_input_as_handled()
+		return
 	if splash_screen != null and splash_screen.visible and _is_start_input(event):
 		_dismiss_splash()
 		get_viewport().set_input_as_handled()
 		return
-	if event is InputEventKey and not event.echo and (event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB):
-		_set_scoreboard_open(event.pressed)
+	if event.is_action_pressed(&"scoreboard") and not (event is InputEventKey and event.echo):
+		_set_scoreboard_open(true)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_released(&"scoreboard"):
+		_set_scoreboard_open(false)
 		get_viewport().set_input_as_handled()
 
 
 func _is_start_input(event: InputEvent) -> bool:
-	return (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
+	return (event is InputEventKey and event.pressed and not event.echo) \
+		or (event is InputEventMouseButton and event.pressed) \
+		or (event is InputEventJoypadButton and event.pressed) \
+		or (event is InputEventJoypadMotion and absf(event.axis_value) >= 0.65)
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
@@ -211,6 +254,7 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	offline_button.custom_minimum_size.y = 54.0
 	offline_button.pressed.connect(_play_offline)
 	buttons.add_child(offline_button)
+	connection_primary_button = offline_button
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
 	settings_button.custom_minimum_size.y = 54.0
@@ -514,12 +558,12 @@ func _create_match_ui() -> void:
 	scoreboard_rows_container.add_theme_constant_override("separation", 7)
 	scoreboard_rows_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scoreboard_scroll.add_child(scoreboard_rows_container)
-	var scoreboard_hint := Label.new()
-	scoreboard_hint.text = "RELEASE TAB TO RETURN TO COMBAT  ·  THE MATCH CONTINUES"
-	scoreboard_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_hint.add_theme_font_size_override("font_size", 15)
-	scoreboard_hint.add_theme_color_override("font_color", Color("fff36a"))
-	scoreboard_content.add_child(scoreboard_hint)
+	scoreboard_hint_label = Label.new()
+	scoreboard_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_hint_label.add_theme_font_size_override("font_size", 15)
+	scoreboard_hint_label.add_theme_color_override("font_color", Color("fff36a"))
+	scoreboard_content.add_child(scoreboard_hint_label)
+	_refresh_control_prompts()
 
 	win_overlay = Control.new()
 	win_overlay.name = "WinScreen"
@@ -638,11 +682,11 @@ func _create_pause_overlay() -> void:
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(note)
-	var resume_button := Button.new()
-	resume_button.text = "Resume"
-	resume_button.custom_minimum_size.y = 58.0
-	resume_button.pressed.connect(_hide_pause_overlay)
-	content.add_child(resume_button)
+	pause_resume_button = Button.new()
+	pause_resume_button.text = "Resume"
+	pause_resume_button.custom_minimum_size.y = 58.0
+	pause_resume_button.pressed.connect(_hide_pause_overlay)
+	content.add_child(pause_resume_button)
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
 	settings_button.custom_minimum_size.y = 58.0
@@ -674,27 +718,50 @@ func _create_settings_overlay() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	settings_panel.add_child(center)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720.0, 650.0)
+	panel.custom_minimum_size = Vector2(920.0, 690.0)
 	panel.theme = interface_theme
 	panel.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
 	center.add_child(panel)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 20)
+	content.add_theme_constant_override("separation", 10)
 	panel.add_child(content)
 	var title := Label.new()
 	title.text = "SETTINGS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(title)
+	settings_tabs = TabContainer.new()
+	settings_tabs.custom_minimum_size = Vector2(860.0, 500.0)
+	settings_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(settings_tabs)
+	_create_display_audio_settings_tab()
+	_create_controls_settings_tab()
+	var saved_note := Label.new()
+	saved_note.text = "Settings and both control profiles save automatically."
+	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	saved_note.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(saved_note)
+	var back_button := Button.new()
+	back_button.text = "Back"
+	back_button.custom_minimum_size.y = 52.0
+	back_button.pressed.connect(_hide_settings)
+	content.add_child(back_button)
+
+
+func _create_display_audio_settings_tab() -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "DISPLAY & AUDIO"
+	tab.add_theme_constant_override("separation", 14)
+	settings_tabs.add_child(tab)
 	var display_title := Label.new()
 	display_title.text = "DISPLAY"
 	display_title.add_theme_font_size_override("font_size", 23)
 	display_title.add_theme_color_override("font_color", Color("73f7ff"))
-	content.add_child(display_title)
+	tab.add_child(display_title)
 	var resolution_row := HBoxContainer.new()
 	resolution_row.add_theme_constant_override("separation", 16)
-	content.add_child(resolution_row)
+	tab.add_child(resolution_row)
 	var resolution_label := Label.new()
 	resolution_label.text = "Resolution"
 	resolution_label.custom_minimum_size.x = 190.0
@@ -711,26 +778,187 @@ func _create_settings_overlay() -> void:
 	audio_title.text = "AUDIO"
 	audio_title.add_theme_font_size_override("font_size", 23)
 	audio_title.add_theme_color_override("font_color", Color("73f7ff"))
-	content.add_child(audio_title)
-	_add_volume_setting(content, "Master Volume", &"master", audio_director.master_volume_percent)
-	_add_volume_setting(content, "Music Volume", &"music", audio_director.music_volume_percent)
-	_add_volume_setting(content, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
+	tab.add_child(audio_title)
+	_add_volume_setting(tab, "Master Volume", &"master", audio_director.master_volume_percent)
+	_add_volume_setting(tab, "Music Volume", &"music", audio_director.music_volume_percent)
+	_add_volume_setting(tab, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
 	var mute_button := CheckButton.new()
 	mute_button.text = "Mute all audio"
 	mute_button.button_pressed = audio_director.muted
 	mute_button.custom_minimum_size.y = 48.0
 	mute_button.toggled.connect(audio_director.set_muted)
-	content.add_child(mute_button)
-	var saved_note := Label.new()
-	saved_note.text = "Settings save automatically and persist between launches."
-	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	saved_note.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(saved_note)
-	var back_button := Button.new()
-	back_button.text = "Back"
-	back_button.custom_minimum_size.y = 58.0
-	back_button.pressed.connect(_hide_settings)
-	content.add_child(back_button)
+	tab.add_child(mute_button)
+
+
+func _create_controls_settings_tab() -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "CONTROLS"
+	tab.add_theme_constant_override("separation", 8)
+	settings_tabs.add_child(tab)
+	var scheme_row := HBoxContainer.new()
+	scheme_row.add_theme_constant_override("separation", 16)
+	tab.add_child(scheme_row)
+	var scheme_label := Label.new()
+	scheme_label.text = "Active input"
+	scheme_label.custom_minimum_size.x = 220.0
+	scheme_row.add_child(scheme_label)
+	control_scheme_control = OptionButton.new()
+	control_scheme_control.custom_minimum_size = Vector2(540.0, 44.0)
+	control_scheme_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	control_scheme_control.add_item("Keyboard & Mouse", InputProfileManagerScript.Scheme.KEYBOARD_MOUSE)
+	control_scheme_control.add_item("Controller / Joystick", InputProfileManagerScript.Scheme.CONTROLLER)
+	control_scheme_control.select(int(input_profiles.active_scheme))
+	control_scheme_control.item_selected.connect(_on_control_scheme_selected)
+	scheme_row.add_child(control_scheme_control)
+	controller_status_label = Label.new()
+	controller_status_label.add_theme_color_override("font_color", Color("aebbd4"))
+	controller_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(controller_status_label)
+	controller_deadzone_row = HBoxContainer.new()
+	controller_deadzone_row.add_theme_constant_override("separation", 16)
+	tab.add_child(controller_deadzone_row)
+	var deadzone_label := Label.new()
+	deadzone_label.text = "Stick deadzone"
+	deadzone_label.custom_minimum_size.x = 220.0
+	controller_deadzone_row.add_child(deadzone_label)
+	controller_deadzone_slider = HSlider.new()
+	controller_deadzone_slider.min_value = InputProfileManagerScript.MIN_CONTROLLER_DEADZONE
+	controller_deadzone_slider.max_value = InputProfileManagerScript.MAX_CONTROLLER_DEADZONE
+	controller_deadzone_slider.step = 0.01
+	controller_deadzone_slider.value = input_profiles.controller_deadzone
+	controller_deadzone_slider.custom_minimum_size = Vector2(460.0, 40.0)
+	controller_deadzone_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controller_deadzone_row.add_child(controller_deadzone_slider)
+	controller_deadzone_value = Label.new()
+	controller_deadzone_value.custom_minimum_size.x = 72.0
+	controller_deadzone_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	controller_deadzone_row.add_child(controller_deadzone_value)
+	controller_deadzone_slider.value_changed.connect(_on_controller_deadzone_changed)
+	binding_capture_status = Label.new()
+	binding_capture_status.text = "Select a binding, then press its replacement input."
+	binding_capture_status.add_theme_color_override("font_color", Color("fff36a"))
+	binding_capture_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tab.add_child(binding_capture_status)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(820.0, 300.0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tab.add_child(scroll)
+	binding_rows = GridContainer.new()
+	binding_rows.columns = 2
+	binding_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	binding_rows.add_theme_constant_override("h_separation", 18)
+	binding_rows.add_theme_constant_override("v_separation", 6)
+	scroll.add_child(binding_rows)
+	var reset_button := Button.new()
+	reset_button.text = "Restore This Profile's Defaults"
+	reset_button.custom_minimum_size.y = 42.0
+	reset_button.pressed.connect(_on_restore_control_defaults)
+	tab.add_child(reset_button)
+	_refresh_input_settings_ui()
+
+
+func _refresh_input_settings_ui() -> void:
+	if control_scheme_control == null:
+		return
+	control_scheme_control.select(int(input_profiles.active_scheme))
+	controller_deadzone_row.visible = input_profiles.uses_controller()
+	controller_deadzone_slider.set_value_no_signal(input_profiles.controller_deadzone)
+	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
+	_update_controller_status()
+	_rebuild_binding_rows()
+
+
+func _rebuild_binding_rows() -> void:
+	if binding_rows == null:
+		return
+	for child in binding_rows.get_children():
+		binding_rows.remove_child(child)
+		child.queue_free()
+	binding_buttons.clear()
+	for action in input_profiles.rebind_actions():
+		var label := Label.new()
+		label.text = input_profiles.action_label(action)
+		label.custom_minimum_size = Vector2(360.0, 40.0)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		binding_rows.add_child(label)
+		var button := Button.new()
+		button.text = input_profiles.binding_text(action)
+		button.custom_minimum_size = Vector2(390.0, 40.0)
+		button.pressed.connect(_begin_binding_capture.bind(action))
+		binding_rows.add_child(button)
+		binding_buttons[action] = button
+
+
+func _on_control_scheme_selected(index: int) -> void:
+	_cancel_binding_capture()
+	input_profiles.set_scheme(control_scheme_control.get_item_id(index))
+	_refresh_input_settings_ui()
+
+
+func _on_controller_deadzone_changed(value: float) -> void:
+	input_profiles.set_controller_deadzone(value)
+	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
+
+
+func _begin_binding_capture(action: StringName) -> void:
+	binding_capture_action = action
+	binding_capture_seconds = 8.0
+	var prompt := "Press a controller button or move one axis fully" if input_profiles.uses_controller() else "Press a keyboard key or mouse button"
+	binding_capture_status.text = "%s for %s…" % [prompt, input_profiles.action_label(action)]
+	if binding_buttons.has(action):
+		(binding_buttons[action] as Button).text = "PRESS INPUT…"
+
+
+func _complete_binding_capture(event: InputEvent) -> void:
+	var action := binding_capture_action
+	var rebound: bool = input_profiles.rebind(action, event)
+	if rebound:
+		binding_capture_status.text = "%s is now %s." % [input_profiles.action_label(action), input_profiles.binding_text(action)]
+	else:
+		binding_capture_status.text = "That input is not valid for the selected profile."
+	binding_capture_action = &""
+	binding_capture_seconds = 0.0
+	if not rebound:
+		_rebuild_binding_rows()
+
+
+func _cancel_binding_capture() -> void:
+	if binding_capture_action.is_empty():
+		return
+	binding_capture_action = &""
+	binding_capture_seconds = 0.0
+	if binding_capture_status != null:
+		binding_capture_status.text = "Binding capture timed out. Nothing changed."
+	_rebuild_binding_rows()
+
+
+func _on_restore_control_defaults() -> void:
+	_cancel_binding_capture()
+	input_profiles.restore_active_defaults()
+	binding_capture_status.text = "Restored the selected profile's default bindings."
+	_refresh_input_settings_ui()
+
+
+func _on_control_scheme_changed(_scheme: int) -> void:
+	_refresh_input_settings_ui()
+	_refresh_control_prompts()
+
+
+func _on_control_bindings_changed() -> void:
+	_rebuild_binding_rows()
+	_refresh_control_prompts()
+
+
+func _refresh_control_prompts() -> void:
+	if scoreboard_hint_label != null:
+		scoreboard_hint_label.text = "RELEASE %s TO RETURN TO COMBAT  ·  THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
+
+
+func _update_controller_status() -> void:
+	if controller_status_label == null:
+		return
+	controller_status_label.text = input_profiles.controller_status_text() if input_profiles.uses_controller() else "Keyboard and mouse is the default profile. Controller settings remain saved separately."
 
 
 func _add_volume_setting(parent: VBoxContainer, title: String, channel: StringName, initial_value: float) -> void:
@@ -815,17 +1043,26 @@ func _show_settings(return_to_pause: bool) -> void:
 	if pause_overlay != null:
 		pause_overlay.visible = false
 	settings_panel.visible = true
+	_refresh_input_settings_ui()
 	if network_world != null:
 		network_world.input_blocked = return_to_pause
+	if settings_tabs.current_tab == 1:
+		control_scheme_control.grab_focus()
+	else:
+		resolution_control.grab_focus()
 
 
 func _hide_settings() -> void:
+	_cancel_binding_capture()
 	settings_panel.visible = false
 	if settings_return_to_pause and not connection_screen.visible:
 		pause_overlay.visible = true
 		network_world.input_blocked = true
+		pause_resume_button.grab_focus()
 	else:
 		network_world.input_blocked = false
+		if connection_screen.visible and connection_primary_button != null:
+			connection_primary_button.grab_focus()
 	settings_return_to_pause = false
 
 
@@ -862,7 +1099,7 @@ func _create_splash_screen() -> void:
 	flare.add_theme_color_override("font_color", Color("ff4fd8"))
 	content.add_child(flare)
 	var skip := Label.new()
-	skip.text = "PRESS ANY KEY TO START"
+	skip.text = "PRESS ANY INPUT TO START"
 	skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	skip.add_theme_font_size_override("font_size", 18)
 	skip.add_theme_color_override("font_color", Color("73f7ff"))
@@ -887,10 +1124,21 @@ func _dismiss_splash(immediate: bool = false) -> void:
 	splash_dismissed = true
 	if immediate:
 		splash_screen.visible = false
+		_focus_connection_menu()
 		return
 	var fade := create_tween()
 	fade.tween_property(splash_screen, "modulate", Color(1, 1, 1, 0), 0.35)
-	fade.finished.connect(func() -> void: splash_screen.visible = false)
+	fade.finished.connect(_finish_splash_dismissal)
+
+
+func _finish_splash_dismissal() -> void:
+	splash_screen.visible = false
+	_focus_connection_menu()
+
+
+func _focus_connection_menu() -> void:
+	if input_profiles != null and input_profiles.uses_controller() and connection_primary_button != null:
+		connection_primary_button.grab_focus()
 
 
 func _toggle_pause_overlay() -> void:
@@ -899,6 +1147,8 @@ func _toggle_pause_overlay() -> void:
 	_set_scoreboard_open(false)
 	pause_overlay.visible = not pause_overlay.visible
 	network_world.input_blocked = pause_overlay.visible
+	if pause_overlay.visible and pause_resume_button != null:
+		pause_resume_button.grab_focus()
 	if offline_sandbox.visible:
 		offline_sandbox.set_process(not pause_overlay.visible)
 		offline_sandbox.set_physics_process(not pause_overlay.visible)
@@ -907,6 +1157,7 @@ func _toggle_pause_overlay() -> void:
 func _hide_pause_overlay() -> void:
 	pause_overlay.visible = false
 	network_world.input_blocked = false
+	get_viewport().gui_release_focus()
 	if offline_sandbox.visible:
 		offline_sandbox.set_process(true)
 		offline_sandbox.set_physics_process(true)
@@ -1132,6 +1383,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	connection_status.text = message
 	connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
 	audio_director.set_context(&"menu")
+	_focus_connection_menu()
 
 
 func _on_connected(peer_id: int) -> void:
@@ -1142,6 +1394,8 @@ func _on_connected(peer_id: int) -> void:
 	connection_status.text = "Connected as peer %d." % peer_id
 	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
+	if input_profiles.uses_controller():
+		ready_button.grab_focus()
 
 
 func _on_lobby_state(state: Dictionary) -> void:
@@ -1197,6 +1451,8 @@ func _on_lobby_state(state: Dictionary) -> void:
 	else:
 		start_button.text = "Start Match"
 	start_button.tooltip_text = "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
+	if input_profiles.uses_controller() and get_viewport().gui_get_focus_owner() == null:
+		ready_button.grab_focus()
 
 
 func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
@@ -1315,7 +1571,11 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		latest_match_payload["alive_peer_ids"] = alive_peer_ids
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if not binding_capture_action.is_empty():
+		binding_capture_seconds = maxf(binding_capture_seconds - delta, 0.0)
+		if binding_capture_seconds <= 0.0:
+			_cancel_binding_capture()
 	if not latest_match_payload.is_empty():
 		_update_match_presentation()
 	if scoreboard_panel != null:
@@ -1324,7 +1584,18 @@ func _process(_delta: float) -> void:
 		scoreboard_panel.visible = scoreboard_open
 		if scoreboard_panel.visible:
 			_update_scoreboard()
+	_update_pointer_visibility()
 	_update_timed_audio()
+
+
+func _update_pointer_visibility() -> void:
+	if DisplayServer.get_name() == "headless" or input_profiles == null:
+		return
+	var gameplay_visible := offline_sandbox.visible or network_world.visible
+	var interactive_overlay := connection_screen.visible or settings_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible
+	var desired_mode := Input.MOUSE_MODE_HIDDEN if input_profiles.uses_controller() and gameplay_visible and not interactive_overlay else Input.MOUSE_MODE_VISIBLE
+	if Input.mouse_mode != desired_mode:
+		Input.mouse_mode = desired_mode
 
 
 func _show_draft_offer(payload: Dictionary) -> void:
@@ -1364,6 +1635,10 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
 			button.tooltip_text = "%s — %s (%s rarity-tier chance) — %s" % [card.display_name, card.rarity_name(), card.rarity_drop_chance_text(), card.description]
 	draft_panel.visible = true
+	for button in draft_buttons:
+		if button.visible and not button.disabled:
+			button.grab_focus()
+			break
 	_update_match_presentation()
 
 
@@ -1895,6 +2170,8 @@ func _set_win_screen_visible(visible: bool) -> void:
 		results_panel.visible = visible
 	if not visible:
 		_results_signature = ""
+	elif results_return_button != null and not results_return_button.disabled:
+		results_return_button.grab_focus()
 
 
 func _update_timed_audio() -> void:
@@ -2009,6 +2286,8 @@ func _on_connection_lost(message: String) -> void:
 
 
 func _exit_tree() -> void:
+	if DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if lan_browser != null:
 		lan_browser.stop()
 	if bridge != null:

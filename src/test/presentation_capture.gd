@@ -1,5 +1,6 @@
 extends SceneTree
 
+const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 var capture_directory: String = ""
 var capture_label: String = "capture"
 var capture_resolution: Vector2i = Vector2i(1280, 720)
@@ -47,6 +48,12 @@ func _capture_sequence() -> void:
 	client.connection_tabs.current_tab = 0
 	client._show_settings(false)
 	await _capture(client, "settings")
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
+	client.settings_tabs.current_tab = 1
+	client._refresh_input_settings_ui()
+	await _capture(client, "controls")
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
+	client.settings_tabs.current_tab = 0
 	client._hide_settings()
 
 	var players: Array[Dictionary] = []

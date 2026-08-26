@@ -34,7 +34,7 @@ The vertical slice targets PC players who enjoy short, chaotic, skill-based mult
 
 ### 1.4 Out of Scope
 
-The vertical slice does not include public matchmaking, a public internet server directory, accounts, progression between matches, teams, chat, controller support, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports. It does include bounded local-subnet discovery.
+The vertical slice does not include public matchmaking, a public internet server directory, accounts, progression between matches, teams, chat, reconnect restoration, cosmetics, monetization, downloadable content, map selection, anti-DDoS infrastructure, or console/mobile/web exports. It does include bounded local-subnet discovery.
 
 ## 2. Terminology
 
@@ -58,8 +58,8 @@ For more than two players, a round is not limited to three heats. Heats continue
 - Use the non-.NET Godot 4.7.2 Standard build and typed GDScript.
 - Run gameplay physics at 60 ticks per second.
 - Support a resizable window with a minimum usable resolution of 1280×720 and a 1920×1080 virtual canvas. Settings provide persistent 1280×720, 1600×900, 1920×1080, 2560×1080, 2560×1440, and 3440×1440 window-size choices without changing authoritative gameplay. Use `canvas_items` with expand aspect so wider windows expose additional horizontal space without nonuniformly stretching ships, arena geometry, or UI.
-- Support keyboard and mouse only: WASD, mouse aim, left mouse fire, right mouse shield, number keys 1–5 for card choice, left-click UI interaction, hold Tab for the scoreboard, and Escape for the pause/disconnect overlay.
-- Multiplayer never pauses the server simulation. The Escape overlay only captures local input.
+- Default to keyboard and mouse: WASD, mouse aim, left mouse fire, right mouse shield, number keys 1–5 for card choice, left-click UI interaction, hold Tab for the scoreboard, and Escape for the pilot menu. Provide a persistent, explicitly selectable controller/joystick profile with analog movement, independent analog aim, fire, shield, scoreboard, pilot-menu, diagnostic, spectator, and complete UI-navigation actions. Every action in both profiles is individually rebindable; controller stick deadzone is configurable; each profile has an independent restore-defaults action.
+- Multiplayer never pauses the server simulation. The pilot-menu overlay only captures local input.
 
 ### 3.2 Command-Line Contract
 
@@ -176,7 +176,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 - Ships collide with walls, obstacles, and other ships using slide response. Ship collisions deal no damage.
 - Each client uses a smoothing follow camera centered on its controlled or spectated ship. The camera snaps to the local ship on every heat countdown, remains centered even near arena edges, and uses a fixed gameplay zoom at supported aspect ratios.
 - Show edge indicators for off-screen ships within 900 pixels and for the nearest incoming off-screen projectile. Indicators must use shape plus color so color alone does not carry meaning.
-- A spectator may cycle living ships with left/right mouse buttons or A/D. If no player is alive during a tie result, the camera returns to arena center.
+- A spectator may cycle living ships with the active profile's previous/next-target actions, defaulting to A/D on keyboard and the shoulder buttons on controller. If no player is alive during a tie result, the camera returns to arena center.
 
 ## 6. Combat Specification
 
@@ -190,11 +190,11 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 | Acceleration | 900 px/s² |
 | Drag | 700 px/s² |
 
-- Normalize combined WASD input so diagonal movement is not faster.
-- Interpret WASD in ship-local space: `W` moves along the current aim direction, `S` moves backward, and `A`/`D` strafe left/right perpendicular to aim.
+- Normalize combined local movement input so diagonal or analog input is never faster.
+- Interpret movement in ship-local space: keyboard `W`/`S` or the controller's forward/back axis moves along the current aim direction, while keyboard `A`/`D` or the lateral axis strafes perpendicular to aim.
 - With movement input, move velocity toward `input_direction × maximum_speed` at `acceleration × delta`.
 - Without movement input, move velocity toward zero at `drag × delta`.
-- Aim is independent of movement. The ship's forward vector snaps to the latest valid cursor-derived aim angle.
+- Aim is independent of movement. Keyboard/mouse uses the cursor-derived angle; controller/joystick uses the configured aim axes and retains the last valid angle while the stick is inside its deadzone.
 - The client sends an aim angle, never an absolute world-space cursor coordinate. The server rejects non-finite angles and normalizes valid angles to `[0, TAU)`.
 
 ### 6.2 Base Weapon and Projectiles
@@ -212,7 +212,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 | Pierce count | 0 |
 | Ricochet count | 0 |
 
-- Holding left mouse fires automatically whenever the cooldown, ammunition, shield, and projectile limits permit.
+- Holding the active profile's fire action—left mouse or right trigger by default—fires automatically whenever the cooldown, ammunition, shield, and projectile limits permit.
 - Reload begins automatically when the magazine reaches zero. There is no manual reload input in the vertical slice.
 - Firing is disabled while reloading or shielding. Releasing the shield does not reset the fire cooldown.
 - Projectiles ignore their owner, do not collide with other projectiles, and damage every other participant because the mode is free-for-all.
@@ -232,7 +232,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 | Regeneration delay | 1.25 s |
 | Depleted reactivation threshold | 25 energy |
 
-- Holding right mouse activates the shield if it is not depletion-locked and has positive energy.
+- Holding the active profile's shield action—right mouse or left trigger by default—activates the shield if it is not depletion-locked and has positive energy.
 - Shielding reduces acceleration by 25%, disables firing, and leaves maximum speed and drag unchanged.
 - A projectile is blockable when the vector from ship center to the projectile impact point falls inside half the current shield arc around the ship's aim direction.
 - A successful block destroys the projectile and subtracts the block cost. The current projectile is still blocked if the cost takes energy to zero; the shield then deactivates and locks until energy regenerates to the threshold.
@@ -502,21 +502,21 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 1. **Connection:** A centered menu over the non-gameplay neon backdrop with three tabs: a refreshable LAN-server list with server name, endpoint, occupancy, lobby/match state, ping, compatibility, and Join action; Direct Connect with address defaulting to `127.0.0.1` and gameplay port defaulting to `7000`; and Host Game with bounded server name, gameplay port, and Host & Join. Display name is shared across all connection paths. Keep Quit, settings access, and inline connection/hosting errors available. The arena and its map are not rendered before a match begins.
 2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, an individual difficulty dropdown on every NPC row, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
-3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking and keys 1–5. A previous-round winner instead sees a clear no-card draft-bye message.
-4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and shortcuts. The former top-center match banner is not visible during gameplay. Holding Tab displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing Tab immediately closes it while the match continues behind it.
+3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking, keys 1–5, and focused controller navigation with confirm. A previous-round winner instead sees a clear no-card draft-bye message.
+4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and active-profile shortcuts. The former top-center match banner is not visible during gameplay. Holding the configured scoreboard action displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing it immediately closes the scoreboard while the match continues behind it.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
 6. **Results:** A strong victory title and separate champion plate followed by rank, pilot, result, and final-build columns. Highlight the winner, alternate neon row treatments for scanability, wrap builds within their column, and scroll for large lobbies. Render every final-build card as an individual rarity-colored hover target; its popup shows description, tier chance, owned stacks, per-stack modifiers, compounded totals, and special behavior. The lobby leader receives an Exit to Lobby button; other clients see a disabled waiting-for-leader action. No automatic close timer is present.
 
 ### 9.2 Presentation Rules
 
 - Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles. Each living moving ship emits a small, bounded color-matched thruster trail opposite its travel direction; emission intensity follows speed and stops on elimination.
-- Replace the system arrow over the gameplay viewport with a high-contrast crosshair centered on the aim point.
+- Replace the system arrow over keyboard/mouse gameplay with a high-contrast crosshair centered on the aim point. Hide the stale mouse pointer during controller-controlled combat and restore it whenever an interactive menu is visible.
 - Give every participant a stable color chosen from a high-contrast palette, then add name, outline pattern, and local-player marker so identity never depends on color alone.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated splash that displays `PRESS ANY KEY TO START`, accepts input immediately, and automatically proceeds to the connection menu after 10 seconds. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Each heat countdown uses a high-contrast centered `READY` plate; it changes to `BEGIN` at 0.10 seconds remaining, persists for 0.10 seconds after unlock, and fades during that post-roll. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby. Returning to the same connected lobby clears match-only renderer state without discarding the local peer identity, monotonic input sequence, or client tick required for prediction and server input acceptance in a rematch.
+- Start with an animated splash that accepts keyboard, mouse, or controller input immediately and automatically proceeds to the connection menu after 10 seconds. Provide one persistent settings screen from the main menu and in-match pilot menu with separate Display & Audio and Controls tabs. Include selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions, input-profile switching, connected-controller status, controller deadzone, binding capture, and per-profile defaults. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Each heat countdown uses a high-contrast centered `READY` plate; it changes to `BEGIN` at 0.10 seconds remaining, persists for 0.10 seconds after unlock, and fades during that post-roll. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby. Returning to the same connected lobby clears match-only renderer state without discarding the local peer identity, monotonic input sequence, or client tick required for prediction and server input acceptance in a rematch.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 

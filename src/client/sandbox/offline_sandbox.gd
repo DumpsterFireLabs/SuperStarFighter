@@ -1,6 +1,7 @@
 class_name OfflineSandbox
 extends Node2D
 
+const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
@@ -25,6 +26,7 @@ var heat_elapsed: float = 0.0
 var overtime_debug_stage: int = 0
 var targets_shielding: bool = false
 var targets_firing: bool = false
+var input_profiles: Node
 
 
 func _ready() -> void:
@@ -46,8 +48,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	heat_elapsed += delta
 	if player.combatant.alive:
-		var local_movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-		var aim_vector := get_global_mouse_position() - player.global_position
+		var local_movement: Vector2 = input_profiles.movement_vector() if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else get_global_mouse_position() - player.global_position
 		var aim_angle := player.combatant.aim_angle
 		if not aim_vector.is_zero_approx():
 			aim_angle = aim_vector.angle()
@@ -81,6 +83,15 @@ func set_sandbox_active(active: bool) -> void:
 		camera.enabled = active
 	if hud_canvas != null:
 		hud_canvas.visible = active
+
+
+func set_input_profile_manager(profile_manager: Node) -> void:
+	input_profiles = profile_manager
+	if not input_profiles.scheme_changed.is_connected(_on_input_profile_changed):
+		input_profiles.scheme_changed.connect(_on_input_profile_changed)
+	if not input_profiles.bindings_changed.is_connected(_on_input_bindings_changed):
+		input_profiles.bindings_changed.connect(_on_input_bindings_changed)
+	_update_help_text()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -166,9 +177,42 @@ func _create_hud() -> void:
 	card_label.add_theme_font_size_override("font_size", 20)
 	content.add_child(card_label)
 	help_label = Label.new()
-	help_label.text = "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help"
+	_update_help_text()
 	help_label.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(help_label)
+
+
+func _update_help_text() -> void:
+	if help_label == null:
+		return
+	var combat_help := "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield"
+	if input_profiles != null:
+		var aim_help := "Mouse"
+		if input_profiles.uses_controller():
+			aim_help = "%s/%s/%s/%s" % [
+				input_profiles.binding_text(&"aim_up"),
+				input_profiles.binding_text(&"aim_down"),
+				input_profiles.binding_text(&"aim_left"),
+				input_profiles.binding_text(&"aim_right"),
+			]
+		combat_help = "%s/%s forward/back · %s/%s strafe · %s aim · %s fire · %s shield" % [
+			input_profiles.binding_text(&"move_up"),
+			input_profiles.binding_text(&"move_down"),
+			input_profiles.binding_text(&"move_left"),
+			input_profiles.binding_text(&"move_right"),
+			aim_help,
+			input_profiles.binding_text(&"fire"),
+			input_profiles.binding_text(&"shield"),
+		]
+	help_label.text = "%s\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help" % combat_help
+
+
+func _on_input_profile_changed(_scheme: int) -> void:
+	_update_help_text()
+
+
+func _on_input_bindings_changed() -> void:
+	_update_help_text()
 
 
 func _spawn_shot(ship: SandboxShip) -> void:

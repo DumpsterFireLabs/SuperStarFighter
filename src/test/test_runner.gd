@@ -1,5 +1,6 @@
 extends Node
 
+const InputProfileTestsScript = preload("res://tests/unit/input_profile_tests.gd")
 var _context := TestContext.new()
 
 
@@ -12,6 +13,7 @@ func _ready() -> void:
 	CombatSystemTests.run(_context)
 	NetworkProtocolTests.run(_context)
 	MatchCoordinatorTests.run(_context)
+	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):
@@ -32,10 +34,17 @@ func _run_foundation_tests() -> void:
 		&"move_down",
 		&"move_left",
 		&"move_right",
+		&"aim_up",
+		&"aim_down",
+		&"aim_left",
+		&"aim_right",
 		&"fire",
 		&"shield",
 		&"scoreboard",
 		&"pause_overlay",
+		&"diagnostics",
+		&"spectator_previous",
+		&"spectator_next",
 		&"draft_1",
 		&"draft_2",
 		&"draft_3",

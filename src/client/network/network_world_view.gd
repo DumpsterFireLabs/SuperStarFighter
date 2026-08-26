@@ -1,9 +1,11 @@
 class_name NetworkWorldView
 extends Node2D
 
+const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 signal presentation_event(event_name: StringName, payload: Dictionary)
 
 var bridge: NetworkBridge
+var input_profiles: Node
 var arena: SandboxArena
 var local_peer_id: int = 0
 var ships: Dictionary = {}
@@ -44,8 +46,9 @@ var camera_shake_intensity: float = 0.0
 var diagnostics_visible: bool = false
 
 
-func setup(network_bridge: NetworkBridge) -> void:
+func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
 	bridge = network_bridge
+	input_profiles = profile_manager
 	bridge.client_connected.connect(_on_connected)
 	bridge.client_snapshot_received.connect(_on_snapshot)
 	bridge.client_projectile_batch_received.connect(_on_projectile_batch)
@@ -130,11 +133,11 @@ func _physics_process(delta: float) -> void:
 	client_tick = SequenceMath.increment(client_tick)
 	input_send_accumulator += delta
 	var local_ship := ships[local_peer_id] as SandboxShip
-	var aim_vector := _unshaken_mouse_world_position() - local_ship.global_position
+	var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else _unshaken_mouse_world_position() - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
 	if not aim_vector.is_zero_approx():
 		aim_angle = aim_vector.angle()
-	var local_movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var local_movement: Vector2 = input_profiles.movement_vector() if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var local_alive := local_ship.combatant.alive
 	if not controls_enabled or input_blocked:
 		local_movement = Vector2.ZERO
@@ -243,7 +246,7 @@ func set_match_status(status: String) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
+	if event.is_action_pressed(&"diagnostics") and not (event is InputEventKey and event.echo):
 		diagnostics_visible = not diagnostics_visible
 		diagnostics_label.visible = diagnostics_visible
 		get_viewport().set_input_as_handled()
@@ -251,22 +254,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _local_is_eliminated() or input_blocked:
 		return
 	var direction := 0
-	if event is InputEventKey and not event.echo:
-		if not event.pressed:
-			return
-		if event.physical_keycode == KEY_A:
-			direction = -1
-		elif event.physical_keycode == KEY_D:
-			direction = 1
-	elif event is InputEventMouseButton:
-		if not event.pressed:
-			return
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			direction = -1
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			direction = 1
-	else:
-		return
+	if event.is_action_pressed(&"spectator_previous") and not (event is InputEventKey and event.echo):
+		direction = -1
+	elif event.is_action_pressed(&"spectator_next") and not (event is InputEventKey and event.echo):
+		direction = 1
 	if direction != 0:
 		_cycle_spectator(direction)
 		get_viewport().set_input_as_handled()
@@ -435,7 +426,9 @@ func _create_camera_and_hud() -> void:
 
 func _update_diagnostics() -> void:
 	var resources := "Waiting for combat snapshot"
-	var combat_status := "F3 network diagnostics · Hold Tab scoreboard"
+	var diagnostics_hint: String = input_profiles.binding_text(&"diagnostics") if input_profiles != null else "F3"
+	var scoreboard_hint: String = input_profiles.binding_text(&"scoreboard") if input_profiles != null else "Tab"
+	var combat_status := "%s network diagnostics · Hold %s scoreboard" % [diagnostics_hint, scoreboard_hint]
 	if ships.has(local_peer_id):
 		var local_ship := ships[local_peer_id] as SandboxShip
 		health_bar.max_value = local_stats.max_health
@@ -443,10 +436,12 @@ func _update_diagnostics() -> void:
 		shield_bar.max_value = local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
-		combat_status = "F3 diagnostics   ·   Hold Tab scoreboard"
+		combat_status = "%s diagnostics   ·   Hold %s scoreboard" % [diagnostics_hint, scoreboard_hint]
 		if not local_ship.combatant.alive:
 			resources = "SHIP ELIMINATED"
-			spectator_label.text = "SPECTATING %s   ◀ A / LMB     D / RMB ▶" % _display_name(spectator_target_id) if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
+			var previous_hint: String = input_profiles.binding_text(&"spectator_previous") if input_profiles != null else "A"
+			var next_hint: String = input_profiles.binding_text(&"spectator_next") if input_profiles != null else "D"
+			spectator_label.text = "SPECTATING %s   ◀ %s     %s ▶" % [_display_name(spectator_target_id), previous_hint, next_hint] if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
 			spectator_label.visible = true
 		else:
 			spectator_label.visible = false

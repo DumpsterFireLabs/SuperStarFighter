@@ -17,7 +17,7 @@ This manual explains how to launch, host, join, play, troubleshoot, and run a go
 7. [Flight and Combat](#7-flight-and-combat)
 8. [Cards and Builds](#8-cards-and-builds)
 9. [HUD, Scoreboard, Spectating, and Menus](#9-hud-scoreboard-spectating-and-menus)
-10. [Settings and Audio](#10-settings-and-audio)
+10. [Settings, Controls, and Audio](#10-settings-controls-and-audio)
 11. [Offline Combat Lab](#11-offline-combat-lab)
 12. [Disconnects and Rejoining](#12-disconnects-and-rejoining)
 13. [Troubleshooting](#13-troubleshooting)
@@ -48,7 +48,7 @@ With three or more pilots, a round can take more than three heats because severa
 - Windows x64.
 - PowerShell 7 or a compatible modern PowerShell.
 - Internet access for the first bootstrap only.
-- Keyboard and mouse.
+- Keyboard and mouse, or a Godot-recognized controller/joystick after selecting that profile in Settings.
 - A GPU/driver capable of Godot's OpenGL compatibility renderer.
 
 No separate Godot installation is necessary.
@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The splash screen accepts a keyboard or mouse press immediately and otherwise advances after ten seconds.
+The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
 The connection screen has three online paths:
 
@@ -250,6 +250,8 @@ The final victory screen stays open. Hover any card in a final build to inspect 
 
 ### 7.1 Controls
 
+Keyboard and mouse is the first-launch default:
+
 | Input | During combat |
 | --- | --- |
 | `W` | Accelerate forward along the ship's nose |
@@ -263,9 +265,27 @@ The final victory screen stays open. Hover any card in a final build to inspect 
 | `Escape` | Pilot menu; online combat continues |
 | `F3` | Network diagnostic overlay |
 
-Movement is ship-relative, not screen-relative. If the ship faces down, `W` moves down. A useful mental model is that the mouse steers the nose while WASD commands forward, reverse, and lateral thrusters.
+The controller/joystick profile defaults to:
+
+| Input | During combat and menus |
+| --- | --- |
+| Left stick | Forward/backward thrust and strafe |
+| Right stick | Point ship and weapon |
+| Hold right trigger | Automatic fire |
+| Hold left trigger | Directional shield |
+| Hold View / Back | Live standings and public builds |
+| Menu / Start | Pilot menu; online combat continues |
+| Y / Triangle | Network diagnostic overlay |
+| Left / right bumper while spectating | Cycle living pilots |
+| D-pad | Navigate menus and draft cards |
+| A / Cross | Confirm |
+| B / Circle | Back |
+
+Movement is ship-relative, not screen-relative. If the ship faces down, forward input moves down. A useful mental model is that the mouse or aim stick steers the nose while the movement controls command forward, reverse, and lateral thrusters.
 
 Diagonal input is normalized, so combining directions does not increase top speed.
+
+Every listed gameplay and menu action can be rebound independently under **Settings → Controls**. The keyboard/mouse and controller profiles are stored separately, so changing one does not erase the other. A flight stick, rudder, arcade stick, or other joystick can bind any detected button or positive/negative axis direction; hardware still needs enough independent axes or buttons to provide both movement and aim.
 
 ### 7.2 Weapons
 
@@ -366,17 +386,17 @@ The complete 120-card reference is in [section 7.3 of the specification](../spec
 
 The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena.
 
-Hold `Tab` to show live standings. The overlay is momentary and closes as soon as `Tab` is released. Builds are public after every draft.
+Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay is momentary and closes as soon as the action is released. Builds are public after every draft.
 
-When eliminated, you immediately spectate. Use `A`/`D` or the left/right mouse buttons to move among living ships. Late joiners also spectate until the current match returns to the lobby.
+When eliminated, you immediately spectate. Use the configured previous/next-target actions (`A`/`D` or the controller bumpers by default) to move among living ships. Late joiners also spectate until the current match returns to the lobby.
 
-Press `Escape` to open the pilot menu. Online combat does not pause: the overlay blocks only your local controls. From it you may resume, open settings, disconnect to the main menu, or quit.
+Press the configured pilot-menu action (`Escape` or Menu / Start by default) to open the pilot menu. Online combat does not pause: the overlay blocks only your local controls. From it you may resume, open settings, disconnect to the main menu, or quit.
 
-`F3` shows network diagnostics such as frame rate, round-trip time, input acknowledgment, prediction error, snapshot count, player count, and projectile count. It is primarily a playtest and troubleshooting tool.
+The configured diagnostics action (`F3` or Y / Triangle by default) shows network information such as frame rate, round-trip time, input acknowledgment, prediction error, snapshot count, player count, and projectile count. It is primarily a playtest and troubleshooting tool.
 
-## 10. Settings and Audio
+## 10. Settings, Controls, and Audio
 
-Settings are available from the main menu and the in-match pilot menu.
+Settings are available from the main menu and the in-match pilot menu. They are divided into **Display & Audio** and **Controls** tabs.
 
 Supported window resolutions:
 
@@ -389,7 +409,19 @@ Supported window resolutions:
 
 Wider modes reveal additional horizontal arena space without stretching ships or UI nonuniformly.
 
-Audio controls include master, music, and effects volume plus a mute toggle. Settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
+Audio controls include master, music, and effects volume plus a mute toggle.
+
+The Controls tab provides:
+
+- An explicit **Keyboard & Mouse** or **Controller / Joystick** profile selector. Keyboard and mouse is the default until another selection is saved.
+- Live connected-controller names. Bindings can also be prepared before a device is connected.
+- A controller stick-deadzone slider, defaulting to 22%.
+- One binding button for every movement, aim, combat, spectator, draft, and menu-navigation action available to the selected profile.
+- **Restore This Profile's Defaults**, which does not overwrite the other profile.
+
+To remap an action, select its binding button and press the replacement key, mouse button, controller button, or joystick axis direction. Axis capture requires a deliberate movement past 65%, which avoids binding ordinary stick drift. Capture times out after eight seconds without changing the binding.
+
+All display, audio, profile, deadzone, and binding settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
 
 The game safely runs without authored audio: combat effects are synthesized, victory has a generated fallback, and absent music is skipped. Repository maintainers can add real music and sound effects without code changes by following the [audio drop-in contract](../assets/audio/README.md).
 
@@ -399,7 +431,7 @@ The lab is a local sandbox for learning controls and testing card interactions w
 
 | Input | Lab action |
 | --- | --- |
-| WASD / mouse / mouse buttons | Normal movement, aim, fire, and shield |
+| Active keyboard/mouse or controller profile | Normal movement, aim, fire, and shield |
 | `Q` / `E` | Select previous / next card |
 | `G` | Grant one stack of the selected card |
 | `C` | Clear the current build |
@@ -465,6 +497,14 @@ If files are incomplete, use `-Force`.
 - Confirm the heat is active rather than in READY/countdown/result state.
 - Extremely stacked builds still obey the global and per-owner projectile budgets.
 
+### My controller or joystick does not respond correctly
+
+- Open **Settings → Controls** and select **Controller / Joystick**; devices do not take over automatically.
+- Confirm the detected-device line lists the hardware. Reconnect it and reopen Settings if needed.
+- Use the binding list for nonstandard flight sticks, rudders, or controllers whose physical layout does not match the twin-stick defaults.
+- Increase the deadzone if an axis drifts, or reduce it if small deliberate movement is ignored.
+- If menus work but the ship does not aim, bind all four aim directions to suitable positive/negative axes.
+
 ### My shield is held but shots pass through
 
 The shield is directional. Turn the visible arc toward the incoming projectile. Also check whether the shield is depletion-locked below its recovery threshold.
@@ -509,6 +549,6 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, controller support, key rebinding, fullscreen selection, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, map selection, anti-DDoS infrastructure, or console/mobile/web builds.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, fullscreen selection, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, map selection, anti-DDoS infrastructure, or console/mobile/web builds.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.

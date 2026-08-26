@@ -1,6 +1,7 @@
 class_name PresentationSystemTests
 extends RefCounted
 
+const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 
 static func run(context: TestContext, tree_parent: Node) -> void:
 	_validate_audio_pipeline(context, tree_parent)
@@ -143,6 +144,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_winner_label != null and client.results_standings_container != null, "victory screen uses a structured champion and standings composition")
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
 	context.expect_true(client.settings_panel != null, "shared display and audio settings screen exists")
+	context.expect_true(client.input_profiles != null, "production client owns a persistent input profile manager")
+	context.expect_equal(client.settings_tabs.get_tab_count(), 2, "settings separates display and audio from controls")
+	context.expect_equal(client.control_scheme_control.item_count, 2, "settings can switch between keyboard/mouse and controller profiles")
+	context.expect_equal(client.binding_rows.get_child_count(), client.input_profiles.rebind_actions().size() * 2, "controls tab exposes every active-profile binding")
 	context.expect_equal(client.resolution_control.item_count, client.RESOLUTION_OPTIONS.size(), "settings exposes every supported resolution")
 	context.expect_true(Vector2i(2560, 1080) in client.RESOLUTION_OPTIONS and Vector2i(3440, 1440) in client.RESOLUTION_OPTIONS, "settings includes both ultrawide resolutions")
 	context.expect_equal(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand", "ultrawide windows reveal space without nonuniform stretching")
@@ -153,6 +158,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	start_event.pressed = true
 	client._input(start_event)
 	context.expect_true(client.splash_dismissed, "any key advances the splash immediately")
+	var controller_start := InputEventJoypadButton.new()
+	controller_start.button_index = JOY_BUTTON_A
+	controller_start.pressed = true
+	context.expect_true(client._is_start_input(controller_start), "controller buttons can advance the splash immediately")
 	client.splash_screen.visible = false
 	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
@@ -227,6 +236,17 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.pressed = false
 	client._input(tab_event)
 	context.expect_false(client.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
+	context.expect_true(client.input_profiles.uses_controller(), "production client switches to the controller profile without changing the network path")
+	var controller_scoreboard := InputEventJoypadButton.new()
+	controller_scoreboard.button_index = JOY_BUTTON_BACK
+	controller_scoreboard.pressed = true
+	client._input(controller_scoreboard)
+	context.expect_true(client.scoreboard_panel.visible, "configured controller button opens the momentary scoreboard")
+	controller_scoreboard.pressed = false
+	client._input(controller_scoreboard)
+	context.expect_false(client.scoreboard_panel.visible, "releasing the configured controller button closes the scoreboard")
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()

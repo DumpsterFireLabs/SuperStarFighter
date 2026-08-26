@@ -6,14 +6,14 @@ Up to 32 human and NPC pilots fight through last-ship-standing heats. Before eac
 
 ## Highlights
 
-- Ship-relative WASD flight: `W` always means forward, with mouse aim independent of movement.
+- Ship-relative keyboard/mouse flight plus an optional twin-stick controller/joystick profile with independent analog aim.
 - Automatic weapons, directional energy shields, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
 - 120 unlimited-stack cards across seven increasingly scarce rarity tiers.
 - 24 numeric build stats plus beam and auto-repair transformations.
 - Two to 32 total participants with individually configurable NPC difficulty.
 - One-click local hosting, LAN server discovery, and direct-IP joining.
 - Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
-- Persistent audio and resolution settings, ultrawide support, spectating, live standings, and rematches.
+- Persistent display, audio, control-profile, deadzone, and per-action binding settings, plus ultrawide support, spectating, live standings, and rematches.
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ The repository includes a pinned, self-contained Godot setup. From PowerShell in
 
 In the game:
 
-1. Press any key on the splash screen.
+1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
 3. Choose a server name and gameplay UDP port, then select **Host & Join**.
 4. In the lobby, choose the player limit and round target. Enable NPCs if desired.
@@ -38,6 +38,10 @@ In the game:
 Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address and gameplay port.
 
 ## Controls
+
+Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
+
+### Keyboard and mouse
 
 | Input | Action |
 | --- | --- |
@@ -51,6 +55,22 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 | `Escape` | Open the non-pausing pilot menu |
 | `F3` | Toggle network diagnostics |
 | `A` / `D` or mouse buttons while spectating | Cycle living pilots |
+
+### Controller / joystick defaults
+
+| Input | Action |
+| --- | --- |
+| Left stick | Forward/backward thrust and strafe |
+| Right stick | Aim ship and weapon |
+| Right / left trigger | Fire / shield |
+| View / Back | Hold live scoreboard |
+| Menu / Start | Open the non-pausing pilot menu |
+| Left / right bumper while spectating | Cycle living pilots |
+| D-pad | Navigate menus and draft cards |
+| A / Cross | Confirm |
+| B / Circle | Back |
+
+Mapped Xbox-, PlayStation-, and similar controllers use these defaults. Flight sticks and other joysticks can bind any detected axis direction or button from the Controls tab.
 
 ## Documentation
 
@@ -95,13 +115,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,515 automated assertions and 76 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,556 automated assertions and 78 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, 120 cards, and validated 32-client server behavior.
 
-The next release milestone is packaging and release-candidate validation. Public matchmaking, accounts, progression, teams, chat, controller support, automatic NAT traversal, reconnect restoration during an active match, map selection, and non-Windows exports are not part of the current slice.
+The next release milestone is packaging and release-candidate validation. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, map selection, and non-Windows exports are not part of the current slice.
 
 ## License and Assets
 
