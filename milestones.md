@@ -38,9 +38,11 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.15 — Fullscreen and Super-Ultrawide Display Modes | Complete | Added persistent Windowed, desktop-native Borderless Fullscreen, and selected-resolution Exclusive Fullscreen modes; expanded the display list to fifteen 16:9, 16:10, 21:9, and 32:9 choices through 5120×2160; verified 5120×1440 gameplay and settings composition; 1,562 assertions, 78 project checks, and 90 production-screen captures passed. |
 | 6.16 — Persistent NPC Cover-Loop Breakouts | Complete | Added per-NPC/target/obstacle blocked-engagement memory, three-second opposite-side breakouts, sub-second sightline-flicker tolerance, and sustained-clear reset behavior for both cover islands and the central obstacle; 1,569 assertions, 78 project checks, and the real NPC lobby/combat flow passed. |
 | 6.17 — Multi-Shot Projectile Reconciliation | Complete | Reconciled every predicted pellet in a shared shot sequence instead of retaining collisionless extra visuals; verified Scatter Array creates three authoritative projectiles, removes the full predicted volley, and collides every pellet with arena barriers; 1,575 assertions, 78 project checks, and the real network/match flows passed. |
+| 6.18 — Card Rarity Rebalance and Visual Build Inspection | Complete | Rebalanced all seven offer-slot weights, raising the five-card Epic-or-better chance to about 50.2%; audited all 120 cards and corrected five mismatched tiers; replaced scoreboard and victory stat text boxes with rarity-styled card previews showing exact per-stack and compounded effects; 1,585 assertions, 79 project checks, and 100 production-screen captures passed. |
 | 7 — Export, Documentation, and Release Candidate | In Progress | Repository README, full player/host manual, contributor guide, troubleshooting, networking, content-authoring, and verification documentation completed; export/package work remains. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
-| 8 — Ten-Map Expansion | In progress | Ten validated static topologies, authoritative seeded per-round rotation, synchronized collision/presentation, map-aware NPC behavior, and 32 spawns per map are implemented; advanced mechanics and manual selection remain planned. |
+| 8 — Ten-Map Expansion | In Progress | The static ten-map roster and automatic round rotation are playable; advanced per-map mechanics, optional rotation controls, full-capacity map simulations, and the rotating-map soak remain. |
+| 8.1 — Static Ten-Map Roster and Per-Round Rotation | Complete | Added ten visually distinct static topologies with 32 validated spawns each; a seeded shuffled deck changes maps only after a round is won and retains the same map through all heats and ties; authoritative collision, projectiles, overtime, NPC behavior, client reconstruction, HUD names, and protocol state are synchronized; 1,629 assertions, 79 project checks, real network/match-loop gates, and 150 production captures passed. |
 
 ## Completion Rules
 
@@ -82,8 +84,14 @@ This ledger maps the major delivered increments to their local commits. Small co
 | 6.11 | Two-second heat pacing, READY/BEGIN plates, and same-lobby rematch rendering repair | `b1de340` |
 | 6.12 | 0.10-second BEGIN timing, monotonic rematch input continuity, 120 differentiated cards, and 24 numeric modifier axes | `988589a` |
 | 6.13 | Overtime-aware NPC safety, obstacle sightlines, and deterministic anti-stalemate flanking | `6afd085` |
+| 6.14 | Persistent keyboard/mouse and controller profiles, complete input remapping, analog twin-stick controls, axis capture, and deadzone settings | `5ae6a6c` |
+| 6.15 | Windowed, borderless, and exclusive fullscreen modes plus fifteen standard, ultrawide, and 32:9 resolution choices | `abff99e` |
+| 6.16 | Persistent blocked-engagement detection and opposite-side NPC cover-loop breakouts | `4a38697` |
+| 6.17 | Whole-volley predicted projectile reconciliation and barrier collision for every Scatter Array pellet | `5c53e38` |
+| 6.18 | Seven-tier offer rebalance, complete 120-card rarity audit, five corrected tiers, and rarity-styled build-card previews | `701dcb8` |
 | 7.1 | Complete repository README, player/host manual, contributor guide, documentation index, and troubleshooting/reference suite | `5833b04` |
 | 8 plan | Ten-map roster, map-data architecture, dynamic mechanic boundaries, and 320-spawn acceptance contract | `5ea2fe9` |
+| 8.1 | Ten static arenas, seeded no-repeat per-round rotation, authoritative geometry/state synchronization, map-aware NPCs, and full presentation coverage | `fbf7d27` |
 
 ## Milestone 0 — Repository and Toolchain
 
@@ -311,23 +319,34 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ## Milestone 8 — Ten-Map Expansion
 
-**Status:** Planned — post-vertical-slice content milestone
+**Status:** In Progress — static roster and automatic rotation completed 2026-08-26; advanced mechanics and full-capacity acceptance remain
 
-**Outcome:** The current arena becomes the benchmark member of a ten-map roster, with nine additional maps offering distinct topologies and mechanics while every map safely supports all 32 participants.
+**Outcome:** Core Arena is now the benchmark member of a playable ten-map roster. All ten maps provide distinct static topologies and remain fixed for every heat in a round, then advance through a deterministic shuffled rotation after the round is won. Advanced map-specific mechanics and the full 32-participant acceptance matrix remain future work.
 
-### Work
+### Delivered in 8.1
 
-- Follow the staged [Ten-Map Expansion Plan](./maps.md): data foundation, lobby/network synchronization, static layouts, dynamic mechanics, presentation/balance, and full-capacity acceptance.
-- Replace hard-coded arena geometry with validated dedicated-server-safe map definitions and shared geometry queries.
-- Keep the implemented seeded per-round rotation as the default; optionally add leader-controlled rotation pools/order while preserving one stable map across every heat in a round and synchronizing future mechanic revisions/seeds before countdown.
-- Preserve Core Arena, then add Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero.
-- Update NPC sightlines, navigation, flanking, and overtime behavior to use selected-map geometry and mechanics.
-- Update the authoritative specification, protocol version, player/host manual, developer documentation, and diagnostics as each stage becomes implemented behavior.
+- Replaced the single hard-coded arena definition with dedicated-server-safe map IDs, names, palettes, rectangle/circle geometry, shared queries, and validation for Core Arena, Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero.
+- Added exactly 32 unique spawn anchors to every map, with a 96 px obstacle/boundary clearance disk and at least 160 px center separation.
+- Added an independently seeded shuffled map deck. The authority selects once when a round's draft begins, preserves that map through countdown, every heat, tied replays, and the round result, then advances only when the next round begins.
+- Published authoritative `map_id` and `map_name` state under protocol version 7 and rebuilt client visuals/collision from that identity.
+- Made ship movement, projectile barriers and ricochets, spawn selection, overtime positioning, NPC sightlines, flanking, and anti-loop behavior query the active map.
+- Added active-map names to countdown, combat HUD, and scoreboard presentation, plus distinct per-map floor, border, obstacle, and accent treatments.
+- Expanded automated coverage for all ten geometry definitions, unique topology signatures, selected-map collision, authoritative round/heat cadence, client reconstruction, and HUD identity.
+- Captured and visually inspected all ten maps at 1280×720, 1920×1080, 2560×1080, 3440×1440, and 5120×1440.
+- Updated the specification, map plan, README, player manual, and development guide to match the implemented behavior and remaining boundaries.
+
+### Remaining Work
+
+- Implement and synchronize the advanced map mechanics described in the [Ten-Map Expansion Plan](./maps.md), including hazards or dynamic geometry, without weakening server authority or deterministic tests.
+- Optionally add leader-controlled rotation pools or ordering while retaining automatic rotation as the default and one stable map per round.
+- Add automated two-exit and overtime-reachability validation beyond the existing spawn clearance/separation checks.
+- Run 2-, 8-, 16-, and 32-participant simulations on every map and a real-protocol 32-client rotating-map soak.
+- Extend capture coverage to countdown, overtime, spectator, and victory contexts for each individual map when its advanced mechanics are added.
 
 ### Verification
 
 - Validate exactly 32 unique anchors on every map, each with a 96 px obstacle-free disk, at least 160 px center separation, two clear exits, and an ordinary navigable route to overtime safety.
-- Verify ship and weapon collision across every supported geometry primitive and synchronize every dynamic mechanic through real server/client sessions.
+- Verify ship and weapon collision across every supported geometry primitive and synchronize every future dynamic mechanic through real server/client sessions.
 - Run 2-, 8-, 16-, and 32-participant simulations on every map plus a real-protocol 32-client rotating-map soak.
 - Complete consecutive matches on different maps through host, LAN, and direct-connect paths and verify clean lobby/rematch state rebuilding.
 - Capture all ten maps in countdown, combat, overtime, spectator, and victory states at the supported 16:9 and ultrawide acceptance resolutions.
