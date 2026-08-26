@@ -587,6 +587,33 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	context.expect_empty(blocked_batch.spawned, "muzzle against boundary cannot create projectile beyond wall")
 	context.expect_equal(blocked_world.projectile_registry.size(), 0, "blocked muzzle leaves no through-wall projectile")
 
+	var scatter_stats := StatSystem.derive({&"scatter_array": 1}, CardCatalog.create_default())
+	var scatter_world := AuthoritativeWorld.new()
+	var scatter_shooter := scatter_world.add_peer(22, scatter_stats)
+	scatter_shooter.position = Vector2(100.0, 900.0)
+	scatter_world.submit_input(22, PlayerInputFrame.new(1, 1, Vector2.ZERO, PI, true))
+	scatter_world.step(1.0 / 60.0)
+	var scatter_spawn_batch := scatter_world.drain_projectile_batch()
+	context.expect_equal(
+		(scatter_spawn_batch.spawned as Array).size(),
+		scatter_stats.projectile_count,
+		"Scatter Array registers every authoritative projectile in one shot"
+	)
+	scatter_world.submit_input(22, PlayerInputFrame.new(2, 2, Vector2.ZERO, PI, false))
+	for _tick in 10:
+		scatter_world.step(1.0 / 60.0)
+	var scatter_collision_batch := scatter_world.drain_projectile_batch()
+	context.expect_equal(
+		(scatter_collision_batch.removed as Array).size(),
+		scatter_stats.projectile_count,
+		"every authoritative Scatter Array projectile collides with the arena barrier"
+	)
+	context.expect_equal(
+		scatter_world.projectile_registry.size(),
+		0,
+		"no authoritative multi-shot projectile survives beyond the barrier"
+	)
+
 	var ricochet_stats := CombatStats.create_base()
 	ricochet_stats.ricochet_count = 1
 	var ricochet_world := AuthoritativeWorld.new()

@@ -483,7 +483,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - The controlled client runs the shared movement function immediately, buffers at least 120 input frames, and replays unacknowledged input after every authoritative snapshot.
 - Correction errors up to 128 pixels are smoothed over 100 ms. Larger errors snap immediately and increment a diagnostic counter.
 - Remote players render approximately 100 ms behind server time by interpolating the two surrounding snapshots. Extrapolation is limited to 100 ms before holding the last state.
-- The local client may show an immediate predicted muzzle flash and projectile. It reconciles predicted projectiles using owner ID plus shot sequence when the server spawn arrives; rejected shots fade within 100 ms.
+- The local client may show an immediate predicted muzzle flash and projectile volley. Every predicted projectile in a multi-shot volley is tracked under its owner ID and shot sequence; the entire predicted volley is replaced when the authoritative spawns arrive so no collisionless visual copies survive. Rejected shots fade within 100 ms.
 - Clients simulate projectile visuals from authoritative spawn data. The 5 Hz correction list adds missed projectiles, corrects ricochets, and removes projectiles absent from the authoritative list.
 
 ### 8.5 Validation and Rejection

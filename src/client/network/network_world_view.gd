@@ -267,8 +267,9 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
 		if projectile.owner_id == local_peer_id and predicted_projectile_ids.has(projectile.shot_sequence):
-			var predicted_id := int(predicted_projectile_ids[projectile.shot_sequence])
-			authoritative_projectiles.remove(predicted_id)
+			var predicted_ids := predicted_projectile_ids[projectile.shot_sequence] as Array
+			for predicted_id in predicted_ids:
+				authoritative_projectiles.remove(int(predicted_id))
 			predicted_projectile_ids.erase(projectile.shot_sequence)
 			predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
 		authoritative_projectiles.add(projectile)
@@ -344,11 +345,13 @@ func _update_remote_ships() -> void:
 
 func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 	var muzzle := ship.global_position + Vector2.from_angle(aim_angle) * 31.0
+	var predicted_ids: Array[int] = []
 	for angle in MovementSystem.spread_angles(aim_angle, local_stats.projectile_count, local_stats.projectile_spread_degrees):
 		var projectile := ProjectileState.create(next_predicted_id, local_peer_id, local_weapon.shot_sequence, muzzle, angle, local_stats)
 		authoritative_projectiles.add(projectile)
-		predicted_projectile_ids[local_weapon.shot_sequence] = next_predicted_id
+		predicted_ids.append(next_predicted_id)
 		next_predicted_id -= 1
+	predicted_projectile_ids[local_weapon.shot_sequence] = predicted_ids
 	predicted_tracker.add(local_peer_id, local_weapon.shot_sequence, _now_seconds())
 	presentation_event.emit(&"beam_fire" if local_stats.beam_weapon else &"fire", {"owner_id": local_peer_id, "shot_sequence": local_weapon.shot_sequence})
 

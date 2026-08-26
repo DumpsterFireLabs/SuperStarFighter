@@ -102,6 +102,39 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view._apply_snapshot_resources(local_ship, {"position": Vector2(160.0, 120.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "shielding": false, "ammunition": 8, "alive": true})
 	context.expect_true(local_ship.combatant.alive and local_ship.collision_layer == 2, "a respawn snapshot fully revives an eliminated ship visual for the next heat")
 	context.expect_true(local_ship.z_index > 0, "ships render above arena geometry")
+	view.authoritative_projectiles.remove(projectile.projectile_id)
+	view.local_stats = StatSystem.derive({&"scatter_array": 1}, CardCatalog.create_default())
+	view.local_weapon.shot_sequence = 9
+	view._spawn_predicted_projectile(local_ship, 0.0)
+	context.expect_equal(
+		view.authoritative_projectiles.size(),
+		view.local_stats.projectile_count,
+		"Scatter Array predicts every projectile in the local multi-shot"
+	)
+	var authoritative_scatter: Array[ProjectileState] = []
+	for projectile_index in view.local_stats.projectile_count:
+		authoritative_scatter.append(ProjectileState.create(
+			projectile_index + 1,
+			view.local_peer_id,
+			view.local_weapon.shot_sequence,
+			local_ship.global_position,
+			0.0,
+			view.local_stats
+		))
+	view._on_projectile_batch({"spawned": authoritative_scatter, "removed": []})
+	context.expect_equal(
+		view.authoritative_projectiles.size(),
+		authoritative_scatter.size(),
+		"authoritative multi-shot reconciliation removes every collisionless predicted visual"
+	)
+	var only_authoritative_projectiles := true
+	for scatter_projectile in view.authoritative_projectiles.all_projectiles():
+		if scatter_projectile.projectile_id <= 0:
+			only_authoritative_projectiles = false
+	context.expect_true(
+		only_authoritative_projectiles,
+		"only authoritative barrier-colliding projectiles remain after multi-shot reconciliation"
+	)
 	local_ship.free()
 	view.camera.free()
 	view.free()

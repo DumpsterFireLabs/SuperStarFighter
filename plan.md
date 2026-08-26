@@ -43,7 +43,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
   - `CardDefinition`: stable ID, category, rarity, display text, modifiers, and optional special behavior; stacks are unlimited.
   - `PlayerMatchState`: peer ID, display name, alive/spectator state, health, shield, ammo, heat wins, round wins, and card stacks.
 - Expose reliable client requests for handshake, lobby start/settings, and card selection. Validate the requesting peer from the RPC sender rather than trusting IDs in payloads.
-- Use compact snapshot payloads with stable entity IDs. Reject malformed, stale, non-finite, out-of-range, excessive-rate, and protocol-incompatible input.
+- Use compact snapshot payloads with stable entity IDs. Reject malformed, stale, non-finite, out-of-range, excessive-rate, and protocol-incompatible input. Reconcile every predicted projectile in a multi-shot volley against the shared authoritative shot sequence so temporary visuals cannot outlive barrier collisions.
 - Keep connection and lobby views separate from the arena; require authoritative ready-up from every human, and allow only the lobby leader to eject other waiting humans.
 - Provide server options: `--server`, `--port=7000`, `--server-name=Super Star Fighter Server`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
 - Clients connect through an IP/hostname and UDP port. The first connected player becomes lobby leader; leadership transfers to the earliest remaining player on disconnect.
