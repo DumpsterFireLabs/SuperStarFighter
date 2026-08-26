@@ -29,6 +29,7 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.11 — Rematch Input Continuity and Twelve-Dozen Catalog | Complete | Preserved monotonic client input sequence/tick state through same-connection lobby resets so rematch movement remains server-accepted; tightened BEGIN to a 0.10-second pre-roll plus fading 0.10-second post-roll; audited and differentiated the prior catalog, expanded it to 120 unlimited-stack cards, and grew the numeric modifier surface from 18 to 24 stats; 1,509 assertions, 76 project checks, the real two-match/host loop, and 64 production-screen captures passed. |
 | 6.12 — Overtime-Aware NPC Navigation | Complete | NPCs prioritize authoritative overtime safety, suppress fire through blocked sightlines, and deterministically break symmetric cover stalls with difficulty-scaled hold/flank roles; 1,515 assertions, 76 project checks, the real NPC lobby flow, and the two-match loop passed. |
 | 7 — Export, Documentation, and Release Candidate | In Progress | Repository README, full player/host manual, contributor guide, troubleshooting, networking, content-authoring, and verification documentation completed; export/package work remains. |
+| 8 — Ten-Map Expansion | Planned | Migrate the hard-coded arena to validated map data, preserve Core Arena, add nine mechanically distinct maps and lobby selection, and prove 32 clear, reachable starting positions on every map. |
 
 ## Completion Rules
 
@@ -262,6 +263,35 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 - Every automated and manual acceptance criterion in section 11 of `spec.md` passes.
 - The two named Windows executables, test/soak/export tooling, and README are present and reproducible.
 - No release-blocking issues, undocumented setup steps, secrets, or unlicensed assets remain.
+
+## Milestone 8 — Ten-Map Expansion
+
+**Status:** Planned — post-vertical-slice content milestone
+
+**Outcome:** The current arena becomes the benchmark member of a ten-map roster, with nine additional maps offering distinct topologies and mechanics while every map safely supports all 32 participants.
+
+### Work
+
+- Follow the staged [Ten-Map Expansion Plan](./maps.md): data foundation, lobby/network synchronization, static layouts, dynamic mechanics, presentation/balance, and full-capacity acceptance.
+- Replace hard-coded arena geometry with validated dedicated-server-safe map definitions and shared geometry queries.
+- Add leader-controlled map selection plus Random, resolve one map for the full match, and synchronize the stable map ID, revision, and mechanic seed before countdown.
+- Preserve Core Arena, then add Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero.
+- Update NPC sightlines, navigation, flanking, and overtime behavior to use selected-map geometry and mechanics.
+- Update the authoritative specification, protocol version, player/host manual, developer documentation, and diagnostics as each stage becomes implemented behavior.
+
+### Verification
+
+- Validate exactly 32 unique anchors on every map, each with a 96 px obstacle-free disk, at least 160 px center separation, two clear exits, and an ordinary navigable route to overtime safety.
+- Verify ship and weapon collision across every supported geometry primitive and synchronize every dynamic mechanic through real server/client sessions.
+- Run 2-, 8-, 16-, and 32-participant simulations on every map plus a real-protocol 32-client rotating-map soak.
+- Complete consecutive matches on different maps through host, LAN, and direct-connect paths and verify clean lobby/rematch state rebuilding.
+- Capture all ten maps in countdown, combat, overtime, spectator, and victory states at the supported 16:9 and ultrawide acceptance resolutions.
+
+### Exit Gate
+
+- All 320 authored spawn anchors pass the automated clearance, separation, egress, hazard, and reachability contract.
+- All ten maps are selectable, synchronized, visually distinct, overtime-safe, and playable by humans and NPCs through the complete match lifecycle.
+- The most expensive map remains inside the existing 60 Hz server tick budget with 32 participants and bounded mechanic/entity state.
 
 ## Vertical Slice Definition of Done
 

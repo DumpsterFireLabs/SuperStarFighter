@@ -10,6 +10,7 @@ The empty workspace will become a complete vertical slice containing a Windows c
 
 - [spec.md](./spec.md) is the authoritative, decision-complete gameplay and technical specification. Implementation behavior, constants, interfaces, edge cases, and acceptance requirements come from that document.
 - [milestones.md](./milestones.md) divides the specification into ordered, independently verifiable implementation stages. A milestone is complete only when its stated exit criteria pass.
+- [maps.md](./maps.md) plans the post-slice ten-map roster, the map-data migration, nine new arena identities, and automated guarantees for 32 clear starting positions per map.
 - This plan remains the concise product direction. If wording here conflicts with `spec.md`, the specification takes precedence; intentional behavior changes must update all affected documents in the same change.
 
 ## Gameplay and Content

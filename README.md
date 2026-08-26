@@ -59,6 +59,7 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 - [Documentation Index](./docs/README.md) — the best document for each audience and task.
 - [Authoritative Specification](./spec.md) — exact gameplay, networking, balance, and acceptance contract.
 - [Product Plan](./plan.md) — product intent and scope.
+- [Ten-Map Expansion Plan](./maps.md) — nine additional arena designs, map-system architecture, 32-spawn guarantees, and staged acceptance gates.
 - [Implementation Milestones](./milestones.md) — delivered work and verification evidence.
 - [Audio Drop-in Contract](./assets/audio/README.md) — accepted music and sound-effect filenames.
 
