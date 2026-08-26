@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"chain_ricochet"
+display_name = "Chain Ricochet"
+description = "+2 ricochets and +1 pierce, but damage ×0.85 per stack."
+category = 2
+rarity = 3
+multiplicative_modifiers = {"projectile_damage": 0.85}
+integer_modifiers = {"ricochet_count": 2.0, "pierce_count": 1.0}

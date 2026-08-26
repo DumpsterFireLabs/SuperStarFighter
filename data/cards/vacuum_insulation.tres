@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"vacuum_insulation"
+display_name = "Vacuum Insulation"
+description = "Continuous shield drain ×0.55, but regeneration ×0.85 per stack."
+category = 1
+rarity = 3
+multiplicative_modifiers = {"shield_continuous_drain": 0.55, "shield_regeneration": 0.85}

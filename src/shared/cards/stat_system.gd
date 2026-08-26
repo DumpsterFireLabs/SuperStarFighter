@@ -11,11 +11,17 @@ const FLOAT_STATS: Array[StringName] = [
 	&"reload_duration",
 	&"projectile_speed",
 	&"projectile_spread_degrees",
+	&"projectile_lifetime",
 	&"shield_capacity",
 	&"shield_regeneration",
 	&"shield_continuous_drain",
 	&"shield_regeneration_delay",
 	&"shield_arc_degrees",
+	&"shield_block_cost",
+	&"shield_depletion_threshold",
+	&"shield_acceleration_factor",
+	&"auto_repair_delay",
+	&"auto_repair_rate",
 ]
 
 const INTEGER_STATS: Array[StringName] = [
@@ -101,6 +107,7 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.projectile_speed = clampf(stats.projectile_speed, 200.0, 4000.0)
 	stats.projectile_count = clampi(stats.projectile_count, 1, 6)
 	stats.projectile_spread_degrees = clampf(stats.projectile_spread_degrees, 0.0, 90.0)
+	stats.projectile_lifetime = clampf(stats.projectile_lifetime, 0.1, 12.0)
 	stats.pierce_count = clampi(stats.pierce_count, 0, 12)
 	stats.ricochet_count = clampi(stats.ricochet_count, 0, 12)
 	stats.shield_capacity = clampf(stats.shield_capacity, 5.0, 600.0)
@@ -108,3 +115,8 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.shield_continuous_drain = clampf(stats.shield_continuous_drain, 0.25, 400.0)
 	stats.shield_regeneration_delay = clampf(stats.shield_regeneration_delay, 0.05, 8.0)
 	stats.shield_arc_degrees = clampf(stats.shield_arc_degrees, 30.0, 360.0)
+	stats.shield_block_cost = clampf(stats.shield_block_cost, 1.0, 200.0)
+	stats.shield_depletion_threshold = clampf(stats.shield_depletion_threshold, 1.0, stats.shield_capacity)
+	stats.shield_acceleration_factor = clampf(stats.shield_acceleration_factor, 0.1, 2.0)
+	stats.auto_repair_delay = clampf(stats.auto_repair_delay, 0.1, 20.0)
+	stats.auto_repair_rate = clampf(stats.auto_repair_rate, 0.1, 400.0)

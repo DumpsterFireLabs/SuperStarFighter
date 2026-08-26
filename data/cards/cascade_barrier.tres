@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"cascade_barrier"
+display_name = "Cascade Barrier"
+description = "Shield block cost ×0.50 and capacity ×1.20 per stack."
+category = 1
+rarity = 3
+multiplicative_modifiers = {"shield_block_cost": 0.5, "shield_capacity": 1.2}

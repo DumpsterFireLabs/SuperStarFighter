@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"supernova_array"
+display_name = "Supernova Array"
+description = "+4 shots, +32° spread, damage ×1.40, fire rate ×1.25 and lifetime ×1.50 per stack."
+category = 2
+rarity = 6
+additive_modifiers = {"projectile_spread_degrees": 32.0}
+multiplicative_modifiers = {"projectile_damage": 1.4, "fire_rate": 1.25, "projectile_lifetime": 1.5}
+integer_modifiers = {"projectile_count": 4.0}

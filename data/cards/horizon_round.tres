@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"horizon_round"
+display_name = "Horizon Round"
+description = "Projectile lifetime ×2.50, speed ×1.50 and +2 pierces per stack."
+category = 2
+rarity = 5
+multiplicative_modifiers = {"projectile_lifetime": 2.5, "projectile_speed": 1.5}
+integer_modifiers = {"pierce_count": 2.0}

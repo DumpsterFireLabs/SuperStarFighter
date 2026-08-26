@@ -62,6 +62,66 @@ const DEFAULT_CARD_PATHS: Array[String] = [
 	"res://data/cards/causality_cannon.tres",
 	"res://data/cards/singularity_lance.tres",
 	"res://data/cards/reality_shredder.tres",
+	"res://data/cards/lightweight_frame.tres",
+	"res://data/cards/vectored_nozzles.tres",
+	"res://data/cards/combat_gyros.tres",
+	"res://data/cards/scar_tissue.tres",
+	"res://data/cards/sprint_reactor.tres",
+	"res://data/cards/braking_foils.tres",
+	"res://data/cards/shielded_drive.tres",
+	"res://data/cards/damage_control.tres",
+	"res://data/cards/adaptive_chassis.tres",
+	"res://data/cards/repair_gel.tres",
+	"res://data/cards/pursuit_engine.tres",
+	"res://data/cards/juggernaut_frame.tres",
+	"res://data/cards/comet_drive.tres",
+	"res://data/cards/recursive_nanites.tres",
+	"res://data/cards/phase_brakes.tres",
+	"res://data/cards/warpshell.tres",
+	"res://data/cards/immortal_lattice.tres",
+	"res://data/cards/lightspeed_frame.tres",
+	"res://data/cards/ouroboros_hull.tres",
+	"res://data/cards/transcendent_chassis.tres",
+	"res://data/cards/pulse_capacitor.tres",
+	"res://data/cards/low_loss_coils.tres",
+	"res://data/cards/compact_deflector.tres",
+	"res://data/cards/recovery_switch.tres",
+	"res://data/cards/kinetic_converter.tres",
+	"res://data/cards/pursuit_screen.tres",
+	"res://data/cards/broadside_field.tres",
+	"res://data/cards/deep_reserves.tres",
+	"res://data/cards/flash_recharger.tres",
+	"res://data/cards/resilient_grid.tres",
+	"res://data/cards/duelist_aegis.tres",
+	"res://data/cards/mobile_bulwark.tres",
+	"res://data/cards/vacuum_insulation.tres",
+	"res://data/cards/cascade_barrier.tres",
+	"res://data/cards/second_wind.tres",
+	"res://data/cards/stellar_aegis.tres",
+	"res://data/cards/perpetual_field.tres",
+	"res://data/cards/inviolable_front.tres",
+	"res://data/cards/instant_recovery.tres",
+	"res://data/cards/absolute_barrier.tres",
+	"res://data/cards/long_fuse_rounds.tres",
+	"res://data/cards/short_fuse_payload.tres",
+	"res://data/cards/tight_bore.tres",
+	"res://data/cards/drum_spring.tres",
+	"res://data/cards/hot_load.tres",
+	"res://data/cards/rangefinder.tres",
+	"res://data/cards/impact_lens.tres",
+	"res://data/cards/bank_shot.tres",
+	"res://data/cards/flechette_payload.tres",
+	"res://data/cards/overpressure_chamber.tres",
+	"res://data/cards/sustained_barrage.tres",
+	"res://data/cards/deadeye_calibration.tres",
+	"res://data/cards/orbital_rounds.tres",
+	"res://data/cards/chain_ricochet.tres",
+	"res://data/cards/needle_storm.tres",
+	"res://data/cards/annihilator_shell.tres",
+	"res://data/cards/impossible_magazine.tres",
+	"res://data/cards/horizon_round.tres",
+	"res://data/cards/storm_of_one.tres",
+	"res://data/cards/supernova_array.tres",
 ]
 
 var _cards: Dictionary = {}
@@ -124,6 +184,66 @@ func validate_default_catalog() -> PackedStringArray:
 	var errors := load_errors.duplicate()
 	if size() != DEFAULT_CARD_PATHS.size():
 		errors.append("Default catalog must contain exactly %d cards; found %d." % [DEFAULT_CARD_PATHS.size(), size()])
+	var mechanical_signatures: Dictionary = {}
+	var mechanical_shapes: Dictionary = {}
 	for card_id in all_ids():
-		errors.append_array(StatSystem.validate_card(get_card(card_id)))
+		var card := get_card(card_id)
+		errors.append_array(StatSystem.validate_card(card))
+		var signature := mechanical_signature(card)
+		if mechanical_signatures.has(signature):
+			errors.append("Cards %s and %s have identical mechanics." % [mechanical_signatures[signature], card_id])
+		else:
+			mechanical_signatures[signature] = card_id
+		var shape := mechanical_shape_signature(card)
+		if mechanical_shapes.has(shape):
+			errors.append("Cards %s and %s modify the same stats in the same directions." % [mechanical_shapes[shape], card_id])
+		else:
+			mechanical_shapes[shape] = card_id
 	return errors
+
+
+static func mechanical_signature(card: CardDefinition) -> String:
+	if card == null:
+		return "null"
+	var parts := PackedStringArray()
+	parts.append_array(_modifier_signature("add", card.additive_modifiers))
+	parts.append_array(_modifier_signature("mul", card.multiplicative_modifiers))
+	parts.append_array(_modifier_signature("int", card.integer_modifiers))
+	parts.append("special:%s" % card.special_behavior_id)
+	return "|".join(parts)
+
+
+static func mechanical_shape_signature(card: CardDefinition) -> String:
+	if card == null:
+		return "null"
+	var parts := PackedStringArray()
+	parts.append_array(_modifier_shape_signature("add", card.additive_modifiers, 0.0))
+	parts.append_array(_modifier_shape_signature("mul", card.multiplicative_modifiers, 1.0))
+	parts.append_array(_modifier_shape_signature("int", card.integer_modifiers, 0.0))
+	parts.append("special:%s" % card.special_behavior_id)
+	return "|".join(parts)
+
+
+static func _modifier_signature(prefix: String, modifiers: Dictionary) -> PackedStringArray:
+	var result := PackedStringArray()
+	var property_names := modifiers.keys()
+	property_names.sort()
+	for property_value in property_names:
+		var property_name := String(property_value)
+		result.append("%s:%s=%s" % [prefix, property_name, str(modifiers[property_value])])
+	return result
+
+
+static func _modifier_shape_signature(
+	prefix: String,
+	modifiers: Dictionary,
+	neutral_value: float
+) -> PackedStringArray:
+	var result := PackedStringArray()
+	var property_names := modifiers.keys()
+	property_names.sort()
+	for property_value in property_names:
+		var value := float(modifiers[property_value])
+		var direction := "up" if value > neutral_value else ("down" if value < neutral_value else "flat")
+		result.append("%s:%s=%s" % [prefix, String(property_value), direction])
+	return result

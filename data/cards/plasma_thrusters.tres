@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"plasma_thrusters"
 display_name = "Plasma Thrusters"
-description = "Maximum speed ×1.12 and acceleration ×1.10 per stack."
+description = "Maximum speed ×1.12 and shielded acceleration ×1.18 per stack."
 category = 0
 rarity = 1
-multiplicative_modifiers = {"max_speed": 1.12, "acceleration": 1.1}
+multiplicative_modifiers = {"max_speed": 1.12, "shield_acceleration_factor": 1.18}

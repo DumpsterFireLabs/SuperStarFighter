@@ -28,7 +28,7 @@ static func step_velocity(
 		return current_velocity.move_toward(Vector2.ZERO, stats.drag * safe_delta)
 	var acceleration := stats.acceleration
 	if shielding:
-		acceleration *= GameConstants.SHIELD_ACCELERATION_FACTOR
+		acceleration *= stats.shield_acceleration_factor
 	return current_velocity.move_toward(
 		movement * stats.max_speed,
 		acceleration * safe_delta

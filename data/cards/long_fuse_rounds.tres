@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"long_fuse_rounds"
+display_name = "Long-Fuse Rounds"
+description = "Projectile lifetime ×1.20 and speed ×0.95 per stack."
+category = 2
+rarity = 0
+multiplicative_modifiers = {"projectile_lifetime": 1.2, "projectile_speed": 0.95}

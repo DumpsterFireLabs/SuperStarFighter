@@ -6,9 +6,9 @@
 script = ExtResource("1_card")
 card_id = &"scatter_array"
 display_name = "Scatter Array"
-description = "+2 projectiles and +18° spread, with per-projectile damage ×0.62 per stack."
+description = "+2 projectiles, +18° spread and fire rate ×1.15, with per-projectile damage ×0.62 per stack."
 category = 2
 rarity = 1
 additive_modifiers = {"projectile_spread_degrees": 18.0}
-multiplicative_modifiers = {"projectile_damage": 0.62}
+multiplicative_modifiers = {"projectile_damage": 0.62, "fire_rate": 1.15}
 integer_modifiers = {"projectile_count": 2}

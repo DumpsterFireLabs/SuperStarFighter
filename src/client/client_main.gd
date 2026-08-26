@@ -1,6 +1,8 @@
 extends Node
 
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
+const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
+const HEAT_BEGIN_FADE_SECONDS: float = 0.10
 const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
 	Vector2i(1600, 900),
@@ -1453,18 +1455,21 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 		return
 	if state_name == "COUNTDOWN":
 		heat_intro_panel.visible = true
+		heat_intro_panel.modulate.a = 1.0
 		heat_intro_kicker.text = "ROUND %d  //  HEAT %d" % [
 			int(latest_match_payload.get("round_number", 0)),
 			int(latest_match_payload.get("heat_number", 0)),
 		]
-		heat_intro_title.text = "READY"
-		heat_intro_subtitle.text = "WEAPONS LOCKED  ·  BEGIN IN %.1f" % seconds_left
+		var beginning := seconds_left <= HEAT_BEGIN_LEAD_SECONDS + 0.0001
+		heat_intro_title.text = "BEGIN" if beginning else "READY"
+		heat_intro_subtitle.text = "WEAPONS ENGAGING" if beginning else "WEAPONS LOCKED  ·  BEGIN IN %.1f" % seconds_left
 		return
 	if state_name == "ACTIVE_HEAT":
 		var entered_tick := int(latest_match_payload.get("entered_tick", network_world.latest_server_tick))
 		var elapsed := maxf(float(network_world.latest_server_tick - entered_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
-		if elapsed <= 0.85:
+		if elapsed < HEAT_BEGIN_FADE_SECONDS:
 			heat_intro_panel.visible = true
+			heat_intro_panel.modulate.a = 1.0 - clampf(elapsed / HEAT_BEGIN_FADE_SECONDS, 0.0, 1.0)
 			heat_intro_kicker.text = "ROUND %d  //  HEAT %d" % [
 				int(latest_match_payload.get("round_number", 0)),
 				int(latest_match_payload.get("heat_number", 0)),
@@ -1473,6 +1478,7 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 			heat_intro_subtitle.text = "WEAPONS HOT  ·  LAST SHIP STANDING"
 			return
 	heat_intro_panel.visible = false
+	heat_intro_panel.modulate.a = 1.0
 
 
 func _combat_hud_status(state_name: String, seconds_left: float) -> String:

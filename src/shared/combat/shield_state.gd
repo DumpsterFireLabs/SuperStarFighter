@@ -38,7 +38,7 @@ func step(held: bool, stats: CombatStats, delta: float) -> void:
 			stats.shield_capacity
 		)
 	if depletion_locked and energy >= minf(
-		GameConstants.SHIELD_DEPLETION_THRESHOLD,
+		stats.shield_depletion_threshold,
 		stats.shield_capacity
 	):
 		depletion_locked = false
@@ -64,7 +64,7 @@ func try_block(
 	if not can_block(aim_angle, impact_vector, stats.shield_arc_degrees):
 		return false
 	time_since_activity = 0.0
-	energy = maxf(energy - GameConstants.SHIELD_BLOCK_COST, 0.0)
+	energy = maxf(energy - stats.shield_block_cost, 0.0)
 	if energy <= 0.0:
 		active = false
 		depletion_locked = true

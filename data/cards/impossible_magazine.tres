@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"impossible_magazine"
+display_name = "Impossible Magazine"
+description = "+20 magazine capacity, reload duration ×0.70 and fire rate ×1.20 per stack."
+category = 2
+rarity = 4
+multiplicative_modifiers = {"reload_duration": 0.7, "fire_rate": 1.2}
+integer_modifiers = {"magazine_size": 20.0}

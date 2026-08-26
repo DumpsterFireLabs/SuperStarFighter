@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"juggernaut_frame"
+display_name = "Juggernaut Frame"
+description = "Maximum hull ×1.35 and braking drag ×1.20, but acceleration ×0.85 per stack."
+category = 0
+rarity = 2
+multiplicative_modifiers = {"max_health": 1.35, "drag": 1.2, "acceleration": 0.85}

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"adaptive_chassis"
+display_name = "Adaptive Chassis"
+description = "Maximum hull ×1.15 and acceleration ×1.10 per stack."
+category = 0
+rarity = 2
+multiplicative_modifiers = {"max_health": 1.15, "acceleration": 1.1}

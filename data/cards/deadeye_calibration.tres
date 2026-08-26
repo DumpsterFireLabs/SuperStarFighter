@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"deadeye_calibration"
+display_name = "Deadeye Calibration"
+description = "Projectile spread −10°, damage ×1.20 and fire rate ×0.90 per stack."
+category = 2
+rarity = 2
+additive_modifiers = {"projectile_spread_degrees": -10.0}
+multiplicative_modifiers = {"projectile_damage": 1.2, "fire_rate": 0.9}

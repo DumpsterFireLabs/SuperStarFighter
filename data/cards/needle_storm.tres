@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"needle_storm"
+display_name = "Needle Storm"
+description = "+2 shots, +8° spread, projectile speed ×1.25, damage ×0.68 and fire rate ×1.10 per stack."
+category = 2
+rarity = 3
+additive_modifiers = {"projectile_spread_degrees": 8.0}
+multiplicative_modifiers = {"projectile_damage": 0.68, "fire_rate": 1.1, "projectile_speed": 1.25}
+integer_modifiers = {"projectile_count": 2.0}

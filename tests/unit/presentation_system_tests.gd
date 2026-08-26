@@ -196,14 +196,20 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_title.text == "READY", "heat countdown opens the READY banner")
+	client.network_world.latest_server_tick = 294
+	client._update_match_presentation()
+	context.expect_true(client.heat_intro_title.text == "BEGIN", "BEGIN replaces READY with exactly 0.10 seconds left")
 	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 300, "deadline_tick": -1, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_title.text == "BEGIN", "active heat briefly opens the BEGIN banner")
-	client.network_world.latest_server_tick = 360
+	client.network_world.latest_server_tick = 303
 	client._update_match_presentation()
-	context.expect_false(client.heat_intro_panel.visible, "BEGIN banner clears quickly to restore the arena view")
+	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_panel.modulate.a > 0.0 and client.heat_intro_panel.modulate.a < 1.0, "BEGIN rapidly fades during its 0.10-second post-roll")
+	client.network_world.latest_server_tick = 306
+	client._update_match_presentation()
+	context.expect_false(client.heat_intro_panel.visible, "BEGIN clears after its 0.10-second post-roll")
 	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
@@ -241,8 +247,12 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 2, "position": Vector2(500.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 	]})
 	context.expect_true(client.network_world.ships.has(2), "first match renderer owns the local ship before lobby reset")
+	client.network_world.input_sequence = 782
+	client.network_world.client_tick = 940
 	client._on_match_event(&"STATE_CHANGED", 420, {"state_name": "LOBBY", "round_number": 0, "heat_number": 0, "builds": {}})
 	context.expect_equal(client.network_world.local_peer_id, 2, "lobby return preserves the connected local peer identity")
+	context.expect_equal(client.network_world.input_sequence, 782, "lobby return preserves the monotonic input sequence expected by the server")
+	context.expect_equal(client.network_world.client_tick, 940, "lobby return preserves the connected client tick")
 	context.expect_empty(client.network_world.ships, "lobby return clears first-match ship visuals")
 	client._on_match_event(&"STATE_CHANGED", 440, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
 	client._on_match_event(&"STATE_CHANGED", 500, {"state_name": "COUNTDOWN", "entered_tick": 500, "deadline_tick": 680, "round_number": 1, "heat_number": 1, "participant_peer_ids": [2], "alive_peer_ids": [2], "builds": {2: {}}})

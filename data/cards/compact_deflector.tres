@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"compact_deflector"
+display_name = "Compact Deflector"
+description = "+12° shield arc and block cost ×0.92 per stack."
+category = 1
+rarity = 0
+additive_modifiers = {"shield_arc_degrees": 12.0}
+multiplicative_modifiers = {"shield_block_cost": 0.92}

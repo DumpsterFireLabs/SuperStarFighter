@@ -31,9 +31,10 @@ static func create(
 	projectile.is_beam = stats.beam_weapon
 	projectile.velocity = Vector2.from_angle(angle) * (4000.0 if projectile.is_beam else stats.projectile_speed)
 	projectile.damage = stats.projectile_damage
+	projectile.lifetime_remaining = stats.projectile_lifetime
 	if projectile.is_beam:
 		projectile.radius = 7.0
-		projectile.lifetime_remaining = 0.18
+		projectile.lifetime_remaining = 0.18 * stats.projectile_lifetime / GameConstants.PROJECTILE_LIFETIME_SECONDS
 	projectile.remaining_pierces = stats.pierce_count
 	projectile.remaining_ricochets = stats.ricochet_count
 	return projectile

@@ -72,6 +72,15 @@ static func _validate_movement_and_aim(context: TestContext) -> void:
 		11.25,
 		"shielding reduces acceleration by 25 percent"
 	)
+	stats.shield_acceleration_factor = 1.25
+	var boosted_shield_acceleration := MovementSystem.step_velocity(
+		Vector2.ZERO, Vector2.RIGHT, stats, 1.0 / 60.0, true
+	)
+	context.expect_approx(
+		boosted_shield_acceleration.x,
+		18.75,
+		"cards can make shielded acceleration stronger than base acceleration"
+	)
 	var capped := MovementSystem.step_velocity(
 		Vector2(479.0, 0.0), Vector2.RIGHT, stats, 1.0
 	)
@@ -163,6 +172,31 @@ static func _validate_shield(context: TestContext) -> void:
 	context.expect_true(shield.depletion_locked, "shield stays locked below reactivation threshold")
 	shield.step(false, stats, 0.05)
 	context.expect_false(shield.depletion_locked, "shield unlocks after regenerating to threshold")
+	var tuned_stats := CombatStats.create_base()
+	tuned_stats.shield_block_cost = 10.0
+	tuned_stats.shield_depletion_threshold = 40.0
+	var tuned_shield := ShieldState.new()
+	tuned_shield.reset(tuned_stats)
+	tuned_shield.step(true, tuned_stats, 0.0)
+	context.expect_true(
+		tuned_shield.try_block(0.0, Vector2.RIGHT, tuned_stats),
+		"custom block-cost shield blocks a frontal hit"
+	)
+	context.expect_approx(tuned_shield.energy, 90.0, "custom shield block cost is authoritative")
+	tuned_shield.active = false
+	tuned_shield.depletion_locked = true
+	tuned_shield.energy = 39.0
+	tuned_shield.time_since_activity = tuned_stats.shield_regeneration_delay
+	tuned_shield.step(false, tuned_stats, 0.02)
+	context.expect_true(
+		tuned_shield.depletion_locked,
+		"custom shield recovery threshold remains locked below its value"
+	)
+	tuned_shield.step(false, tuned_stats, 0.02)
+	context.expect_false(
+		tuned_shield.depletion_locked,
+		"custom shield recovery threshold unlocks once crossed"
+	)
 
 
 static func _validate_projectiles(context: TestContext) -> void:
@@ -180,12 +214,20 @@ static func _validate_projectiles(context: TestContext) -> void:
 	context.expect_true(projectile.velocity.x < 0.0, "ricochet reflects projectile velocity")
 	context.expect_approx(projectile.velocity.length(), speed_before, "ricochet preserves projectile speed")
 	context.expect_false(projectile.ricochet(Vector2.RIGHT), "projectile expires on wall after ricochets are spent")
+	stats.projectile_lifetime = 4.0
 	var lifetime_projectile := ProjectileState.create(11, 1, 4, Vector2.ZERO, 0.0, stats)
 	context.expect_true(
-		lifetime_projectile.step(GameConstants.PROJECTILE_LIFETIME_SECONDS - 0.001),
+		lifetime_projectile.step(3.999),
 		"projectile lives until its configured lifetime"
 	)
 	context.expect_false(lifetime_projectile.step(0.001), "projectile expires at its lifetime")
+	stats.beam_weapon = true
+	var beam := ProjectileState.create(12, 1, 5, Vector2.ZERO, 0.0, stats)
+	context.expect_approx(
+		beam.lifetime_remaining,
+		0.288,
+		"beam persistence scales with the projectile lifetime stat"
+	)
 
 
 static func _validate_projectile_limits(context: TestContext) -> void:
@@ -221,6 +263,18 @@ static func _validate_damage_and_repair(context: TestContext) -> void:
 	repair_ship.apply_damage(5.0)
 	repair_ship.step(Vector2.ZERO, 0.0, false, 1.0)
 	context.expect_approx(repair_ship.health, 55.08, "damage interrupts auto-repair")
+	var tuned_repair_stats := CombatStats.create_base()
+	tuned_repair_stats.auto_repair_enabled = true
+	tuned_repair_stats.auto_repair_delay = 1.0
+	tuned_repair_stats.auto_repair_rate = 20.0
+	var tuned_repair_ship := CombatantState.create(3, tuned_repair_stats)
+	tuned_repair_ship.apply_damage(50.0)
+	tuned_repair_ship.step(Vector2.ZERO, 0.0, false, 1.5)
+	context.expect_approx(
+		tuned_repair_ship.health,
+		60.0,
+		"custom auto-repair delay and rate change the healed amount"
+	)
 	var first := CombatantState.create(1, CombatStats.create_base())
 	var second := CombatantState.create(2, CombatStats.create_base())
 	first.health = 10.0

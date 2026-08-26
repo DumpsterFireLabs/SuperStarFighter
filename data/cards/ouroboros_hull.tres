@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"ouroboros_hull"
+display_name = "Ouroboros Hull"
+description = "Maximum hull ×1.75, shield regeneration ×1.50 and unlock auto-repair at rate ×2.00 per stack."
+category = 0
+rarity = 5
+multiplicative_modifiers = {"max_health": 1.75, "shield_regeneration": 1.5, "auto_repair_rate": 2.0}
+special_behavior_id = &"auto_repair"

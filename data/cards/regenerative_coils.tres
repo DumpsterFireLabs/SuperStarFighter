@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"regenerative_coils"
 display_name = "Regenerative Coils"
-description = "Shield regeneration ×1.25 per stack."
+description = "Shield regeneration ×1.18 and recovery threshold ×0.88 per stack."
 category = 1
 rarity = 1
-multiplicative_modifiers = {"shield_regeneration": 1.25}
+multiplicative_modifiers = {"shield_regeneration": 1.18, "shield_depletion_threshold": 0.88}

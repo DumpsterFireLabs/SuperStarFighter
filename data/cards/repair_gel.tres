@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"repair_gel"
+display_name = "Repair Gel"
+description = "Unlock auto-repair with rate ×1.12 and delay ×0.92 per stack."
+category = 0
+rarity = 2
+multiplicative_modifiers = {"auto_repair_rate": 1.12, "auto_repair_delay": 0.92}
+special_behavior_id = &"auto_repair"

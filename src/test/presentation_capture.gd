@@ -78,9 +78,7 @@ func _capture_sequence() -> void:
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	await _capture(client, "heat_ready")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 280, "deadline_tick": -1, "round_number": 1, "heat_number": 1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {}, 3: {}}, "overtime_start_tick": 5680}
-	client.network_world.latest_server_tick = 280
-	client.network_world.apply_match_state(client.latest_match_payload)
+	client.network_world.latest_server_tick = 274
 	client._update_match_presentation()
 	await _capture(client, "heat_begin")
 

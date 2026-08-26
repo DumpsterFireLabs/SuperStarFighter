@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"transcendent_chassis"
+display_name = "Transcendent Chassis"
+description = "Maximum hull ×2.00, speed ×1.50, acceleration ×1.50, drag ×1.50 and unlock auto-repair."
+category = 0
+rarity = 6
+multiplicative_modifiers = {"max_health": 2.0, "max_speed": 1.5, "acceleration": 1.5, "drag": 1.5}
+special_behavior_id = &"auto_repair"

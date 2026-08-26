@@ -67,10 +67,11 @@ const EXPECTED_CARDS := {
 
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	context.expect_equal(catalog.size(), 60, "default card catalog contains all five dozen cards")
+	context.expect_equal(catalog.size(), 120, "default card catalog contains twelve dozen cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
+	_validate_expanded_stat_surface(context, catalog)
 	_validate_repeated_stack_values(context, catalog)
 	_validate_order_independence(context, catalog)
 	_validate_runaway_synergy(context, catalog)
@@ -81,15 +82,27 @@ static func run(context: TestContext) -> void:
 
 
 static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalog) -> void:
-	for card_id in EXPECTED_CARDS:
+	var category_counts := {CardDefinition.Category.SHIP: 0, CardDefinition.Category.SHIELD: 0, CardDefinition.Category.WEAPON: 0}
+	var mechanical_signatures: Dictionary = {}
+	var mechanical_shapes: Dictionary = {}
+	for card_id in catalog.all_ids():
 		var card := catalog.get_card(card_id)
 		context.expect_true(card != null, "catalog contains %s" % card_id)
 		if card == null:
 			continue
-		context.expect_equal(card.category, EXPECTED_CARDS[card_id], "%s category matches specification" % card_id)
+		if EXPECTED_CARDS.has(card_id):
+			context.expect_equal(card.category, EXPECTED_CARDS[card_id], "%s category matches specification" % card_id)
 		context.expect_false(card.display_name.is_empty(), "%s has display text" % card_id)
 		context.expect_false(card.description.is_empty(), "%s has effect description" % card_id)
 		context.expect_true(card.rarity_drop_chance() > 0.0, "%s declares a positive rarity-tier drop chance" % card_id)
+		category_counts[card.category] = int(category_counts[card.category]) + 1
+		mechanical_signatures[CardCatalog.mechanical_signature(card)] = card_id
+		mechanical_shapes[CardCatalog.mechanical_shape_signature(card)] = card_id
+	context.expect_equal(category_counts[CardDefinition.Category.SHIP], 38, "catalog contains thirty-eight differentiated ship cards")
+	context.expect_equal(category_counts[CardDefinition.Category.SHIELD], 38, "catalog contains thirty-eight differentiated shield cards")
+	context.expect_equal(category_counts[CardDefinition.Category.WEAPON], 44, "weapon-heavy catalog contains forty-four differentiated weapon cards")
+	context.expect_equal(mechanical_signatures.size(), catalog.size(), "catalog sanity check finds no mechanically identical cards")
+	context.expect_equal(mechanical_shapes.size(), catalog.size(), "catalog sanity check finds no same-shape magnitude swaps")
 
 
 static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalog) -> void:
@@ -133,7 +146,7 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 	_expect_build(context, catalog, &"vector_jets", 1, {"acceleration": 1080.0, "drag": 875.0})
 	_expect_build(context, catalog, &"auto_repair", 1, {"auto_repair_enabled": true, "auto_repair_delay": 5.0, "auto_repair_rate": 8.0})
 	_expect_build(context, catalog, &"capacitor_bank", 1, {"shield_capacity": 130.0, "shield_regeneration": 33.0})
-	_expect_build(context, catalog, &"quick_charge", 1, {"shield_capacity": 100.0, "shield_regeneration": 37.5})
+	_expect_build(context, catalog, &"quick_charge", 1, {"shield_capacity": 100.0, "shield_regeneration": 36.6, "shield_block_cost": 23.75})
 	_expect_build(context, catalog, &"wide_emitter", 1, {"shield_arc_degrees": 140.0, "shield_continuous_drain": 23.0})
 	_expect_build(context, catalog, &"efficient_field", 1, {"shield_continuous_drain": 16.0, "shield_regeneration_delay": 1.25})
 	_expect_build(context, catalog, &"heavy_rounds", 1, {"projectile_damage": 33.75, "fire_rate": 3.2})
@@ -146,13 +159,21 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 	_expect_build(context, catalog, &"ricochet_rounds", 1, {"ricochet_count": 1, "projectile_speed": 972.0})
 
 
+static func _validate_expanded_stat_surface(context: TestContext, catalog: CardCatalog) -> void:
+	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 24, "cards can modify twenty-four authoritative numeric combat stats")
+	_expect_build(context, catalog, &"rangefinder", 1, {"projectile_lifetime": 3.125, "projectile_speed": 990.0, "fire_rate": 3.8})
+	_expect_build(context, catalog, &"compact_deflector", 1, {"shield_arc_degrees": 132.0, "shield_block_cost": 23.0})
+	_expect_build(context, catalog, &"vectored_nozzles", 1, {"acceleration": 1008.0, "shield_acceleration_factor": 0.81})
+	_expect_build(context, catalog, &"repair_gel", 1, {"auto_repair_enabled": true, "auto_repair_delay": 4.6, "auto_repair_rate": 8.96})
+
+
 static func _validate_repeated_stack_values(context: TestContext, catalog: CardCatalog) -> void:
 	_expect_build(context, catalog, &"reinforced_hull", 3, {"max_health": 175.0, "max_speed": 373.77024})
 	_expect_build(context, catalog, &"overcharged_thrusters", 3, {"max_health": 100.0, "max_speed": 674.36544, "acceleration": 1368.7875})
 	_expect_build(context, catalog, &"vector_jets", 3, {"acceleration": 1555.2, "drag": 1367.1875})
 	_expect_build(context, catalog, &"auto_repair", 1, {"auto_repair_enabled": true})
 	_expect_build(context, catalog, &"capacitor_bank", 3, {"shield_capacity": 190.0, "shield_regeneration": 39.93})
-	_expect_build(context, catalog, &"quick_charge", 3, {"shield_capacity": 100.0, "shield_regeneration": 58.59375})
+	_expect_build(context, catalog, &"quick_charge", 3, {"shield_capacity": 100.0, "shield_regeneration": 54.47544, "shield_block_cost": 21.434375})
 	_expect_build(context, catalog, &"wide_emitter", 3, {"shield_arc_degrees": 180.0, "shield_continuous_drain": 30.4175})
 	_expect_build(context, catalog, &"efficient_field", 3, {"shield_continuous_drain": 10.24, "shield_regeneration_delay": 1.25})
 	_expect_build(context, catalog, &"heavy_rounds", 3, {"projectile_damage": 61.509375, "fire_rate": 2.048})
@@ -240,6 +261,12 @@ static func _validate_clamps(context: TestContext) -> void:
 		"fire_rate": 100.0,
 		"reload_duration": 0.001,
 		"projectile_speed": 100.0,
+		"projectile_lifetime": 100.0,
+		"shield_block_cost": 0.001,
+		"shield_depletion_threshold": 100.0,
+		"shield_acceleration_factor": 100.0,
+		"auto_repair_delay": 0.001,
+		"auto_repair_rate": 100.0,
 	}
 	extreme.integer_modifiers = {
 		"projectile_count": 100,
@@ -257,11 +284,17 @@ static func _validate_clamps(context: TestContext) -> void:
 	context.expect_equal(stats.magazine_size, 128, "magazine transport guardrail applies")
 	context.expect_approx(stats.reload_duration, 0.1, "reload timing guardrail applies")
 	context.expect_approx(stats.projectile_speed, 4000.0, "projectile velocity transport guardrail applies")
+	context.expect_approx(stats.projectile_lifetime, 12.0, "projectile lifetime entity-budget guardrail applies")
 	context.expect_equal(stats.projectile_count, 6, "projectile-count entity-budget guardrail applies")
 	context.expect_equal(stats.pierce_count, 12, "pierce entity-budget guardrail applies")
 	context.expect_equal(stats.ricochet_count, 12, "ricochet entity-budget guardrail applies")
 	context.expect_approx(stats.shield_capacity, 5.0, "shield-capacity transport guardrail applies")
 	context.expect_approx(stats.shield_arc_degrees, 360.0, "shield-arc geometry guardrail applies")
+	context.expect_approx(stats.shield_block_cost, 1.0, "shield block-cost guardrail applies")
+	context.expect_approx(stats.shield_depletion_threshold, stats.shield_capacity, "shield recovery threshold remains inside capacity")
+	context.expect_approx(stats.shield_acceleration_factor, 2.0, "shielded acceleration guardrail applies")
+	context.expect_approx(stats.auto_repair_delay, 0.1, "auto-repair delay guardrail applies")
+	context.expect_approx(stats.auto_repair_rate, 400.0, "auto-repair rate guardrail applies")
 
 
 static func _validate_player_build_rules(context: TestContext, catalog: CardCatalog) -> void:

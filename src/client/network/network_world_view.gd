@@ -116,8 +116,12 @@ func reset_session() -> void:
 
 func reset_match_presentation() -> void:
 	var connected_peer_id := local_peer_id
+	var continuing_input_sequence := input_sequence
+	var continuing_client_tick := client_tick
 	reset_session()
 	local_peer_id = connected_peer_id
+	input_sequence = continuing_input_sequence
+	client_tick = continuing_client_tick
 
 
 func _physics_process(delta: float) -> void:
@@ -543,7 +547,12 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: SandboxShi
 	if shield_drop > 2.0 and bool(previous.get("shielding", false)):
 		ship.flash_shield_block()
 		presentation_event.emit(&"shield_block", {"peer_id": peer_id, "server_tick": latest_server_tick})
-	if float(previous.get("shield", 0.0)) >= GameConstants.SHIELD_DEPLETION_THRESHOLD and float(state.get("shield", 0.0)) < GameConstants.SHIELD_DEPLETION_THRESHOLD:
+	var depletion_threshold := (
+		local_stats.shield_depletion_threshold
+		if peer_id == local_peer_id
+		else GameConstants.SHIELD_DEPLETION_THRESHOLD
+	)
+	if float(previous.get("shield", 0.0)) >= depletion_threshold and float(state.get("shield", 0.0)) < depletion_threshold:
 		presentation_event.emit(&"shield_break", {"peer_id": peer_id, "server_tick": latest_server_tick})
 	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
 		if effects_layer != null:

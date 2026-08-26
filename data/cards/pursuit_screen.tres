@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"pursuit_screen"
+display_name = "Pursuit Screen"
+description = "Shielded acceleration ×1.18, but shield arc ×0.90 per stack."
+category = 1
+rarity = 1
+multiplicative_modifiers = {"shield_acceleration_factor": 1.18, "shield_arc_degrees": 0.9}

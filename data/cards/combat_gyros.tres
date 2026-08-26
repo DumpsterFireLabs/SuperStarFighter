@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"combat_gyros"
+display_name = "Combat Gyros"
+description = "Braking drag ×1.18 per stack for tighter direction changes."
+category = 0
+rarity = 0
+multiplicative_modifiers = {"drag": 1.18}

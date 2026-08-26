@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"bank_shot"
+display_name = "Bank Shot"
+description = "+1 ricochet, lifetime ×1.15 and damage ×0.90 per stack."
+category = 2
+rarity = 1
+multiplicative_modifiers = {"projectile_lifetime": 1.15, "projectile_damage": 0.9}
+integer_modifiers = {"ricochet_count": 1.0}

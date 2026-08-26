@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"rangefinder"
+display_name = "Rangefinder"
+description = "Projectile lifetime ×1.25 and speed ×1.10, but fire rate ×0.95 per stack."
+category = 2
+rarity = 1
+multiplicative_modifiers = {"projectile_lifetime": 1.25, "projectile_speed": 1.1, "fire_rate": 0.95}

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"lightweight_frame"
+display_name = "Lightweight Frame"
+description = "Maximum speed ×1.08, but maximum hull ×0.95 per stack."
+category = 0
+rarity = 0
+multiplicative_modifiers = {"max_speed": 1.08, "max_health": 0.95}

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"storm_of_one"
+display_name = "Storm of One"
+description = "Fire rate ×2.00, reload duration ×0.50, −5 magazine capacity and damage ×0.80 per stack."
+category = 2
+rarity = 5
+multiplicative_modifiers = {"fire_rate": 2.0, "reload_duration": 0.5, "projectile_damage": 0.8}
+integer_modifiers = {"magazine_size": -5.0}

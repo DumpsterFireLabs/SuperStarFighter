@@ -6,8 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"omnidirectional_field"
 display_name = "Omnidirectional Field"
-description = "+240° shield arc for full coverage, but shield drain is doubled."
+description = "+240° shield arc for full coverage, but shield capacity ×0.75 per stack."
 category = 1
 rarity = 4
 additive_modifiers = {"shield_arc_degrees": 240.0}
-multiplicative_modifiers = {"shield_continuous_drain": 2.0}
+multiplicative_modifiers = {"shield_capacity": 0.75}

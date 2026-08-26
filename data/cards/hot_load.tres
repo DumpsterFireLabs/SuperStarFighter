@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"hot_load"
+display_name = "Hot Load"
+description = "Fire rate ×1.15 but −1 magazine capacity per stack."
+category = 2
+rarity = 1
+multiplicative_modifiers = {"fire_rate": 1.15}
+integer_modifiers = {"magazine_size": -1.0}

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"damage_control"
+display_name = "Damage Control"
+description = "Auto-repair delay ×0.85 per stack; activates once any repair technology is owned."
+category = 0
+rarity = 1
+multiplicative_modifiers = {"auto_repair_delay": 0.85}

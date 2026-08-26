@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"cycling_servo"
 display_name = "Cycling Servo"
-description = "Fire rate ×1.18 per stack."
+description = "Fire rate ×1.12 and reload duration ×0.92 per stack."
 category = 2
 rarity = 1
-multiplicative_modifiers = {"fire_rate": 1.18}
+multiplicative_modifiers = {"fire_rate": 1.12, "reload_duration": 0.92}

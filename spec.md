@@ -144,7 +144,7 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.4 Heat, Round, and Match Resolution
 
 - Each heat starts every participant alive at full derived health, full shield energy, full magazine, and no active reload or repair timer.
-- Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown. Every heat presents a centered `READY` alert during the lock, followed by a brief `BEGIN` alert when authoritative controls unlock.
+- Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown. Every heat presents a centered `READY` alert during the lock. At exactly 0.10 seconds remaining it changes to `BEGIN`, remains through the first 0.10 seconds of authoritative control, and fades to transparent across that post-roll.
 - A player at zero health is eliminated immediately and becomes a spectator for the remainder of the heat.
 - When exactly one participant remains alive after a complete authoritative damage tick, end the heat immediately and award that player one heat win. Their second heat win ends the round.
 - When zero participants remain because multiple deaths resolve during the same server tick, award no heat win and replay the heat after `HEAT_RESULT`.
@@ -280,11 +280,17 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 | Magazine | 1 | 128 |
 | Reload duration | 0.1 s | 8 s |
 | Projectile speed | 200 | 4000 px/s |
+| Projectile lifetime | 0.1 s | 12 s |
 | Shield capacity | 5 | 600 |
 | Shield regeneration | 1 | 400 energy/s |
 | Shield drain | 0.25 | 400 energy/s |
 | Shield regeneration delay | 0.05 s | 8 s |
 | Shield arc | 30° | 360° |
+| Shield block cost | 1 | 200 energy |
+| Shield depletion threshold | 1 | Current shield capacity |
+| Shielded acceleration factor | 0.1 | 2.0 |
+| Auto-repair delay | 0.1 s | 20 s |
+| Auto-repair rate | 0.1 | 400 health/s |
 | Projectile count | 1 | 6 |
 | Pierce count | 0 | 12 |
 | Ricochet count | 0 | 12 |
@@ -295,68 +301,130 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 
 ### 7.3 Catalog
 
-| ID | Card | Category | Rarity | Effect per stack | Cap |
-| --- | --- | --- | --- | --- | ---: |
-| `reinforced_hull` | Reinforced Hull | Ship | Common | +25 maximum health; ×0.92 maximum speed | 3 |
-| `overcharged_thrusters` | Overcharged Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.15 acceleration | 3 |
-| `vector_jets` | Vector Jets | Ship | Common | ×1.20 acceleration; ×1.25 drag | 3 |
-| `auto_repair` | Auto-Repair | Ship | Rare | After 5 seconds without damage, repair 8 health/s until damaged or full | 1 |
-| `kinetic_plating` | Kinetic Plating | Ship | Common | +15 maximum health; ×1.05 drag | 4 |
-| `phase_thrusters` | Phase Thrusters | Ship | Uncommon | ×1.08 maximum speed; ×1.10 acceleration | 4 |
-| `glass_reactor` | Glass Reactor | Ship | Rare | ×1.18 maximum speed; ×1.22 acceleration; ×0.85 maximum health | 3 |
-| `emergency_bulkheads` | Emergency Bulkheads | Ship | Rare | +45 maximum health; ×0.90 maximum speed | 2 |
-| `inertial_dampers` | Inertial Dampers | Ship | Uncommon | ×1.35 drag; ×1.05 acceleration | 3 |
-| `nanite_reservoir` | Nanite Reservoir | Ship | Epic | Enable auto-repair; +35 maximum health | 2 |
-| `capacitor_bank` | Capacitor Bank | Shield | Uncommon | +30 capacity; ×1.10 regeneration | 3 |
-| `quick_charge` | Quick Charge | Shield | Uncommon | ×1.25 regeneration | 3 |
-| `wide_emitter` | Wide Emitter | Shield | Uncommon | +20° arc; ×1.15 continuous drain | 3 |
-| `efficient_field` | Efficient Field | Shield | Common | ×0.80 continuous drain | 3 |
-| `flux_reservoir` | Flux Reservoir | Shield | Common | +20 capacity | 4 |
-| `mirror_field` | Mirror Field | Shield | Rare | +10° arc; ×1.25 regeneration | 3 |
-| `fortress_emitter` | Fortress Emitter | Shield | Epic | +60 capacity; ×1.20 drain; ×0.90 maximum speed | 2 |
-| `blink_capacitor` | Blink Capacitor | Shield | Legendary | ×1.80 regeneration; ×0.75 regeneration delay | 2 |
-| `reactive_barrier` | Reactive Barrier | Shield | Uncommon | ×0.85 drain; ×0.85 regeneration delay | 3 |
-| `omnidirectional_field` | Omnidirectional Field | Shield | Legendary | +240° arc; ×2.00 drain | 1 |
-| `heavy_rounds` | Heavy Rounds | Weapon | Rare | ×1.35 damage; ×0.80 fire rate | 3 |
-| `rapid_cycling` | Rapid Cycling | Weapon | Uncommon | ×1.30 fire rate | 3 |
-| `rail_accelerant` | Rail Accelerant | Weapon | Rare | ×1.35 projectile speed; ×1.10 damage | 3 |
-| `extended_magazine` | Extended Magazine | Weapon | Common | +4 magazine | 3 |
-| `quick_loader` | Quick Loader | Weapon | Uncommon | ×0.75 reload duration; −2 magazine | 3 |
-| `twin_shot` | Twin Shot | Weapon | Epic | +1 projectile; +10° total spread; ×0.70 damage | 2 |
-| `piercing_rounds` | Piercing Rounds | Weapon | Rare | +1 pierce; ×1.08 damage | 3 |
-| `ricochet_rounds` | Ricochet Rounds | Weapon | Epic | +1 ricochet; ×1.08 projectile speed | 3 |
-| `scatter_array` | Scatter Array | Weapon | Uncommon | +2 projectiles; +18° spread; ×0.62 damage | 2 |
-| `beam_emitter` | Beam Emitter | Weapon | Legendary | Enable pulse beams; ×1.05 damage; ×2.50 projectile speed | 1 |
-| `prismatic_lance` | Prismatic Lance | Weapon | Legendary | Enable pulse beams; +2 pierces; ×1.25 damage; ×0.72 fire rate | 3 |
-| `laser_repeater` | Laser Repeater | Weapon | Epic | Enable pulse beams; ×1.28 fire rate; ×0.86 damage | 3 |
-| `siege_cannon` | Siege Cannon | Weapon | Rare | ×1.60 damage; ×0.65 fire rate; ×0.82 projectile speed | 3 |
-| `micro_barrage` | Micro Barrage | Weapon | Epic | +2 projectiles; +14° spread; ×0.80 speed; ×0.72 damage | 2 |
-| `endless_belt` | Endless Belt | Weapon | Common | +8 magazine | 4 |
-| `zero_point_loader` | Zero-Point Loader | Weapon | Legendary | ×0.50 reload duration; +4 magazine | 2 |
-| `ablative_shell` | Ablative Shell | Ship | Common | +20 maximum hull | 5 |
-| `plasma_thrusters` | Plasma Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.10 acceleration | 4 |
-| `gyroscopic_core` | Gyroscopic Core | Ship | Rare | ×1.25 drag; ×1.12 acceleration | 3 |
-| `phoenix_chassis` | Phoenix Chassis | Ship | Epic | ×1.30 maximum hull; ×1.08 maximum speed | 3 |
-| `starheart_reactor` | Starheart Reactor | Ship | Legendary | ×1.35 hull; ×1.35 acceleration; ×1.18 speed | 2 |
-| `event_horizon_drive` | Event Horizon Drive | Ship | Mythical | ×1.60 speed; ×1.60 acceleration; ×1.30 drag | 2 |
-| `quantum_reconstruction` | Quantum Reconstruction | Ship | Mythical | Enable auto-repair; ×1.50 maximum hull | 1 |
-| `impossible_engine` | Impossible Engine | Ship | Unobtanium | ×2.00 speed; ×2.00 acceleration; ×1.50 drag | 1 |
-| `reserve_cell` | Reserve Cell | Shield | Common | +20 shield capacity | 5 |
-| `regenerative_coils` | Regenerative Coils | Shield | Uncommon | ×1.25 shield regeneration | 4 |
-| `focused_deflector` | Focused Deflector | Shield | Rare | ×1.25 capacity; ×0.82 drain; ×0.82 arc | 3 |
-| `shield_siphon` | Shield Siphon | Shield | Rare | ×0.65 drain; ×1.20 regeneration | 3 |
-| `aegis_matrix` | Aegis Matrix | Shield | Epic | ×1.35 capacity; ×1.25 regeneration | 3 |
-| `solar_barrier` | Solar Barrier | Shield | Legendary | ×1.50 capacity; ×1.50 regeneration; ×0.70 drain | 2 |
-| `chronal_shield` | Chronal Shield | Shield | Mythical | ×0.30 regeneration delay; ×1.75 regeneration | 2 |
-| `infinite_refraction` | Infinite Refraction | Shield | Unobtanium | ×3.00 arc; ×2.00 capacity; ×2.00 regeneration | 1 |
-| `hollow_points` | Hollow Points | Weapon | Common | ×1.08 projectile damage | 5 |
-| `cycling_servo` | Cycling Servo | Weapon | Uncommon | ×1.18 fire rate | 4 |
-| `accelerator_coil` | Accelerator Coil | Weapon | Rare | ×1.25 projectile speed; ×1.12 damage | 3 |
-| `trident_array` | Trident Array | Weapon | Epic | +2 projectiles; +14° spread; ×0.78 damage | 2 |
-| `sunbeam_core` | Sunbeam Core | Weapon | Mythical | Enable beams; ×1.45 damage; ×1.15 fire rate; +1 pierce | 2 |
-| `causality_cannon` | Causality Cannon | Weapon | Mythical | ×2.00 damage; ×1.50 projectile speed | 2 |
-| `singularity_lance` | Singularity Lance | Weapon | Unobtanium | Enable beams; ×1.75 damage; +3 pierces; +1 ricochet | 2 |
-| `reality_shredder` | Reality Shredder | Weapon | Unobtanium | Enable beams; ×2.50 damage; ×1.60 fire rate; +2 projectiles; +4 pierces; +2 ricochets | 1 |
+The launch catalog contains 120 unlimited-stack cards: 38 ship, 38 shield, and 44 weapon cards. The weapon-heavy split gives each firing model more combinatorial space. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
+
+| ID | Card | Category | Rarity | Effect per stack |
+| --- | --- | --- | --- | --- |
+| `reinforced_hull` | Reinforced Hull | Ship | Common | +25 maximum health; ×0.92 maximum speed |
+| `overcharged_thrusters` | Overcharged Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.15 acceleration |
+| `vector_jets` | Vector Jets | Ship | Common | ×1.20 acceleration; ×1.25 drag |
+| `auto_repair` | Auto-Repair | Ship | Rare | After 5 seconds without damage, repair 8 health/s until damaged or full |
+| `kinetic_plating` | Kinetic Plating | Ship | Common | +15 maximum health; ×1.05 drag |
+| `phase_thrusters` | Phase Thrusters | Ship | Uncommon | ×1.18 acceleration; ×0.90 shield block cost |
+| `glass_reactor` | Glass Reactor | Ship | Rare | ×1.18 maximum speed; ×1.22 acceleration; ×0.85 maximum health |
+| `emergency_bulkheads` | Emergency Bulkheads | Ship | Rare | +45 maximum health; ×0.80 auto-repair delay |
+| `inertial_dampers` | Inertial Dampers | Ship | Uncommon | ×1.35 drag; ×1.05 shielded acceleration |
+| `nanite_reservoir` | Nanite Reservoir | Ship | Epic | Enable auto-repair; +35 maximum health |
+| `capacitor_bank` | Capacitor Bank | Shield | Uncommon | +30 capacity; ×1.10 regeneration |
+| `quick_charge` | Quick Charge | Shield | Uncommon | ×1.22 regeneration; ×0.95 shield block cost |
+| `wide_emitter` | Wide Emitter | Shield | Uncommon | +20° arc; ×1.15 continuous drain |
+| `efficient_field` | Efficient Field | Shield | Common | ×0.80 continuous drain |
+| `flux_reservoir` | Flux Reservoir | Shield | Common | +20 capacity |
+| `mirror_field` | Mirror Field | Shield | Rare | +10° arc; ×1.25 regeneration |
+| `fortress_emitter` | Fortress Emitter | Shield | Epic | +60 capacity; ×1.20 drain; ×0.90 maximum speed |
+| `blink_capacitor` | Blink Capacitor | Shield | Legendary | ×1.80 regeneration; ×1.15 shielded acceleration |
+| `reactive_barrier` | Reactive Barrier | Shield | Uncommon | ×0.85 drain; ×0.85 regeneration delay |
+| `omnidirectional_field` | Omnidirectional Field | Shield | Legendary | +240° arc; ×0.75 capacity |
+| `heavy_rounds` | Heavy Rounds | Weapon | Rare | ×1.35 damage; ×0.80 fire rate |
+| `rapid_cycling` | Rapid Cycling | Weapon | Uncommon | ×1.30 fire rate |
+| `rail_accelerant` | Rail Accelerant | Weapon | Rare | ×1.35 projectile speed; ×1.10 damage |
+| `extended_magazine` | Extended Magazine | Weapon | Common | +4 magazine |
+| `quick_loader` | Quick Loader | Weapon | Uncommon | ×0.75 reload duration; −2 magazine |
+| `twin_shot` | Twin Shot | Weapon | Epic | +1 projectile; +10° total spread; ×0.70 damage |
+| `piercing_rounds` | Piercing Rounds | Weapon | Rare | +1 pierce; ×1.08 damage |
+| `ricochet_rounds` | Ricochet Rounds | Weapon | Epic | +1 ricochet; ×1.08 projectile speed |
+| `scatter_array` | Scatter Array | Weapon | Uncommon | +2 projectiles; +18° spread; ×1.15 fire rate; ×0.62 damage |
+| `beam_emitter` | Beam Emitter | Weapon | Legendary | Enable pulse beams; ×1.05 damage; ×2.50 projectile speed |
+| `prismatic_lance` | Prismatic Lance | Weapon | Legendary | Enable pulse beams; +2 pierces; ×1.25 damage; ×0.72 fire rate |
+| `laser_repeater` | Laser Repeater | Weapon | Epic | Enable pulse beams; ×1.28 fire rate; ×0.86 damage |
+| `siege_cannon` | Siege Cannon | Weapon | Rare | ×1.60 damage; ×0.65 fire rate; ×0.82 projectile speed |
+| `micro_barrage` | Micro Barrage | Weapon | Epic | +2 projectiles; +14° spread; ×0.80 speed; ×0.72 damage |
+| `endless_belt` | Endless Belt | Weapon | Common | +8 magazine |
+| `zero_point_loader` | Zero-Point Loader | Weapon | Legendary | ×0.50 reload duration; +4 magazine |
+| `ablative_shell` | Ablative Shell | Ship | Common | +20 maximum hull |
+| `plasma_thrusters` | Plasma Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.18 shielded acceleration |
+| `gyroscopic_core` | Gyroscopic Core | Ship | Rare | ×1.25 drag; ×1.08 maximum speed |
+| `phoenix_chassis` | Phoenix Chassis | Ship | Epic | ×1.30 maximum hull; ×1.08 maximum speed |
+| `starheart_reactor` | Starheart Reactor | Ship | Legendary | ×1.35 hull; ×1.35 acceleration; ×1.18 speed |
+| `event_horizon_drive` | Event Horizon Drive | Ship | Mythical | ×1.60 speed; ×1.60 acceleration; ×1.50 shielded acceleration |
+| `quantum_reconstruction` | Quantum Reconstruction | Ship | Mythical | Enable auto-repair; ×1.50 maximum hull |
+| `impossible_engine` | Impossible Engine | Ship | Unobtanium | ×2.00 speed; ×2.00 acceleration; ×1.50 drag |
+| `reserve_cell` | Reserve Cell | Shield | Common | +15 shield capacity; ×0.92 regeneration delay |
+| `regenerative_coils` | Regenerative Coils | Shield | Uncommon | ×1.18 shield regeneration; ×0.88 recovery threshold |
+| `focused_deflector` | Focused Deflector | Shield | Rare | ×1.25 capacity; ×0.82 drain; ×0.82 arc |
+| `shield_siphon` | Shield Siphon | Shield | Rare | ×0.65 drain; ×1.20 regeneration |
+| `aegis_matrix` | Aegis Matrix | Shield | Epic | ×1.35 capacity; ×1.25 regeneration |
+| `solar_barrier` | Solar Barrier | Shield | Legendary | ×1.50 capacity; ×1.50 regeneration; ×0.70 drain |
+| `chronal_shield` | Chronal Shield | Shield | Mythical | ×0.30 regeneration delay; ×1.75 regeneration |
+| `infinite_refraction` | Infinite Refraction | Shield | Unobtanium | ×3.00 arc; ×2.00 capacity; ×2.00 regeneration |
+| `hollow_points` | Hollow Points | Weapon | Common | ×1.08 projectile damage |
+| `cycling_servo` | Cycling Servo | Weapon | Uncommon | ×1.12 fire rate; ×0.92 reload duration |
+| `accelerator_coil` | Accelerator Coil | Weapon | Rare | ×1.25 projectile speed; ×1.12 lifetime |
+| `trident_array` | Trident Array | Weapon | Epic | +2 projectiles; +1 pierce; +14° spread; ×0.78 damage |
+| `sunbeam_core` | Sunbeam Core | Weapon | Mythical | Enable beams; ×1.45 damage; ×1.15 fire rate; +1 pierce |
+| `causality_cannon` | Causality Cannon | Weapon | Mythical | ×2.00 damage; ×1.50 projectile speed; +2 pierces |
+| `singularity_lance` | Singularity Lance | Weapon | Unobtanium | Enable beams; ×1.75 damage; +3 pierces; +1 ricochet |
+| `reality_shredder` | Reality Shredder | Weapon | Unobtanium | Enable beams; ×2.50 damage; ×1.60 fire rate; +2 projectiles; +4 pierces; +2 ricochets |
+| `lightweight_frame` | Lightweight Frame | Ship | Common | ×1.08 maximum speed; ×0.95 maximum hull |
+| `vectored_nozzles` | Vectored Nozzles | Ship | Common | ×1.12 acceleration; ×1.08 shielded acceleration |
+| `combat_gyros` | Combat Gyros | Ship | Common | ×1.18 drag |
+| `scar_tissue` | Scar Tissue | Ship | Common | +12 maximum hull; ×1.08 auto-repair rate |
+| `sprint_reactor` | Sprint Reactor | Ship | Uncommon | ×1.15 maximum speed; ×0.90 drag |
+| `braking_foils` | Braking Foils | Ship | Uncommon | ×1.30 drag; ×0.96 maximum speed |
+| `shielded_drive` | Shielded Drive | Ship | Uncommon | ×1.20 shielded acceleration; ×0.92 shield drain |
+| `damage_control` | Damage Control | Ship | Uncommon | ×0.85 auto-repair delay; activates after repair technology is owned |
+| `adaptive_chassis` | Adaptive Chassis | Ship | Rare | ×1.15 maximum hull; ×1.10 acceleration |
+| `repair_gel` | Repair Gel | Ship | Rare | Enable auto-repair; ×1.12 repair rate; ×0.92 repair delay |
+| `pursuit_engine` | Pursuit Engine | Ship | Rare | ×1.20 maximum speed; ×1.08 acceleration; ×0.90 shield capacity |
+| `juggernaut_frame` | Juggernaut Frame | Ship | Rare | ×1.35 maximum hull; ×1.20 drag; ×0.85 acceleration |
+| `comet_drive` | Comet Drive | Ship | Epic | ×1.35 maximum speed; ×1.15 projectile speed; ×0.80 maximum hull |
+| `recursive_nanites` | Recursive Nanites | Ship | Epic | Enable auto-repair; ×0.70 delay; ×1.50 rate; ×0.90 maximum hull |
+| `phase_brakes` | Phase Brakes | Ship | Epic | ×1.70 drag; ×0.75 shield recovery threshold |
+| `warpshell` | Warpshell | Ship | Legendary | ×1.50 maximum hull; ×1.25 maximum speed; ×0.80 shield capacity |
+| `immortal_lattice` | Immortal Lattice | Ship | Legendary | Enable auto-repair; ×1.25 hull; ×1.80 rate; ×1.30 shield capacity |
+| `lightspeed_frame` | Lightspeed Frame | Ship | Mythical | ×1.80 maximum speed; ×1.50 shielded acceleration; ×0.60 shield capacity |
+| `ouroboros_hull` | Ouroboros Hull | Ship | Mythical | ×1.75 maximum hull; ×1.50 shield regeneration; enable auto-repair; ×2.00 rate |
+| `transcendent_chassis` | Transcendent Chassis | Ship | Unobtanium | ×2.00 hull; ×1.50 speed, acceleration, and drag; enable auto-repair |
+| `pulse_capacitor` | Pulse Capacitor | Shield | Common | +12 shield capacity; ×0.95 recovery threshold |
+| `low_loss_coils` | Low-Loss Coils | Shield | Common | ×0.90 continuous drain; ×0.95 block cost |
+| `compact_deflector` | Compact Deflector | Shield | Common | +12° arc; ×0.92 block cost |
+| `recovery_switch` | Recovery Switch | Shield | Uncommon | ×0.80 recovery threshold; ×0.90 regeneration delay |
+| `kinetic_converter` | Kinetic Converter | Shield | Uncommon | ×0.78 block cost; ×0.90 capacity |
+| `pursuit_screen` | Pursuit Screen | Shield | Uncommon | ×1.18 shielded acceleration; ×0.90 arc |
+| `broadside_field` | Broadside Field | Shield | Uncommon | ×1.18 arc; ×1.08 continuous drain |
+| `deep_reserves` | Deep Reserves | Shield | Rare | ×1.25 capacity; ×0.90 regeneration |
+| `flash_recharger` | Flash Recharger | Shield | Rare | ×1.50 regeneration; ×1.15 regeneration delay |
+| `resilient_grid` | Resilient Grid | Shield | Rare | ×0.65 recovery threshold; ×1.10 capacity |
+| `duelist_aegis` | Duelist Aegis | Shield | Rare | ×0.70 arc; ×0.65 block cost |
+| `mobile_bulwark` | Mobile Bulwark | Shield | Epic | ×1.35 shielded acceleration; ×1.15 continuous drain |
+| `vacuum_insulation` | Vacuum Insulation | Shield | Epic | ×0.55 continuous drain; ×0.85 regeneration |
+| `cascade_barrier` | Cascade Barrier | Shield | Epic | ×0.50 block cost; ×1.20 capacity |
+| `second_wind` | Second Wind | Shield | Epic | ×0.40 recovery threshold; ×0.80 regeneration delay; ×1.25 capacity |
+| `stellar_aegis` | Stellar Aegis | Shield | Legendary | ×1.60 capacity; ×1.25 arc; ×0.75 block cost |
+| `perpetual_field` | Perpetual Field | Shield | Legendary | ×0.40 continuous drain; ×1.30 capacity |
+| `inviolable_front` | Inviolable Front | Shield | Mythical | ×0.55 arc; ×2.00 capacity; ×0.35 block cost |
+| `instant_recovery` | Instant Recovery | Shield | Mythical | ×0.20 regeneration delay; ×0.25 recovery threshold; ×2.00 regeneration |
+| `absolute_barrier` | Absolute Barrier | Shield | Unobtanium | ×2.50 capacity; ×3.00 arc; ×0.35 drain; ×0.25 block cost; ×0.20 recovery threshold |
+| `long_fuse_rounds` | Long-Fuse Rounds | Weapon | Common | ×1.20 projectile lifetime; ×0.95 projectile speed |
+| `short_fuse_payload` | Short-Fuse Payload | Weapon | Common | ×0.75 projectile lifetime; ×1.15 damage |
+| `tight_bore` | Tight Bore | Weapon | Common | −4° projectile spread |
+| `drum_spring` | Drum Spring | Weapon | Common | +2 magazine; ×1.05 reload duration |
+| `hot_load` | Hot Load | Weapon | Uncommon | ×1.15 fire rate; −1 magazine |
+| `rangefinder` | Rangefinder | Weapon | Uncommon | ×1.25 projectile lifetime; ×1.10 speed; ×0.95 fire rate |
+| `impact_lens` | Impact Lens | Weapon | Uncommon | ×1.12 damage; ×0.95 projectile speed |
+| `bank_shot` | Bank Shot | Weapon | Uncommon | +1 ricochet; ×1.15 lifetime; ×0.90 damage |
+| `flechette_payload` | Flechette Payload | Weapon | Rare | +1 pierce; ×1.12 fire rate; ×0.85 damage |
+| `overpressure_chamber` | Overpressure Chamber | Weapon | Rare | ×1.30 damage; ×0.80 lifetime; ×0.90 fire rate |
+| `sustained_barrage` | Sustained Barrage | Weapon | Rare | +6 magazine; ×1.18 fire rate; ×1.25 reload duration |
+| `deadeye_calibration` | Deadeye Calibration | Weapon | Rare | −10° spread; ×1.20 damage; ×0.90 fire rate |
+| `orbital_rounds` | Orbital Rounds | Weapon | Epic | ×2.00 lifetime; ×1.25 damage; ×0.75 speed |
+| `chain_ricochet` | Chain Ricochet | Weapon | Epic | +2 ricochets; +1 pierce; ×0.85 damage |
+| `needle_storm` | Needle Storm | Weapon | Epic | +2 projectiles; +8° spread; ×1.25 speed; ×0.68 damage; ×1.10 fire rate |
+| `annihilator_shell` | Annihilator Shell | Weapon | Legendary | ×1.80 damage; ×0.70 lifetime; +1 pierce |
+| `impossible_magazine` | Impossible Magazine | Weapon | Legendary | +20 magazine; ×0.70 reload; ×1.20 fire rate |
+| `horizon_round` | Horizon Round | Weapon | Mythical | ×2.50 lifetime; ×1.50 speed; +2 pierces |
+| `storm_of_one` | Storm of One | Weapon | Mythical | ×2.00 fire rate; ×0.50 reload; −5 magazine; ×0.80 damage |
+| `supernova_array` | Supernova Array | Weapon | Unobtanium | +4 projectiles; +32° spread; ×1.40 damage; ×1.25 fire rate; ×1.50 lifetime |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
@@ -448,7 +516,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
 - Avoid full-screen white flashes. Screen shake is subtle, local-only, and never affects aim coordinates.
-- Start with an animated splash that displays `PRESS ANY KEY TO START`, accepts input immediately, and automatically proceeds to the connection menu after 10 seconds. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Each heat countdown uses a high-contrast centered `READY` plate and briefly replaces it with `BEGIN` as combat unlocks. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby. Returning to the same connected lobby clears match-only renderer state without discarding the local peer identity required for prediction in a rematch.
+- Start with an animated splash that displays `PRESS ANY KEY TO START`, accepts input immediately, and automatically proceeds to the connection menu after 10 seconds. Provide one persistent display/audio settings screen from the main menu and the in-match Escape pilot menu, including selectable 720p, 900p, 1080p, 1440p, 2560×1080 ultrawide, and 3440×1440 ultrawide resolutions. The lobby/menu must remain hidden during draft, countdown, combat, results, and spectating. Each heat countdown uses a high-contrast centered `READY` plate; it changes to `BEGIN` at 0.10 seconds remaining, persists for 0.10 seconds after unlock, and fades during that post-roll. Match completion opens a dedicated victory screen until the lobby leader explicitly returns everyone to the lobby. Returning to the same connected lobby clears match-only renderer state without discarding the local peer identity, monotonic input sequence, or client tick required for prediction and server input acceptance in a rematch.
 - Provide synthesized placeholders for fire, beam fire, reload completion, shield activate/block/break, damage, elimination, card lock, countdown, overtime, round win, and match win. Authored `.wav`, `.ogg`, or `.mp3` files with documented stable names replace individual placeholders without code changes; repeated network snapshots/events must not replay a cue.
 - Support `assets/audio/music/main_menu.*` for menu/lobby, a filename-ordered `assets/audio/music/gameplay/` playlist for draft through combat, and optional `assets/audio/music/win.*` for match results. Accept `.wav`, `.ogg`, and `.mp3`, including compound names whose final extension is supported. Crossfade the final three seconds of menu music into a second player at the track start so authored fade tails do not produce dead air or a hard restart. Use a generated victory theme if win music is absent. Persist master, music, effects, and mute settings between launches. All supplied audio must be original or properly licensed.
 
