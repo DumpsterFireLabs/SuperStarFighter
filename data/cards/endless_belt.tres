@@ -8,5 +8,5 @@ card_id = &"endless_belt"
 display_name = "Endless Belt"
 description = "+8 magazine capacity per stack, with no downside."
 category = 2
-rarity = 0
+rarity = 1
 integer_modifiers = {"magazine_size": 8}

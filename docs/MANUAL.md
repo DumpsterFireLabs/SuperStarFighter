@@ -333,13 +333,13 @@ Category is a navigation hint, not an isolation rule. Some cards deliberately to
 
 | Tier | Offer-tier weight | Card color |
 | --- | ---: | --- |
-| Common | 60% | Pale steel |
-| Uncommon | 25% | Green |
-| Rare | 10% | Cyan |
-| Epic | 3.5% | Violet |
-| Legendary | 1.2% | Gold |
-| Mythical | 0.25% | Magenta |
-| Unobtanium | 0.05% | Hot red |
+| Common | 45% | Pale steel |
+| Uncommon | 27% | Green |
+| Rare | 15% | Cyan |
+| Epic | 8% | Violet |
+| Legendary | 3.3% | Gold |
+| Mythical | 1.2% | Magenta |
+| Unobtanium | 0.5% | Hot red |
 
 The displayed percentage is the chance to select that rarity tier for an offer slot when all tiers are eligible. After the tier is chosen, the server selects uniformly among eligible cards in that tier. It is not the exact probability of one named card.
 

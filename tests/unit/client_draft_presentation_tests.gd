@@ -55,7 +55,7 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 		"card_ids": [&"reality_shredder", &"chronal_shield", &"sunbeam_core", &"aegis_matrix", &"hollow_points"],
 		"deadline_tick": 1800,
 	})
-	context.expect_true(client.draft_rarity_labels[0].text.contains("0.05%"), "unobtanium card badge renders the exceedingly low chance")
-	context.expect_true(client.draft_rarity_labels[1].text.contains("0.25%"), "mythical card badge renders fractional chance precision")
+	context.expect_true(client.draft_rarity_labels[0].text.contains("0.50%"), "unobtanium card badge renders the rebalanced fractional chance")
+	context.expect_true(client.draft_rarity_labels[1].text.contains("1.2%"), "mythical card badge renders fractional chance precision")
 	tree_parent.remove_child(client)
 	client.free()

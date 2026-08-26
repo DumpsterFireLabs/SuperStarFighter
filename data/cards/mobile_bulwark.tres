@@ -8,5 +8,5 @@ card_id = &"mobile_bulwark"
 display_name = "Mobile Bulwark"
 description = "Shielded acceleration ×1.35, but continuous drain ×1.15 per stack."
 category = 1
-rarity = 3
+rarity = 2
 multiplicative_modifiers = {"shield_acceleration_factor": 1.35, "shield_continuous_drain": 1.15}

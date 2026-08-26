@@ -1,6 +1,7 @@
 extends Node
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
@@ -1055,6 +1056,13 @@ func _on_window_mode_selected(index: int) -> void:
 
 
 func _load_video_settings() -> void:
+	var capture_resolution_value: Variant = get_tree().root.get_meta("ssf_presentation_capture_resolution", Vector2i.ZERO)
+	if capture_resolution_value is Vector2i and capture_resolution_value != Vector2i.ZERO:
+		current_window_mode = WindowModeOption.WINDOWED
+		current_resolution = capture_resolution_value
+		if DisplayServer.get_name() != "headless":
+			_apply_video_settings()
+		return
 	if DisplayServer.get_name() != "headless":
 		current_resolution = DisplayServer.window_get_size()
 	var config := ConfigFile.new()
@@ -1960,13 +1968,7 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rounds_label.add_theme_color_override("font_color", Color("ff8ee8"))
 	row.add_child(rounds_label)
-	var build_label := Label.new()
-	build_label.text = _result_build_text(peer_id)
-	build_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	build_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	build_label.add_theme_font_size_override("font_size", 15)
-	build_label.add_theme_color_override("font_color", Color("d6e2f2"))
-	row.add_child(build_label)
+	_add_result_build(row, peer_id, "ScoreboardBuildCards")
 
 
 func _update_results_screen() -> void:
@@ -2043,29 +2045,10 @@ func _result_build(peer_id: int) -> Dictionary:
 	return builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary
 
 
-func _result_build_text(peer_id: int) -> String:
-	var build := _result_build(peer_id)
-	if build.is_empty():
-		return "BASE LOADOUT"
-	var card_ids := build.keys()
-	card_ids.sort_custom(func(first: Variant, second: Variant) -> bool:
-		var first_card := card_catalog.get_card(StringName(first))
-		var second_card := card_catalog.get_card(StringName(second))
-		var first_name := first_card.display_name if first_card != null else String(first)
-		var second_name := second_card.display_name if second_card != null else String(second)
-		return first_name < second_name
-	)
-	var parts := PackedStringArray()
-	for card_value in card_ids:
-		var card := card_catalog.get_card(StringName(card_value))
-		parts.append("%s ×%d" % [card.display_name if card != null else String(card_value), int(build[card_value])])
-	return "  •  ".join(parts)
-
-
-func _add_result_build(parent: HBoxContainer, peer_id: int) -> void:
+func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: String = "FinalBuildCards") -> void:
 	var build := _result_build(peer_id)
 	var build_flow := HFlowContainer.new()
-	build_flow.name = "FinalBuildCards"
+	build_flow.name = container_name
 	build_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	build_flow.add_theme_constant_override("h_separation", 6)
 	build_flow.add_theme_constant_override("v_separation", 5)
@@ -2089,7 +2072,7 @@ func _add_result_build(parent: HBoxContainer, peer_id: int) -> void:
 		var card_id := StringName(card_value)
 		var card := card_catalog.get_card(card_id)
 		var stacks := int(build[card_value])
-		var chip := Button.new()
+		var chip := CardHoverButtonScript.new()
 		chip.focus_mode = Control.FOCUS_NONE
 		chip.mouse_default_cursor_shape = Control.CURSOR_HELP
 		chip.text = "%s ×%d" % [card.display_name if card != null else String(card_id), stacks]
@@ -2098,7 +2081,7 @@ func _add_result_build(parent: HBoxContainer, peer_id: int) -> void:
 		chip.add_theme_font_size_override("font_size", 14)
 		if card != null:
 			var rarity_color := card.rarity_color()
-			chip.tooltip_text = _result_card_tooltip(card, stacks)
+			chip.configure(card, stacks, _result_card_tooltip(card, stacks))
 			chip.add_theme_color_override("font_color", rarity_color.lightened(0.2))
 			chip.add_theme_color_override("font_hover_color", Color.WHITE)
 			chip.add_theme_stylebox_override("normal", _result_card_chip_style(rarity_color, false))

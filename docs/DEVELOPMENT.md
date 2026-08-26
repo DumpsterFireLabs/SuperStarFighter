@@ -32,8 +32,8 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Protocol version | 6 |
-| Automated suite | 1,575 assertions |
-| Project gate | 78 checks |
+| Automated suite | 1,585 assertions |
+| Project gate | 79 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -265,7 +265,7 @@ Any material UI change should be checked at minimum at:
 - 2560×1080 and 3440×1440 for ultrawide behavior.
 - 5120×1440 for 32:9 super-ultrawide behavior.
 
-`verify-presentation.ps1` captures 18 production states at all five acceptance resolutions, including both ordinary and exclusive-fullscreen settings states. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
+`verify-presentation.ps1` captures 20 production states at all five acceptance resolutions, including ordinary settings, exclusive-fullscreen settings, and the live/final card-hover presentations. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
 
 Keep combat center space free where possible. Durable match information belongs in the compact upper-left HUD. Temporary center overlays should have precise authoritative timing and short exits.
 
@@ -300,13 +300,13 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,575 deterministic assertions | After any gameplay/model/UI logic edit |
-| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 78 project checks | Before commit/handoff |
+| `.\tools\run-tests.ps1` | 1,585 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 79 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
-| `.\tools\verify-presentation.ps1` | 90 production captures at five resolutions | UI, text, theme, timing changes |
+| `.\tools\verify-presentation.ps1` | 100 production captures at five resolutions | UI, text, theme, timing changes |
 | `.\tools\verify-hardening.ps1` | Malformed/excessive peers isolated while healthy clients continue | Validation/rate-limit changes |
 | `.\tools\verify-smoke.ps1` | Configurable 2–32 real-client short run | Capacity/performance smoke |
 | `.\tools\verify-soak.ps1` | Long load, disconnect, late spectator, overtime, metrics summary | Performance/release acceptance |

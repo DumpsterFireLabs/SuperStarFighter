@@ -297,7 +297,7 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 
 ### 7.2 Rarity and Offer Weighting
 
-Every card declares one of seven visible rarity tiers. When all tiers contain eligible cards, the chance that each offer slot selects that tier is Common 60%, Uncommon 25%, Rare 10%, Epic 3.5%, Legendary 1.2%, Mythical 0.25%, and Unobtanium 0.05%. After selecting a tier, choose uniformly among its eligible cards. Cards are never repeated within one five-card offer. If a tier has no eligible card, remove it and renormalize the remaining tier weights for that slot. These percentages are tier weights, not the probability of a particular card. Fractional high-tier chances remain visible on the card rather than rounding to zero.
+Every card declares one of seven visible rarity tiers. When all tiers contain eligible cards, the chance that each offer slot selects that tier is Common 45%, Uncommon 27%, Rare 15%, Epic 8%, Legendary 3.3%, Mythical 1.2%, and Unobtanium 0.5%. After selecting a tier, choose uniformly among its eligible cards. Cards are never repeated within one five-card offer. If a tier has no eligible card, remove it and renormalize the remaining tier weights for that slot. These percentages are tier weights, not the probability of a particular card. Fractional high-tier chances remain visible on the card rather than rounding to zero.
 
 ### 7.3 Catalog
 
@@ -332,14 +332,14 @@ The launch catalog contains 120 unlimited-stack cards: 38 ship, 38 shield, and 4
 | `quick_loader` | Quick Loader | Weapon | Uncommon | ×0.75 reload duration; −2 magazine |
 | `twin_shot` | Twin Shot | Weapon | Epic | +1 projectile; +10° total spread; ×0.70 damage |
 | `piercing_rounds` | Piercing Rounds | Weapon | Rare | +1 pierce; ×1.08 damage |
-| `ricochet_rounds` | Ricochet Rounds | Weapon | Epic | +1 ricochet; ×1.08 projectile speed |
-| `scatter_array` | Scatter Array | Weapon | Uncommon | +2 projectiles; +18° spread; ×1.15 fire rate; ×0.62 damage |
+| `ricochet_rounds` | Ricochet Rounds | Weapon | Rare | +1 ricochet; ×1.08 projectile speed |
+| `scatter_array` | Scatter Array | Weapon | Epic | +2 projectiles; +18° spread; ×1.15 fire rate; ×0.62 damage |
 | `beam_emitter` | Beam Emitter | Weapon | Legendary | Enable pulse beams; ×1.05 damage; ×2.50 projectile speed |
 | `prismatic_lance` | Prismatic Lance | Weapon | Legendary | Enable pulse beams; +2 pierces; ×1.25 damage; ×0.72 fire rate |
 | `laser_repeater` | Laser Repeater | Weapon | Epic | Enable pulse beams; ×1.28 fire rate; ×0.86 damage |
 | `siege_cannon` | Siege Cannon | Weapon | Rare | ×1.60 damage; ×0.65 fire rate; ×0.82 projectile speed |
 | `micro_barrage` | Micro Barrage | Weapon | Epic | +2 projectiles; +14° spread; ×0.80 speed; ×0.72 damage |
-| `endless_belt` | Endless Belt | Weapon | Common | +8 magazine |
+| `endless_belt` | Endless Belt | Weapon | Uncommon | +8 magazine |
 | `zero_point_loader` | Zero-Point Loader | Weapon | Legendary | ×0.50 reload duration; +4 magazine |
 | `ablative_shell` | Ablative Shell | Ship | Common | +20 maximum hull |
 | `plasma_thrusters` | Plasma Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.18 shielded acceleration |
@@ -347,7 +347,7 @@ The launch catalog contains 120 unlimited-stack cards: 38 ship, 38 shield, and 4
 | `phoenix_chassis` | Phoenix Chassis | Ship | Epic | ×1.30 maximum hull; ×1.08 maximum speed |
 | `starheart_reactor` | Starheart Reactor | Ship | Legendary | ×1.35 hull; ×1.35 acceleration; ×1.18 speed |
 | `event_horizon_drive` | Event Horizon Drive | Ship | Mythical | ×1.60 speed; ×1.60 acceleration; ×1.50 shielded acceleration |
-| `quantum_reconstruction` | Quantum Reconstruction | Ship | Mythical | Enable auto-repair; ×1.50 maximum hull |
+| `quantum_reconstruction` | Quantum Reconstruction | Ship | Legendary | Enable auto-repair; ×1.50 maximum hull |
 | `impossible_engine` | Impossible Engine | Ship | Unobtanium | ×2.00 speed; ×2.00 acceleration; ×1.50 drag |
 | `reserve_cell` | Reserve Cell | Shield | Common | +15 shield capacity; ×0.92 regeneration delay |
 | `regenerative_coils` | Regenerative Coils | Shield | Uncommon | ×1.18 shield regeneration; ×0.88 recovery threshold |
@@ -396,7 +396,7 @@ The launch catalog contains 120 unlimited-stack cards: 38 ship, 38 shield, and 4
 | `flash_recharger` | Flash Recharger | Shield | Rare | ×1.50 regeneration; ×1.15 regeneration delay |
 | `resilient_grid` | Resilient Grid | Shield | Rare | ×0.65 recovery threshold; ×1.10 capacity |
 | `duelist_aegis` | Duelist Aegis | Shield | Rare | ×0.70 arc; ×0.65 block cost |
-| `mobile_bulwark` | Mobile Bulwark | Shield | Epic | ×1.35 shielded acceleration; ×1.15 continuous drain |
+| `mobile_bulwark` | Mobile Bulwark | Shield | Rare | ×1.35 shielded acceleration; ×1.15 continuous drain |
 | `vacuum_insulation` | Vacuum Insulation | Shield | Epic | ×0.55 continuous drain; ×0.85 regeneration |
 | `cascade_barrier` | Cascade Barrier | Shield | Epic | ×0.50 block cost; ×1.20 capacity |
 | `second_wind` | Second Wind | Shield | Epic | ×0.40 recovery threshold; ×0.80 regeneration delay; ×1.25 capacity |

@@ -18,13 +18,13 @@ enum Rarity {
 }
 
 const RARITY_DROP_CHANCES := {
-	Rarity.COMMON: 60.0,
-	Rarity.UNCOMMON: 25.0,
-	Rarity.RARE: 10.0,
-	Rarity.EPIC: 3.5,
-	Rarity.LEGENDARY: 1.2,
-	Rarity.MYTHICAL: 0.25,
-	Rarity.UNOBTANIUM: 0.05,
+	Rarity.COMMON: 45.0,
+	Rarity.UNCOMMON: 27.0,
+	Rarity.RARE: 15.0,
+	Rarity.EPIC: 8.0,
+	Rarity.LEGENDARY: 3.3,
+	Rarity.MYTHICAL: 1.2,
+	Rarity.UNOBTANIUM: 0.5,
 }
 
 @export var card_id: StringName

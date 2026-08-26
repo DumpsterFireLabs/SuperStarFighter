@@ -262,7 +262,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world.latest_server_tick = 306
 	client._update_match_presentation()
 	context.expect_false(client.heat_intro_panel.visible, "BEGIN clears after its 0.10-second post-roll")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
@@ -276,6 +276,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
 	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
 	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
+	var scoreboard_build_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
+	context.expect_true(scoreboard_build_cards != null and scoreboard_build_cards.get_child_count() == 1, "scoreboard build renders rarity-styled card hover targets")
 	tab_event.pressed = false
 	client._input(tab_event)
 	context.expect_false(client.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
@@ -302,6 +304,13 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var result_card_chip := final_build_cards.get_child(0) as Button
 	context.expect_equal(result_card_chip.get_meta("card_id"), &"heavy_rounds", "final-build hover target retains its authoritative card identity")
 	context.expect_true(result_card_chip.tooltip_text.contains("CARD STATS") and result_card_chip.tooltip_text.contains("Projectile Damage") and result_card_chip.tooltip_text.contains("×1.82 total"), "hover popup shows exact per-stack and compounded card statistics")
+	var card_preview := result_card_chip._make_custom_tooltip(result_card_chip.tooltip_text) as PanelContainer
+	context.expect_true(card_preview != null and card_preview.name == "CardPreview", "card hover builds a dedicated card-shaped preview instead of a generic text box")
+	context.expect_equal(card_preview.get_meta("card_id"), &"heavy_rounds", "visual card preview retains the hovered card identity")
+	context.expect_true(card_preview.custom_minimum_size.x >= 390.0, "visual card preview reserves a readable card-width composition")
+	var preview_style := card_preview.get_theme_stylebox("panel") as StyleBoxFlat
+	context.expect_approx(preview_style.border_color.r, client.card_catalog.get_card(&"heavy_rounds").rarity_color().r, "visual card preview border reflects card rarity")
+	card_preview.free()
 	context.expect_true(client.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
 	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
 	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")

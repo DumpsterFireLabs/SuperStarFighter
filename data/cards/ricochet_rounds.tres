@@ -8,6 +8,6 @@ card_id = &"ricochet_rounds"
 display_name = "Ricochet Rounds"
 description = "+1 projectile ricochet and projectile speed is multiplied by 1.08."
 category = 2
-rarity = 3
+rarity = 2
 multiplicative_modifiers = {"projectile_speed": 1.08}
 integer_modifiers = {"ricochet_count": 1}

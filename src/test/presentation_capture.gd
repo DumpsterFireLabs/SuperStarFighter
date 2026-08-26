@@ -27,6 +27,7 @@ func _initialize() -> void:
 
 
 func _capture_sequence() -> void:
+	root.set_meta("ssf_presentation_capture_resolution", capture_resolution)
 	var packed_scene := load("res://scenes/client/client_main.tscn") as PackedScene
 	var client := packed_scene.instantiate()
 	root.add_child(client)
@@ -123,6 +124,8 @@ func _capture_sequence() -> void:
 	}
 	client._set_scoreboard_open(true)
 	await _capture(client, "scoreboard")
+	var scoreboard_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
+	await _capture_card_hover(client, scoreboard_cards.get_child(1) as Button, "scoreboard_card_hover")
 	client._set_scoreboard_open(false)
 
 	client.network_world._on_snapshot({"server_tick": 240, "acknowledged_input": 12, "states": [
@@ -155,9 +158,12 @@ func _capture_sequence() -> void:
 	client.network_world.latest_server_tick = 500
 	client._update_match_presentation()
 	await _capture(client, "results")
+	var result_cards := client.results_standings_container.find_child("FinalBuildCards", true, false) as HFlowContainer
+	await _capture_card_hover(client, result_cards.get_child(1) as Button, "results_card_hover")
 
 	client._on_rejected(&"SERVER_FULL", "The server is full.")
 	await _capture(client, "error")
+	root.remove_meta("ssf_presentation_capture_resolution")
 	print("PRESENTATION_CAPTURE_OK=%s" % capture_label)
 	quit(0)
 
@@ -176,3 +182,13 @@ func _capture(_client: Node, screen_name: String) -> void:
 	if result != OK:
 		printerr("PRESENTATION_CAPTURE_ERROR=%s:%d" % [screen_name, result])
 		quit(3)
+
+
+func _capture_card_hover(client: Node, button: Button, screen_name: String) -> void:
+	var preview := button._make_custom_tooltip(button.tooltip_text) as Control
+	client.connection_canvas.add_child(preview)
+	var canvas_width := float(capture_resolution.x) * 1080.0 / float(capture_resolution.y)
+	preview.position = Vector2(canvas_width * 0.5 - 195.0, 120.0)
+	await _capture(client, screen_name)
+	client.connection_canvas.remove_child(preview)
+	preview.free()

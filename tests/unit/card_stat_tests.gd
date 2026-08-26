@@ -111,13 +111,22 @@ static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalo
 		rarity_total += float(chance)
 	context.expect_approx(rarity_total, 100.0, "rarity tier chances total 100 percent")
 	context.expect_equal(CardDefinition.RARITY_DROP_CHANCES.size(), 7, "catalog exposes all seven rarity tiers")
-	var expected_chances := [60.0, 25.0, 10.0, 3.5, 1.2, 0.25, 0.05]
+	var expected_chances := [45.0, 27.0, 15.0, 8.0, 3.3, 1.2, 0.5]
 	for rarity in expected_chances.size():
 		context.expect_approx(float(CardDefinition.RARITY_DROP_CHANCES[rarity]), expected_chances[rarity], "%s has the specified tier chance" % CardDefinition.Rarity.keys()[rarity].capitalize())
 		if rarity > 0:
 			context.expect_true(expected_chances[rarity] < expected_chances[rarity - 1], "higher rarity %s is scarcer than the tier below" % CardDefinition.Rarity.keys()[rarity].capitalize())
-	context.expect_equal(catalog.get_card(&"chronal_shield").rarity_drop_chance_text(), "0.25%", "mythical chance keeps meaningful decimal precision")
-	context.expect_equal(catalog.get_card(&"reality_shredder").rarity_drop_chance_text(), "0.05%", "unobtanium chance keeps meaningful decimal precision")
+	context.expect_equal(catalog.get_card(&"chronal_shield").rarity_drop_chance_text(), "1.2%", "mythical chance keeps meaningful decimal precision")
+	context.expect_equal(catalog.get_card(&"reality_shredder").rarity_drop_chance_text(), "0.50%", "unobtanium chance keeps meaningful decimal precision")
+	var audited_rarities := {
+		&"endless_belt": CardDefinition.Rarity.UNCOMMON,
+		&"scatter_array": CardDefinition.Rarity.EPIC,
+		&"ricochet_rounds": CardDefinition.Rarity.RARE,
+		&"mobile_bulwark": CardDefinition.Rarity.RARE,
+		&"quantum_reconstruction": CardDefinition.Rarity.LEGENDARY,
+	}
+	for card_id in audited_rarities:
+		context.expect_equal(catalog.get_card(card_id).rarity, audited_rarities[card_id], "%s retains its audited power tier" % card_id)
 	var expected_beam_rarities := {
 		&"laser_repeater": CardDefinition.Rarity.EPIC,
 		&"beam_emitter": CardDefinition.Rarity.LEGENDARY,
