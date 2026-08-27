@@ -12,8 +12,9 @@ var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
 
-const SHIP_SEPARATION_SPEED: float = 120.0
-const SHIP_OVERLAP_SOLVER_PASSES: int = 2
+const SHIP_SEPARATION_SPEED: float = 240.0
+const SHIP_OVERLAP_SOLVER_PASSES: int = 4
+const SHIP_SEPARATION_SLOP: float = 0.25
 const RAM_REFERENCE_SPEED: float = 480.0
 
 
@@ -273,9 +274,7 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				var normal := difference / distance if distance > 0.001 else Vector2.from_angle(fallback_angle)
 				_append_ram_damage(left, right, normal, ram_damage_events)
 				_append_ram_damage(right, left, -normal, ram_damage_events)
-				var correction := normal * (minimum_distance - distance) * 0.5
-				left.position -= correction
-				right.position += correction
+				_separate_ship_pair(left, right, normal, minimum_distance)
 				var left_into := maxf(left.velocity.dot(normal), 0.0)
 				var right_into := minf(right.velocity.dot(normal), 0.0)
 				left.velocity -= normal * left_into
@@ -289,6 +288,46 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				right.position = right_safe.position
 				right.velocity = right_safe.velocity
 	return DamageResolver.resolve_tick(combatants, ram_damage_events)
+
+
+func _separate_ship_pair(
+	left: CombatantState,
+	right: CombatantState,
+	normal: Vector2,
+	minimum_distance: float
+) -> void:
+	var target_distance := minimum_distance + SHIP_SEPARATION_SLOP
+	var penetration := maxf(target_distance - (right.position - left.position).dot(normal), 0.0)
+	if penetration <= 0.0:
+		return
+	var half_correction := normal * penetration * 0.5
+	var left_safe := ArenaCollisionSystem.move_ship(left.position - half_correction, left.velocity, 0.0, map_id)
+	var right_safe := ArenaCollisionSystem.move_ship(right.position + half_correction, right.velocity, 0.0, map_id)
+	left.position = left_safe.position
+	right.position = right_safe.position
+	var remaining := maxf(target_distance - (right.position - left.position).dot(normal), 0.0)
+	if remaining <= 0.001:
+		return
+	# A wall or cover piece may reject one ship's half of the correction. Transfer
+	# that unfulfilled distance to the free ship instead of leaving the pair
+	# overlapped. Alternate first choice to avoid a permanent peer-ID bias.
+	var move_right_first := posmod(server_tick + left.peer_id + right.peer_id, 2) == 0
+	if move_right_first:
+		remaining = _move_separation_remainder(right, normal, remaining)
+		_move_separation_remainder(left, -normal, remaining)
+	else:
+		remaining = _move_separation_remainder(left, -normal, remaining)
+		_move_separation_remainder(right, normal, remaining)
+
+
+func _move_separation_remainder(combatant: CombatantState, direction: Vector2, distance: float) -> float:
+	if distance <= 0.001:
+		return 0.0
+	var original_position := combatant.position
+	var safe := ArenaCollisionSystem.move_ship(original_position + direction * distance, combatant.velocity, 0.0, map_id)
+	combatant.position = safe.position
+	var achieved := maxf((combatant.position - original_position).dot(direction), 0.0)
+	return maxf(distance - achieved, 0.0)
 
 
 func _append_ram_damage(

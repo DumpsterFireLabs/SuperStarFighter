@@ -3,11 +3,13 @@ extends Button
 
 var card_definition: CardDefinition
 var stack_count: int = 1
+var footer_context: String = "CURRENT BUILD"
 
 
-func configure(card: CardDefinition, stacks: int, accessible_text: String) -> void:
+func configure(card: CardDefinition, stacks: int, accessible_text: String, context: String = "CURRENT BUILD") -> void:
 	card_definition = card
 	stack_count = maxi(stacks, 1)
+	footer_context = context
 	tooltip_text = accessible_text
 
 
@@ -95,7 +97,7 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 		content.add_child(_effect_panel(effect, category_color))
 
 	var footer := Label.new()
-	footer.text = "CURRENT BUILD  •  %d %s OWNED" % [stack_count, "COPY" if stack_count == 1 else "COPIES"]
+	footer.text = "%s  •  %d %s" % [footer_context, stack_count, "COPY" if stack_count == 1 else "COPIES"]
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer.add_theme_font_size_override("font_size", 12)
 	footer.add_theme_color_override("font_color", Color(rarity_color, 0.85))

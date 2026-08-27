@@ -252,11 +252,12 @@ func apply_match_state(payload: Dictionary) -> void:
 
 
 func apply_builds(builds: Dictionary) -> void:
-	if not builds.has(local_peer_id):
-		return
-	local_stats = StatSystem.derive(builds[local_peer_id] as Dictionary, card_catalog)
-	if ships.has(local_peer_id):
-		(ships[local_peer_id] as SandboxShip).combatant.stats = local_stats.duplicate_stats()
+	for peer_value in ships.keys():
+		var peer_id := int(peer_value)
+		var ship := ships[peer_id] as SandboxShip
+		ship.combatant.stats = _stats_for_peer(peer_id, builds).duplicate_stats()
+		ship.queue_redraw()
+	local_stats = _stats_for_peer(local_peer_id, builds)
 
 
 func add_card_powerup(payload: Dictionary) -> void:
@@ -344,7 +345,7 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 		return existing
 	var ship := SandboxShip.new()
 	var color := _player_color(peer_id)
-	ship.setup(peer_id, local_stats, state.position, color, peer_id == local_peer_id, _display_name(peer_id))
+	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == local_peer_id, _display_name(peer_id))
 	add_child(ship)
 	ships[peer_id] = ship
 	return ship
@@ -353,7 +354,7 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	var was_alive := ship.combatant.alive
 	if bool(state.alive) and not was_alive:
-		ship.reset_ship(local_stats, state.position)
+		ship.reset_ship(_stats_for_peer(ship.combatant.peer_id), state.position)
 	ship.combatant.position = state.position
 	ship.combatant.velocity = state.velocity
 	ship.combatant.aim_angle = state.aim_angle
@@ -365,6 +366,12 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	if not state.alive:
 		ship.set_eliminated()
 	ship.queue_redraw()
+
+
+func _stats_for_peer(peer_id: int, builds: Dictionary = {}) -> CombatStats:
+	var source_builds := builds if not builds.is_empty() else match_payload.get("builds", {}) as Dictionary
+	var build := source_builds.get(peer_id, source_builds.get(str(peer_id), {})) as Dictionary
+	return StatSystem.derive(build, card_catalog)
 
 
 func _update_remote_ships() -> void:

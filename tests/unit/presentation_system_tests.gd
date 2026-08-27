@@ -295,9 +295,17 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"CARD_POWERUP_COLLECTED", 308, {"powerup_id": 9, "card_id": &"kinetic_prow", "peer_id": 2, "position": Vector2(700.0, 500.0), "builds": {2: {&"kinetic_prow": 1}}})
 	context.expect_false(client.network_world.powerup_layer.powerups.has(9), "reliable collection event removes the arena card visual")
 	context.expect_true(client.network_world.local_stats.shield_ram_damage > 0.0, "local prediction adopts a collected card build immediately")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}, 3: {&"glass_reactor": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
+	var npc_max_health := StatSystem.derive({&"glass_reactor": 2}, client.card_catalog).max_health
+	client.network_world._on_snapshot({"server_tick": 301, "acknowledged_input": 0, "states": [
+		{"peer_id": 2, "position": Vector2(500.0, 500.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
+		{"peer_id": 3, "position": Vector2(800.0, 500.0), "velocity": Vector2.ZERO, "aim_angle": PI, "health": npc_max_health, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
+	]})
+	var npc_ship := client.network_world.ships[3] as SandboxShip
+	context.expect_approx(npc_ship.combatant.stats.max_health, npc_max_health, "remote NPC presentation derives its own card-modified maximum health")
+	context.expect_approx(npc_ship.combatant.health_fraction(), 1.0, "a full-health NPC renders a full health ring even when its build changes maximum hull")
 	client._update_match_presentation()
 	context.expect_false(client.match_panel.visible, "former top-center match banner stays hidden during combat")
 	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("R2 H3"), "compact upper-left HUD carries match state and round details")
@@ -340,6 +348,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_label.text.contains("VICTORY"), "results screen clearly identifies the winner")
 	context.expect_equal(client.results_standings_container.get_child_count(), 1, "structured standings renders one row per participant")
 	context.expect_equal(client.results_standings_container.get_child(0).get_meta("peer_id"), 2, "winner occupies the first highlighted standings row")
+	var round_wins_label := client.results_standings_container.get_child(0).find_child("RoundWins", true, false) as Label
+	context.expect_equal(round_wins_label.text, "1", "victory standings retain round wins without the always-reset heat-win value")
+	context.expect_false(round_wins_label.text.contains("HEAT"), "victory standings omit the unnecessary heat-wins column")
 	var final_build_cards := client.results_standings_container.get_child(0).find_child("FinalBuildCards", true, false) as HFlowContainer
 	context.expect_true(final_build_cards != null and final_build_cards.get_child_count() == 1, "final build renders each owned card as an individual hover target")
 	var result_card_chip := final_build_cards.get_child(0) as Button

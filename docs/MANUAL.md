@@ -234,7 +234,7 @@ NPCs respect arena cover and overtime. They do not deliberately fire through blo
 
 Every participant drafts before round one. Before later rounds, the pilot who just won the round receives no card; everyone else receives a comeback draft. This prevents the leader from automatically snowballing through extra upgrades.
 
-Human players see five private cards and have 30 seconds to choose. Click a card or press `1` through `5`. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
+Human players see five private cards and have 30 seconds to choose. Hover a choice to open the same rarity-styled graphical stat card used for inspected builds; it previews the compounded build totals after taking that card. Click a card or press `1` through `5`. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
 
 The cards apply simultaneously. Builds become public after the draft and can be inspected while holding `Tab`.
 
@@ -254,7 +254,7 @@ If every remaining ship dies during the same authoritative tick, the heat is a t
 
 After a non-final round, heat-win counters clear and the next comeback draft begins. The first pilot to reach the configured round target wins the match.
 
-The final victory screen stays open. Hover any card in a final build to inspect its per-stack and compounded effects. The lobby leader selects **Exit to Lobby** when the group is ready. Everyone returns to the same connected lobby with builds, scores, and readiness cleared.
+The final victory screen stays open. Its compact standings show rank, pilot, rounds won, and final build; heat wins are omitted because they reset when the deciding round ends. Hover any card in a final build to inspect its per-stack and compounded effects. The lobby leader selects **Exit to Lobby** when the group is ready. Everyone returns to the same connected lobby with builds, scores, and readiness cleared.
 
 ## 7. Flight and Combat
 
@@ -321,7 +321,7 @@ Ordinary collisions remain harmless. A melee card enables shield ramming: hit an
 
 ### 7.4 Collision and cover
 
-Ships slide against arena walls, map obstacles, and other ships. Base ship collisions do no damage; only a qualifying card-enabled shield ram deals contact damage. Deterministic separation prevents shield/fire ramming from pinning two ships together. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
+Ships slide against arena walls, map obstacles, and other ships. Base ship collisions do no damage; only a qualifying card-enabled shield ram deals contact damage. Deterministic separation transfers blocked correction away from walls or cover and gives ships an outward impulse, preventing rapid shield/fire transitions from pinning two ships together. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
 
 Shots cannot spawn through a wall when the ship's nose is pressed against it.
 
@@ -402,7 +402,7 @@ The complete 125-card reference is in [section 7.3 of the specification](../spec
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 
-The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness.
+The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
 
 Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Builds are public after every draft.
 

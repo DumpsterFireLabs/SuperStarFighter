@@ -46,6 +46,12 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 		context.expect_true(normal_style.bg_color.a >= 0.85, "draft card %d uses a readable opaque background" % (index + 1))
 		var card: CardDefinition = client.card_catalog.get_card(card_ids[index])
 		context.expect_approx(normal_style.border_color.r, card.rarity_color().r, "draft card %d border reflects rarity" % (index + 1))
+	var draft_hover := client.draft_buttons[0] as CardHoverButton
+	context.expect_true(draft_hover != null and draft_hover.card_definition.card_id == card_ids[0], "draft choices use the same graphical hover-card component as build inspection")
+	context.expect_true(draft_hover.tooltip_text.contains("STACKS AFTER PICK"), "draft hover details describe the projected stack count")
+	var draft_preview := draft_hover._make_custom_tooltip(draft_hover.tooltip_text) as PanelContainer
+	context.expect_true(draft_preview != null and draft_preview.name == "CardPreview", "draft hover opens the rarity-styled graphical card preview")
+	draft_preview.free()
 	client._select_draft_card(0)
 	context.expect_true((client.draft_buttons[0] as Button).text.contains("SELECTED"), "chosen draft card renders its locked selection")
 	for button_value in client.draft_buttons:

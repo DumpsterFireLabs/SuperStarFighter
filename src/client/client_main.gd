@@ -603,7 +603,7 @@ func _create_match_ui() -> void:
 	cards.add_theme_constant_override("separation", 10)
 	content.add_child(cards)
 	for index in GameConstants.CARD_OFFER_SIZE:
-		var button := Button.new()
+		var button := CardHoverButtonScript.new()
 		button.custom_minimum_size = Vector2(224.0, 400.0)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
@@ -752,7 +752,7 @@ func _create_match_ui() -> void:
 	results_content.add_child(standings_heading)
 	_add_results_column_heading(standings_heading, "RANK", 72.0)
 	_add_results_column_heading(standings_heading, "PILOT", 230.0)
-	_add_results_column_heading(standings_heading, "RESULT", 190.0)
+	_add_results_column_heading(standings_heading, "ROUNDS WON", 150.0)
 	_add_results_column_heading(standings_heading, "FINAL BUILD", 0.0, true)
 	var results_scroll := ScrollContainer.new()
 	results_scroll.custom_minimum_size = Vector2(1060.0, 300.0)
@@ -1929,7 +1929,7 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			var rarity_label := draft_rarity_labels[index]
 			rarity_label.text = "%s  ·  %s TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance_text()]
 			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
-			button.tooltip_text = "%s — %s (%s rarity-tier chance) — %s" % [card.display_name, card.rarity_name(), card.rarity_drop_chance_text(), card.description]
+			button.configure(card, current_stacks + 1, _result_card_tooltip(card, current_stacks + 1, "STACKS AFTER PICK"), "AFTER PICK")
 	draft_panel.visible = true
 	for button in draft_buttons:
 		if button.visible and not button.disabled:
@@ -2309,14 +2309,14 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 		build_flow.add_child(chip)
 
 
-func _result_card_tooltip(card: CardDefinition, stacks: int) -> String:
+func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: String = "OWNED STACKS") -> String:
 	var lines := PackedStringArray([
 		card.display_name.to_upper(),
 		"%s · %s · %s TIER DROP" % [card.rarity_name().to_upper(), card.category_name().to_upper(), card.rarity_drop_chance_text()],
 		"",
 		card.description,
 		"",
-		"OWNED STACKS: %d" % stacks,
+		"%s: %d" % [stack_heading, stacks],
 		"CARD STATS",
 	])
 	var stat_lines := PackedStringArray()
@@ -2380,8 +2380,10 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	row.add_child(player_label)
 	var score := _result_score(peer_id)
 	var score_label := Label.new()
-	score_label.text = "%d ROUNDS  ·  %d HEATS" % [int(score.get("round_wins", 0)), int(score.get("heat_wins", 0))]
-	score_label.custom_minimum_size.x = 190.0
+	score_label.name = "RoundWins"
+	score_label.text = str(int(score.get("round_wins", 0)))
+	score_label.custom_minimum_size.x = 150.0
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	score_label.add_theme_font_size_override("font_size", 16)
 	score_label.add_theme_color_override("font_color", Color("73f7ff"))
 	row.add_child(score_label)

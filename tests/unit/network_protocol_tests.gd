@@ -621,6 +621,12 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	var snapshot := world.snapshot_states()
 	context.expect_equal(snapshot.size(), 2, "authoritative snapshot contains every connected combatant")
 	context.expect_true(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(world.server_tick, world.acknowledged_input(2), snapshot)).ok, "authoritative world snapshot survives wire encoding")
+	first.health = 12.0
+	second.health = 37.0
+	var second_build_stats := StatSystem.derive({&"glass_reactor": 2}, CardCatalog.create_default())
+	world.prepare_heat({2: first.stats, 3: second_build_stats}, {2: Vector2(300.0, 300.0), 3: Vector2(600.0, 300.0)})
+	context.expect_equal(first.health, first.stats.max_health, "new heats refill human hull to its complete derived maximum")
+	context.expect_equal(second.health, second.stats.max_health, "new heats refill NPC hull to its complete card-modified maximum")
 
 	var contact_world := AuthoritativeWorld.new()
 	var contact_left := contact_world.add_peer(40)
@@ -633,6 +639,35 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 		contact_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_true(contact_left.position.distance_to(contact_right.position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01, "ramming ships remain physically separated while shielding and firing")
 	context.expect_true(contact_left.velocity.length() > 1.0 or contact_right.velocity.length() > 1.0, "overlap recovery preserves separating motion instead of freezing both ships")
+
+	var pinned_world := AuthoritativeWorld.new()
+	var pinned_stats := CombatStats.create_base()
+	pinned_stats.max_health = 600.0
+	pinned_stats.projectile_damage = 1.0
+	var pinned_left := pinned_world.add_peer(42, pinned_stats)
+	var pinned_right := pinned_world.add_peer(43, pinned_stats)
+	pinned_left.position = Vector2(GameConstants.SHIP_COLLISION_RADIUS, 900.0)
+	pinned_right.position = Vector2(GameConstants.SHIP_COLLISION_RADIUS + 30.0, 900.0)
+	var minimum_contact_distance := INF
+	for contact_tick in 120:
+		var left_shielding := contact_tick % 2 == 0
+		pinned_world.submit_input(42, PlayerInputFrame.new(contact_tick + 1, contact_tick + 1, Vector2(0.0, -1.0), 0.0, not left_shielding, left_shielding))
+		pinned_world.submit_input(43, PlayerInputFrame.new(contact_tick + 1, contact_tick + 1, Vector2(0.0, -1.0), PI, left_shielding, not left_shielding))
+		pinned_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+		minimum_contact_distance = minf(minimum_contact_distance, pinned_left.position.distance_to(pinned_right.position))
+	context.expect_true(minimum_contact_distance >= GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01, "wall-pinned shield/fire collisions transfer blocked correction and never leave ships interpenetrating (minimum %.3f)" % minimum_contact_distance)
+	context.expect_true(pinned_right.position.x > GameConstants.SHIP_COLLISION_RADIUS + 30.0, "wall-pinned contact expels the movable ship instead of trapping the pair")
+	var cover_world := AuthoritativeWorld.new()
+	var cover_left := cover_world.add_peer(44, pinned_stats)
+	var cover_right := cover_world.add_peer(45, pinned_stats)
+	var cover_edge_x := ArenaLayout.center().x + ArenaLayout.CENTRAL_RADIUS + GameConstants.SHIP_COLLISION_RADIUS
+	cover_left.position = Vector2(cover_edge_x, ArenaLayout.center().y)
+	cover_right.position = Vector2(cover_edge_x + 30.0, ArenaLayout.center().y)
+	cover_world.submit_input(44, PlayerInputFrame.new(1, 1, Vector2(0.0, -1.0), 0.0, false, true))
+	cover_world.submit_input(45, PlayerInputFrame.new(1, 1, Vector2(0.0, -1.0), PI, true, false))
+	cover_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(cover_left.position.distance_to(cover_right.position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01, "cover-pinned shield/fire collision transfers rejected correction to the free ship")
+	context.expect_true(cover_right.position.x > cover_edge_x + 30.0, "cover-pinned contact ejects outward instead of retaining a sticky overlap")
 
 	var ram_stats := CombatStats.create_base()
 	ram_stats.shield_ram_damage = 40.0
