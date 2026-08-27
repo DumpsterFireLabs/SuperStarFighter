@@ -3,6 +3,7 @@ extends Node
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
+const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
@@ -41,6 +42,8 @@ var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
 var input_profiles: Node
 var connection_canvas: CanvasLayer
+var gameplay_cursor_canvas: CanvasLayer
+var gameplay_cursor: Sprite2D
 var connection_screen: Control
 var connection_form_panel: PanelContainer
 var connection_tabs: TabContainer
@@ -188,6 +191,7 @@ func _ready() -> void:
 	_create_match_ui()
 	_create_pause_overlay()
 	_create_settings_overlay()
+	_create_gameplay_cursor()
 	_create_splash_screen()
 	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=enet" % configuration.get("port", GameConstants.DEFAULT_PORT))
@@ -1424,6 +1428,19 @@ func _hide_settings() -> void:
 	settings_return_to_pause = false
 
 
+func _create_gameplay_cursor() -> void:
+	gameplay_cursor_canvas = CanvasLayer.new()
+	gameplay_cursor_canvas.name = "GameplayCursor"
+	gameplay_cursor_canvas.layer = 30
+	add_child(gameplay_cursor_canvas)
+	gameplay_cursor = Sprite2D.new()
+	gameplay_cursor.name = "Crosshair"
+	gameplay_cursor.texture = CROSSHAIR_TEXTURE
+	gameplay_cursor.centered = true
+	gameplay_cursor.visible = false
+	gameplay_cursor_canvas.add_child(gameplay_cursor)
+
+
 func _create_splash_screen() -> void:
 	var splash_canvas := CanvasLayer.new()
 	splash_canvas.layer = 40
@@ -2132,11 +2149,18 @@ func _process(delta: float) -> void:
 
 
 func _update_pointer_visibility() -> void:
-	if DisplayServer.get_name() == "headless" or input_profiles == null:
+	if input_profiles == null:
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
 	var interactive_overlay := connection_screen.visible or settings_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible
-	var desired_mode := Input.MOUSE_MODE_HIDDEN if input_profiles.uses_controller() and gameplay_visible and not interactive_overlay else Input.MOUSE_MODE_VISIBLE
+	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
+	if gameplay_cursor != null:
+		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller()
+		if gameplay_cursor.visible:
+			gameplay_cursor.position = get_viewport().get_mouse_position()
+	if DisplayServer.get_name() == "headless":
+		return
+	var desired_mode := Input.MOUSE_MODE_HIDDEN if gameplay_pointer_active else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != desired_mode:
 		Input.mouse_mode = desired_mode
 

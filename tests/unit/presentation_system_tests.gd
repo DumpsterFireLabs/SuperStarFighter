@@ -264,6 +264,23 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
 	context.expect_true(client.settings_panel != null, "shared display and audio settings screen exists")
 	context.expect_true(client.input_profiles != null, "production client owns a persistent input profile manager")
+	context.expect_true(client.gameplay_cursor != null and client.gameplay_cursor.texture != null, "production client renders the combat crosshair inside the game framebuffer")
+	context.expect_true(client.gameplay_cursor_canvas.layer > client.connection_canvas.layer, "software crosshair renders above the combat world and HUD")
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
+	client.connection_screen.visible = false
+	client.offline_sandbox.set_sandbox_active(true)
+	client._update_pointer_visibility()
+	context.expect_true(client.gameplay_cursor.visible, "keyboard and mouse gameplay displays the software crosshair")
+	client.pause_overlay.visible = true
+	client._update_pointer_visibility()
+	context.expect_false(client.gameplay_cursor.visible, "interactive menus replace the combat crosshair with the system pointer")
+	client.pause_overlay.visible = false
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
+	client._update_pointer_visibility()
+	context.expect_false(client.gameplay_cursor.visible, "controller gameplay hides the stale mouse crosshair")
+	client.offline_sandbox.set_sandbox_active(false)
+	client.connection_screen.visible = true
+	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
 	context.expect_equal(client.settings_tabs.get_tab_count(), 2, "settings separates display and audio from controls")
 	context.expect_equal(client.control_scheme_control.item_count, 2, "settings can switch between keyboard/mouse and controller profiles")
 	context.expect_equal(client.flight_mode_control.item_count, 2, "settings exposes Newtonian and Relative flight modes")

@@ -4,7 +4,6 @@ extends Node2D
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
-const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 
 var catalog: CardCatalog = CardCatalog.create_default()
 var build: Dictionary = {}
@@ -30,7 +29,6 @@ var input_profiles: Node
 
 
 func _ready() -> void:
-	Input.set_custom_mouse_cursor(CROSSHAIR_TEXTURE, Input.CURSOR_ARROW, Vector2(20.0, 20.0))
 	arena = SandboxArena.new()
 	arena.name = "Arena"
 	add_child(arena)
@@ -74,10 +72,6 @@ func _physics_process(delta: float) -> void:
 	_update_camera(delta)
 	_update_hud()
 	arena.set_overtime(OvertimeSystem.is_active(heat_elapsed), OvertimeSystem.radius_at(heat_elapsed))
-
-
-func _exit_tree() -> void:
-	Input.set_custom_mouse_cursor(null)
 
 
 func set_sandbox_active(active: bool) -> void:
