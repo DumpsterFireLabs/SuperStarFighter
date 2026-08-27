@@ -45,10 +45,11 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.22 — Roster-Integrated Ship Colour Picker | Complete | Replaced the separate ship-colour option with clickable per-player roster swatches; each human can edit only their own swatch through an HSV wheel with pending preview, explicit Apply, Cancel, and Random actions; verified host/non-host ownership and all six display targets; 1,762 assertions, 81 project checks, and 198 production captures passed. |
 | 6.23 — Whole-Volley Ricochet Fidelity | Complete | Replaced endpoint-only arena checks with swept wall, rectangle, and circle collision so fast and near-tangent projectiles cannot tunnel; applied the same immediate rebound simulation to every predicted and authoritative client visual, including beams that expire before the 5 Hz correction interval; synchronized all traversal budgets during corrections; 1,769 assertions, 81 project checks, real ENet/match-loop flows, and 198 production captures passed. |
 | 6.24 — Match Rules, Active Cards, and Combat Records | Complete | Added a bulk NPC-difficulty selector; configurable 5–90 second arena-drop timing, heat-only/match-long drop ownership, and 30–120 second overtime; authoritative match-total kills on live/final standings; Afterburner special input and exhaust bloom; Ramming Shields, two knockback weapons with reduced shield push, and Nosferatu Shield healing; hid internal spawns and inactive ships during initial drafts; protocol 10, 1,853 assertions, 81 project checks, real network/match/NPC/hardening gates, and 198 production captures passed. |
-| 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and verified Beta 1/Beta 2 Windows client packages are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
+| 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and verified Beta 1, Beta 2, and Beta 3 Windows client packages are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
 | 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; rebuilt a 127,516,408-byte embedded-PCK Windows x64 client with protocol 8, verified version metadata, rendered startup, and all six authored music tracks discovered; packaged a 57,045,256-byte friend ZIP with instructions and Godot notices; 1,666 assertions, 79 project checks, and 180 production captures passed. |
 | 7.3 — Windows Beta 2 Client Package | Complete | Advanced the visible/package identity to 0.1.0-beta.2 without replacing Beta 1, then reissued Beta 2 with the roster-integrated colour picker; exported a 127,556,096-byte embedded-PCK Windows x64 client with protocol 9 and verified 0.1.0.2 file/product metadata; packaged a 57,080,057-byte friend ZIP with updated instructions and notices; 1,762 assertions, 81 project checks, 198 production captures, rendered startup, and all six authored music tracks passed. |
+| 7.4 — Windows Beta 3 Client Package | Complete | Advanced the visible/package identity to 0.1.0-beta.3 without replacing Beta 1 or Beta 2; exported a 127,585,272-byte embedded-PCK Windows x64 client with protocol 10 and verified 0.1.0.3 file/product metadata; packaged a 57,103,773-byte friend ZIP containing only the client, instructions, and notices; 1,853 assertions, 81 project checks, rendered startup, and all six authored music tracks passed. |
 | 8 — Ten-Map Expansion | In Progress | The static ten-map roster and automatic round rotation are playable; advanced per-map mechanics, optional rotation controls, full-capacity map simulations, and the rotating-map soak remain. |
 | 8.1 — Static Ten-Map Roster and Per-Round Rotation | Complete | Added ten visually distinct static topologies with 32 validated spawns each; a seeded shuffled deck changes maps only after a round is won and retains the same map through all heats and ties; authoritative collision, projectiles, overtime, NPC behavior, client reconstruction, HUD names, and protocol state are synchronized; 1,629 assertions, 79 project checks, real network/match-loop gates, and 150 production captures passed. |
 
@@ -301,11 +302,11 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ## Milestone 7 — Export, Documentation, and Release Candidate
 
-**Status:** In Progress — documentation completed 2026-08-25 and Windows Beta 1/Beta 2 client packages completed 2026-08-26; dedicated-server and final release-candidate work remains
+**Status:** In Progress — documentation completed 2026-08-25 and Windows Beta 1/Beta 2/Beta 3 client packages completed 2026-08-26; dedicated-server and final release-candidate work remains
 
 **Outcome:** A clean checkout can produce and operate the deliverable Windows client and dedicated server.
 
-### Delivered in 7.1–7.3
+### Delivered in 7.1–7.4
 
 - Completed the repository README, player/host manual, contributor guide, documentation index, controls, architecture, local/LAN/internet hosting, troubleshooting, content authoring, tests, logs, limitations, and verification guidance.
 - Pinned `0.1.0-beta.1` as the shared/project game version and displayed **BETA 1 · VERSION 0.1.0-beta.1** on the main connection screen.
@@ -317,11 +318,13 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Produced `SuperStarFighter-Beta1.exe` at 127,516,408 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,045,256 bytes; both are generated under ignored `builds/beta-1/`.
 - Advanced the shared, project, main-screen, Windows metadata, preset, executable, archive, and tester-guide identity to `0.1.0-beta.2` / **BETA 2** while preserving Beta 1 in its original folder.
 - Reissued `SuperStarFighter-Beta2.exe` with the roster-integrated colour picker at 127,556,096 bytes and `SuperStarFighter-Beta2-Windows-x64.zip` at 57,080,057 bytes under ignored `builds/beta-2/`; SHA-256 values are `F4CE3B36CF2313F49D28D83A345BDB542445F355DD87F56385C93A37EA1AB8D1` and `77CA4BB4C865DCC1D43D6D0168A2A815DE62A974542343ACC385580E31EA0A13` respectively.
+- Advanced the shared, project, main-screen, Windows metadata, preset, executable, archive, and tester-guide identity to `0.1.0-beta.3` / **BETA 3**, preserving both earlier beta folders.
+- Produced `SuperStarFighter-Beta3.exe` at 127,585,272 bytes and `SuperStarFighter-Beta3-Windows-x64.zip` at 57,103,773 bytes under ignored `builds/beta-3/`; SHA-256 values are `84B2CFBAD047286D1A65CACFF204D4650514BF0AE572811F300EC4462B865616` and `A48616AC650449E91FFBC2DC000317355B124813134CDAF98B1E4117F838709C` respectively.
 
 ### Remaining Work
 
 - Configure the Windows x64 dedicated-server export preset and strip client-only visual/audio resources while retaining shared collision/gameplay data.
-- Extend release packaging to produce and validate `SuperStarFighterServer.exe` alongside the completed Beta 2 client.
+- Extend release packaging to produce and validate `SuperStarFighterServer.exe` alongside the completed Beta 3 client.
 - Add a release smoke script that starts the exported server, connects exported/headless clients, completes the minimum deterministic scenario, and shuts down cleanly.
 - Maintain the completed documentation and add final dedicated-server/export instructions with the remaining packaging work.
 - Audit repository contents for generated files, local paths, downloaded executables, secrets, and unlicensed assets.
@@ -332,6 +335,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Beta 1 client acceptance passed 1,666 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
 - The exported executable passed embedded-resource creation, Windows metadata inspection, off-screen rendered startup, real Windows audio-driver startup, and packaged inventory validation for all six authored music tracks without runtime errors; the friend ZIP contains only the executable, Beta README, and third-party notice.
 - Reissued Beta 2 client acceptance passed 1,762 deterministic assertions, 81 project checks, and 198 production captures; its embedded executable reported the expected client-ready marker and one menu, four gameplay, and one victory track without runtime errors. The ZIP contains only the Beta 2 executable, updated Beta README, and Godot third-party notice.
+- Beta 3 client acceptance passed 1,853 deterministic assertions and 81 project checks; its embedded executable reported the expected client-ready marker and one menu, four gameplay, and one victory track without runtime errors. The ZIP contains only the Beta 3 executable, updated Beta README, and Godot third-party notice.
 
 - Produce both release artifacts from a clean checkout using only the documented bootstrap and export commands.
 - Connect two Windows clients to the exported server over localhost and LAN and complete two consecutive matches.
