@@ -2,6 +2,7 @@ class_name NetworkWorldView
 extends Node2D
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
 signal presentation_event(event_name: StringName, payload: Dictionary)
 
 var bridge: NetworkBridge
@@ -13,6 +14,7 @@ var authoritative_projectiles := ProjectileRegistry.new()
 var projectile_layer: SandboxProjectileLayer
 var effects_layer: CombatEffectsLayer
 var indicator_layer: OffscreenIndicatorLayer
+var powerup_layer: Node2D
 var prediction := ClientPredictionBuffer.new()
 var interpolation := RemoteInterpolator.new()
 var predicted_tracker := PredictedProjectileTracker.new()
@@ -56,6 +58,10 @@ func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
 	arena = SandboxArena.new()
 	arena.name = "Arena"
 	add_child(arena)
+	powerup_layer = PowerupLayerScript.new()
+	powerup_layer.name = "CardPowerups"
+	powerup_layer.z_index = 1
+	add_child(powerup_layer)
 	projectile_layer = SandboxProjectileLayer.new()
 	projectile_layer.registry = authoritative_projectiles
 	projectile_layer.z_index = 2
@@ -110,6 +116,8 @@ func reset_session() -> void:
 	local_weapon.reset(local_stats)
 	if effects_layer != null:
 		effects_layer.clear_effects()
+	if powerup_layer != null:
+		powerup_layer.clear_powerups()
 	if arena != null:
 		arena.set_map_id(ArenaLayout.DEFAULT_MAP_ID)
 		arena.set_overtime(false, OvertimeSystem.initial_radius())
@@ -230,9 +238,9 @@ func apply_match_state(payload: Dictionary) -> void:
 	controls_enabled = state_name == "ACTIVE_HEAT"
 	if hud_panel != null:
 		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
-	var builds := payload.get("builds", {}) as Dictionary
-	if builds.has(local_peer_id):
-		local_stats = StatSystem.derive(builds[local_peer_id] as Dictionary, card_catalog)
+	apply_builds(payload.get("builds", {}) as Dictionary)
+	if powerup_layer != null:
+		powerup_layer.set_powerups(payload.get("powerups", []) as Array)
 	if String(payload.get("state_name", "")) == "COUNTDOWN":
 		local_weapon.reset(local_stats)
 		prediction_initialized = false
@@ -241,6 +249,27 @@ func apply_match_state(payload: Dictionary) -> void:
 			effects_layer.clear_effects()
 		snap_camera_to_local_ship()
 	_update_spectator_target()
+
+
+func apply_builds(builds: Dictionary) -> void:
+	if not builds.has(local_peer_id):
+		return
+	local_stats = StatSystem.derive(builds[local_peer_id] as Dictionary, card_catalog)
+	if ships.has(local_peer_id):
+		(ships[local_peer_id] as SandboxShip).combatant.stats = local_stats.duplicate_stats()
+
+
+func add_card_powerup(payload: Dictionary) -> void:
+	if powerup_layer != null:
+		powerup_layer.add_powerup(payload)
+
+
+func collect_card_powerup(payload: Dictionary) -> void:
+	if powerup_layer != null:
+		powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
+	if effects_layer != null:
+		var card := card_catalog.get_card(StringName(payload.get("card_id", &"")))
+		effects_layer.spawn_impact(payload.get("position", Vector2.ZERO) as Vector2, card.rarity_color() if card != null else Color("42e8ff"))
 
 
 func snap_camera_to_local_ship() -> void:
@@ -606,11 +635,11 @@ func _unshaken_mouse_world_position() -> Vector2:
 
 
 func _player_color(peer_id: int) -> Color:
-	var palette: Array[Color] = [
-		Color("42e8ff"), Color("ff4f78"), Color("fff36a"), Color("62ff9b"),
-		Color("d39cff"), Color("ff9f43"), Color("5cf6ff"), Color("ff66d4"),
-	]
-	return palette[posmod(peer_id, palette.size())]
+	for player_value in bridge.latest_lobby_state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == peer_id:
+			return Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
+	return Color("42e8ff")
 
 
 func _display_name(peer_id: int) -> String:

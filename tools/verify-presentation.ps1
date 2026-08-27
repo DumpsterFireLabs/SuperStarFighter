@@ -49,4 +49,4 @@ foreach ($resolution in @(
     }
 }
 
-Write-Host "Presentation verification passed: all ten round maps plus splash, menus, settings, controller bindings, 32-player lobby, draft, READY/BEGIN alerts, combat, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 2880x1920, 3440x1440, and 5120x1440."
+Write-Host "Presentation verification passed: all ten round maps plus splash, menus, settings, controller bindings, 32-player lobby/options/colour selection, draft, READY/BEGIN alerts, combat powerups, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 2880x1920, 3440x1440, and 5120x1440."

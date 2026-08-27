@@ -68,10 +68,13 @@ func _capture_sequence() -> void:
 
 	var players: Array[Dictionary] = []
 	for index in 32:
-		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": index >= 8, "npc_difficulty": index % NpcPilotController.DIFFICULTY_NAMES.size(), "ready": index != 5})
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": index >= 8, "npc_difficulty": index % NpcPilotController.DIFFICULTY_NAMES.size(), "ready": index != 5})
 	client.bridge.local_peer_id = 2
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3})
 	await _capture(client, "lobby_32")
+	client._show_lobby_options()
+	await _capture(client, "lobby_options")
+	client.lobby_options_popup.hide()
 	var roster_scroll := client.lobby_roster.get_parent() as ScrollContainer
 	roster_scroll.scroll_vertical = 100000
 	await _capture(client, "lobby_npc_difficulties")
@@ -105,7 +108,7 @@ func _capture_sequence() -> void:
 		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2(280.0, 0.0), "aim_angle": 0.0, "health": 78.0, "shield": 64.0, "ammunition": 5, "alive": true, "shielding": false},
 		{"peer_id": 3, "position": Vector2(980.0, 520.0), "velocity": Vector2(-210.0, 70.0), "aim_angle": PI, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true},
 	]})
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 100, "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "overtime_start_tick": 5600}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 100, "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "powerups": [{"powerup_id": 1, "card_id": &"kinetic_prow", "position": Vector2(700.0, 430.0), "rarity": CardDefinition.Rarity.RARE}], "random_spawn_powerups": true, "overtime_start_tick": 5600}
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	await _capture(client, "combat")

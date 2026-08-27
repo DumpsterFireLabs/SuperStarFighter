@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"breach_vector"
+display_name = "Breach Vector"
+description = "+48 shield-ram damage and maximum speed ×1.20 per stack. Faster impacts hit harder."
+category = 1
+rarity = 4
+additive_modifiers = {"shield_ram_damage": 48.0}
+multiplicative_modifiers = {"max_speed": 1.2}

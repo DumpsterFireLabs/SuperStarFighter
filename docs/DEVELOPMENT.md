@@ -32,9 +32,9 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.1 |
-| Protocol version | 8 |
-| Automated suite | 1,666 assertions |
-| Project gate | 79 checks |
+| Protocol version | 9 |
+| Automated suite | 1,740 assertions |
+| Project gate | 81 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -108,13 +108,13 @@ Client input frame ──30 Hz UDP──→ AuthoritativeWorld at 60 Hz
     ↓                                  │
 Local prediction                       ├─ movement/collision
                                        ├─ weapons/projectiles
-                                       ├─ damage/shields/overtime
+                                       ├─ damage/shields/shield rams/overtime
                                        └─ survivor/scoring decisions
                                               ↓
 Client reconciliation ←─20 Hz player snapshots
 Projectile presentation ←─spawn batches + 5 Hz corrections
 Remote interpolation ←─buffered authoritative snapshots
-Reliable UI/state ←─lobby, draft, match, score, results events
+Reliable UI/state ←─lobby, draft, powerups, match, score, results events
 ```
 
 The client may predict local movement and shots for responsiveness, but it never decides legal positions, projectile creation, hits, damage, RNG, cards, scores, or winners.
@@ -122,8 +122,8 @@ The client may predict local movement and shots for responsiveness, but it never
 ### Main layers
 
 - `NetworkBridge` owns ENet lifecycle, RPC direction, admission, rate limiting, serialization cadence, and logs.
-- `ServerLobby` owns participant records, leadership, readiness, player limits, NPC fill, and lobby permissions.
-- `AuthoritativeMatchCoordinator` connects draft, match state, combat world, and reliable match events.
+- `ServerLobby` owns participant records, leadership, readiness, player limits, NPC fill, timed-powerup configuration, player colours, and lobby permissions.
+- `AuthoritativeMatchCoordinator` connects draft, match state, combat world, timed card powerups, and reliable match events.
 - `AuthoritativeWorld` owns deterministic per-tick combat state.
 - `NetworkWorldView` turns authoritative state into predicted/interpolated client presentation.
 - `ClientMain` owns screen flow and production UI, not gameplay authority.
@@ -208,6 +208,9 @@ Category values are `0` Ship, `1` Shield, and `2` Weapon. Rarity values are `0` 
 | `shield_acceleration_factor` | `projectile_speed` | `shield_arc_degrees` |
 |  | `projectile_count` | `shield_block_cost` |
 |  | `projectile_spread_degrees` | `shield_depletion_threshold` |
+|  |  | `shield_ram_damage` |
+|  |  | `shield_ram_min_speed` |
+|  |  | `shield_ram_cooldown` |
 |  | `projectile_lifetime` | `auto_repair_delay` |
 |  | `pierce_count` | `auto_repair_rate` |
 |  | `ricochet_count` |  |
@@ -266,7 +269,7 @@ Any material UI change should be checked at minimum at:
 - 2560×1080 and 3440×1440 for ultrawide behavior.
 - 5120×1440 for 32:9 super-ultrawide behavior.
 
-`verify-presentation.ps1` captures 30 production states at all six acceptance resolutions, including 2880×1920, every built-in round map, ordinary settings, exclusive-fullscreen settings, and the live/final card-hover presentations. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
+`verify-presentation.ps1` captures 31 production states at all six acceptance resolutions, including 2880×1920, every built-in round map, lobby match options/colour controls, ordinary settings, exclusive-fullscreen settings, arena powerups, and the live/final card-hover presentations. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
 
 Keep combat center space free where possible. Durable match information belongs in the compact upper-left HUD. Temporary center overlays should have precise authoritative timing and short exits.
 
@@ -301,13 +304,13 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,666 deterministic assertions | After any gameplay/model/UI logic edit |
-| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 79 project checks | Before commit/handoff |
+| `.\tools\run-tests.ps1` | 1,740 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 81 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
-| `.\tools\verify-presentation.ps1` | 180 production captures at six resolutions | UI, map, text, theme, timing changes |
+| `.\tools\verify-presentation.ps1` | 186 production captures at six resolutions | UI, map, text, theme, timing changes |
 | `.\tools\build-beta.ps1` | Full foundation gate, Windows x64 export, rendered startup and packaged-audio inventory smoke, and friend ZIP | Beta/release packaging |
 | `.\tools\verify-hardening.ps1` | Malformed/excessive peers isolated while healthy clients continue | Validation/rate-limit changes |
 | `.\tools\verify-smoke.ps1` | Configurable 2–32 real-client short run | Capacity/performance smoke |
@@ -388,5 +391,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 ## 15. Release Status
 
 The source-playable vertical slice and hardening milestone are complete. The Beta 1 Windows client preset, repeatable package script, embedded-PCK executable, exported-client launch smoke, friend README, and Godot notice are implemented. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing, and final release-candidate artifact checks remain.
+
+Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; a source-only gameplay change does not retroactively rename the existing Beta 1 package.
 
 Until those pieces land, treat the repository bootstrap/start scripts as the supported distribution path for playtests.

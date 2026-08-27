@@ -62,12 +62,17 @@ const EXPECTED_CARDS := {
 	&"causality_cannon": CardDefinition.Category.WEAPON,
 	&"singularity_lance": CardDefinition.Category.WEAPON,
 	&"reality_shredder": CardDefinition.Category.WEAPON,
+	&"kinetic_prow": CardDefinition.Category.SHIELD,
+	&"impact_capacitor": CardDefinition.Category.SHIELD,
+	&"breach_vector": CardDefinition.Category.SHIELD,
+	&"sundering_aegis": CardDefinition.Category.SHIELD,
+	&"worldbreaker_prow": CardDefinition.Category.SHIELD,
 }
 
 
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	context.expect_equal(catalog.size(), 120, "default card catalog contains twelve dozen cards")
+	context.expect_equal(catalog.size(), 125, "default card catalog contains 125 differentiated cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
@@ -76,6 +81,7 @@ static func run(context: TestContext) -> void:
 	_validate_order_independence(context, catalog)
 	_validate_runaway_synergy(context, catalog)
 	_validate_rarity_and_beams(context, catalog)
+	_validate_melee_cards(context, catalog)
 	_validate_clamps(context)
 	_validate_player_build_rules(context, catalog)
 	_validate_shared_models(context)
@@ -99,7 +105,7 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 		mechanical_signatures[CardCatalog.mechanical_signature(card)] = card_id
 		mechanical_shapes[CardCatalog.mechanical_shape_signature(card)] = card_id
 	context.expect_equal(category_counts[CardDefinition.Category.SHIP], 38, "catalog contains thirty-eight differentiated ship cards")
-	context.expect_equal(category_counts[CardDefinition.Category.SHIELD], 38, "catalog contains thirty-eight differentiated shield cards")
+	context.expect_equal(category_counts[CardDefinition.Category.SHIELD], 43, "catalog contains forty-three differentiated shield cards")
 	context.expect_equal(category_counts[CardDefinition.Category.WEAPON], 44, "weapon-heavy catalog contains forty-four differentiated weapon cards")
 	context.expect_equal(mechanical_signatures.size(), catalog.size(), "catalog sanity check finds no mechanically identical cards")
 	context.expect_equal(mechanical_shapes.size(), catalog.size(), "catalog sanity check finds no same-shape magnitude swaps")
@@ -149,6 +155,24 @@ static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalo
 	context.expect_true(unobtanium_stats.beam_weapon and unobtanium_stats.projectile_count == 3, "unobtanium weapon applies its authoritative beam and multishot effects")
 
 
+static func _validate_melee_cards(context: TestContext, catalog: CardCatalog) -> void:
+	var melee_rarities := {
+		&"kinetic_prow": CardDefinition.Rarity.RARE,
+		&"impact_capacitor": CardDefinition.Rarity.EPIC,
+		&"breach_vector": CardDefinition.Rarity.LEGENDARY,
+		&"sundering_aegis": CardDefinition.Rarity.MYTHICAL,
+		&"worldbreaker_prow": CardDefinition.Rarity.UNOBTANIUM,
+	}
+	for card_id in melee_rarities:
+		var card := catalog.get_card(card_id)
+		context.expect_equal(card.rarity, melee_rarities[card_id], "%s occupies its intended melee rarity" % card_id)
+		var build: Dictionary = {}
+		build[card_id] = 1
+		context.expect_true(StatSystem.derive(build, catalog).shield_ram_damage > 0.0, "%s independently enables shield-ram damage" % card_id)
+	var worldbreaker := StatSystem.derive({&"worldbreaker_prow": 1}, catalog)
+	context.expect_true(worldbreaker.shield_ram_damage >= 90.0 and worldbreaker.shield_ram_cooldown < CombatStats.create_base().shield_ram_cooldown, "Worldbreaker Prow combines lethal impact and faster contact recovery")
+
+
 static func _validate_one_stack_values(context: TestContext, catalog: CardCatalog) -> void:
 	_expect_build(context, catalog, &"reinforced_hull", 1, {"max_health": 125.0, "max_speed": 441.6})
 	_expect_build(context, catalog, &"overcharged_thrusters", 1, {"max_health": 100.0, "max_speed": 537.6, "acceleration": 1035.0})
@@ -169,7 +193,7 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 
 
 static func _validate_expanded_stat_surface(context: TestContext, catalog: CardCatalog) -> void:
-	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 24, "cards can modify twenty-four authoritative numeric combat stats")
+	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 27, "cards can modify twenty-seven authoritative numeric combat stats")
 	_expect_build(context, catalog, &"rangefinder", 1, {"projectile_lifetime": 3.125, "projectile_speed": 990.0, "fire_rate": 3.8})
 	_expect_build(context, catalog, &"compact_deflector", 1, {"shield_arc_degrees": 132.0, "shield_block_cost": 23.0})
 	_expect_build(context, catalog, &"vectored_nozzles", 1, {"acceleration": 1008.0, "shield_acceleration_factor": 0.81})

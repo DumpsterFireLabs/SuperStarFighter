@@ -64,6 +64,12 @@ var ready_button: CheckButton
 var rounds_control: SpinBox
 var player_limit_control: SpinBox
 var npcs_button: CheckButton
+var lobby_options_button: Button
+var lobby_options_popup: PanelContainer
+var powerups_button: CheckButton
+var random_color_button: CheckButton
+var ship_color_picker: ColorPickerButton
+var _color_send_timer: Timer
 var start_button: Button
 var match_panel: PanelContainer
 var match_label: Label
@@ -112,6 +118,8 @@ var binding_capture_action: StringName = &""
 var binding_capture_seconds: float = 0.0
 var current_window_mode: int = WindowModeOption.WINDOWED
 var current_resolution: Vector2i = Vector2i(1280, 720)
+var preferred_ship_color: Color = Color("42e8ff")
+var random_ship_color: bool = true
 var settings_return_to_pause: bool = false
 var splash_screen: Control
 var splash_dismissed: bool = false
@@ -152,6 +160,7 @@ func _ready() -> void:
 	audio_director.name = "AudioDirector"
 	add_child(audio_director)
 	_load_video_settings()
+	_load_appearance_settings()
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
@@ -434,6 +443,12 @@ func _create_lobby_panel() -> void:
 	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
+	lobby_options_button = Button.new()
+	lobby_options_button.text = "MATCH OPTIONS & SHIP COLOUR"
+	lobby_options_button.custom_minimum_size.y = 48.0
+	lobby_options_button.pressed.connect(_show_lobby_options)
+	content.add_child(lobby_options_button)
+	_create_lobby_options_popup()
 	ready_button = CheckButton.new()
 	ready_button.text = "READY FOR LAUNCH"
 	ready_button.custom_minimum_size.y = 52.0
@@ -449,6 +464,76 @@ func _create_lobby_panel() -> void:
 	disconnect_button.custom_minimum_size.y = 54.0
 	disconnect_button.pressed.connect(_disconnect_online)
 	content.add_child(disconnect_button)
+
+
+func _create_lobby_options_popup() -> void:
+	lobby_options_popup = PanelContainer.new()
+	lobby_options_popup.name = "LobbyOptions"
+	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
+	lobby_options_popup.position = Vector2(-340.0, -235.0)
+	lobby_options_popup.custom_minimum_size = Vector2(680.0, 470.0)
+	lobby_options_popup.theme = interface_theme
+	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
+	lobby_options_popup.visible = false
+	connection_canvas.add_child(lobby_options_popup)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 14)
+	lobby_options_popup.add_child(content)
+	var title := Label.new()
+	title.text = "MATCH OPTIONS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Color("d39cff"))
+	content.add_child(title)
+	powerups_button = CheckButton.new()
+	powerups_button.text = "Random spawn powerups"
+	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears every 20 seconds during active combat."
+	powerups_button.custom_minimum_size.y = 48.0
+	powerups_button.toggled.connect(_on_powerups_toggled)
+	content.add_child(powerups_button)
+	var powerup_note := Label.new()
+	powerup_note.text = "When enabled, a Rare-or-better card spawns at a safe random map position every 20 seconds. Fly over it to add it to your build immediately."
+	powerup_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	powerup_note.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(powerup_note)
+	var divider := HSeparator.new()
+	content.add_child(divider)
+	var appearance_title := Label.new()
+	appearance_title.text = "YOUR SHIP COLOUR"
+	appearance_title.add_theme_font_size_override("font_size", 22)
+	appearance_title.add_theme_color_override("font_color", Color("73f7ff"))
+	content.add_child(appearance_title)
+	random_color_button = CheckButton.new()
+	random_color_button.text = "Random colour"
+	random_color_button.button_pressed = random_ship_color
+	random_color_button.custom_minimum_size.y = 44.0
+	random_color_button.toggled.connect(_on_random_color_toggled)
+	content.add_child(random_color_button)
+	var color_row := HBoxContainer.new()
+	color_row.add_theme_constant_override("separation", 16)
+	content.add_child(color_row)
+	var color_label := Label.new()
+	color_label.text = "Custom colour wheel"
+	color_label.custom_minimum_size.x = 210.0
+	color_row.add_child(color_label)
+	ship_color_picker = ColorPickerButton.new()
+	ship_color_picker.color = preferred_ship_color
+	ship_color_picker.edit_alpha = false
+	ship_color_picker.get_picker().picker_shape = ColorPicker.SHAPE_HSV_WHEEL
+	ship_color_picker.disabled = random_ship_color
+	ship_color_picker.custom_minimum_size = Vector2(330.0, 48.0)
+	ship_color_picker.color_changed.connect(_on_ship_color_changed)
+	color_row.add_child(ship_color_picker)
+	_color_send_timer = Timer.new()
+	_color_send_timer.one_shot = true
+	_color_send_timer.wait_time = 0.2
+	_color_send_timer.timeout.connect(_send_preferred_ship_color)
+	add_child(_color_send_timer)
+	var close_button := Button.new()
+	close_button.text = "DONE"
+	close_button.custom_minimum_size.y = 48.0
+	close_button.pressed.connect(lobby_options_popup.hide)
+	content.add_child(close_button)
 
 
 func _create_match_ui() -> void:
@@ -1169,6 +1254,24 @@ func _save_video_settings() -> void:
 	config.save(AudioDirector.SETTINGS_PATH)
 
 
+func _load_appearance_settings() -> void:
+	var config := ConfigFile.new()
+	if config.load(AudioDirector.SETTINGS_PATH) != OK:
+		return
+	random_ship_color = bool(config.get_value("appearance", "random_ship_color", true))
+	var saved_color := String(config.get_value("appearance", "ship_color", preferred_ship_color.to_html(false)))
+	if not ServerLobby._normalized_ship_color(saved_color).is_empty():
+		preferred_ship_color = Color.from_string("#%s" % saved_color.trim_prefix("#"), preferred_ship_color)
+
+
+func _save_appearance_settings() -> void:
+	var config := ConfigFile.new()
+	config.load(AudioDirector.SETTINGS_PATH)
+	config.set_value("appearance", "random_ship_color", random_ship_color)
+	config.set_value("appearance", "ship_color", preferred_ship_color.to_html(false))
+	config.save(AudioDirector.SETTINGS_PATH)
+
+
 func _show_settings(return_to_pause: bool) -> void:
 	settings_return_to_pause = return_to_pause
 	if pause_overlay != null:
@@ -1502,6 +1605,8 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	connection_screen.visible = true
 	connection_form_panel.visible = true
 	lobby_panel.visible = false
+	if lobby_options_popup != null:
+		lobby_options_popup.hide()
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_panel.visible = false
@@ -1525,6 +1630,7 @@ func _on_connected(peer_id: int) -> void:
 	connection_status.text = "Connected as peer %d." % peer_id
 	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
+	bridge.send_player_color(random_ship_color, preferred_ship_color)
 	if input_profiles.uses_controller():
 		ready_button.grab_focus()
 
@@ -1534,6 +1640,8 @@ func _on_lobby_state(state: Dictionary) -> void:
 	var npc_count := int(state.get("npc_count", 0))
 	var total_count := (state.get("players", []) as Array).size()
 	var match_active := bool(state.get("match_active", false))
+	if match_active and lobby_options_popup != null:
+		lobby_options_popup.hide()
 	if not match_active:
 		_set_scoreboard_open(false)
 		connection_screen.visible = true
@@ -1560,7 +1668,14 @@ func _on_lobby_state(state: Dictionary) -> void:
 	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
 	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
 	npcs_button.button_pressed = bool(state.get("npcs_enabled", false))
+	powerups_button.button_pressed = bool(state.get("random_spawn_powerups", false))
 	ready_button.button_pressed = local_ready
+	for player_value in state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == bridge.local_peer_id:
+			preferred_ship_color = Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), preferred_ship_color)
+			ship_color_picker.color = preferred_ship_color
+			break
 	_applying_lobby_state = false
 	ready_button.disabled = match_active
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
@@ -1568,6 +1683,9 @@ func _on_lobby_state(state: Dictionary) -> void:
 	rounds_control.editable = settings_editable
 	player_limit_control.editable = settings_editable
 	npcs_button.disabled = not settings_editable
+	powerups_button.disabled = not settings_editable
+	random_color_button.disabled = match_active
+	ship_color_picker.disabled = match_active or random_ship_color
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
 	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false))
 	var human_count := total_count - npc_count
@@ -1599,6 +1717,12 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		row.custom_minimum_size.y = 42.0
 		row.add_theme_constant_override("separation", 10)
 		lobby_roster.add_child(row)
+		var color_swatch := ColorRect.new()
+		color_swatch.name = "ShipColor"
+		color_swatch.color = Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
+		color_swatch.custom_minimum_size = Vector2(26.0, 26.0)
+		color_swatch.tooltip_text = "Selected ship colour"
+		row.add_child(color_swatch)
 		var name_label := Label.new()
 		name_label.text = String(player.get("display_name", "Pilot"))
 		name_label.custom_minimum_size.x = 300.0
@@ -1651,6 +1775,40 @@ func _on_npcs_toggled(enabled: bool) -> void:
 		bridge.send_npcs_enabled(enabled)
 
 
+func _show_lobby_options() -> void:
+	if lobby_options_popup != null and lobby_panel.visible:
+		lobby_options_popup.show()
+
+
+func _on_powerups_toggled(enabled: bool) -> void:
+	if not _applying_lobby_state:
+		bridge.send_random_spawn_powerups(enabled)
+
+
+func _on_random_color_toggled(enabled: bool) -> void:
+	if _applying_lobby_state:
+		return
+	random_ship_color = enabled
+	ship_color_picker.disabled = enabled
+	_save_appearance_settings()
+	bridge.send_player_color(random_ship_color, preferred_ship_color)
+
+
+func _on_ship_color_changed(color: Color) -> void:
+	if _applying_lobby_state:
+		return
+	preferred_ship_color = Color(color.r, color.g, color.b, 1.0)
+	random_ship_color = false
+	random_color_button.set_pressed_no_signal(false)
+	ship_color_picker.disabled = false
+	_save_appearance_settings()
+	_color_send_timer.start()
+
+
+func _send_preferred_ship_color() -> void:
+	bridge.send_player_color(false, preferred_ship_color)
+
+
 func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
 	bridge.send_npc_difficulty(npc_peer_id, index)
 
@@ -1700,6 +1858,13 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		for peer_value in payload.get("peer_ids", []):
 			alive_peer_ids.erase(int(peer_value))
 		latest_match_payload["alive_peer_ids"] = alive_peer_ids
+	elif event_type == &"CARD_POWERUP_SPAWNED":
+		network_world.add_card_powerup(payload)
+	elif event_type == &"CARD_POWERUP_COLLECTED":
+		latest_match_payload["builds"] = payload.get("builds", latest_match_payload.get("builds", {}))
+		network_world.apply_builds(latest_match_payload.get("builds", {}) as Dictionary)
+		network_world.collect_card_powerup(payload)
+		audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
 
 
 func _process(delta: float) -> void:

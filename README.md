@@ -7,10 +7,12 @@ Up to 32 human and NPC pilots fight through last-ship-standing heats. Before eac
 ## Highlights
 
 - Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
-- Automatic weapons, directional energy shields, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
-- 120 unlimited-stack cards across seven increasingly scarce rarity tiers.
-- 24 numeric build stats plus beam and auto-repair transformations.
+- Automatic weapons, directional energy shields, shield-ram melee builds, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
+- 125 unlimited-stack cards across seven increasingly scarce rarity tiers.
+- 27 numeric build stats plus beam and auto-repair transformations.
 - Two to 32 total participants with individually configurable NPC difficulty.
+- Optional server-owned Rare-or-better arena powerups every 20 seconds.
+- Persistent Random or colour-wheel ship appearance selection with non-colour identity patterns.
 - One-click local hosting, LAN server discovery, and direct-IP joining.
 - Ten authoritative arena layouts in a shuffled no-repeat rotation, changing between rounds while every heat stays on the same map.
 - Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
@@ -32,7 +34,7 @@ In the game:
 1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
 3. Choose a server name and gameplay UDP port, then select **Host & Join**.
-4. In the lobby, choose the player limit and round target. Enable NPCs if desired.
+4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options & Ship Colour** contains the optional timed powerup rule and your personal Random/custom colour selection.
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 
@@ -52,7 +54,7 @@ The main menu identifies the current release as **Beta 1**, version `0.1.0-beta.
 .\tools\build-beta.ps1
 ```
 
-The script runs the complete foundation gate, exports a single embedded-PCK executable, launches that executable through its normal rendered startup path, verifies that its packaged menu/gameplay/victory music inventory matches the source, and creates `builds\beta-1\SuperStarFighter-Beta1-Windows-x64.zip` with the friend README and Godot third-party notice. Generated builds remain ignored by Git.
+The script runs the complete foundation gate, exports a single embedded-PCK executable, launches that executable through its normal rendered startup path, verifies that its packaged menu/gameplay/victory music inventory matches the source, and creates the versioned friend ZIP with the Beta README and Godot third-party notice. Every tester-facing rebuild must increment the displayed game/build version before export so packages remain distinguishable. Generated builds remain ignored by Git.
 
 ### Keyboard and mouse
 
@@ -132,11 +134,11 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,666 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,740 automated assertions and 81 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
-Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, 120 cards, and validated 32-client server behavior.
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, timed arena card pickups, 125 cards, custom ship colours, and validated 32-client server behavior.
 
 The Beta 1 Windows client export and packaging path is operational. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
 

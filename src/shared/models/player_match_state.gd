@@ -11,6 +11,7 @@ var alive: bool = false
 var spectator: bool = true
 var lobby_ready: bool = false
 var npc_difficulty: int = NpcPilotController.Difficulty.NEUTRAL
+var ship_color: String = "42e8ff"
 
 var health: float = 0.0
 var shield_energy: float = 0.0

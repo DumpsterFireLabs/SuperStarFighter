@@ -118,7 +118,8 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.2 Lobby Rules
 
 - The first admitted client is lobby leader. On leader disconnect, leadership transfers to the admitted client with the earliest join sequence.
-- The leader may set `rounds_to_win` from 1 through 5 and set the total participant limit from 2 through the server's configured capacity, never above 32. Lobby settings cannot change during a match.
+- The leader may set `rounds_to_win` from 1 through 5, set the total participant limit from 2 through the server's configured capacity (never above 32), and enable the optional Random Spawn Powerups rule. Lobby settings cannot change during a match, and the powerup rule defaults to off.
+- Every human may choose Random ship colour or a custom RGB colour from the lobby colour wheel. The preference persists locally, is validated and serialized by the server, and may change only while the match is inactive. Random uses the server's high-contrast palette.
 - Every connected human, including the leader, enters the lobby not ready and must explicitly ready up before Start Match can succeed. Changing any lobby setting or returning from a completed match clears every human's ready state; NPCs are always ready. Readiness is authoritative and serialized in lobby state.
 - The leader may eject another connected human only while the match is inactive. The leader cannot eject themselves or server-owned NPCs. An ejected client receives the `EJECTED` reason and returns to the connection screen.
 - The leader may enable or disable NPC fill. Enabling it immediately creates one waiting NPC for every vacant configured seat so each can be configured before launch. Increasing the seat limit while NPC fill is enabled creates additional waiting NPCs; disabling it removes all waiting NPCs. Start Match requires two humans when NPC fill is disabled; when enabled, one human may start with the configured NPC roster. The button reads `Start Match` for ready multiplayer lobbies, `Start Match with NPCs` for a ready solo leader with NPC fill, and otherwise explains the missing requirement.
@@ -144,6 +145,7 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.4 Heat, Round, and Match Resolution
 
 - Each heat starts every participant alive at full derived health, full shield energy, full magazine, and no active reload or repair timer.
+- When Random Spawn Powerups is enabled, the server starts a fresh twenty-second timer at heat unlock. Every twenty seconds of `ACTIVE_HEAT`, it spawns one Rare-or-better card at a legal arena position clear of obstacles and living ships. Uncollected cards persist until collected or the heat ends; a nearby living human or NPC collects one authoritatively, adds one stack to inventory, and receives the recomputed build immediately. Tier selection uses the configured rarity weights conditioned on Rare or above. Active pickups are included in late-join state.
 - Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown. Every heat presents a centered `READY` alert during the lock. At exactly 0.10 seconds remaining it changes to `BEGIN`, remains through the first 0.10 seconds of authoritative control, and fades to transparent across that post-roll.
 - A player at zero health is eliminated immediately and becomes a spectator for the remainder of the heat.
 - When exactly one participant remains alive after a complete authoritative damage tick, end the heat immediately and award that player one heat win. Their second heat win ends the round.
@@ -176,7 +178,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 - Every map exposes 32 validated spawn anchors. Spawn assignment is shuffled independently for every heat even though map selection remains fixed within the round.
 - Provide exactly 32 spawn anchors distributed around two symmetric rings. Anchors must not overlap obstacles and must keep at least 160 pixels between neighboring ships.
 - Spawn anchors are assigned without replacement. Players receive no post-countdown invulnerability because all players gain control on the same server tick.
-- Ships collide with walls, obstacles, and other ships using slide response. Ship collisions deal no damage.
+- Ships collide with walls, obstacles, and other ships using slide response. Base collisions deal no damage; a card-derived shield-ram stat may turn a qualifying forward shield impact into damage.
 - Each client uses a smoothing follow camera centered on its controlled or spectated ship. The camera snaps to the local ship on every heat countdown, remains centered even near arena edges, and uses a fixed gameplay zoom at supported aspect ratios.
 - Show edge indicators for off-screen ships within 900 pixels and for the nearest incoming off-screen projectile. Indicators must use shape plus color so color alone does not carry meaning.
 - A spectator may cycle living ships with the active profile's previous/next-target actions, defaulting to A/D on keyboard and the shoulder buttons on controller. If no player is alive during a tie result, the camera returns to arena center.
@@ -239,6 +241,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 - Shielding reduces acceleration by 25%, disables firing, and leaves maximum speed and drag unchanged.
 - A projectile is blockable when the vector from ship center to the projectile impact point falls inside half the current shield arc around the ship's aim direction.
 - A successful block destroys the projectile and subtracts the block cost. The current projectile is still blocked if the cost takes energy to zero; the shield then deactivates and locks until energy regenerates to the threshold.
+- A ship with positive shield-ram damage may damage another ship by striking it inside the forward shield arc while the shield is active and relative impact speed meets the derived minimum. Damage scales from ×0.5 through ×2.0 around the 480 px/s reference speed. A successful ram spends the normal block cost and is limited by the derived per-attacker/per-target cooldown; ordinary collisions remain harmless.
 - Energy regeneration begins only after no shield activation or block has occurred for the full regeneration delay.
 - Projectiles striking outside the shield arc continue to the hull. Overtime boundary damage bypasses the shield.
 
@@ -292,6 +295,9 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 | Shield block cost | 1 | 200 energy |
 | Shield depletion threshold | 1 | Current shield capacity |
 | Shielded acceleration factor | 0.1 | 2.0 |
+| Shield-ram damage | 0 | 300 |
+| Minimum shield-ram speed | 40 px/s | 1200 px/s |
+| Shield-ram cooldown | 0.15 s | 4 s |
 | Auto-repair delay | 0.1 s | 20 s |
 | Auto-repair rate | 0.1 | 400 health/s |
 | Projectile count | 1 | 6 |
@@ -304,7 +310,7 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 
 ### 7.3 Catalog
 
-The launch catalog contains 120 unlimited-stack cards: 38 ship, 38 shield, and 44 weapon cards. The weapon-heavy split gives each firing model more combinatorial space. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
+The launch catalog contains 125 unlimited-stack cards: 38 ship, 43 shield, and 44 weapon cards. The weapon-heavy split gives each firing model more combinatorial space, while five Rare-through-Unobtanium shield cards enable a distinct melee build. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
 
 | ID | Card | Category | Rarity | Effect per stack |
 | --- | --- | --- | --- | --- |
@@ -428,6 +434,11 @@ The launch catalog contains 120 unlimited-stack cards: 38 ship, 38 shield, and 4
 | `horizon_round` | Horizon Round | Weapon | Mythical | ×2.50 lifetime; ×1.50 speed; +2 pierces |
 | `storm_of_one` | Storm of One | Weapon | Mythical | ×2.00 fire rate; ×0.50 reload; −5 magazine; ×0.80 damage |
 | `supernova_array` | Supernova Array | Weapon | Unobtanium | +4 projectiles; +32° spread; ×1.40 damage; ×1.25 fire rate; ×1.50 lifetime |
+| `kinetic_prow` | Kinetic Prow | Shield | Rare | +22 shield-ram damage |
+| `impact_capacitor` | Impact Capacitor | Shield | Epic | +34 shield-ram damage; +25 shield capacity |
+| `breach_vector` | Breach Vector | Shield | Legendary | +48 shield-ram damage; ×1.20 maximum speed |
+| `sundering_aegis` | Sundering Aegis | Shield | Mythical | +66 shield-ram damage; ×0.70 minimum ram speed |
+| `worldbreaker_prow` | Worldbreaker Prow | Shield | Unobtanium | +90 shield-ram damage; ×1.25 shield capacity; ×0.55 ram cooldown |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
@@ -435,7 +446,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `8` and a maximum of 32 client peers in addition to the server. Version 8 adds the authoritative manual-reload input bit while retaining per-round map identity, projectile beam flags, lobby ready/eject, per-NPC difficulty, final-results exit messages, and unlimited-stack stat prediction rules.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `9` and a maximum of 32 client peers in addition to the server. Version 9 adds lobby powerup configuration, authoritative timed card pickups, and serialized player ship colours while retaining the version 8 manual-reload input bit and earlier match rules.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
 - Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -457,6 +468,8 @@ Client-to-server messages:
 - `request_lobby_config(rounds_to_win)` — reliable, lobby leader only.
 - `request_player_limit(total_participants)` — reliable, lobby leader and lobby state only; bounded by 2, server capacity, and 32.
 - `request_npcs_enabled(enabled)` — reliable, lobby leader and lobby state only.
+- `request_random_spawn_powerups(enabled)` — reliable, lobby leader and lobby state only; defaults to false.
+- `request_player_color(random, rgb_hex)` — reliable, waiting human only; a custom value must be exactly six hexadecimal RGB digits.
 - `request_npc_difficulty(npc_peer_id, difficulty)` — reliable, lobby leader and lobby state only; target must be a current server-owned NPC and difficulty must be one of the five supported tiers.
 - `request_ready_state(ready)` — reliable, waiting human only.
 - `request_eject_player(peer_id)` — reliable, lobby leader and lobby state only; the sender cannot target themselves or an NPC.
@@ -471,7 +484,7 @@ Server-to-client messages:
 - `connection_rejected(reason_code, display_message)` — reliable rejection followed by disconnect.
 - `lobby_state(revision, leader_id, config, players)` — reliable full lobby state.
 - `draft_offer(offer_token, card_ids, deadline_tick)` — reliable and sent only to its owner.
-- `match_event(event_type, server_tick, payload)` — reliable transitions, card results, damage deaths, and scores.
+- `match_event(event_type, server_tick, payload)` — reliable transitions, card results, powerup spawn/collection, damage deaths, and scores.
 - `world_snapshot(server_tick, acknowledged_input, player_states)` — unreliable ordered.
 - `projectile_batch(server_tick, spawned, removed)` — unreliable ordered.
 - `projectile_correction(server_tick, active_projectiles)` — unreliable ordered recovery snapshot.
@@ -504,7 +517,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 9.1 Screens
 
 1. **Connection:** A centered menu over the non-gameplay neon backdrop with three tabs: a refreshable LAN-server list with server name, endpoint, occupancy, lobby/match state, ping, compatibility, and Join action; Direct Connect with address defaulting to `127.0.0.1` and gameplay port defaulting to `7000`; and Host Game with bounded server name, gameplay port, and Host & Join. Display name is shared across all connection paths. Keep Quit, settings access, and inline connection/hosting errors available. The arena and its map are not rendered before a match begins.
-2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, leader and ready markers, a local ready toggle, leader-only eject controls, an individual difficulty dropdown on every NPC row, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, and connection status. The arena remains hidden until the server enters the match flow.
+2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, player colour swatches, leader and ready markers, a local ready toggle, leader-only eject controls, an individual difficulty dropdown on every NPC row, round target, total-player limit, NPC-fill toggle, context-aware Start Match button for the leader, connection status, and a Match Options & Ship Colour panel. That panel exposes the leader-owned Random Spawn Powerups toggle plus each human's persistent Random/custom HSV-wheel colour selection. The arena remains hidden until the server enters the match flow.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Support clicking, keys 1–5, and focused controller navigation with confirm. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and active-profile shortcuts. A compact local ammo bar and `AMMO`/`RELOAD` readout also stays directly above the player ship. The former top-center match banner is not visible during gameplay. Holding the configured scoreboard action displays a centered live scoreboard with ranked structured rows, heat/round scores, public builds, and a highlighted local-player row; releasing it immediately closes the scoreboard while the match continues behind it.
 5. **Spectator:** Current target, cycle controls, remaining players, and the normal score display.
@@ -514,7 +527,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 
 - Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles. Each living moving ship emits a small, bounded color-matched thruster trail opposite its travel direction; emission intensity follows speed and stops on elimination.
 - Replace the system arrow over keyboard/mouse gameplay with a high-contrast crosshair centered on the aim point. Hide the stale mouse pointer during controller-controlled combat and restore it whenever an interactive menu is visible.
-- Give every participant a stable color chosen from a high-contrast palette, then add name, outline pattern, and local-player marker so identity never depends on color alone.
+- Give every participant a stable server-serialized colour: the human's custom lobby choice or a Random high-contrast palette entry, with NPCs using that palette. Add name, outline pattern, and local-player marker so identity never depends on colour alone.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
@@ -536,9 +549,9 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 11.1 Automated Tests
 
 - **Stat tests:** Every card alone and at cap, order-independent stacking, clamps, Twin Shot spread, and build-complete offers.
-- **Combat tests:** Movement normalization and both flight bases, fire cadence, automatic/manual reload, ship-overlap recovery, shield arc edges, depletion lock, pierce, ricochet, owner immunity, overtime, repair interruption, and simultaneous lethal hits.
+- **Combat tests:** Movement normalization and both flight bases, fire cadence, automatic/manual reload, ship-overlap recovery, shield arc edges, depletion lock, shield-ram qualification/cooldown, pierce, ricochet, owner immunity, timed powerup placement/pickup, overtime, repair interruption, and simultaneous lethal hits.
 - **State tests:** Valid transition graph, first-to-two heat resolution with more than three heats, round target 1 and 5, draft early completion/timeout, forfeit, leader transfer, and lobby reset.
-- **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, authorization, rate limiting, version mismatch, and stale card tokens.
+- **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, lobby option and colour authorization, rate limiting, version mismatch, and stale card tokens.
 - **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly. A separate production-flow test starts an in-process authority, admits its loopback client through the real handshake, discovers its advertisement through the LAN browser, and shuts both roles down cleanly.
 - **NPC lobby integration:** One human leader sets a four-participant limit, enables immediate NPC fill, configures the waiting NPC rows, starts with three authoritative NPCs, receives a five-card draw, and reaches active combat with snapshots, full-map acquisition, close-contact recovery, and difficulty-profiled NPC input.
 

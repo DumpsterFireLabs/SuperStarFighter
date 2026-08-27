@@ -26,6 +26,9 @@ var shield_arc_degrees: float = 120.0
 var shield_block_cost: float = GameConstants.SHIELD_BLOCK_COST
 var shield_depletion_threshold: float = GameConstants.SHIELD_DEPLETION_THRESHOLD
 var shield_acceleration_factor: float = GameConstants.SHIELD_ACCELERATION_FACTOR
+var shield_ram_damage: float = 0.0
+var shield_ram_min_speed: float = 180.0
+var shield_ram_cooldown: float = 0.85
 
 var auto_repair_enabled: bool = false
 var auto_repair_delay: float = 5.0
@@ -69,6 +72,9 @@ static func get_stat_property_names() -> Array[StringName]:
 		&"shield_block_cost",
 		&"shield_depletion_threshold",
 		&"shield_acceleration_factor",
+		&"shield_ram_damage",
+		&"shield_ram_min_speed",
+		&"shield_ram_cooldown",
 		&"auto_repair_delay",
 		&"auto_repair_rate",
 	]

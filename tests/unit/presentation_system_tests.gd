@@ -2,6 +2,7 @@ class_name PresentationSystemTests
 extends RefCounted
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
 
 static func run(context: TestContext, tree_parent: Node) -> void:
 	_validate_audio_pipeline(context, tree_parent)
@@ -86,6 +87,12 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	effects.clear_effects()
 	context.expect_empty(effects.effects, "presentation effects clear between heats")
 	effects.free()
+	var powerup_layer := PowerupLayerScript.new()
+	powerup_layer.add_powerup({"powerup_id": 7, "card_id": &"kinetic_prow", "position": Vector2(500.0, 400.0), "rarity": CardDefinition.Rarity.RARE})
+	context.expect_equal(powerup_layer.powerups.size(), 1, "Rare-or-better arena cards have a dedicated world presentation")
+	powerup_layer.remove_powerup(7)
+	context.expect_empty(powerup_layer.powerups, "collected arena card disappears from the world presentation")
+	powerup_layer.free()
 
 	var view := NetworkWorldView.new()
 	view.local_peer_id = 1
@@ -176,6 +183,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(reserved_host_error, ERR_INVALID_PARAMETER, "gameplay server cannot consume the fixed LAN discovery port")
 	client._stop_hosted_server()
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
+	context.expect_true(client.lobby_options_popup != null and client.powerups_button != null, "lobby exposes a dedicated match options menu")
+	context.expect_false(client.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
+	context.expect_true(client.random_color_button != null and client.ship_color_picker != null, "lobby options expose Random and colour-picker ship appearance controls")
+	context.expect_equal(client.ship_color_picker.get_picker().picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "custom ship colour opens an HSV wheel")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
 	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")
@@ -226,17 +237,19 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
 	var players: Array[Dictionary] = []
 	for index in 32:
-		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "spectator": false, "is_npc": false, "ready": true})
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": false, "ready": true})
 	client.bridge.local_peer_id = 2
 	client._on_connected(2)
 	client.network_world._on_connected(2)
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "ready_human_count": 32, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "ready_human_count": 32, "all_humans_ready": true, "npcs_enabled": false, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3})
 	context.expect_equal(client.lobby_roster.get_child_count(), 32, "scrollable lobby roster renders all 32 participants")
 	context.expect_true(client.lobby_roster.get_parent() is ScrollContainer, "32-player lobby roster is scrollable")
 	context.expect_true(client.connection_screen.visible and not client.connection_form_panel.visible, "waiting lobby uses the centered menu backdrop instead of the connect form")
 	context.expect_false(client.network_world.visible, "arena remains hidden while players wait in the lobby")
 	context.expect_equal(client.network_world.local_peer_id, 2, "hidden lobby preserves the connected renderer's local identity")
-	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 4, "leader receives an eject control for another human")
+	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 5, "leader receives colour identity and an eject control for another human")
+	context.expect_true(client.powerups_button.button_pressed and not client.powerups_button.disabled, "lobby leader sees and can edit the authoritative powerup option")
+	context.expect_true(client.lobby_roster.get_child(0).get_node("ShipColor") != null, "lobby roster previews every selected ship colour")
 	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
 	context.expect_equal(client.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
 	var configurable_players: Array[Dictionary] = [
@@ -277,6 +290,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world.latest_server_tick = 306
 	client._update_match_presentation()
 	context.expect_false(client.heat_intro_panel.visible, "BEGIN clears after its 0.10-second post-roll")
+	client._on_match_event(&"CARD_POWERUP_SPAWNED", 307, {"powerup_id": 9, "card_id": &"kinetic_prow", "position": Vector2(700.0, 500.0), "rarity": CardDefinition.Rarity.RARE})
+	context.expect_true(client.network_world.powerup_layer.powerups.has(9), "reliable spawn event adds the arena card visual")
+	client._on_match_event(&"CARD_POWERUP_COLLECTED", 308, {"powerup_id": 9, "card_id": &"kinetic_prow", "peer_id": 2, "position": Vector2(700.0, 500.0), "builds": {2: {&"kinetic_prow": 1}}})
+	context.expect_false(client.network_world.powerup_layer.powerups.has(9), "reliable collection event removes the arena card visual")
+	context.expect_true(client.network_world.local_stats.shield_ram_damage > 0.0, "local prediction adopts a collected card build immediately")
 	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)

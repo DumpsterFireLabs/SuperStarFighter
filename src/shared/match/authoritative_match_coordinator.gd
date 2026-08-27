@@ -1,11 +1,14 @@
 class_name AuthoritativeMatchCoordinator
 extends RefCounted
 
+const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
+
 var lobby: ServerLobby
 var world: AuthoritativeWorld
 var machine: MatchStateMachine
 var draft: DraftManager
 var catalog: CardCatalog
+var powerups: RefCounted
 var match_seed: int
 var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
 var current_map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
@@ -29,6 +32,7 @@ func _init(
 	lobby = server_lobby
 	world = authoritative_world
 	catalog = CardCatalog.create_default()
+	powerups = CardPowerupSystemScript.new(catalog, seed_value)
 	match_seed = seed_value
 	overtime_start_seconds = overtime_start_override
 	_rng.seed = match_seed
@@ -51,6 +55,7 @@ func _init(
 		player.participant = lobby_player.participant
 		player.is_npc = lobby_player.is_npc
 		player.npc_difficulty = lobby_player.npc_difficulty
+		player.ship_color = lobby_player.ship_color
 	draft = DraftManager.new(catalog, match_seed)
 
 
@@ -93,6 +98,15 @@ func step(delta: float) -> void:
 					heat_elapsed - overtime_start_seconds
 				)
 				world.apply_overtime(overtime_elapsed, delta)
+			for powerup_event in powerups.step(tick, world, machine.players):
+				var payload := (powerup_event.payload as Dictionary).duplicate(true)
+				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
+					payload["builds"] = _public_builds()
+				_events.append({
+					"event_type": powerup_event.event_type,
+					"server_tick": tick,
+					"payload": payload,
+				})
 			_sync_combat_and_resolve(tick)
 		_:
 			machine.advance_time(tick)
@@ -205,12 +219,17 @@ func _handle_state_entry(new_state: int) -> void:
 		MatchStateMachine.State.DRAFT:
 			_start_draft()
 		MatchStateMachine.State.COUNTDOWN:
+			powerups.clear()
 			_prepare_world_heat()
+		MatchStateMachine.State.ACTIVE_HEAT:
+			powerups.begin_heat(world.server_tick, current_map_id, lobby.config.random_spawn_powerups)
 		MatchStateMachine.State.HEAT_RESULT:
+			powerups.clear()
 			world.clear_projectiles()
 		MatchStateMachine.State.ROUND_RESULT:
 			_next_draft_bye_peer_id = machine.last_round_winner
 		MatchStateMachine.State.MATCH_RESULT:
+			powerups.clear()
 			world.clear_projectiles()
 		MatchStateMachine.State.LOBBY:
 			lobby.return_to_lobby()
@@ -315,6 +334,8 @@ func _state_payload() -> Dictionary:
 		"alive_peer_ids": machine.alive_participant_ids(),
 		"participant_peer_ids": machine.participant_ids(),
 		"builds": _public_builds(),
+		"powerups": powerups.snapshot() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else [],
+		"random_spawn_powerups": lobby.config.random_spawn_powerups,
 		"overtime_start_tick": machine.state_entered_tick + roundi(
 			overtime_start_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND
 		) if machine.state == MatchStateMachine.State.ACTIVE_HEAT else -1,

@@ -10,9 +10,11 @@ var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
+var _ram_contact_ticks: Dictionary = {}
 
 const SHIP_SEPARATION_SPEED: float = 120.0
 const SHIP_OVERLAP_SOLVER_PASSES: int = 2
+const RAM_REFERENCE_SPEED: float = 480.0
 
 
 func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
@@ -67,7 +69,8 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 			combatant.request_reload()
 		if frame.firing and combatant.try_fire():
 			_spawn_shot(combatant)
-	_resolve_ship_overlaps(peer_ids)
+	for peer_id in _resolve_ship_overlaps(peer_ids):
+		projectile_registry.schedule_owner_cleanup(peer_id)
 	_step_projectiles(delta, peer_ids)
 	for projectile_id in projectile_registry.step_cleanup(delta):
 		_record_removed(projectile_id)
@@ -78,6 +81,7 @@ func prepare_heat(
 	spawn_assignments: Dictionary
 ) -> void:
 	clear_projectiles()
+	_ram_contact_ticks.clear()
 	for peer_id in _ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		if participant_stats.has(peer_id) and spawn_assignments.has(peer_id):
@@ -249,8 +253,9 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 		projectile_registry.schedule_owner_cleanup(peer_id)
 
 
-func _resolve_ship_overlaps(peer_ids: Array[int]) -> void:
+func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 	var minimum_distance := GameConstants.SHIP_COLLISION_RADIUS * 2.0
+	var ram_damage_events: Array[Dictionary] = []
 	for _pass in SHIP_OVERLAP_SOLVER_PASSES:
 		for left_index in peer_ids.size():
 			var left := combatants[peer_ids[left_index]] as CombatantState
@@ -266,6 +271,8 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> void:
 					continue
 				var fallback_angle := float(posmod(left.peer_id * 31 + right.peer_id * 17, 360)) * PI / 180.0
 				var normal := difference / distance if distance > 0.001 else Vector2.from_angle(fallback_angle)
+				_append_ram_damage(left, right, normal, ram_damage_events)
+				_append_ram_damage(right, left, -normal, ram_damage_events)
 				var correction := normal * (minimum_distance - distance) * 0.5
 				left.position -= correction
 				right.position += correction
@@ -281,6 +288,33 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> void:
 				left.velocity = left_safe.velocity
 				right.position = right_safe.position
 				right.velocity = right_safe.velocity
+	return DamageResolver.resolve_tick(combatants, ram_damage_events)
+
+
+func _append_ram_damage(
+	attacker: CombatantState,
+	target: CombatantState,
+	direction_to_target: Vector2,
+	damage_events: Array[Dictionary]
+) -> void:
+	if attacker.stats.shield_ram_damage <= 0.0 or not attacker.shield.can_block(attacker.aim_angle, direction_to_target, attacker.stats.shield_arc_degrees):
+		return
+	var impact_speed := (attacker.velocity - target.velocity).dot(direction_to_target)
+	if impact_speed < attacker.stats.shield_ram_min_speed:
+		return
+	var contact_key := "%d:%d" % [attacker.peer_id, target.peer_id]
+	var cooldown_ticks := ceili(attacker.stats.shield_ram_cooldown * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	if _ram_contact_ticks.has(contact_key) and server_tick - int(_ram_contact_ticks[contact_key]) < cooldown_ticks:
+		return
+	if not attacker.shield.try_block(attacker.aim_angle, direction_to_target, attacker.stats):
+		return
+	_ram_contact_ticks[contact_key] = server_tick
+	var speed_scale := clampf(impact_speed / RAM_REFERENCE_SPEED, 0.5, 2.0)
+	damage_events.append({
+		"projectile_id": 3_000_000_000 + attacker.peer_id,
+		"target_id": target.peer_id,
+		"damage": attacker.stats.shield_ram_damage * speed_scale,
+	})
 
 
 func _remove_projectile(projectile_id: int) -> void:

@@ -178,6 +178,7 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 ### Every human player
 
 - Reviews the roster and lobby rules.
+- Opens **Match Options & Ship Colour** to keep a Random ship colour or choose a custom colour from the wheel. This preference is remembered for later sessions.
 - Selects **Ready for Launch** when prepared.
 - Becomes not ready whenever the leader changes a lobby setting.
 - May disconnect voluntarily before or during a match.
@@ -187,6 +188,7 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 - Sets **Rounds to win** from 1 through 5.
 - Sets the **Player limit** from 2 through server capacity, never above 32 or below the number of connected humans.
 - Enables or disables NPC fill.
+- Enables **Random Spawn Powerups** when desired. It is off by default.
 - Selects each NPC's difficulty.
 - Ejects other waiting human players.
 - Starts the match once the launch conditions are satisfied.
@@ -201,6 +203,12 @@ The leader cannot eject players during an active match and cannot eject themselv
 - With NPCs enabled, one ready human may start with the configured NPC roster.
 
 The start button explains whichever requirement is missing. When a normal human lobby is ready it reads **Start Match**; a solo NPC-assisted launch reads **Start Match with NPCs**.
+
+Changing a match option clears human readiness. Changing your own ship colour clears only your readiness. The roster swatch previews the authoritative colour other players will see; Random draws from a high-contrast palette, while the custom control opens an HSV colour wheel.
+
+### Random Spawn Powerups
+
+When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 20 seconds of active combat. Fly over its glowing rarity-coloured marker to collect it. The card is added immediately to that pilot's inventory and its stats take effect without waiting for another draft. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
 
 ### NPC fill
 
@@ -301,7 +309,7 @@ Cards can alter damage, cadence, magazine size, reload, projectile count, spread
 
 ### 7.3 Directional shields
 
-The base shield covers a 120-degree arc centered on the ship's aim. It starts with 100 energy, drains 20 energy per second while held, and spends 25 energy for each blocked projectile.
+The base shield covers a 120-degree arc centered on the ship's aim. It starts with 100 energy, drains 20 energy per second while held, and spends 25 energy for each blocked projectile or successful shield ram.
 
 A projectile is blocked only if it strikes inside the visible forward arc. Rear and side shots outside the arc continue to the hull. A blocked projectile is consumed even if it had pierces or ricochets remaining.
 
@@ -309,9 +317,11 @@ After shield activity, regeneration waits 1.25 seconds, then restores 30 energy 
 
 Shielding prevents firing and normally reduces acceleration, so timing matters: turn the arc into danger, absorb the burst, then release to shoot and recover maneuverability.
 
+Ordinary collisions remain harmless. A melee card enables shield ramming: hit an enemy inside your forward shield arc while shielding and moving fast enough. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Kinetic Prow begins the archetype at Rare; Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow progressively add damage, durability, speed access, and faster repeat impacts through Unobtanium.
+
 ### 7.4 Collision and cover
 
-Ships slide against arena walls, map obstacles, and other ships. Ship collisions do no damage; deterministic separation prevents shield/fire ramming from pinning two ships together. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
+Ships slide against arena walls, map obstacles, and other ships. Base ship collisions do no damage; only a qualifying card-enabled shield ram deals contact damage. Deterministic separation prevents shield/fire ramming from pinning two ships together. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
 
 Shots cannot spawn through a wall when the ship's nose is pressed against it.
 
@@ -332,7 +342,7 @@ NPC pilots acquire opponents across the full arena, including opposite-edge spaw
 ### Categories
 
 - **Ship** cards modify hull, speed, acceleration, braking, shielded movement, and repair behavior.
-- **Shield** cards modify shield economy, coverage, recovery, and mobility.
+- **Shield** cards modify shield economy, coverage, recovery, mobility, and shield-ram melee damage.
 - **Weapon** cards modify firing, ammunition, damage, projectile behavior, and beam transformations.
 
 Category is a navigation hint, not an isolation rule. Some cards deliberately touch another system to create hybrid builds.
@@ -388,7 +398,7 @@ Cards do not always contain a downside. Higher rarity means scarcity, not a guar
 - Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
 - Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
 
-The complete 120-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+The complete 125-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 

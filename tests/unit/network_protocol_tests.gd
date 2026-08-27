@@ -1,6 +1,8 @@
 class_name NetworkProtocolTests
 extends RefCounted
 
+const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
+
 
 static func run(context: TestContext) -> void:
 	_validate_sequence_wrap(context)
@@ -14,6 +16,7 @@ static func run(context: TestContext) -> void:
 	_validate_npc_lobby_and_inputs(context)
 	_validate_prediction_and_interpolation(context)
 	_validate_authoritative_world(context)
+	_validate_card_powerups(context)
 	_validate_connection_admission(context)
 	_validate_reconnect_reset(context)
 
@@ -223,6 +226,14 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_true(lobby.request_rounds_to_win(2, 5).ok, "leader can change lobby config")
 	context.expect_equal(lobby.config.rounds_to_win, 5, "authorized lobby config change applies")
 	context.expect_false(lobby.all_humans_ready(), "settings changes clear human readiness")
+	context.expect_false(lobby.config.random_spawn_powerups, "random spawn powerups default off")
+	context.expect_false(lobby.request_random_spawn_powerups(3, true).ok, "non-leader cannot enable random spawn powerups")
+	context.expect_true(lobby.request_random_spawn_powerups(2, true).ok, "leader can enable random spawn powerups")
+	context.expect_true(lobby.config.random_spawn_powerups, "authoritative lobby retains the powerup option")
+	context.expect_false(lobby.request_player_color(3, false, "not-a-colour").ok, "malformed custom ship colours are rejected")
+	context.expect_true(lobby.request_player_color(3, false, "ff00aa").ok, "each human can choose a custom ship colour")
+	context.expect_equal((lobby.players[3] as PlayerMatchState).ship_color, "ff00aa", "custom ship colour is stored authoritatively")
+	context.expect_true(lobby.request_player_color(3, true, "").ok, "a player can return to a server-selected random colour")
 	lobby.request_ready(2, true)
 	lobby.request_ready(3, true)
 	context.expect_true(lobby.request_start(2).ok, "leader starts with two participants")
@@ -240,6 +251,9 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	var serialized := lobby.serialize()
 	context.expect_equal(serialized.leader_id, 3, "serialized lobby contains authoritative leader")
 	context.expect_equal((serialized.players as Array).size(), 4, "serialized lobby contains all admitted peers")
+	context.expect_true(serialized.random_spawn_powerups, "serialized lobby publishes the optional powerup rule")
+	var serialized_player := (serialized.players as Array).filter(func(player: Dictionary) -> bool: return int(player.peer_id) == 3)[0] as Dictionary
+	context.expect_equal(String(serialized_player.ship_color).length(), 6, "serialized player rows publish canonical RGB ship colours")
 
 
 static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
@@ -620,6 +634,28 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	context.expect_true(contact_left.position.distance_to(contact_right.position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01, "ramming ships remain physically separated while shielding and firing")
 	context.expect_true(contact_left.velocity.length() > 1.0 or contact_right.velocity.length() > 1.0, "overlap recovery preserves separating motion instead of freezing both ships")
 
+	var ram_stats := CombatStats.create_base()
+	ram_stats.shield_ram_damage = 40.0
+	var ram_world := AuthoritativeWorld.new()
+	var rammer := ram_world.add_peer(50, ram_stats)
+	var ram_target := ram_world.add_peer(51)
+	rammer.position = Vector2(900.0, 900.0)
+	ram_target.position = Vector2(939.0, 900.0)
+	rammer.velocity = Vector2(360.0, 0.0)
+	ram_target.velocity = Vector2.ZERO
+	ram_world.submit_input(50, PlayerInputFrame.new(1, 1, Vector2(0.0, -1.0), 0.0, false, true))
+	ram_world.submit_input(51, PlayerInputFrame.new(1, 1, Vector2.ZERO, PI, false, false))
+	ram_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	var health_after_ram := ram_target.health
+	context.expect_true(health_after_ram < ram_target.stats.max_health, "an impact-speed-gated forward shield ram deals authoritative melee damage")
+	rammer.position = Vector2(900.0, 900.0)
+	ram_target.position = Vector2(939.0, 900.0)
+	rammer.velocity = Vector2(360.0, 0.0)
+	ram_world.submit_input(50, PlayerInputFrame.new(2, 2, Vector2(0.0, -1.0), 0.0, false, true))
+	ram_world.submit_input(51, PlayerInputFrame.new(2, 2, Vector2.ZERO, PI, false, false))
+	ram_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(ram_target.health, health_after_ram, "shield-ram contact cooldown prevents per-tick damage stacking")
+
 	var blocked_world := AuthoritativeWorld.new()
 	var blocked_shooter := blocked_world.add_peer(20)
 	blocked_shooter.position = Vector2(GameConstants.SHIP_COLLISION_RADIUS, 500.0)
@@ -668,6 +704,34 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	if not (ricochet_batch.spawned as Array).is_empty():
 		var bounced := ricochet_batch.spawned[0] as ProjectileState
 		context.expect_true(bounced.velocity.x > 0.0, "wall-adjacent ricochet reflects back into arena")
+
+
+static func _validate_card_powerups(context: TestContext) -> void:
+	var catalog := CardCatalog.create_default()
+	var system := CardPowerupSystemScript.new(catalog, 4242)
+	var world := AuthoritativeWorld.new()
+	var combatant := world.add_peer(2)
+	combatant.position = Vector2(200.0, 200.0)
+	var player := PlayerMatchState.new(2, "Collector", 1)
+	var players := {2: player}
+	system.begin_heat(100, &"prism_array", false)
+	context.expect_empty(system.step(5000, world, players), "disabled random powerups never spawn")
+	system.begin_heat(100, &"prism_array", true)
+	context.expect_empty(system.step(1299, world, players), "first powerup waits for the full twenty-second interval")
+	var spawn_events := system.step(1300, world, players)
+	context.expect_equal(spawn_events.size(), 1, "enabled powerups spawn exactly once at the twenty-second boundary")
+	if spawn_events.is_empty():
+		return
+	var spawned := (spawn_events[0] as Dictionary).payload as Dictionary
+	var card := catalog.get_card(StringName(spawned.card_id))
+	context.expect_true(card != null and card.rarity >= CardDefinition.Rarity.RARE, "arena powerups are always Rare or better")
+	context.expect_false(ArenaLayout.overlaps_obstacle(spawned.position as Vector2, CardPowerupSystemScript.POWERUP_RADIUS, &"prism_array"), "powerups spawn clear of map obstacles")
+	context.expect_equal(system.snapshot().size(), 1, "active powerup snapshot supports late-joining spectators")
+	combatant.position = spawned.position
+	var collection_events := system.step(1301, world, players)
+	context.expect_equal(collection_events.size(), 1, "touching an authoritative powerup collects it")
+	context.expect_equal(player.card_stack(card.card_id), 1, "collected powerup enters the player's persistent match inventory")
+	context.expect_empty(system.snapshot(), "collected powerup is removed from authoritative map state")
 
 
 static func _validate_connection_admission(context: TestContext) -> void:

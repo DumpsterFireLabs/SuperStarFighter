@@ -13,6 +13,10 @@ var _next_join_sequence: int = 1
 var _next_npc_serial: int = 1
 
 const NPC_PEER_ID_BASE: int = 1_800_000_000
+const RANDOM_SHIP_COLORS: Array[String] = [
+	"42e8ff", "ff4f78", "fff36a", "62ff9b", "d39cff", "ff9f43", "5cf6ff", "ff66d4",
+	"8ba1ff", "72ffd5", "ff8fbc", "c5ff63", "ffc76a", "b58cff", "6ee7ff", "ff746a",
+]
 
 
 func _init(match_config: MatchConfig = null) -> void:
@@ -37,6 +41,7 @@ func admit(peer_id: int, raw_name: String) -> Dictionary:
 		removed_npc_ids.append(replaced_npc_id)
 	var unique_name := _make_unique_name(trimmed)
 	var player := PlayerMatchState.new(peer_id, unique_name, _next_join_sequence)
+	player.ship_color = _random_ship_color(peer_id, player.join_sequence)
 	_next_join_sequence += 1
 	player.participant = not match_active
 	player.spectator = match_active
@@ -126,6 +131,35 @@ func request_npc_difficulty(sender_id: int, npc_peer_id: int, difficulty: int) -
 	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true, "changed": true}
+
+
+func request_random_spawn_powerups(sender_id: int, enabled: bool) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if config.random_spawn_powerups == enabled:
+		return {"ok": true, "changed": false}
+	config.random_spawn_powerups = enabled
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_player_color(sender_id: int, random_color: bool, color_value: String) -> Dictionary:
+	if match_active:
+		return {"ok": false, "error": "Ship colour cannot change during a match."}
+	var player := players.get(sender_id) as PlayerMatchState
+	if player == null or player.is_npc:
+		return {"ok": false, "error": "Only connected human players may choose a ship colour."}
+	var chosen := _random_ship_color(sender_id, player.join_sequence + revision) if random_color else _normalized_ship_color(color_value)
+	if chosen.is_empty():
+		return {"ok": false, "error": "Ship colour must be a six-digit RGB value."}
+	if player.ship_color == chosen:
+		return {"ok": true, "changed": false, "ship_color": chosen}
+	player.ship_color = chosen
+	player.lobby_ready = false
+	_revision_changed()
+	return {"ok": true, "changed": true, "ship_color": chosen}
 
 
 func request_start(sender_id: int) -> Dictionary:
@@ -279,6 +313,7 @@ func serialize() -> Dictionary:
 			"spectator": player.spectator,
 			"is_npc": player.is_npc,
 			"npc_difficulty": player.npc_difficulty,
+			"ship_color": player.ship_color,
 			"ready": player.lobby_ready,
 		})
 	return {
@@ -289,6 +324,7 @@ func serialize() -> Dictionary:
 		"player_limit": player_limit,
 		"server_capacity": server_capacity,
 		"npcs_enabled": npcs_enabled,
+		"random_spawn_powerups": config.random_spawn_powerups,
 		"npc_count": npc_count(),
 		"ready_human_count": ready_human_count(),
 		"all_humans_ready": all_humans_ready(),
@@ -355,6 +391,7 @@ func _fill_npc_seats() -> Array[PlayerMatchState]:
 		_next_npc_serial += 1
 		_next_join_sequence += 1
 		npc.is_npc = true
+		npc.ship_color = _random_ship_color(peer_id, npc.join_sequence)
 		npc.participant = true
 		npc.spectator = false
 		npc.lobby_ready = true
@@ -379,3 +416,17 @@ func _clear_human_ready() -> void:
 		var player := player_value as PlayerMatchState
 		if not player.is_npc:
 			player.lobby_ready = false
+
+
+func _random_ship_color(peer_id: int, salt: int) -> String:
+	return RANDOM_SHIP_COLORS[posmod(peer_id * 31 + salt * 17, RANDOM_SHIP_COLORS.size())]
+
+
+static func _normalized_ship_color(value: String) -> String:
+	var normalized := value.strip_edges().trim_prefix("#").to_lower()
+	if normalized.length() != 6:
+		return ""
+	for character in normalized:
+		if character not in "0123456789abcdef":
+			return ""
+	return normalized

@@ -205,6 +205,16 @@ func send_npcs_enabled(enabled: bool) -> void:
 		request_npcs_enabled.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
+func send_random_spawn_powerups(enabled: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_random_spawn_powerups.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
+
+
+func send_player_color(random_color: bool, color: Color) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_player_color.rpc_id(NetworkProtocol.SERVER_PEER_ID, random_color, color.to_html(false))
+
+
 func send_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_npc_difficulty.rpc_id(NetworkProtocol.SERVER_PEER_ID, npc_peer_id, difficulty)
@@ -372,6 +382,37 @@ func request_npcs_enabled(enabled: bool) -> void:
 		_broadcast_lobby_state()
 	else:
 		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_random_spawn_powerups(enabled: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "random_spawn_powerups"):
+		return
+	var result := lobby.request_random_spawn_powerups(sender_id, enabled)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_player_color(random_color: bool, color_value: String) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "player_color"):
+		return
+	if color_value.length() > 7:
+		_reject_malformed_control(sender_id, "oversized_player_color")
+		return
+	var result := lobby.request_player_color(sender_id, random_color, color_value)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)

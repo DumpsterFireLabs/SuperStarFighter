@@ -1,6 +1,8 @@
 class_name MatchCoordinatorTests
 extends RefCounted
 
+const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
+
 
 static func run(context: TestContext) -> void:
 	_validate_complete_match_and_rematch(context)
@@ -8,6 +10,7 @@ static func run(context: TestContext) -> void:
 	_validate_round_winner_draft_bye(context)
 	_validate_npc_draft(context)
 	_validate_forfeit(context)
+	_validate_powerup_match_integration(context)
 
 
 static func _validate_complete_match_and_rematch(context: TestContext) -> void:
@@ -109,6 +112,41 @@ static func _validate_forfeit(context: TestContext) -> void:
 	coordinator.disconnect_peer(11)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "single remaining participant wins by forfeit")
 	context.expect_equal(coordinator.machine.match_winner, 10, "forfeit records remaining participant as match winner")
+
+
+static func _validate_powerup_match_integration(context: TestContext) -> void:
+	var config := _fast_config()
+	config.random_spawn_powerups = true
+	var lobby := ServerLobby.new(config)
+	var world := AuthoritativeWorld.new()
+	for peer_id in [70, 71]:
+		lobby.admit(peer_id, "Powerup%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(70)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 9090)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	coordinator.drain_events()
+	_advance(world, coordinator, roundi(CardPowerupSystemScript.SPAWN_INTERVAL_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND))
+	var spawned: Dictionary = {}
+	for event_value in coordinator.drain_events():
+		var event := event_value as Dictionary
+		if StringName(event.event_type) == &"CARD_POWERUP_SPAWNED":
+			spawned = event.payload as Dictionary
+			break
+	context.expect_false(spawned.is_empty(), "enabled lobby option reaches the coordinator and emits a reliable timed spawn")
+	if spawned.is_empty():
+		return
+	(world.combatants[70] as CombatantState).position = spawned.position
+	_advance(world, coordinator, 1)
+	var collected := false
+	for event_value in coordinator.drain_events():
+		var event := event_value as Dictionary
+		if StringName(event.event_type) == &"CARD_POWERUP_COLLECTED" and int((event.payload as Dictionary).peer_id) == 70:
+			collected = (event.payload as Dictionary).has("builds")
+	context.expect_true(collected, "coordinator publishes collected inventory builds for immediate client prediction")
+	context.expect_equal((coordinator.machine.players[70] as PlayerMatchState).card_stack(StringName(spawned.card_id)), 1, "coordinator pickup persists in the match inventory")
 
 
 static func _validate_last_survivor_resolution(context: TestContext) -> void:

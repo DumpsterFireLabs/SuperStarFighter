@@ -27,3 +27,9 @@ The other 115 cards retained their tiers. Transformations such as beam weapons a
 | Unobtanium | 7 | 0.5% |
 
 Tier selection happens before uniform selection within that tier, so tier population does not change the displayed offer-slot weight. A five-card offer now has about a 50.2% chance to contain at least one Epic-or-better card, a 22.6% chance for Legendary-or-better, and an 8.2% chance for Mythical-or-better.
+
+## Shield-ram addendum
+
+The later shield-ram expansion adds five mechanically distinct cards, one at every tier from Rare through Unobtanium. Kinetic Prow is the minimal Rare archetype unlock. Impact Capacitor adds defensive breadth at Epic; Breach Vector pairs collision damage with the speed needed to deliver it at Legendary; Sundering Aegis materially lowers the activation threshold at Mythical; and Worldbreaker Prow combines the largest hit with capacity and repeat-impact scaling at Unobtanium. The progression reflects both immediate damage and how reliably each card enables repeated melee attacks.
+
+The 125-card catalog now contains 20 Common, 25 Uncommon, 27 Rare, 19 Epic, 15 Legendary, 11 Mythical, and 8 Unobtanium cards. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.

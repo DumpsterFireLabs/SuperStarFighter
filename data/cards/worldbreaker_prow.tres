@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"worldbreaker_prow"
+display_name = "Worldbreaker Prow"
+description = "+90 shield-ram damage, capacity ×1.25 and ram cooldown ×0.55 per stack."
+category = 1
+rarity = 6
+additive_modifiers = {"shield_ram_damage": 90.0}
+multiplicative_modifiers = {"shield_capacity": 1.25, "shield_ram_cooldown": 0.55}
