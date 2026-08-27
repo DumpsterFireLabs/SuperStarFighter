@@ -48,6 +48,22 @@ static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id
 	return {"position": next_position, "velocity": next_velocity}
 
 
+static func is_ship_position_clear(position: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, margin: float = 0.0) -> bool:
+	var radius := GameConstants.SHIP_COLLISION_RADIUS + maxf(margin, 0.0)
+	if position.x < radius or position.x > GameConstants.ARENA_SIZE.x - radius:
+		return false
+	if position.y < radius or position.y > GameConstants.ARENA_SIZE.y - radius:
+		return false
+	for rectangle in ArenaLayout.cover_rectangles(map_id):
+		if rectangle.grow(radius).has_point(position):
+			return false
+	for circle in ArenaLayout.circle_obstacles(map_id):
+		var minimum_distance := float(circle.radius) + radius
+		if position.distance_squared_to(circle.center as Vector2) < minimum_distance * minimum_distance:
+			return false
+	return true
+
+
 static func projectile_obstacle_normal(position: Vector2, radius: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Vector2:
 	if position.x <= radius:
 		return Vector2.RIGHT

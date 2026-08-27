@@ -152,9 +152,8 @@ static func _validate_powerup_match_integration(context: TestContext) -> void:
 	var target := world.combatants[71] as CombatantState
 	target.health = 10.0
 	var lethal := ProjectileState.create(900, 70, 1, target.position - Vector2(30.0, 0.0), 0.0, CombatStats.create_base())
-	var lethal_events: Array[Dictionary] = []
-	world._resolve_projectile_ship_hits(lethal, target.position - Vector2(30.0, 0.0), target.position - Vector2(10.0, 0.0), [70, 71], lethal_events)
-	world._resolve_damage_events(lethal_events)
+	world.projectile_registry.add(lethal)
+	world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	coordinator.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(int((coordinator.current_state_payload().scores as Dictionary)[70].kills), 1, "coordinator publishes a match-total kill credited to the attacker")
 	context.expect_empty(collector.temporary_card_stacks, "non-permanent arena pickup is removed when its heat ends")

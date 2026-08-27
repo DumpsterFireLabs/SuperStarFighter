@@ -3,6 +3,9 @@ extends Node2D
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
+const PROJECTILE_COLLISION_ITERATIONS: int = 16
+const COLLISION_SURFACE_EPSILON: float = 0.35
+const LOCAL_CONTACT_ESCAPE_SPEED: float = 180.0
 signal presentation_event(event_name: StringName, payload: Dictionary)
 
 var bridge: NetworkBridge
@@ -207,6 +210,7 @@ func _physics_process(delta: float) -> void:
 	local_ship.combatant.weapon.reload_remaining = local_weapon.reload_remaining
 	local_ship.queue_redraw()
 	_update_remote_ships()
+	_separate_local_visual_from_remote(local_ship)
 	_step_projectile_visuals(delta)
 	_update_camera(local_ship, delta)
 	_update_camera_shake(delta)
@@ -441,25 +445,98 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 
 func _step_projectile_visuals(delta: float) -> void:
 	for projectile in authoritative_projectiles.all_projectiles():
-		var start := projectile.position
-		if not projectile.step(delta):
+		var safe_delta := maxf(delta, 0.0)
+		projectile.lifetime_remaining -= safe_delta
+		if projectile.lifetime_remaining <= 0.0:
 			authoritative_projectiles.remove(projectile.projectile_id)
 			continue
-		var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
-			start,
-			projectile.position,
-			projectile.radius,
-			arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
-		)
-		if bool(obstacle_hit.get("hit", false)):
+		var travel_remaining := projectile.velocity.length() * safe_delta
+		var collision_iterations := 0
+		while travel_remaining > 0.001 and collision_iterations < PROJECTILE_COLLISION_ITERATIONS:
+			if authoritative_projectiles.get_projectile(projectile.projectile_id) == null or projectile.velocity.is_zero_approx():
+				break
+			collision_iterations += 1
+			var direction := projectile.velocity.normalized()
+			var start := projectile.position
+			var finish := start + direction * travel_remaining
+			var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+				start,
+				finish,
+				projectile.radius,
+				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+			)
+			if not bool(obstacle_hit.get("hit", false)):
+				projectile.position = finish
+				break
+			var collision_fraction := clampf(float(obstacle_hit.get("fraction", 0.0)), 0.0, 1.0)
 			projectile.position = obstacle_hit.position as Vector2
+			travel_remaining *= maxf(1.0 - collision_fraction, 0.0)
 			var obstacle_normal := obstacle_hit.normal as Vector2
 			if projectile.ricochet(obstacle_normal):
-				projectile.position += obstacle_normal * 0.1
-			else:
-				authoritative_projectiles.remove(projectile.projectile_id)
+				projectile.position += obstacle_normal * COLLISION_SURFACE_EPSILON
+				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
+				continue
+			authoritative_projectiles.remove(projectile.projectile_id)
+			break
 	if projectile_layer != null:
 		projectile_layer.queue_redraw()
+
+
+func _separate_local_visual_from_remote(local_ship: SandboxShip) -> void:
+	if not prediction_initialized or not local_ship.combatant.alive:
+		return
+	var target_distance := GameConstants.SHIP_COLLISION_RADIUS * 2.0 + 1.0
+	for peer_value in ships.keys():
+		var peer_id := int(peer_value)
+		if peer_id == local_peer_id:
+			continue
+		var remote := ships[peer_id] as SandboxShip
+		if not remote.combatant.alive:
+			continue
+		var difference := prediction.predicted_position - remote.global_position
+		if difference.length_squared() >= target_distance * target_distance:
+			continue
+		var preferred := difference.normalized()
+		if preferred.is_zero_approx():
+			preferred = Vector2.from_angle(float(posmod(local_peer_id * 31 + peer_id * 17, 360)) * PI / 180.0)
+		var candidate := Vector2.INF
+		var best_cost := INF
+		for sample_index in 24:
+			var direction := preferred.rotated(TAU * float(sample_index) / 24.0)
+			var proposed := remote.global_position + direction * target_distance
+			if not _local_visual_candidate_available(proposed, peer_id, target_distance):
+				continue
+			var cost := prediction.predicted_position.distance_squared_to(proposed) + float(sample_index) * 0.001
+			if cost < best_cost:
+				candidate = proposed
+				best_cost = cost
+		if candidate == Vector2.INF:
+			continue
+		var separation_normal := (candidate - remote.global_position).normalized()
+		var inward_speed := minf(prediction.predicted_velocity.dot(separation_normal), 0.0)
+		prediction.predicted_velocity -= separation_normal * inward_speed
+		prediction.predicted_velocity += separation_normal * LOCAL_CONTACT_ESCAPE_SPEED
+		prediction.predicted_velocity = prediction.predicted_velocity.limit_length(maxf(local_stats.max_speed * 2.5, 1.0))
+		prediction.predicted_position = candidate
+		prediction.smoothing_offset = Vector2.ZERO
+		prediction.smoothing_remaining = 0.0
+		local_ship.global_position = candidate
+		local_ship.combatant.position = candidate
+		local_ship.combatant.velocity = prediction.predicted_velocity
+
+
+func _local_visual_candidate_available(position: Vector2, contacted_peer_id: int, minimum_distance: float) -> bool:
+	var selected_map := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+	if not ArenaCollisionSystem.is_ship_position_clear(position, selected_map, 1.0):
+		return false
+	for peer_value in ships.keys():
+		var peer_id := int(peer_value)
+		if peer_id == local_peer_id or peer_id == contacted_peer_id:
+			continue
+		var other := ships[peer_id] as SandboxShip
+		if other.combatant.alive and position.distance_to(other.global_position) < minimum_distance:
+			return false
+	return true
 
 
 func _update_camera(local_ship: SandboxShip, delta: float) -> void:

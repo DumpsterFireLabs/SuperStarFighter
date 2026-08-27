@@ -223,12 +223,12 @@ NPC difficulty changes behavior, not stats:
 | Passive | Movement target; never fires or shields |
 | Easy | Slow reactions, broad aim error, conservative firing |
 | Neutral | General-purpose opponent with moderate leading and pressure |
-| Skilled | Fast reactions, accurate leading, strong movement and shield use |
-| Insane | Near-immediate reactions, extremely accurate aim, relentless pressure |
+| Skilled | Fast reactions, predictive leading, committed flanks, projectile dodging, and reactive shield use |
+| Insane | Every-tick decisions, near-perfect predictive aim, early threat reactions, strong dodging, and relentless closing pressure |
 
 Every NPC uses the same cards, health, weapon rules, movement limits, collision, and damage model as a human.
 
-NPCs respect arena cover and overtime. They do not deliberately fire through blocking geometry. When two NPCs lose line of sight behind the same object, one initially holds while the other commits to a deterministic flank. If the obstruction persists for three seconds, the holder takes the opposite route; brief sightline flickers do not restart that clock, while a sustained clear lane resets it. This keeps fights progressing before overtime without turning normal cover use into constant motion. During overtime, moving inside the shrinking safe circle takes priority over ordinary pursuit—even for Passive NPCs.
+NPCs respect arena cover and overtime. They do not deliberately fire through blocking geometry. Skilled and Insane pilots predict projectile travel, dodge incoming lanes, shield reactively when impact is imminent, close neutral-range engagements more aggressively, and commit to flanks more readily. When two NPCs lose line of sight behind the same object, one initially holds while the other commits to a deterministic flank. If the obstruction persists for three seconds, the holder takes the opposite route; brief sightline flickers do not restart that clock, while a sustained clear lane resets it. This keeps fights progressing before overtime without turning normal cover use into constant motion. During overtime, moving inside the shrinking safe circle takes priority over ordinary pursuit—even for Passive NPCs.
 
 ## 6. Match Flow
 
@@ -321,13 +321,13 @@ After shield activity, regeneration waits 1.25 seconds, then restores 30 energy 
 
 Shielding prevents firing and normally reduces acceleration, so timing matters: turn the arc into danger, absorb the burst, then release to shoot and recover maneuverability.
 
-Ordinary collisions remain harmless. A melee card enables shield ramming: hit an enemy inside your forward shield arc while shielding and moving fast enough. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Ramming Shields is the direct serious-damage option; Kinetic Prow, Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow provide further damage, durability, speed access, and faster repeat impacts.
+Ordinary collisions remain harmless. A melee card enables shield ramming: strike an enemy while your shield is active and relative impact speed meets the card-derived threshold. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Ramming Shields is the direct serious-damage option and lowers its practical trigger speed by 30%; Kinetic Prow, Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow provide further damage, durability, speed access, and faster repeat impacts.
 
 Nosferatu Shield restores hull equal to a percentage of the incoming projectile damage whenever the shield successfully blocks that hit. Healing is capped at the pilot's card-modified maximum hull.
 
 ### 7.4 Collision and cover
 
-Ships slide against arena walls, map obstacles, and other ships. Base ship collisions do no damage; only a qualifying card-enabled shield ram deals contact damage. Deterministic separation transfers blocked correction away from walls or cover and gives ships an outward impulse, preventing rapid shield/fire transitions from pinning two ships together. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
+Ships slide against arena walls, map obstacles, and other ships. Base ship collisions do no damage; only a qualifying card-enabled shield ram deals contact damage. Deterministic separation transfers blocked correction away from walls or cover, searches nearby legal escape positions for unresolved clusters, and gives ships an outward impulse. Local prediction applies the same immediate visual exclusion so two models cannot appear glued together between snapshots. Projectiles collide authoritatively with the selected map geometry; ricochets consume the unused distance after a bounce in the same physics tick and can damage the first enemy reached along that reflected path.
 
 Shots cannot spawn through a wall when the ship's nose is pressed against it.
 

@@ -13,10 +13,12 @@ var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
 var _kills_since_drain: Array[Dictionary] = []
 
-const SHIP_SEPARATION_SPEED: float = 240.0
-const SHIP_OVERLAP_SOLVER_PASSES: int = 4
-const SHIP_SEPARATION_SLOP: float = 0.25
+const SHIP_SEPARATION_SPEED: float = 360.0
+const SHIP_OVERLAP_SOLVER_PASSES: int = 6
+const SHIP_SEPARATION_SLOP: float = 1.0
 const RAM_REFERENCE_SPEED: float = 480.0
+const PROJECTILE_COLLISION_ITERATIONS: int = 16
+const COLLISION_SURFACE_EPSILON: float = 0.35
 
 
 func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
@@ -223,69 +225,113 @@ func _spawn_shot(combatant: CombatantState) -> void:
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	var damage_events: Array[Dictionary] = []
 	for projectile in projectile_registry.all_projectiles():
-		var start := projectile.position
-		if not projectile.step(delta):
+		var safe_delta := maxf(delta, 0.0)
+		projectile.lifetime_remaining -= safe_delta
+		if projectile.lifetime_remaining <= 0.0:
 			_remove_projectile(projectile.projectile_id)
 			continue
-		var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
-			start,
-			projectile.position,
-			projectile.radius,
-			map_id
-		)
-		if bool(obstacle_hit.get("hit", false)):
-			projectile.position = obstacle_hit.position as Vector2
-		if not _resolve_projectile_ship_hits(projectile, start, projectile.position, peer_ids, damage_events):
-			continue
-		if bool(obstacle_hit.get("hit", false)):
-			var obstacle_normal := obstacle_hit.normal as Vector2
-			if projectile.ricochet(obstacle_normal):
-				projectile.position += obstacle_normal * 0.1
-			else:
+		var travel_remaining := projectile.velocity.length() * safe_delta
+		var collision_iterations := 0
+		while travel_remaining > 0.001 and collision_iterations < PROJECTILE_COLLISION_ITERATIONS:
+			if projectile_registry.get_projectile(projectile.projectile_id) == null or projectile.velocity.is_zero_approx():
+				break
+			collision_iterations += 1
+			var direction := projectile.velocity.normalized()
+			var start := projectile.position
+			var finish := start + direction * travel_remaining
+			var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+				start,
+				finish,
+				projectile.radius,
+				map_id
+			)
+			var obstacle_fraction := clampf(float(obstacle_hit.get("fraction", INF)), 0.0, 1.0)
+			var ship_hit := _nearest_projectile_ship_hit(projectile, start, finish, peer_ids)
+			var ship_fraction := clampf(float(ship_hit.get("fraction", INF)), 0.0, 1.0)
+			if not ship_hit.is_empty() and ship_fraction <= obstacle_fraction:
+				projectile.position = ship_hit.position as Vector2
+				travel_remaining *= maxf(1.0 - ship_fraction, 0.0)
+				if not _resolve_projectile_ship_hit(projectile, int(ship_hit.peer_id), damage_events):
+					break
+				projectile.position += direction * COLLISION_SURFACE_EPSILON
+				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
+				continue
+			if bool(obstacle_hit.get("hit", false)):
+				projectile.position = obstacle_hit.position as Vector2
+				travel_remaining *= maxf(1.0 - obstacle_fraction, 0.0)
+				var obstacle_normal := obstacle_hit.normal as Vector2
+				if projectile.ricochet(obstacle_normal):
+					projectile.position += obstacle_normal * COLLISION_SURFACE_EPSILON
+					travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
+					continue
 				_remove_projectile(projectile.projectile_id)
+				break
+			projectile.position = finish
+			travel_remaining = 0.0
 
 	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 
 
-func _resolve_projectile_ship_hits(
+func _nearest_projectile_ship_hit(
 	projectile: ProjectileState,
 	start: Vector2,
-	end: Vector2,
-	peer_ids: Array[int],
-	damage_events: Array[Dictionary]
-) -> bool:
+	finish: Vector2,
+	peer_ids: Array[int]
+) -> Dictionary:
+	var nearest_hit: Dictionary = {}
+	var nearest_fraction := INF
 	for peer_id in peer_ids:
 		var target := combatants[peer_id] as CombatantState
 		if not target.alive or not projectile.can_hit(peer_id):
 			continue
-		if not _segment_intersects_circle(
+		var fraction := _segment_circle_hit_fraction(
 			start,
-			end,
+			finish,
 			target.position,
 			GameConstants.SHIP_COLLISION_RADIUS + projectile.radius
-		):
+		)
+		if fraction < 0.0 or fraction >= nearest_fraction:
 			continue
-		var impact_vector := end - target.position
-		if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
-			_apply_projectile_knockback(target, projectile, 0.2)
-			if target.stats.shield_damage_heal_fraction > 0.0:
-				target.health = minf(
-					target.health + projectile.damage * target.stats.shield_damage_heal_fraction,
-					target.stats.max_health
-				)
-			_remove_projectile(projectile.projectile_id)
-			return false
-		_apply_projectile_knockback(target, projectile, 1.0)
-		damage_events.append({
-			"projectile_id": projectile.projectile_id,
-			"attacker_id": projectile.owner_id,
-			"target_id": peer_id,
-			"damage": projectile.damage,
-		})
-		if not projectile.register_hull_hit(peer_id):
-			_remove_projectile(projectile.projectile_id)
-			return false
+		nearest_fraction = fraction
+		nearest_hit = {
+			"peer_id": peer_id,
+			"fraction": fraction,
+			"position": start.lerp(finish, fraction),
+		}
+	return nearest_hit
+
+
+func _resolve_projectile_ship_hit(
+	projectile: ProjectileState,
+	peer_id: int,
+	damage_events: Array[Dictionary]
+) -> bool:
+	var target := combatants.get(peer_id) as CombatantState
+	if target == null or not target.alive or not projectile.can_hit(peer_id):
+		return true
+	var impact_vector := projectile.position - target.position
+	if impact_vector.is_zero_approx():
+		impact_vector = -projectile.velocity.normalized()
+	if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
+		_apply_projectile_knockback(target, projectile, 0.2)
+		if target.stats.shield_damage_heal_fraction > 0.0:
+			target.health = minf(
+				target.health + projectile.damage * target.stats.shield_damage_heal_fraction,
+				target.stats.max_health
+			)
+		_remove_projectile(projectile.projectile_id)
+		return false
+	_apply_projectile_knockback(target, projectile, 1.0)
+	damage_events.append({
+		"projectile_id": projectile.projectile_id,
+		"attacker_id": projectile.owner_id,
+		"target_id": peer_id,
+		"damage": projectile.damage,
+	})
+	if not projectile.register_hull_hit(peer_id):
+		_remove_projectile(projectile.projectile_id)
+		return false
 	return true
 
 
@@ -341,18 +387,19 @@ func _separate_ship_pair(
 	left.position = left_safe.position
 	right.position = right_safe.position
 	var remaining := maxf(target_distance - (right.position - left.position).dot(normal), 0.0)
-	if remaining <= 0.001:
-		return
-	# A wall or cover piece may reject one ship's half of the correction. Transfer
-	# that unfulfilled distance to the free ship instead of leaving the pair
-	# overlapped. Alternate first choice to avoid a permanent peer-ID bias.
-	var move_right_first := posmod(server_tick + left.peer_id + right.peer_id, 2) == 0
-	if move_right_first:
-		remaining = _move_separation_remainder(right, normal, remaining)
-		_move_separation_remainder(left, -normal, remaining)
-	else:
-		remaining = _move_separation_remainder(left, -normal, remaining)
-		_move_separation_remainder(right, normal, remaining)
+	if remaining > 0.001:
+		# A wall or cover piece may reject one ship's half of the correction. Transfer
+		# that unfulfilled distance to the free ship instead of leaving the pair
+		# overlapped. Alternate first choice to avoid a permanent peer-ID bias.
+		var move_right_first := posmod(server_tick + left.peer_id + right.peer_id, 2) == 0
+		if move_right_first:
+			remaining = _move_separation_remainder(right, normal, remaining)
+			_move_separation_remainder(left, -normal, remaining)
+		else:
+			remaining = _move_separation_remainder(left, -normal, remaining)
+			_move_separation_remainder(right, normal, remaining)
+	if left.position.distance_to(right.position) < target_distance - 0.001:
+		_force_separate_ship_pair(left, right, normal, target_distance)
 
 
 func _move_separation_remainder(combatant: CombatantState, direction: Vector2, distance: float) -> float:
@@ -365,13 +412,94 @@ func _move_separation_remainder(combatant: CombatantState, direction: Vector2, d
 	return maxf(distance - achieved, 0.0)
 
 
+func _force_separate_ship_pair(
+	left: CombatantState,
+	right: CombatantState,
+	preferred_normal: Vector2,
+	target_distance: float
+) -> void:
+	var right_candidate := _best_separation_candidate(
+		left.position,
+		right.position,
+		preferred_normal,
+		target_distance,
+		left.peer_id,
+		right.peer_id
+	)
+	var left_candidate := _best_separation_candidate(
+		right.position,
+		left.position,
+		-preferred_normal,
+		target_distance,
+		left.peer_id,
+		right.peer_id
+	)
+	var right_cost := right.position.distance_squared_to(right_candidate) if right_candidate != Vector2.INF else INF
+	var left_cost := left.position.distance_squared_to(left_candidate) if left_candidate != Vector2.INF else INF
+	if right_cost < INF or left_cost < INF:
+		if right_cost <= left_cost:
+			right.position = right_candidate
+		else:
+			left.position = left_candidate
+		return
+	var midpoint := (left.position + right.position) * 0.5
+	var start_angle := preferred_normal.angle()
+	for sample_index in 32:
+		var direction := Vector2.from_angle(start_angle + TAU * float(sample_index) / 32.0)
+		var candidate_left := midpoint - direction * target_distance * 0.5
+		var candidate_right := midpoint + direction * target_distance * 0.5
+		if (
+			_ship_position_available(candidate_left, left.peer_id, right.peer_id, target_distance)
+			and _ship_position_available(candidate_right, left.peer_id, right.peer_id, target_distance)
+		):
+			left.position = candidate_left
+			right.position = candidate_right
+			return
+
+
+func _best_separation_candidate(
+	anchor: Vector2,
+	current: Vector2,
+	preferred_direction: Vector2,
+	target_distance: float,
+	ignore_left_id: int,
+	ignore_right_id: int
+) -> Vector2:
+	var best := Vector2.INF
+	var best_cost := INF
+	var start_angle := preferred_direction.angle()
+	for sample_index in 32:
+		var direction := Vector2.from_angle(start_angle + TAU * float(sample_index) / 32.0)
+		var candidate := anchor + direction * target_distance
+		if not _ship_position_available(candidate, ignore_left_id, ignore_right_id, target_distance):
+			continue
+		var cost := current.distance_squared_to(candidate) + float(sample_index) * 0.001
+		if cost < best_cost:
+			best = candidate
+			best_cost = cost
+	return best
+
+
+func _ship_position_available(position: Vector2, ignore_left_id: int, ignore_right_id: int, minimum_distance: float) -> bool:
+	if not ArenaCollisionSystem.is_ship_position_clear(position, map_id, SHIP_SEPARATION_SLOP):
+		return false
+	for peer_value in combatants.keys():
+		var peer_id := int(peer_value)
+		if peer_id == ignore_left_id or peer_id == ignore_right_id:
+			continue
+		var other := combatants[peer_id] as CombatantState
+		if other.alive and position.distance_to(other.position) < minimum_distance:
+			return false
+	return true
+
+
 func _append_ram_damage(
 	attacker: CombatantState,
 	target: CombatantState,
 	direction_to_target: Vector2,
 	damage_events: Array[Dictionary]
 ) -> void:
-	if attacker.stats.shield_ram_damage <= 0.0 or not attacker.shield.can_block(attacker.aim_angle, direction_to_target, attacker.stats.shield_arc_degrees):
+	if attacker.stats.shield_ram_damage <= 0.0 or not attacker.shield.active:
 		return
 	var impact_speed := (attacker.velocity - target.velocity).dot(direction_to_target)
 	if impact_speed < attacker.stats.shield_ram_min_speed:
@@ -380,7 +508,7 @@ func _append_ram_damage(
 	var cooldown_ticks := ceili(attacker.stats.shield_ram_cooldown * GameConstants.PHYSICS_TICKS_PER_SECOND)
 	if _ram_contact_ticks.has(contact_key) and server_tick - int(_ram_contact_ticks[contact_key]) < cooldown_ticks:
 		return
-	if not attacker.shield.try_block(attacker.aim_angle, direction_to_target, attacker.stats):
+	if not attacker.shield.try_absorb_contact(attacker.stats):
 		return
 	_ram_contact_ticks[contact_key] = server_tick
 	var speed_scale := clampf(impact_speed / RAM_REFERENCE_SPEED, 0.5, 2.0)
@@ -428,15 +556,23 @@ func _ordered_peer_ids() -> Array[int]:
 	return result
 
 
-static func _segment_intersects_circle(
+static func _segment_circle_hit_fraction(
 	start: Vector2,
 	finish: Vector2,
 	center: Vector2,
 	radius: float
-) -> bool:
+) -> float:
 	var segment := finish - start
 	if segment.is_zero_approx():
-		return start.distance_squared_to(center) <= radius * radius
-	var weight := clampf((center - start).dot(segment) / segment.length_squared(), 0.0, 1.0)
-	var closest := start + segment * weight
-	return closest.distance_squared_to(center) <= radius * radius
+		return 0.0 if start.distance_squared_to(center) <= radius * radius else -1.0
+	var offset := start - center
+	var a := segment.length_squared()
+	var b := 2.0 * offset.dot(segment)
+	var c := offset.length_squared() - radius * radius
+	if c <= 0.0:
+		return 0.0
+	var discriminant := b * b - 4.0 * a * c
+	if discriminant < 0.0:
+		return -1.0
+	var fraction := (-b - sqrt(discriminant)) / (2.0 * a)
+	return fraction if fraction >= 0.0 and fraction <= 1.0 else -1.0

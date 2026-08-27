@@ -63,9 +63,20 @@ func try_block(
 ) -> bool:
 	if not can_block(aim_angle, impact_vector, stats.shield_arc_degrees):
 		return false
+	_consume_impact_energy(stats)
+	return true
+
+
+func try_absorb_contact(stats: CombatStats) -> bool:
+	if not active:
+		return false
+	_consume_impact_energy(stats)
+	return true
+
+
+func _consume_impact_energy(stats: CombatStats) -> void:
 	time_since_activity = 0.0
 	energy = maxf(energy - stats.shield_block_cost, 0.0)
 	if energy <= 0.0:
 		active = false
 		depletion_locked = true
-	return true

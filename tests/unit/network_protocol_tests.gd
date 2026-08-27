@@ -313,6 +313,30 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 		context.expect_true(float(upper.pursuit) > float(lower.pursuit), "%s applies more movement pressure than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
 		context.expect_true(float(upper.fire_duty) > float(lower.fire_duty), "%s fires more decisively than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
 		context.expect_true(float(upper.awareness_range) > float(lower.awareness_range), "%s detects targets farther away than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+		context.expect_true(float(upper.pressure) > float(lower.pressure), "%s closes neutral-range engagements more aggressively than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+		context.expect_true(float(upper.dodge_strength) > float(lower.dodge_strength), "%s commits more strongly to projectile evasion than %s" % [NpcPilotController.difficulty_name(difficulty), NpcPilotController.difficulty_name(difficulty - 1)])
+
+	var threat_world := AuthoritativeWorld.new()
+	var threat_npc_id := ServerLobby.NPC_PEER_ID_BASE + 8
+	var threat_npc := threat_world.add_peer(threat_npc_id)
+	var threat_attacker := threat_world.add_peer(208)
+	threat_npc.position = Vector2(1000.0, 900.0)
+	threat_attacker.position = Vector2(1600.0, 900.0)
+	var incoming := ProjectileState.create(800, threat_attacker.peer_id, 1, Vector2(1250.0, 900.0), PI, threat_attacker.stats)
+	threat_world.projectile_registry.add(incoming)
+	var threat_controller := NpcPilotController.new()
+	var neutral_threat := threat_controller._projectile_evasion(threat_world, threat_npc, NpcPilotController.difficulty_profile(NpcPilotController.Difficulty.NEUTRAL))
+	var insane_profile := NpcPilotController.difficulty_profile(NpcPilotController.Difficulty.INSANE)
+	var insane_threat := threat_controller._projectile_evasion(threat_world, threat_npc, insane_profile)
+	context.expect_true(
+		(insane_threat.steering as Vector2).length() * float(insane_profile.dodge_strength) > (neutral_threat.steering as Vector2).length() * float(NpcPilotController.difficulty_profile(NpcPilotController.Difficulty.NEUTRAL).dodge_strength),
+		"Insane NPC projectile evasion applies materially stronger lateral steering than Neutral"
+	)
+	context.expect_true(bool(insane_threat.imminent) and not bool(neutral_threat.imminent), "Insane NPC reacts defensively to incoming rounds earlier than Neutral")
+	threat_world.server_tick = 60
+	threat_controller.submit_inputs(threat_world, [threat_npc_id], {threat_npc_id: NpcPilotController.Difficulty.INSANE})
+	var threat_input := threat_world.latest_inputs[threat_npc_id] as PlayerInputFrame
+	context.expect_true(threat_input.shielding and absf(threat_input.movement.x) > 0.35, "Insane NPC combines reactive shielding with a decisive projectile dodge")
 
 	var world := AuthoritativeWorld.new()
 	var human := world.add_peer(100)
@@ -686,24 +710,38 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	context.expect_true(cover_left.position.distance_to(cover_right.position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01, "cover-pinned shield/fire collision transfers rejected correction to the free ship")
 	context.expect_true(cover_right.position.x > cover_edge_x + 30.0, "cover-pinned contact ejects outward instead of retaining a sticky overlap")
 
-	var ram_stats := CombatStats.create_base()
-	ram_stats.shield_ram_damage = 40.0
+	var cluster_world := AuthoritativeWorld.new()
+	var cluster_ids: Array[int] = [46, 47, 48, 49]
+	for cluster_id in cluster_ids:
+		var cluster_ship := cluster_world.add_peer(cluster_id, pinned_stats)
+		cluster_ship.position = Vector2(1000.0, 900.0)
+	cluster_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	var cluster_separated := true
+	for left_index in cluster_ids.size():
+		for right_index in range(left_index + 1, cluster_ids.size()):
+			var left_cluster_ship := cluster_world.combatants[cluster_ids[left_index]] as CombatantState
+			var right_cluster_ship := cluster_world.combatants[cluster_ids[right_index]] as CombatantState
+			if left_cluster_ship.position.distance_to(right_cluster_ship.position) < GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01:
+				cluster_separated = false
+	context.expect_true(cluster_separated, "authoritative fallback separation untangles a multi-ship contact cluster in one simulation tick")
+
+	var ram_stats := StatSystem.derive({&"ramming_shields": 1}, CardCatalog.create_default())
 	var ram_world := AuthoritativeWorld.new()
 	var rammer := ram_world.add_peer(50, ram_stats)
 	var ram_target := ram_world.add_peer(51)
 	rammer.position = Vector2(900.0, 900.0)
 	ram_target.position = Vector2(939.0, 900.0)
-	rammer.velocity = Vector2(360.0, 0.0)
+	rammer.velocity = Vector2(160.0, 0.0)
 	ram_target.velocity = Vector2.ZERO
-	ram_world.submit_input(50, PlayerInputFrame.new(1, 1, Vector2(0.0, -1.0), 0.0, false, true))
+	ram_world.submit_input(50, PlayerInputFrame.new(1, 1, Vector2.ZERO, PI * 0.5, false, true))
 	ram_world.submit_input(51, PlayerInputFrame.new(1, 1, Vector2.ZERO, PI, false, false))
 	ram_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	var health_after_ram := ram_target.health
-	context.expect_true(health_after_ram < ram_target.stats.max_health, "an impact-speed-gated forward shield ram deals authoritative melee damage")
+	context.expect_true(health_after_ram < ram_target.stats.max_health, "Ramming Shields deals authoritative melee damage at practical speed whenever the shield is up")
 	rammer.position = Vector2(900.0, 900.0)
 	ram_target.position = Vector2(939.0, 900.0)
-	rammer.velocity = Vector2(360.0, 0.0)
-	ram_world.submit_input(50, PlayerInputFrame.new(2, 2, Vector2(0.0, -1.0), 0.0, false, true))
+	rammer.velocity = Vector2(160.0, 0.0)
+	ram_world.submit_input(50, PlayerInputFrame.new(2, 2, Vector2.ZERO, PI * 0.5, false, true))
 	ram_world.submit_input(51, PlayerInputFrame.new(2, 2, Vector2.ZERO, PI, false, false))
 	ram_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(ram_target.health, health_after_ram, "shield-ram contact cooldown prevents per-tick damage stacking")
@@ -756,6 +794,17 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 	if not (ricochet_batch.spawned as Array).is_empty():
 		var bounced := ricochet_batch.spawned[0] as ProjectileState
 		context.expect_true(bounced.velocity.x > 0.0, "wall-adjacent ricochet reflects back into arena")
+
+	var rebound_damage_world := AuthoritativeWorld.new()
+	var rebound_target := rebound_damage_world.add_peer(24)
+	rebound_target.position = Vector2(55.0, 500.0)
+	var rebound_stats := CombatStats.create_base()
+	rebound_stats.projectile_speed = 3000.0
+	rebound_stats.ricochet_count = 1
+	var rebound_projectile := ProjectileState.create(2400, 23, 1, Vector2(20.0, 500.0), PI, rebound_stats)
+	rebound_damage_world.projectile_registry.add(rebound_projectile)
+	rebound_damage_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(rebound_target.health < rebound_target.stats.max_health, "a round damages an enemy reached by the unused movement remaining after its ricochet")
 
 	var beam_rebound_stats := CombatStats.create_base()
 	beam_rebound_stats.beam_weapon = true
@@ -843,7 +892,8 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	hull_target.position = Vector2(600.0, 400.0)
 	var hull_projectile := ProjectileState.create(500, 210, 1, Vector2(500.0, 400.0), 0.0, knockback_stats)
 	var hull_damage_events: Array[Dictionary] = []
-	hull_world._resolve_projectile_ship_hits(hull_projectile, Vector2(500.0, 400.0), Vector2(590.0, 400.0), [210, 211], hull_damage_events)
+	hull_projectile.position = Vector2(590.0, 400.0)
+	hull_world._resolve_projectile_ship_hit(hull_projectile, 211, hull_damage_events)
 	context.expect_approx(hull_target.velocity.x, knockback_stats.projectile_knockback, "unshielded projectile hit applies full knockback", 0.01)
 
 	var nosferatu_stats := StatSystem.derive({&"nosferatu_shield": 1}, catalog)
@@ -856,7 +906,8 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	shield_target.shield.active = true
 	var shield_projectile := ProjectileState.create(501, 220, 1, Vector2(500.0, 400.0), 0.0, knockback_stats)
 	var shield_damage_events: Array[Dictionary] = []
-	shield_world._resolve_projectile_ship_hits(shield_projectile, Vector2(500.0, 400.0), Vector2(590.0, 400.0), [220, 221], shield_damage_events)
+	shield_projectile.position = Vector2(590.0, 400.0)
+	shield_world._resolve_projectile_ship_hit(shield_projectile, 221, shield_damage_events)
 	context.expect_approx(shield_target.velocity.x, knockback_stats.projectile_knockback * 0.2, "shield block retains only a small fraction of projectile knockback", 0.01)
 	context.expect_approx(shield_target.health, 50.0 + shield_projectile.damage * nosferatu_stats.shield_damage_heal_fraction, "Nosferatu Shield converts a percentage of blocked damage into hull health", 0.01)
 

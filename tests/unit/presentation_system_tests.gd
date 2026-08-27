@@ -122,6 +122,19 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view._apply_snapshot_resources(local_ship, {"position": Vector2(160.0, 120.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "shielding": false, "ammunition": 8, "alive": true})
 	context.expect_true(local_ship.combatant.alive and local_ship.collision_layer == 2, "a respawn snapshot fully revives an eliminated ship visual for the next heat")
 	context.expect_true(local_ship.z_index > 0, "ships render above arena geometry")
+	var remote_ship := SandboxShip.new()
+	remote_ship.setup(2, CombatStats.create_base(), Vector2(112.0, 120.0), Color.CYAN, false, "Remote")
+	remote_ship.global_position = Vector2(112.0, 120.0)
+	view.ships[2] = remote_ship
+	view.prediction_initialized = true
+	view.prediction.predicted_position = Vector2(100.0, 120.0)
+	view.prediction.predicted_velocity = Vector2(240.0, 0.0)
+	local_ship.global_position = view.prediction.predicted_position
+	view._separate_local_visual_from_remote(local_ship)
+	context.expect_true(local_ship.global_position.distance_to(remote_ship.global_position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0, "client prediction immediately separates a local ship from an overlapping remote ship")
+	context.expect_true(view.prediction.smoothing_remaining <= 0.0, "contact escape clears smoothing that could visually glue ships together")
+	view.ships.erase(2)
+	remote_ship.free()
 	view.authoritative_projectiles.remove(projectile.projectile_id)
 	view.local_stats = StatSystem.derive({&"scatter_array": 1}, CardCatalog.create_default())
 	view.local_weapon.shot_sequence = 9

@@ -23,30 +23,45 @@ const DIFFICULTY_PROFILES := {
 		"awareness_range": 900.0, "pursuit": 0.18, "strafe": 0.18,
 		"preferred_min": 460.0, "preferred_max": 820.0,
 		"fire_range": 0.0, "fire_duty": 0.0, "shield_range": 0.0, "shield_duty": 0.0,
+		"lead_factor": 0.0, "pressure": 0.0, "strafe_frequency": 0.025,
+		"dodge_strength": 0.0, "dodge_horizon": 0.15, "dodge_range": 80.0,
+		"reactive_shield_seconds": 0.0, "flank_commit": 0.0,
 	},
 	Difficulty.EASY: {
-		"reaction_ticks": 20, "aim_error_degrees": 14.0, "lead_seconds": 0.0,
+		"reaction_ticks": 20, "aim_error_degrees": 14.0, "lead_seconds": 0.45,
 		"awareness_range": 1300.0, "pursuit": 0.42, "strafe": 0.32,
 		"preferred_min": 300.0, "preferred_max": 620.0,
 		"fire_range": 900.0, "fire_duty": 0.32, "shield_range": 480.0, "shield_duty": 0.05,
+		"lead_factor": 0.25, "pressure": 0.05, "strafe_frequency": 0.03,
+		"dodge_strength": 0.15, "dodge_horizon": 0.3, "dodge_range": 100.0,
+		"reactive_shield_seconds": 0.08, "flank_commit": 0.15,
 	},
 	Difficulty.NEUTRAL: {
-		"reaction_ticks": 10, "aim_error_degrees": 7.0, "lead_seconds": 0.08,
+		"reaction_ticks": 10, "aim_error_degrees": 7.0, "lead_seconds": 0.75,
 		"awareness_range": 1900.0, "pursuit": 0.65, "strafe": 0.5,
 		"preferred_min": 250.0, "preferred_max": 540.0,
 		"fire_range": 1450.0, "fire_duty": 0.58, "shield_range": 650.0, "shield_duty": 0.1,
+		"lead_factor": 0.5, "pressure": 0.15, "strafe_frequency": 0.035,
+		"dodge_strength": 0.35, "dodge_horizon": 0.45, "dodge_range": 125.0,
+		"reactive_shield_seconds": 0.12, "flank_commit": 0.35,
 	},
 	Difficulty.SKILLED: {
-		"reaction_ticks": 5, "aim_error_degrees": 2.5, "lead_seconds": 0.18,
+		"reaction_ticks": 5, "aim_error_degrees": 2.5, "lead_seconds": 1.1,
 		"awareness_range": 2600.0, "pursuit": 0.85, "strafe": 0.68,
-		"preferred_min": 220.0, "preferred_max": 500.0,
-		"fire_range": 2100.0, "fire_duty": 0.8, "shield_range": 820.0, "shield_duty": 0.16,
+		"preferred_min": 205.0, "preferred_max": 470.0,
+		"fire_range": 2400.0, "fire_duty": 0.86, "shield_range": 900.0, "shield_duty": 0.16,
+		"lead_factor": 0.78, "pressure": 0.38, "strafe_frequency": 0.047,
+		"dodge_strength": 0.9, "dodge_horizon": 0.7, "dodge_range": 165.0,
+		"reactive_shield_seconds": 0.22, "flank_commit": 0.75,
 	},
 	Difficulty.INSANE: {
-		"reaction_ticks": 2, "aim_error_degrees": 0.4, "lead_seconds": 0.3,
+		"reaction_ticks": 1, "aim_error_degrees": 0.15, "lead_seconds": 1.5,
 		"awareness_range": 4000.0, "pursuit": 1.0, "strafe": 0.85,
-		"preferred_min": 190.0, "preferred_max": 460.0,
-		"fire_range": 3200.0, "fire_duty": 0.94, "shield_range": 1050.0, "shield_duty": 0.22,
+		"preferred_min": 170.0, "preferred_max": 410.0,
+		"fire_range": 4000.0, "fire_duty": 0.99, "shield_range": 1250.0, "shield_duty": 0.2,
+		"lead_factor": 1.0, "pressure": 0.68, "strafe_frequency": 0.065,
+		"dodge_strength": 1.45, "dodge_horizon": 0.95, "dodge_range": 220.0,
+		"reactive_shield_seconds": 0.35, "flank_commit": 1.0,
 	},
 }
 
@@ -85,12 +100,14 @@ func submit_inputs(
 			continue
 		var offset := target.position - combatant.position
 		var distance := offset.length()
-		var predicted_offset := offset + target.velocity * float(profile.lead_seconds)
+		var projectile_travel_time := distance / maxf(combatant.stats.projectile_speed, 1.0)
+		var lead_time := minf(projectile_travel_time, float(profile.lead_seconds)) * float(profile.lead_factor)
+		var predicted_offset := offset + target.velocity * lead_time
 		var aim_angle := predicted_offset.angle() if not predicted_offset.is_zero_approx() else combatant.aim_angle
 		var error_phase := float(world.server_tick) * 0.021 + float(peer_id % 997) * 0.73
 		aim_angle += sin(error_phase) * deg_to_rad(float(profile.aim_error_degrees))
-		var phase := float(world.server_tick + peer_id % 997) * 0.035
-		var forward := -float(profile.pursuit) if distance > float(profile.preferred_max) else (float(profile.pursuit) * 0.75 if distance < float(profile.preferred_min) else 0.0)
+		var phase := float(world.server_tick + peer_id % 997) * float(profile.strafe_frequency)
+		var forward := -float(profile.pursuit) if distance > float(profile.preferred_max) else (float(profile.pursuit) * 0.75 if distance < float(profile.preferred_min) else -float(profile.pursuit) * float(profile.pressure))
 		var strafe := sin(phase) * float(profile.strafe)
 		var tactical_movement := MovementSystem.ship_relative_to_world(
 			Vector2(strafe, forward).limit_length(1.0),
@@ -121,7 +138,8 @@ func submit_inputs(
 			# One member initially holds while the other takes a deterministic flank.
 			# If the pair remains occluded, the holder commits to the opposite side so
 			# brief sightline flickers cannot restart the same cover loop forever.
-			var should_flank := peer_id > target.peer_id or breaking_blocked_loop
+			var flank_phase := float(posmod(world.server_tick / maxi(int(profile.reaction_ticks), 1) + peer_id * 11, 100)) / 100.0
+			var should_flank := peer_id > target.peer_id or breaking_blocked_loop or flank_phase < float(profile.flank_commit)
 			tactical_movement = (
 				Vector2.ZERO
 				if not should_flank
@@ -141,9 +159,17 @@ func submit_inputs(
 			var outside_boundary := combatant.position.distance_to(ArenaLayout.center(world.map_id)) > boundary_radius
 			var tactical_weight := 0.08 if outside_boundary else 0.28
 			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
+		var projectile_threat := _projectile_evasion(world, combatant, profile)
+		var evasion := projectile_threat.get("steering", Vector2.ZERO) as Vector2
+		if not evasion.is_zero_approx():
+			tactical_movement = (
+				tactical_movement + evasion * float(profile.dodge_strength)
+			).limit_length(1.0)
 		var movement := _world_to_ship_input(tactical_movement, aim_angle)
 		var shield_phase := float(posmod(world.server_tick + peer_id, 180)) / 180.0
-		var shielding := not escaping_close_contact and distance < float(profile.shield_range) and shield_phase < float(profile.shield_duty)
+		var shielding := not escaping_close_contact and distance < float(profile.shield_range) and (
+			bool(projectile_threat.get("imminent", false)) or shield_phase < float(profile.shield_duty)
+		)
 		var fire_phase := float(posmod(world.server_tick + peer_id * 3, 120)) / 120.0
 		var firing := not escaping_close_contact and has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
 		var special := (
@@ -153,6 +179,44 @@ func submit_inputs(
 			and distance > float(profile.preferred_max) * 1.35
 		)
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special)
+
+
+func _projectile_evasion(world: AuthoritativeWorld, combatant: CombatantState, profile: Dictionary) -> Dictionary:
+	var horizon := maxf(float(profile.dodge_horizon), 0.01)
+	var dodge_range := maxf(float(profile.dodge_range), 1.0)
+	var reactive_seconds := maxf(float(profile.reactive_shield_seconds), 0.0)
+	var steering := Vector2.ZERO
+	var imminent := false
+	for projectile in world.active_projectiles():
+		if projectile.owner_id == combatant.peer_id or projectile.velocity.is_zero_approx():
+			continue
+		var relative_position := projectile.position - combatant.position
+		var relative_velocity := projectile.velocity - combatant.velocity
+		var relative_speed_squared := relative_velocity.length_squared()
+		if relative_speed_squared <= 0.001:
+			continue
+		var closest_time := -relative_position.dot(relative_velocity) / relative_speed_squared
+		if closest_time < 0.0 or closest_time > horizon:
+			continue
+		var closest_offset := relative_position + relative_velocity * closest_time
+		var closest_distance := closest_offset.length()
+		if closest_distance > dodge_range:
+			continue
+		var away := -closest_offset.normalized()
+		if away.is_zero_approx():
+			away = projectile.velocity.normalized().orthogonal()
+			if posmod(combatant.peer_id + projectile.projectile_id, 2) == 0:
+				away = -away
+		var clearance_weight := 1.0 - clampf(closest_distance / dodge_range, 0.0, 1.0)
+		var urgency_weight := 1.0 - clampf(closest_time / horizon, 0.0, 1.0) * 0.35
+		steering += away * clearance_weight * urgency_weight
+		var collision_distance := GameConstants.SHIP_COLLISION_RADIUS + projectile.radius + 18.0
+		if closest_distance <= collision_distance and closest_time <= reactive_seconds:
+			imminent = true
+	return {
+		"steering": steering.limit_length(1.0),
+		"imminent": imminent,
+	}
 
 
 static func is_valid_difficulty(difficulty: int) -> bool:

@@ -177,6 +177,8 @@ static func _validate_melee_cards(context: TestContext, catalog: CardCatalog) ->
 		context.expect_true(StatSystem.derive(build, catalog).shield_ram_damage > 0.0, "%s independently enables shield-ram damage" % card_id)
 	var worldbreaker := StatSystem.derive({&"worldbreaker_prow": 1}, catalog)
 	context.expect_true(worldbreaker.shield_ram_damage >= 90.0 and worldbreaker.shield_ram_cooldown < CombatStats.create_base().shield_ram_cooldown, "Worldbreaker Prow combines lethal impact and faster contact recovery")
+	var ramming_shields := StatSystem.derive({&"ramming_shields": 1}, catalog)
+	context.expect_true(ramming_shields.shield_ram_min_speed < CombatStats.create_base().shield_ram_min_speed, "Ramming Shields lowers the practical impact-speed threshold")
 
 
 static func _validate_one_stack_values(context: TestContext, catalog: CardCatalog) -> void:
