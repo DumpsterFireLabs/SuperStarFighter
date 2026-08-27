@@ -178,7 +178,7 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 ### Every human player
 
 - Reviews the roster and lobby rules.
-- Opens **Match Options & Ship Colour** to keep a Random ship colour or choose a custom colour from the wheel. This preference is remembered for later sessions.
+- Clicks the colour swatch beside their own roster name to open the HSV colour wheel, then selects **Apply Colour** or **Use Random**. This preference is remembered for later sessions.
 - Selects **Ready for Launch** when prepared.
 - Becomes not ready whenever the leader changes a lobby setting.
 - May disconnect voluntarily before or during a match.
@@ -204,7 +204,7 @@ The leader cannot eject players during an active match and cannot eject themselv
 
 The start button explains whichever requirement is missing. When a normal human lobby is ready it reads **Start Match**; a solo NPC-assisted launch reads **Start Match with NPCs**.
 
-Changing a match option clears human readiness. Changing your own ship colour clears only your readiness. The roster swatch previews the authoritative colour other players will see; Random draws from a high-contrast palette, while the custom control opens an HSV colour wheel.
+Changing a match option clears human readiness. Changing your own ship colour clears only your readiness. Every roster swatch previews the authoritative colour other players will see, but only your own human-player swatch is clickable. Colour-wheel changes remain a preview until **Apply Colour** is selected; **Use Random** asks the server for a high-contrast palette colour.
 
 ### Random Spawn Powerups
 

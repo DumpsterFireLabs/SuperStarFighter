@@ -184,9 +184,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._stop_hosted_server()
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
 	context.expect_true(client.lobby_options_popup != null and client.powerups_button != null, "lobby exposes a dedicated match options menu")
+	context.expect_equal(client.lobby_options_button.text, "MATCH OPTIONS", "ship colour is no longer presented as a separate lobby option")
 	context.expect_false(client.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
-	context.expect_true(client.random_color_button != null and client.ship_color_picker != null, "lobby options expose Random and colour-picker ship appearance controls")
-	context.expect_equal(client.ship_color_picker.get_picker().picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "custom ship colour opens an HSV wheel")
+	context.expect_true(client.ship_color_popup != null and client.random_color_button != null and client.ship_color_picker != null and client.apply_ship_color_button != null, "roster colour selection owns a wheel with Random and explicit Apply actions")
+	context.expect_equal(client.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
 	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")
@@ -249,7 +250,25 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.network_world.local_peer_id, 2, "hidden lobby preserves the connected renderer's local identity")
 	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 5, "leader receives colour identity and an eject control for another human")
 	context.expect_true(client.powerups_button.button_pressed and not client.powerups_button.disabled, "lobby leader sees and can edit the authoritative powerup option")
-	context.expect_true(client.lobby_roster.get_child(0).get_node("ShipColor") != null, "lobby roster previews every selected ship colour")
+	var local_color_swatch := client.lobby_roster.get_child(0).get_node("ShipColor") as Button
+	var remote_color_swatch := client.lobby_roster.get_child(1).get_node("ShipColor") as Button
+	context.expect_true(local_color_swatch != null and not local_color_swatch.disabled, "local human roster colour is the active colour-picker control")
+	context.expect_true(remote_color_swatch != null and remote_color_swatch.disabled, "another human's roster colour remains visible but cannot be edited locally")
+	local_color_swatch.pressed.emit()
+	context.expect_true(client.ship_color_popup.visible, "clicking the local roster colour opens the colour wheel")
+	var prior_color: Color = client.preferred_ship_color
+	client._on_ship_color_changed(Color("ff4ea3"))
+	context.expect_equal(client.preferred_ship_color, prior_color, "wheel changes remain pending until Apply is pressed")
+	context.expect_equal(client.pending_ship_color.to_html(false), "ff4ea3", "wheel tracks the pending custom colour")
+	client._apply_ship_color()
+	context.expect_equal(client.preferred_ship_color.to_html(false), "ff4ea3", "Apply commits the selected ship colour")
+	context.expect_false(client.ship_color_popup.visible, "Apply closes the roster colour picker")
+	client.bridge.local_peer_id = 3
+	client._rebuild_lobby_roster({"players": players, "leader_id": 2, "match_active": false}, false)
+	context.expect_true(not (client.lobby_roster.get_child(1).get_node("ShipColor") as Button).disabled, "a non-leader human can edit their own roster colour")
+	context.expect_true((client.lobby_roster.get_child(0).get_node("ShipColor") as Button).disabled, "the non-leader still cannot edit the host's colour")
+	client.bridge.local_peer_id = 2
+	client._rebuild_lobby_roster({"players": players, "leader_id": 2, "match_active": false}, true)
 	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
 	context.expect_equal(client.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
 	var configurable_players: Array[Dictionary] = [

@@ -34,7 +34,7 @@ In the game:
 1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
 3. Choose a server name and gameplay UDP port, then select **Host & Join**.
-4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options & Ship Colour** contains the optional timed powerup rule and your personal Random/custom colour selection.
+4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options** contains the optional timed powerup rule. Click your colour swatch beside your roster name to open the colour wheel, then apply a custom colour or choose Random.
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 
@@ -134,7 +134,7 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,753 automated assertions and 81 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,762 automated assertions and 81 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 

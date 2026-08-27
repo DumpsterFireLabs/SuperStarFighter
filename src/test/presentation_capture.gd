@@ -72,6 +72,11 @@ func _capture_sequence() -> void:
 	client.bridge.local_peer_id = 2
 	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3})
 	await _capture(client, "lobby_32")
+	var local_color_swatch := client.lobby_roster.get_child(0).get_node("ShipColor") as Button
+	local_color_swatch.pressed.emit()
+	client.ship_color_picker.color = Color("ff4ea3")
+	await _capture(client, "lobby_color_picker")
+	client.ship_color_popup.hide()
 	client._show_lobby_options()
 	await _capture(client, "lobby_options")
 	client.lobby_options_popup.hide()

@@ -41,7 +41,7 @@ foreach ($resolution in @(
     if ($process.ExitCode -ne 0 -or -not $combined.Contains("PRESENTATION_CAPTURE_OK=$($resolution.Label)") -or $combined.Contains('SCRIPT ERROR:') -or $combined.Contains('ERROR:')) {
         throw "Presentation capture failed for $($resolution.Label): $combined"
     }
-    foreach ($screen in @('splash', 'menu', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'lobby_32', 'lobby_options', 'lobby_npc_difficulties', 'draft', 'draft_card_hover', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'map_core_arena', 'map_riftline', 'map_prism_array', 'map_twin_suns', 'map_dead_freight', 'map_longwave_array', 'map_broken_orbit', 'map_switchyard', 'map_solar_tide', 'map_relay_zero', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
+    foreach ($screen in @('splash', 'menu', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'lobby_32', 'lobby_color_picker', 'lobby_options', 'lobby_npc_difficulties', 'draft', 'draft_card_hover', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'map_core_arena', 'map_riftline', 'map_prism_array', 'map_twin_suns', 'map_dead_freight', 'map_longwave_array', 'map_broken_orbit', 'map_switchyard', 'map_solar_tide', 'map_relay_zero', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Presentation capture $imagePath is missing or unexpectedly small."

@@ -16,7 +16,7 @@ The host must allow the executable through Windows Firewall and forward the sele
 BETA 2 HIGHLIGHTS
 
 - Optional Rare-or-better arena powerups can be enabled by the lobby leader.
-- Shield-ram cards, persistent ship colour selection, and a full HSV colour wheel are available in the lobby.
+- Shield-ram cards and persistent ship colours are available in the lobby; click your roster colour to open the HSV wheel and apply a selection.
 - NPC pursuit and obstacle-loop recovery have been improved across the full arena.
 - Ship contact escape is stronger, NPC health rings start full, and draft/victory card details share the graphical card presentation.
 

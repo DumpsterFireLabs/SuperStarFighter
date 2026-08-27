@@ -67,9 +67,10 @@ var npcs_button: CheckButton
 var lobby_options_button: Button
 var lobby_options_popup: PanelContainer
 var powerups_button: CheckButton
-var random_color_button: CheckButton
-var ship_color_picker: ColorPickerButton
-var _color_send_timer: Timer
+var ship_color_popup: PanelContainer
+var random_color_button: Button
+var ship_color_picker: ColorPicker
+var apply_ship_color_button: Button
 var start_button: Button
 var match_panel: PanelContainer
 var match_label: Label
@@ -119,6 +120,7 @@ var binding_capture_seconds: float = 0.0
 var current_window_mode: int = WindowModeOption.WINDOWED
 var current_resolution: Vector2i = Vector2i(1280, 720)
 var preferred_ship_color: Color = Color("42e8ff")
+var pending_ship_color: Color = Color("42e8ff")
 var random_ship_color: bool = true
 var settings_return_to_pause: bool = false
 var splash_screen: Control
@@ -444,11 +446,12 @@ func _create_lobby_panel() -> void:
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
 	lobby_options_button = Button.new()
-	lobby_options_button.text = "MATCH OPTIONS & SHIP COLOUR"
+	lobby_options_button.text = "MATCH OPTIONS"
 	lobby_options_button.custom_minimum_size.y = 48.0
 	lobby_options_button.pressed.connect(_show_lobby_options)
 	content.add_child(lobby_options_button)
 	_create_lobby_options_popup()
+	_create_ship_color_popup()
 	ready_button = CheckButton.new()
 	ready_button.text = "READY FOR LAUNCH"
 	ready_button.custom_minimum_size.y = 52.0
@@ -470,8 +473,8 @@ func _create_lobby_options_popup() -> void:
 	lobby_options_popup = PanelContainer.new()
 	lobby_options_popup.name = "LobbyOptions"
 	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_options_popup.position = Vector2(-340.0, -235.0)
-	lobby_options_popup.custom_minimum_size = Vector2(680.0, 470.0)
+	lobby_options_popup.position = Vector2(-340.0, -170.0)
+	lobby_options_popup.custom_minimum_size = Vector2(680.0, 340.0)
 	lobby_options_popup.theme = interface_theme
 	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
 	lobby_options_popup.visible = false
@@ -496,44 +499,66 @@ func _create_lobby_options_popup() -> void:
 	powerup_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	powerup_note.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(powerup_note)
-	var divider := HSeparator.new()
-	content.add_child(divider)
-	var appearance_title := Label.new()
-	appearance_title.text = "YOUR SHIP COLOUR"
-	appearance_title.add_theme_font_size_override("font_size", 22)
-	appearance_title.add_theme_color_override("font_color", Color("73f7ff"))
-	content.add_child(appearance_title)
-	random_color_button = CheckButton.new()
-	random_color_button.text = "Random colour"
-	random_color_button.button_pressed = random_ship_color
-	random_color_button.custom_minimum_size.y = 44.0
-	random_color_button.toggled.connect(_on_random_color_toggled)
-	content.add_child(random_color_button)
-	var color_row := HBoxContainer.new()
-	color_row.add_theme_constant_override("separation", 16)
-	content.add_child(color_row)
-	var color_label := Label.new()
-	color_label.text = "Custom colour wheel"
-	color_label.custom_minimum_size.x = 210.0
-	color_row.add_child(color_label)
-	ship_color_picker = ColorPickerButton.new()
-	ship_color_picker.color = preferred_ship_color
-	ship_color_picker.edit_alpha = false
-	ship_color_picker.get_picker().picker_shape = ColorPicker.SHAPE_HSV_WHEEL
-	ship_color_picker.disabled = random_ship_color
-	ship_color_picker.custom_minimum_size = Vector2(330.0, 48.0)
-	ship_color_picker.color_changed.connect(_on_ship_color_changed)
-	color_row.add_child(ship_color_picker)
-	_color_send_timer = Timer.new()
-	_color_send_timer.one_shot = true
-	_color_send_timer.wait_time = 0.2
-	_color_send_timer.timeout.connect(_send_preferred_ship_color)
-	add_child(_color_send_timer)
 	var close_button := Button.new()
 	close_button.text = "DONE"
 	close_button.custom_minimum_size.y = 48.0
 	close_button.pressed.connect(lobby_options_popup.hide)
 	content.add_child(close_button)
+
+
+func _create_ship_color_popup() -> void:
+	ship_color_popup = PanelContainer.new()
+	ship_color_popup.name = "ShipColorPicker"
+	ship_color_popup.set_anchors_preset(Control.PRESET_CENTER)
+	ship_color_popup.position = Vector2(-350.0, -330.0)
+	ship_color_popup.custom_minimum_size = Vector2(700.0, 660.0)
+	ship_color_popup.theme = interface_theme
+	ship_color_popup.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.99))
+	ship_color_popup.visible = false
+	connection_canvas.add_child(ship_color_popup)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 12)
+	ship_color_popup.add_child(content)
+	var title := Label.new()
+	title.text = "CHOOSE YOUR SHIP COLOUR"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color("73f7ff"))
+	content.add_child(title)
+	var note := Label.new()
+	note.text = "Pick a colour, then apply it. Your roster swatch is the colour control."
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(note)
+	ship_color_picker = ColorPicker.new()
+	ship_color_picker.color = preferred_ship_color
+	ship_color_picker.edit_alpha = false
+	ship_color_picker.picker_shape = ColorPicker.SHAPE_HSV_WHEEL
+	ship_color_picker.custom_minimum_size = Vector2(640.0, 430.0)
+	ship_color_picker.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	ship_color_picker.color_changed.connect(_on_ship_color_changed)
+	content.add_child(ship_color_picker)
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 12)
+	content.add_child(actions)
+	random_color_button = Button.new()
+	random_color_button.text = "USE RANDOM"
+	random_color_button.custom_minimum_size = Vector2(180.0, 48.0)
+	random_color_button.tooltip_text = "Ask the server for a high-contrast random ship colour."
+	random_color_button.pressed.connect(_on_random_color_pressed)
+	actions.add_child(random_color_button)
+	var cancel_button := Button.new()
+	cancel_button.text = "CANCEL"
+	cancel_button.custom_minimum_size = Vector2(160.0, 48.0)
+	cancel_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cancel_button.pressed.connect(_cancel_ship_color)
+	actions.add_child(cancel_button)
+	apply_ship_color_button = Button.new()
+	apply_ship_color_button.text = "APPLY COLOUR"
+	apply_ship_color_button.custom_minimum_size = Vector2(210.0, 48.0)
+	apply_ship_color_button.pressed.connect(_apply_ship_color)
+	actions.add_child(apply_ship_color_button)
 
 
 func _create_match_ui() -> void:
@@ -1607,6 +1632,8 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	lobby_panel.visible = false
 	if lobby_options_popup != null:
 		lobby_options_popup.hide()
+	if ship_color_popup != null:
+		ship_color_popup.hide()
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_panel.visible = false
@@ -1640,8 +1667,11 @@ func _on_lobby_state(state: Dictionary) -> void:
 	var npc_count := int(state.get("npc_count", 0))
 	var total_count := (state.get("players", []) as Array).size()
 	var match_active := bool(state.get("match_active", false))
-	if match_active and lobby_options_popup != null:
-		lobby_options_popup.hide()
+	if match_active:
+		if lobby_options_popup != null:
+			lobby_options_popup.hide()
+		if ship_color_popup != null:
+			ship_color_popup.hide()
 	if not match_active:
 		_set_scoreboard_open(false)
 		connection_screen.visible = true
@@ -1674,7 +1704,9 @@ func _on_lobby_state(state: Dictionary) -> void:
 		var player := player_value as Dictionary
 		if int(player.get("peer_id", 0)) == bridge.local_peer_id:
 			preferred_ship_color = Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), preferred_ship_color)
-			ship_color_picker.color = preferred_ship_color
+			if not ship_color_popup.visible:
+				pending_ship_color = preferred_ship_color
+				ship_color_picker.color = preferred_ship_color
 			break
 	_applying_lobby_state = false
 	ready_button.disabled = match_active
@@ -1684,8 +1716,6 @@ func _on_lobby_state(state: Dictionary) -> void:
 	player_limit_control.editable = settings_editable
 	npcs_button.disabled = not settings_editable
 	powerups_button.disabled = not settings_editable
-	random_color_button.disabled = match_active
-	ship_color_picker.disabled = match_active or random_ship_color
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
 	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false))
 	var human_count := total_count - npc_count
@@ -1717,11 +1747,21 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		row.custom_minimum_size.y = 42.0
 		row.add_theme_constant_override("separation", 10)
 		lobby_roster.add_child(row)
-		var color_swatch := ColorRect.new()
+		var color_swatch := Button.new()
 		color_swatch.name = "ShipColor"
-		color_swatch.color = Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
-		color_swatch.custom_minimum_size = Vector2(26.0, 26.0)
-		color_swatch.tooltip_text = "Selected ship colour"
+		var swatch_color := Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
+		color_swatch.custom_minimum_size = Vector2(34.0, 34.0)
+		color_swatch.add_theme_stylebox_override("normal", _ship_color_swatch_style(swatch_color, false))
+		color_swatch.add_theme_stylebox_override("hover", _ship_color_swatch_style(swatch_color, true))
+		color_swatch.add_theme_stylebox_override("pressed", _ship_color_swatch_style(swatch_color.lightened(0.12), true))
+		color_swatch.add_theme_stylebox_override("focus", _ship_color_swatch_style(swatch_color, true))
+		color_swatch.add_theme_stylebox_override("disabled", _ship_color_swatch_style(swatch_color, false))
+		var can_choose_color := peer_id == bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false))
+		color_swatch.disabled = not can_choose_color
+		color_swatch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_choose_color else Control.CURSOR_ARROW
+		color_swatch.tooltip_text = "Click to choose your ship colour" if can_choose_color else "Selected ship colour"
+		if can_choose_color:
+			color_swatch.pressed.connect(_show_ship_color_popup)
 		row.add_child(color_swatch)
 		var name_label := Label.new()
 		name_label.text = String(player.get("display_name", "Pilot"))
@@ -1777,6 +1817,8 @@ func _on_npcs_toggled(enabled: bool) -> void:
 
 func _show_lobby_options() -> void:
 	if lobby_options_popup != null and lobby_panel.visible:
+		if ship_color_popup != null:
+			ship_color_popup.hide()
 		lobby_options_popup.show()
 
 
@@ -1785,28 +1827,41 @@ func _on_powerups_toggled(enabled: bool) -> void:
 		bridge.send_random_spawn_powerups(enabled)
 
 
-func _on_random_color_toggled(enabled: bool) -> void:
-	if _applying_lobby_state:
+func _show_ship_color_popup() -> void:
+	if ship_color_popup == null or not lobby_panel.visible or bool(bridge.latest_lobby_state.get("match_active", false)):
 		return
-	random_ship_color = enabled
-	ship_color_picker.disabled = enabled
-	_save_appearance_settings()
-	bridge.send_player_color(random_ship_color, preferred_ship_color)
+	if lobby_options_popup != null:
+		lobby_options_popup.hide()
+	pending_ship_color = preferred_ship_color
+	ship_color_picker.color = pending_ship_color
+	ship_color_popup.show()
 
 
 func _on_ship_color_changed(color: Color) -> void:
 	if _applying_lobby_state:
 		return
-	preferred_ship_color = Color(color.r, color.g, color.b, 1.0)
+	pending_ship_color = Color(color.r, color.g, color.b, 1.0)
+
+
+func _apply_ship_color() -> void:
+	preferred_ship_color = pending_ship_color
 	random_ship_color = false
-	random_color_button.set_pressed_no_signal(false)
-	ship_color_picker.disabled = false
 	_save_appearance_settings()
-	_color_send_timer.start()
-
-
-func _send_preferred_ship_color() -> void:
 	bridge.send_player_color(false, preferred_ship_color)
+	ship_color_popup.hide()
+
+
+func _on_random_color_pressed() -> void:
+	random_ship_color = true
+	_save_appearance_settings()
+	bridge.send_player_color(true, preferred_ship_color)
+	ship_color_popup.hide()
+
+
+func _cancel_ship_color() -> void:
+	pending_ship_color = preferred_ship_color
+	ship_color_picker.color = preferred_ship_color
+	ship_color_popup.hide()
 
 
 func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
@@ -2505,6 +2560,21 @@ func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
 	style.content_margin_right = 20.0
 	style.content_margin_top = 18.0
 	style.content_margin_bottom = 18.0
+	return style
+
+
+func _ship_color_swatch_style(ship_color: Color, hovered: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(ship_color, 1.0)
+	style.border_color = Color.WHITE if hovered else Color(ship_color.lightened(0.38), 0.95)
+	style.set_border_width_all(3 if hovered else 2)
+	style.set_corner_radius_all(9)
+	style.shadow_color = Color(ship_color, 0.58 if hovered else 0.28)
+	style.shadow_size = 8 if hovered else 4
+	style.content_margin_left = 4.0
+	style.content_margin_right = 4.0
+	style.content_margin_top = 4.0
+	style.content_margin_bottom = 4.0
 	return style
 
 
