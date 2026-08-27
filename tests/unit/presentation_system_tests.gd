@@ -215,6 +215,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var client := packed_scene.instantiate()
 	tree_parent.add_child(client)
 	context.expect_true(client.connection_screen != null, "production connection screen exists")
+	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"Button"), "shared interface theme defines a visible keyboard and controller focus state")
+	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"LineEdit"), "shared interface theme defines focused text inputs")
+	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")
+	context.expect_equal(client.connection_primary_button.theme_type_variation, &"PrimaryButton", "primary connection action uses the shared semantic action language")
+	context.expect_equal(client.lobby_options_button.theme_type_variation, &"SecondaryButton", "secondary lobby action uses the shared semantic action language")
 	context.expect_equal(client.version_label.text, "BETA 3  ·  VERSION 0.1.0-beta.3", "main screen displays the canonical Beta 3 version")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
@@ -336,6 +341,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(remote_color_swatch != null and remote_color_swatch.disabled, "another human's roster colour remains visible but cannot be edited locally")
 	local_color_swatch.pressed.emit()
 	context.expect_true(client.ship_color_popup.visible, "clicking the local roster colour opens the colour wheel")
+	context.expect_true(client.ship_color_blocker.visible and not client.lobby_panel.visible, "colour selection behaves as a true modal and blocks the lobby beneath it")
 	var prior_color: Color = client.preferred_ship_color
 	client._on_ship_color_changed(Color("ff4ea3"))
 	context.expect_equal(client.preferred_ship_color, prior_color, "wheel changes remain pending until Apply is pressed")
@@ -343,6 +349,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._apply_ship_color()
 	context.expect_equal(client.preferred_ship_color.to_html(false), "ff4ea3", "Apply commits the selected ship colour")
 	context.expect_false(client.ship_color_popup.visible, "Apply closes the roster colour picker")
+	context.expect_true(not client.ship_color_blocker.visible and client.lobby_panel.visible, "closing colour selection restores the waiting lobby")
+	client._show_lobby_options()
+	context.expect_true(client.lobby_options_popup.visible and client.lobby_options_blocker.visible and not client.lobby_panel.visible, "match options behaves as a focused modal surface")
+	client._hide_lobby_options()
+	context.expect_true(not client.lobby_options_blocker.visible and client.lobby_panel.visible, "closing match options restores the waiting lobby")
 	client.bridge.local_peer_id = 3
 	client._rebuild_lobby_roster({"players": players, "leader_id": 2, "match_active": false}, false)
 	context.expect_true(not (client.lobby_roster.get_child(1).get_node("ShipColor") as Button).disabled, "a non-leader human can edit their own roster colour")
@@ -389,6 +400,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.start_button.disabled, "ready solo human may start after enabling NPCs")
 	context.expect_equal(client.start_button.text, "Start Match with NPCs", "solo NPC launch uses descriptive wording")
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
+	client._show_draft_offer({"offer_token": "test", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
+	var first_draft_card := client.draft_buttons[0] as Button
+	context.expect_true(first_draft_card.get_node_or_null("CardContent/Details/CardName") != null, "draft choices expose a structured and scannable content hierarchy")
+	context.expect_true(first_draft_card.has_theme_stylebox_override(&"focus"), "draft choices expose a dedicated focus treatment")
 	context.expect_true(client.network_world.visible and client.network_world.process_mode != Node.PROCESS_MODE_DISABLED, "match start reactivates world rendering and prediction")
 	context.expect_equal(client.network_world.local_peer_id, 2, "match start retains local identity for movement and predicted shots")
 	client.network_world._on_snapshot({"server_tick": 1, "acknowledged_input": 0, "states": [
@@ -436,7 +451,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_approx(npc_ship.combatant.health_fraction(), 1.0, "a full-health NPC renders a full health ring even when its build changes maximum hull")
 	client._update_match_presentation()
 	context.expect_false(client.match_panel.visible, "former top-center match banner stays hidden during combat")
-	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("R2 H3"), "compact upper-left HUD carries match state and round details")
+	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("ROUND 2 / HEAT 3"), "compact upper-left HUD carries match state and clearly labeled round details")
 	context.expect_equal(client.network_world.arena.map_id, &"riftline", "client rebuilds the arena from the authoritative map ID")
 	context.expect_true(client.network_world.match_status_label.text.contains("RIFTLINE"), "combat HUD identifies the active round map")
 	var tab_event := InputEventKey.new()
@@ -461,6 +476,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
 	var scoreboard_build_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
 	context.expect_true(scoreboard_build_cards != null and scoreboard_build_cards.get_child_count() == 1, "scoreboard build renders rarity-styled card hover targets")
+	var scoreboard_card_chip := scoreboard_build_cards.get_child(0) as Button
+	context.expect_true(scoreboard_card_chip.focus_mode == Control.FOCUS_ALL and scoreboard_card_chip.has_theme_stylebox_override(&"focus"), "scoreboard card details are keyboard and controller discoverable")
 	tab_event.pressed = false
 	client._input(tab_event)
 	context.expect_false(client.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
@@ -491,6 +508,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(final_build_cards != null and final_build_cards.get_child_count() == 1, "final build renders each owned card as an individual hover target")
 	var result_card_chip := final_build_cards.get_child(0) as Button
 	context.expect_equal(result_card_chip.get_meta("card_id"), &"heavy_rounds", "final-build hover target retains its authoritative card identity")
+	context.expect_true(result_card_chip.focus_mode == Control.FOCUS_ALL and result_card_chip.has_theme_stylebox_override(&"focus"), "final-build card details are keyboard and controller discoverable")
 	context.expect_true(result_card_chip.tooltip_text.contains("CARD STATS") and result_card_chip.tooltip_text.contains("Projectile Damage") and result_card_chip.tooltip_text.contains("×1.82 total"), "hover popup shows exact per-stack and compounded card statistics")
 	var card_preview := result_card_chip._make_custom_tooltip(result_card_chip.tooltip_text) as PanelContainer
 	context.expect_true(card_preview != null and card_preview.name == "CardPreview", "card hover builds a dedicated card-shaped preview instead of a generic text box")

@@ -2,6 +2,7 @@ extends Node
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
+const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
@@ -70,7 +71,9 @@ var player_limit_control: SpinBox
 var npc_all_difficulty_control: OptionButton
 var npcs_button: CheckButton
 var lobby_options_button: Button
+var lobby_options_blocker: ColorRect
 var lobby_options_popup: PanelContainer
+var lobby_options_focus_return: Control
 var powerups_button: CheckButton
 var powerup_interval_control: SpinBox
 var powerups_permanent_button: CheckButton
@@ -80,6 +83,8 @@ var game_mode_note: Label
 var team_count_row: HBoxContainer
 var team_count_control: SpinBox
 var ship_color_popup: PanelContainer
+var ship_color_blocker: ColorRect
+var ship_color_focus_return: Control
 var random_color_button: Button
 var ship_color_picker: ColorPicker
 var apply_ship_color_button: Button
@@ -206,6 +211,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"ui_cancel") and not (event is InputEventKey and event.echo):
+		if ship_color_popup != null and ship_color_popup.visible:
+			_hide_ship_color()
+			get_viewport().set_input_as_handled()
+			return
+		if lobby_options_popup != null and lobby_options_popup.visible:
+			_hide_lobby_options()
+			get_viewport().set_input_as_handled()
+			return
 		if settings_panel != null and settings_panel.visible:
 			_hide_settings()
 			get_viewport().set_input_as_handled()
@@ -252,9 +265,7 @@ func _is_start_input(event: InputEvent) -> bool:
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
-	interface_theme = Theme.new()
-	interface_theme.default_font_size = 20
-	_configure_interface_theme()
+	interface_theme = DesignTokensScript.create_interface_theme()
 	connection_canvas = CanvasLayer.new()
 	connection_canvas.layer = 20
 	connection_canvas.name = "ConnectionUI"
@@ -271,7 +282,7 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	connection_screen.add_child(center)
 	connection_form_panel = PanelContainer.new()
 	connection_form_panel.custom_minimum_size = Vector2(780.0, 690.0)
-	connection_form_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
+	connection_form_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.96))
 	center.add_child(connection_form_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 16)
@@ -310,17 +321,20 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	content.add_child(buttons)
 	var offline_button := Button.new()
 	offline_button.text = "Offline Combat Lab"
+	offline_button.theme_type_variation = &"PrimaryButton"
 	offline_button.custom_minimum_size.y = 54.0
 	offline_button.pressed.connect(_play_offline)
 	buttons.add_child(offline_button)
 	connection_primary_button = offline_button
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
+	settings_button.theme_type_variation = &"QuietButton"
 	settings_button.custom_minimum_size.y = 54.0
 	settings_button.pressed.connect(_show_settings.bind(false))
 	buttons.add_child(settings_button)
 	var quit_button := Button.new()
 	quit_button.text = "Quit"
+	quit_button.theme_type_variation = &"DangerButton"
 	quit_button.custom_minimum_size = Vector2(110.0, 54.0)
 	quit_button.pressed.connect(get_tree().quit)
 	buttons.add_child(quit_button)
@@ -348,6 +362,7 @@ func _create_lan_join_tab() -> void:
 	controls.add_child(hint)
 	lan_refresh_button = Button.new()
 	lan_refresh_button.text = "REFRESH"
+	lan_refresh_button.theme_type_variation = &"QuietButton"
 	lan_refresh_button.custom_minimum_size = Vector2(145.0, 42.0)
 	lan_refresh_button.pressed.connect(_refresh_lan_servers)
 	controls.add_child(lan_refresh_button)
@@ -375,6 +390,7 @@ func _create_direct_join_tab(configuration: Dictionary) -> void:
 	tab.add_child(connect_center)
 	var connect_button := Button.new()
 	connect_button.text = "CONNECT TO SERVER"
+	connect_button.theme_type_variation = &"PrimaryButton"
 	connect_button.custom_minimum_size = Vector2(280.0, 48.0)
 	connect_button.pressed.connect(_connect_online)
 	connect_center.add_child(connect_button)
@@ -392,9 +408,21 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	tab.add_child(host_center)
 	var host_button := Button.new()
 	host_button.text = "HOST & JOIN"
+	host_button.theme_type_variation = &"PrimaryButton"
 	host_button.custom_minimum_size = Vector2(280.0, 48.0)
 	host_button.pressed.connect(_host_online)
 	host_center.add_child(host_button)
+
+
+func _create_modal_blocker(blocker_name: String) -> ColorRect:
+	var blocker := ColorRect.new()
+	blocker.name = blocker_name
+	blocker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	blocker.color = Color(DesignTokensScript.BACKGROUND, 0.78)
+	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	blocker.focus_mode = Control.FOCUS_NONE
+	blocker.visible = false
+	return blocker
 
 
 func _create_lobby_panel() -> void:
@@ -403,7 +431,7 @@ func _create_lobby_panel() -> void:
 	lobby_panel.position = Vector2(-390.0, -345.0)
 	lobby_panel.custom_minimum_size = Vector2(780.0, 690.0)
 	lobby_panel.theme = interface_theme
-	lobby_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.96))
+	lobby_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.96))
 	lobby_panel.visible = false
 	connection_canvas.add_child(lobby_panel)
 	var content := VBoxContainer.new()
@@ -455,6 +483,7 @@ func _create_lobby_panel() -> void:
 	limit_row.add_child(player_limit_control)
 	npcs_button = CheckButton.new()
 	npcs_button.text = "Enable NPCs · add configurable pilots to empty seats"
+	npcs_button.theme_type_variation = &"SettingToggle"
 	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
@@ -474,6 +503,7 @@ func _create_lobby_panel() -> void:
 	npc_difficulty_row.add_child(npc_all_difficulty_control)
 	lobby_options_button = Button.new()
 	lobby_options_button.text = "MATCH OPTIONS"
+	lobby_options_button.theme_type_variation = &"SecondaryButton"
 	lobby_options_button.custom_minimum_size.y = 48.0
 	lobby_options_button.pressed.connect(_show_lobby_options)
 	content.add_child(lobby_options_button)
@@ -481,29 +511,34 @@ func _create_lobby_panel() -> void:
 	_create_ship_color_popup()
 	ready_button = CheckButton.new()
 	ready_button.text = "READY FOR LAUNCH"
+	ready_button.theme_type_variation = &"SuccessToggle"
 	ready_button.custom_minimum_size.y = 52.0
 	ready_button.toggled.connect(_on_ready_toggled)
 	content.add_child(ready_button)
 	start_button = Button.new()
 	start_button.text = "Start Match"
+	start_button.theme_type_variation = &"PrimaryButton"
 	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(bridge.send_start_match)
 	content.add_child(start_button)
 	var disconnect_button := Button.new()
 	disconnect_button.text = "Disconnect"
+	disconnect_button.theme_type_variation = &"DangerButton"
 	disconnect_button.custom_minimum_size.y = 54.0
 	disconnect_button.pressed.connect(_disconnect_online)
 	content.add_child(disconnect_button)
 
 
 func _create_lobby_options_popup() -> void:
+	lobby_options_blocker = _create_modal_blocker("LobbyOptionsBlocker")
+	connection_canvas.add_child(lobby_options_blocker)
 	lobby_options_popup = PanelContainer.new()
 	lobby_options_popup.name = "LobbyOptions"
 	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
 	lobby_options_popup.position = Vector2(-340.0, -350.0)
 	lobby_options_popup.custom_minimum_size = Vector2(680.0, 700.0)
 	lobby_options_popup.theme = interface_theme
-	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
+	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	lobby_options_popup.visible = false
 	connection_canvas.add_child(lobby_options_popup)
 	var content := VBoxContainer.new()
@@ -554,6 +589,7 @@ func _create_lobby_options_popup() -> void:
 	team_count_row.add_child(team_count_control)
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Random spawn powerups"
+	powerups_button.theme_type_variation = &"SettingToggle"
 	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears during active combat at the interval configured beside this toggle."
 	powerups_button.custom_minimum_size.y = 48.0
 	powerups_button.toggled.connect(_on_powerups_toggled)
@@ -576,6 +612,7 @@ func _create_lobby_options_popup() -> void:
 	content.add_child(powerup_row)
 	powerups_permanent_button = CheckButton.new()
 	powerups_permanent_button.text = "Powerup cards persist for the full match"
+	powerups_permanent_button.theme_type_variation = &"SettingToggle"
 	powerups_permanent_button.tooltip_text = "Off by default. When off, arena-drop cards are removed after the heat."
 	powerups_permanent_button.toggled.connect(_on_powerups_permanent_toggled)
 	content.add_child(powerups_permanent_button)
@@ -602,19 +639,22 @@ func _create_lobby_options_popup() -> void:
 	content.add_child(powerup_note)
 	var close_button := Button.new()
 	close_button.text = "DONE"
+	close_button.theme_type_variation = &"PrimaryButton"
 	close_button.custom_minimum_size.y = 48.0
-	close_button.pressed.connect(lobby_options_popup.hide)
+	close_button.pressed.connect(_hide_lobby_options)
 	content.add_child(close_button)
 
 
 func _create_ship_color_popup() -> void:
+	ship_color_blocker = _create_modal_blocker("ShipColorBlocker")
+	connection_canvas.add_child(ship_color_blocker)
 	ship_color_popup = PanelContainer.new()
 	ship_color_popup.name = "ShipColorPicker"
 	ship_color_popup.set_anchors_preset(Control.PRESET_CENTER)
 	ship_color_popup.position = Vector2(-350.0, -330.0)
 	ship_color_popup.custom_minimum_size = Vector2(700.0, 660.0)
 	ship_color_popup.theme = interface_theme
-	ship_color_popup.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.99))
+	ship_color_popup.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.99))
 	ship_color_popup.visible = false
 	connection_canvas.add_child(ship_color_popup)
 	var content := VBoxContainer.new()
@@ -645,18 +685,21 @@ func _create_ship_color_popup() -> void:
 	content.add_child(actions)
 	random_color_button = Button.new()
 	random_color_button.text = "USE RANDOM"
+	random_color_button.theme_type_variation = &"SecondaryButton"
 	random_color_button.custom_minimum_size = Vector2(180.0, 48.0)
 	random_color_button.tooltip_text = "Ask the server for a high-contrast random ship colour."
 	random_color_button.pressed.connect(_on_random_color_pressed)
 	actions.add_child(random_color_button)
 	var cancel_button := Button.new()
 	cancel_button.text = "CANCEL"
+	cancel_button.theme_type_variation = &"QuietButton"
 	cancel_button.custom_minimum_size = Vector2(160.0, 48.0)
 	cancel_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cancel_button.pressed.connect(_cancel_ship_color)
 	actions.add_child(cancel_button)
 	apply_ship_color_button = Button.new()
 	apply_ship_color_button.text = "APPLY COLOUR"
+	apply_ship_color_button.theme_type_variation = &"PrimaryButton"
 	apply_ship_color_button.custom_minimum_size = Vector2(210.0, 48.0)
 	apply_ship_color_button.pressed.connect(_apply_ship_color)
 	actions.add_child(apply_ship_color_button)
@@ -668,7 +711,7 @@ func _create_match_ui() -> void:
 	match_panel.position = Vector2(-380.0, 20.0)
 	match_panel.custom_minimum_size = Vector2(760.0, 112.0)
 	match_panel.theme = interface_theme
-	match_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.9))
+	match_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.9))
 	match_panel.visible = false
 	connection_canvas.add_child(match_panel)
 	match_label = Label.new()
@@ -712,7 +755,7 @@ func _create_match_ui() -> void:
 	draft_panel.position = Vector2(-600.0, -280.0)
 	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
 	draft_panel.theme = interface_theme
-	draft_panel.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
+	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	draft_panel.visible = false
 	connection_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
@@ -733,12 +776,16 @@ func _create_match_ui() -> void:
 		button.custom_minimum_size = Vector2(224.0, 400.0)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-		button.add_theme_font_size_override("font_size", 19)
-		button.add_theme_color_override("font_color", Color("e8f5ff"))
-		button.add_theme_color_override("font_hover_color", Color.WHITE)
+		button.add_theme_font_size_override("font_size", 1)
+		button.add_theme_color_override("font_color", Color.TRANSPARENT)
+		button.add_theme_color_override("font_hover_color", Color.TRANSPARENT)
+		button.add_theme_color_override("font_pressed_color", Color.TRANSPARENT)
+		button.add_theme_color_override("font_focus_color", Color.TRANSPARENT)
+		button.add_theme_color_override("font_disabled_color", Color.TRANSPARENT)
 		button.pressed.connect(_select_draft_card.bind(index))
 		cards.add_child(button)
 		draft_buttons.append(button)
+		_create_draft_card_content(button, index)
 		var rarity_label := Label.new()
 		rarity_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 		rarity_label.offset_left = 10.0
@@ -760,12 +807,73 @@ func _create_match_ui() -> void:
 	draft_bye_label.visible = false
 	content.add_child(draft_bye_label)
 
+
+func _create_draft_card_content(button: Button, index: int) -> void:
+	var margin := MarginContainer.new()
+	margin.name = "CardContent"
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 48)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(margin)
+	var column := VBoxContainer.new()
+	column.name = "Details"
+	column.add_theme_constant_override("separation", 7)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(column)
+	var choice_key := Label.new()
+	choice_key.name = "ChoiceKey"
+	choice_key.text = "CHOICE %d" % (index + 1)
+	choice_key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	choice_key.add_theme_font_size_override("font_size", 13)
+	choice_key.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
+	column.add_child(choice_key)
+	var card_name := Label.new()
+	card_name.name = "CardName"
+	card_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card_name.add_theme_font_size_override("font_size", 22)
+	card_name.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
+	column.add_child(card_name)
+	var category := Label.new()
+	category.name = "Category"
+	category.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	category.add_theme_font_size_override("font_size", 13)
+	column.add_child(category)
+	var rule := ColorRect.new()
+	rule.name = "Rule"
+	rule.custom_minimum_size.y = 2.0
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(rule)
+	var description := Label.new()
+	description.name = "Description"
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	description.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	description.add_theme_font_size_override("font_size", 16)
+	description.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
+	column.add_child(description)
+	var stack := Label.new()
+	stack.name = "Stack"
+	stack.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_theme_font_size_override("font_size", 15)
+	stack.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+	column.add_child(stack)
+	var state := Label.new()
+	state.name = "State"
+	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	state.add_theme_font_size_override("font_size", 14)
+	state.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
+	column.add_child(state)
+
 	scoreboard_panel = PanelContainer.new()
 	scoreboard_panel.set_anchors_preset(Control.PRESET_CENTER)
 	scoreboard_panel.position = Vector2(-550.0, -330.0)
 	scoreboard_panel.custom_minimum_size = Vector2(1100.0, 660.0)
 	scoreboard_panel.theme = interface_theme
-	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(Color("42e8ff"), 0.985))
+	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.985))
 	scoreboard_panel.visible = false
 	connection_canvas.add_child(scoreboard_panel)
 	var scoreboard_content := VBoxContainer.new()
@@ -836,7 +944,7 @@ func _create_match_ui() -> void:
 	results_panel.position = Vector2(-560.0, -340.0)
 	results_panel.custom_minimum_size = Vector2(1120.0, 680.0)
 	results_panel.theme = interface_theme
-	results_panel.add_theme_stylebox_override("panel", _panel_style(Color("fff36a"), 0.96))
+	results_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.FOCUS, 0.96))
 	results_panel.visible = true
 	win_overlay.add_child(results_panel)
 	var results_content := VBoxContainer.new()
@@ -895,6 +1003,7 @@ func _create_match_ui() -> void:
 	results_content.add_child(results_action_center)
 	results_return_button = Button.new()
 	results_return_button.text = "EXIT TO LOBBY"
+	results_return_button.theme_type_variation = &"PrimaryButton"
 	results_return_button.custom_minimum_size = Vector2(340.0, 52.0)
 	results_return_button.add_theme_font_size_override("font_size", 19)
 	results_return_button.pressed.connect(_on_results_return_pressed)
@@ -918,7 +1027,7 @@ func _create_pause_overlay() -> void:
 	pause_overlay.position = Vector2(-320.0, -220.0)
 	pause_overlay.custom_minimum_size = Vector2(640.0, 440.0)
 	pause_overlay.theme = interface_theme
-	pause_overlay.add_theme_stylebox_override("panel", _panel_style(Color("ff4fd8"), 0.98))
+	pause_overlay.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	pause_overlay.visible = false
 	connection_canvas.add_child(pause_overlay)
 	var content := VBoxContainer.new()
@@ -938,21 +1047,25 @@ func _create_pause_overlay() -> void:
 	content.add_child(note)
 	pause_resume_button = Button.new()
 	pause_resume_button.text = "Resume"
+	pause_resume_button.theme_type_variation = &"PrimaryButton"
 	pause_resume_button.custom_minimum_size.y = 58.0
 	pause_resume_button.pressed.connect(_hide_pause_overlay)
 	content.add_child(pause_resume_button)
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
+	settings_button.theme_type_variation = &"SecondaryButton"
 	settings_button.custom_minimum_size.y = 58.0
 	settings_button.pressed.connect(_show_settings.bind(true))
 	content.add_child(settings_button)
 	var disconnect_button := Button.new()
 	disconnect_button.text = "Disconnect / Return to Menu"
+	disconnect_button.theme_type_variation = &"DangerButton"
 	disconnect_button.custom_minimum_size.y = 58.0
 	disconnect_button.pressed.connect(_return_from_pause)
 	content.add_child(disconnect_button)
 	var quit_button := Button.new()
 	quit_button.text = "Quit Game"
+	quit_button.theme_type_variation = &"DangerButton"
 	quit_button.custom_minimum_size.y = 58.0
 	quit_button.pressed.connect(get_tree().quit)
 	content.add_child(quit_button)
@@ -974,7 +1087,7 @@ func _create_settings_overlay() -> void:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(920.0, 690.0)
 	panel.theme = interface_theme
-	panel.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
+	panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	center.add_child(panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 10)
@@ -998,6 +1111,7 @@ func _create_settings_overlay() -> void:
 	content.add_child(saved_note)
 	var back_button := Button.new()
 	back_button.text = "Back"
+	back_button.theme_type_variation = &"QuietButton"
 	back_button.custom_minimum_size.y = 52.0
 	back_button.pressed.connect(_hide_settings)
 	content.add_child(back_button)
@@ -1058,6 +1172,7 @@ func _create_display_audio_settings_tab() -> void:
 	_add_volume_setting(tab, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
 	var mute_button := CheckButton.new()
 	mute_button.text = "Mute all audio"
+	mute_button.theme_type_variation = &"SettingToggle"
 	mute_button.button_pressed = audio_director.muted
 	mute_button.custom_minimum_size.y = 48.0
 	mute_button.toggled.connect(audio_director.set_muted)
@@ -1141,6 +1256,7 @@ func _create_controls_settings_tab() -> void:
 	scroll.add_child(binding_rows)
 	var reset_button := Button.new()
 	reset_button.text = "Restore This Profile's Defaults"
+	reset_button.theme_type_variation = &"SecondaryButton"
 	reset_button.custom_minimum_size.y = 42.0
 	reset_button.pressed.connect(_on_restore_control_defaults)
 	tab.add_child(reset_button)
@@ -1512,7 +1628,7 @@ func _finish_splash_dismissal() -> void:
 
 
 func _focus_connection_menu() -> void:
-	if input_profiles != null and input_profiles.uses_controller() and connection_primary_button != null:
+	if connection_primary_button != null:
 		connection_primary_button.grab_focus()
 
 
@@ -1695,6 +1811,7 @@ func _add_lan_server_row(server: Dictionary) -> void:
 	identity.add_child(detail_label)
 	var join_button := Button.new()
 	join_button.text = "JOIN" if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
+	join_button.theme_type_variation = &"PrimaryButton" if compatible else &"QuietButton"
 	join_button.disabled = not compatible
 	join_button.custom_minimum_size = Vector2(140.0, 46.0)
 	join_button.pressed.connect(_join_lan_server.bind(String(server.get("address", "")), int(server.get("game_port", 0))))
@@ -1747,9 +1864,9 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	connection_form_panel.visible = true
 	lobby_panel.visible = false
 	if lobby_options_popup != null:
-		lobby_options_popup.hide()
+		_hide_lobby_options(false)
 	if ship_color_popup != null:
-		ship_color_popup.hide()
+		_hide_ship_color(false)
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_panel.visible = false
@@ -1774,8 +1891,7 @@ func _on_connected(peer_id: int) -> void:
 	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
 	bridge.send_player_color(random_ship_color, preferred_ship_color)
-	if input_profiles.uses_controller():
-		ready_button.grab_focus()
+	ready_button.grab_focus()
 
 
 func _on_lobby_state(state: Dictionary) -> void:
@@ -1787,9 +1903,9 @@ func _on_lobby_state(state: Dictionary) -> void:
 	var match_active := bool(state.get("match_active", false))
 	if match_active:
 		if lobby_options_popup != null:
-			lobby_options_popup.hide()
+			_hide_lobby_options(false)
 		if ship_color_popup != null:
-			ship_color_popup.hide()
+			_hide_ship_color(false)
 	if not match_active:
 		_set_scoreboard_open(false)
 		connection_screen.visible = true
@@ -1868,7 +1984,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	else:
 		start_button.text = "Start Match"
 	start_button.tooltip_text = team_setup_error if not team_setup_valid else "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
-	if input_profiles.uses_controller() and get_viewport().gui_get_focus_owner() == null:
+	if get_viewport().gui_get_focus_owner() == null:
 		ready_button.grab_focus()
 
 
@@ -1993,9 +2109,24 @@ func _on_team_assignment_selected(index: int, peer_id: int) -> void:
 
 func _show_lobby_options() -> void:
 	if lobby_options_popup != null and lobby_panel.visible:
+		lobby_options_focus_return = get_viewport().gui_get_focus_owner()
 		if ship_color_popup != null:
-			ship_color_popup.hide()
+			_hide_ship_color(false)
+		lobby_options_blocker.show()
+		lobby_panel.hide()
 		lobby_options_popup.show()
+		game_mode_control.grab_focus()
+
+
+func _hide_lobby_options(restore_focus: bool = true) -> void:
+	if lobby_options_popup != null:
+		lobby_options_popup.hide()
+	if lobby_options_blocker != null:
+		lobby_options_blocker.hide()
+	_restore_lobby_after_modal()
+	if restore_focus:
+		_restore_modal_focus(lobby_options_focus_return, lobby_options_button)
+	lobby_options_focus_return = null
 
 
 func _on_powerups_toggled(enabled: bool) -> void:
@@ -2006,11 +2137,37 @@ func _on_powerups_toggled(enabled: bool) -> void:
 func _show_ship_color_popup() -> void:
 	if ship_color_popup == null or not lobby_panel.visible or bool(bridge.latest_lobby_state.get("match_active", false)):
 		return
+	ship_color_focus_return = get_viewport().gui_get_focus_owner()
 	if lobby_options_popup != null:
-		lobby_options_popup.hide()
+		_hide_lobby_options(false)
 	pending_ship_color = preferred_ship_color
 	ship_color_picker.color = pending_ship_color
+	ship_color_blocker.show()
+	lobby_panel.hide()
 	ship_color_popup.show()
+	apply_ship_color_button.grab_focus()
+
+
+func _hide_ship_color(restore_focus: bool = true) -> void:
+	if ship_color_popup != null:
+		ship_color_popup.hide()
+	if ship_color_blocker != null:
+		ship_color_blocker.hide()
+	_restore_lobby_after_modal()
+	if restore_focus:
+		_restore_modal_focus(ship_color_focus_return, ready_button)
+	ship_color_focus_return = null
+
+
+func _restore_modal_focus(preferred: Control, fallback: Control) -> void:
+	var target := preferred if is_instance_valid(preferred) and preferred.is_visible_in_tree() else fallback
+	if is_instance_valid(target) and target.is_visible_in_tree() and target.focus_mode != Control.FOCUS_NONE:
+		target.call_deferred("grab_focus")
+
+
+func _restore_lobby_after_modal() -> void:
+	if lobby_panel != null and connection_screen.visible and not bool(bridge.latest_lobby_state.get("match_active", false)):
+		lobby_panel.show()
 
 
 func _on_ship_color_changed(color: Color) -> void:
@@ -2024,20 +2181,20 @@ func _apply_ship_color() -> void:
 	random_ship_color = false
 	_save_appearance_settings()
 	bridge.send_player_color(false, preferred_ship_color)
-	ship_color_popup.hide()
+	_hide_ship_color()
 
 
 func _on_random_color_pressed() -> void:
 	random_ship_color = true
 	_save_appearance_settings()
 	bridge.send_player_color(true, preferred_ship_color)
-	ship_color_popup.hide()
+	_hide_ship_color()
 
 
 func _cancel_ship_color() -> void:
 	pending_ship_color = preferred_ship_color
 	ship_color_picker.color = preferred_ship_color
-	ship_color_popup.hide()
+	_hide_ship_color()
 
 
 func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
@@ -2190,12 +2347,20 @@ func _show_draft_offer(payload: Dictionary) -> void:
 		] if card != null else String(card_ids[index])
 		if card != null:
 			var rarity_color := card.rarity_color()
+			var category_color := _draft_category_color(card.category)
+			(button.get_node("CardContent/Details/CardName") as Label).text = card.display_name.to_upper()
+			var category_label := button.get_node("CardContent/Details/Category") as Label
+			category_label.text = card.category_name().to_upper()
+			category_label.add_theme_color_override("font_color", category_color)
+			(button.get_node("CardContent/Details/Rule") as ColorRect).color = Color(rarity_color, 0.68)
+			(button.get_node("CardContent/Details/Description") as Label).text = card.description
+			(button.get_node("CardContent/Details/Stack") as Label).text = "STACKS  %d → %d" % [current_stacks, current_stacks + 1]
+			(button.get_node("CardContent/Details/State") as Label).text = ""
 			button.set_meta("rarity_color", rarity_color)
-			button.add_theme_color_override("font_color", Color("f4fbff"))
 			button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
 			button.add_theme_stylebox_override("hover", _draft_card_style(rarity_color.lightened(0.12), true))
 			button.add_theme_stylebox_override("pressed", _draft_card_style(rarity_color.lightened(0.22), true))
-			button.add_theme_stylebox_override("focus", _draft_card_style(rarity_color.lightened(0.24), true))
+			button.add_theme_stylebox_override("focus", _draft_card_focus_style(rarity_color))
 			button.add_theme_stylebox_override("disabled", _draft_card_style(rarity_color.darkened(0.25), false))
 			var rarity_label := draft_rarity_labels[index]
 			rarity_label.text = "%s  ·  %s TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance_text()]
@@ -2223,6 +2388,7 @@ func _select_draft_card(index: int) -> void:
 	for draft_button in draft_buttons:
 		draft_button.disabled = true
 	button.text += "\n\nSELECTED"
+	(button.get_node("CardContent/Details/State") as Label).text = "SELECTED  ✓"
 	var selected_color: Color = button.get_meta("rarity_color", Color("42e8ff"))
 	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
 
@@ -2333,12 +2499,10 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 
 
 func _combat_hud_status(state_name: String, seconds_left: float) -> String:
-	var header_parts := PackedStringArray([
-		state_name.replace("_", " ").to_upper(),
-		String(latest_match_payload.get("game_mode_name", GameModeRules.mode_name(int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH))))).to_upper(),
-		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
-		"R%d H%d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))],
-	])
+	var state_label := state_name.replace("_", " ").to_upper()
+	var mode_label := String(latest_match_payload.get("game_mode_name", GameModeRules.mode_name(int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH))))).to_upper()
+	var map_label := String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper()
+	var round_heat := "ROUND %d / HEAT %d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))]
 	var detail_parts := PackedStringArray()
 	if state_name == "ACTIVE_HEAT":
 		detail_parts.append("%d ALIVE" % (latest_match_payload.get("alive_peer_ids", []) as Array).size())
@@ -2350,8 +2514,13 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 			detail_parts.append("OVERTIME" if network_world.latest_server_tick >= overtime_tick else "OT %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
 	elif state_name in ["COUNTDOWN", "HEAT_RESULT", "ROUND_RESULT"]:
 		detail_parts.append("%.1fs" % seconds_left)
-	var header := " · ".join(header_parts)
-	return header if detail_parts.is_empty() else "%s\n%s" % [header, " · ".join(detail_parts)]
+	var lines := PackedStringArray([
+		"%s  ·  %s" % [state_label, mode_label],
+		"%s  ·  %s" % [map_label, round_heat],
+	])
+	if not detail_parts.is_empty():
+		lines.append("  ·  ".join(detail_parts))
+	return "\n".join(lines)
 
 
 func _mode_objective_prompt() -> String:
@@ -2410,6 +2579,15 @@ func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
 	style.content_margin_right = 12.0
 	style.content_margin_top = 12.0
 	style.content_margin_bottom = 12.0
+	return style
+
+
+func _draft_card_focus_style(rarity_color: Color) -> StyleBoxFlat:
+	var style := _draft_card_style(rarity_color, true)
+	style.border_color = DesignTokensScript.FOCUS
+	style.set_border_width_all(4)
+	style.shadow_color = Color(DesignTokensScript.FOCUS, 0.34)
+	style.shadow_size = 14
 	return style
 
 
@@ -2599,7 +2777,7 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 		var card := card_catalog.get_card(card_id)
 		var stacks := int(build[card_value])
 		var chip := CardHoverButtonScript.new()
-		chip.focus_mode = Control.FOCUS_NONE
+		chip.focus_mode = Control.FOCUS_ALL
 		chip.mouse_default_cursor_shape = Control.CURSOR_HELP
 		chip.text = "%s ×%d" % [card.display_name if card != null else String(card_id), stacks]
 		chip.set_meta("card_id", card_id)
@@ -2612,6 +2790,7 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 			chip.add_theme_color_override("font_hover_color", Color.WHITE)
 			chip.add_theme_stylebox_override("normal", _result_card_chip_style(rarity_color, false))
 			chip.add_theme_stylebox_override("hover", _result_card_chip_style(rarity_color, true))
+			chip.add_theme_stylebox_override("focus", _result_card_chip_focus_style(rarity_color))
 			chip.add_theme_stylebox_override("pressed", _result_card_chip_style(rarity_color, true))
 		build_flow.add_child(chip)
 
@@ -2745,6 +2924,15 @@ func _result_card_chip_style(color: Color, hovered: bool) -> StyleBoxFlat:
 	return style
 
 
+func _result_card_chip_focus_style(rarity_color: Color) -> StyleBoxFlat:
+	var style := _result_card_chip_style(rarity_color, true)
+	style.border_color = DesignTokensScript.FOCUS
+	style.set_border_width_all(3)
+	style.shadow_color = Color(DesignTokensScript.FOCUS, 0.26)
+	style.shadow_size = 8
+	return style
+
+
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
 	last_state_name = state_name
 	if state_name == "LOBBY":
@@ -2798,32 +2986,8 @@ func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -
 	audio_director.play_sfx(event_name, unique_key)
 
 
-func _configure_interface_theme() -> void:
-	interface_theme.set_color("font_color", "Button", Color("e8f5ff"))
-	interface_theme.set_color("font_hover_color", "Button", Color.WHITE)
-	interface_theme.set_color("font_pressed_color", "Button", Color("fff36a"))
-	interface_theme.set_stylebox("normal", "Button", _button_style(Color("42e8ff"), 0.2))
-	interface_theme.set_stylebox("hover", "Button", _button_style(Color("42e8ff"), 0.42))
-	interface_theme.set_stylebox("pressed", "Button", _button_style(Color("d39cff"), 0.5))
-	interface_theme.set_stylebox("disabled", "Button", _button_style(Color("53627d"), 0.2))
-	interface_theme.set_stylebox("normal", "LineEdit", _input_style())
-	interface_theme.set_stylebox("focus", "LineEdit", _input_style(Color("42e8ff")))
-	interface_theme.set_color("font_color", "LineEdit", Color("e8f5ff"))
-
-
 func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(Color("071024"), opacity)
-	style.border_color = Color(accent, 0.86)
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(16)
-	style.shadow_color = Color(accent, 0.16)
-	style.shadow_size = 12
-	style.content_margin_left = 20.0
-	style.content_margin_right = 20.0
-	style.content_margin_top = 18.0
-	style.content_margin_bottom = 18.0
-	return style
+	return DesignTokensScript.panel_style(accent, opacity)
 
 
 func _ship_color_swatch_style(ship_color: Color, hovered: bool) -> StyleBoxFlat:
@@ -2856,21 +3020,8 @@ func _heat_intro_style() -> StyleBoxFlat:
 	return style
 
 
-func _button_style(accent: Color, opacity: float) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(accent.darkened(0.7), 0.78)
-	style.border_color = Color(accent, opacity + 0.35)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 18.0
-	style.content_margin_right = 18.0
-	style.content_margin_top = 10.0
-	style.content_margin_bottom = 10.0
-	return style
-
-
 func _lan_server_row_style(compatible: bool) -> StyleBoxFlat:
-	var accent := Color("42e8ff") if compatible else Color("ff7994")
+	var accent := DesignTokensScript.INTERACTIVE if compatible else DesignTokensScript.DANGER
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(accent.darkened(0.82), 0.74)
 	style.border_color = Color(accent, 0.52)
@@ -2881,19 +3032,6 @@ func _lan_server_row_style(compatible: bool) -> StyleBoxFlat:
 	style.content_margin_top = 7.0
 	style.content_margin_bottom = 7.0
 	return style
-
-
-func _input_style(accent: Color = Color("53627d")) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("0d1730")
-	style.border_color = Color(accent, 0.8)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	return style
-
-
 func _on_rejected(_reason: StringName, message: String) -> void:
 	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck the server settings, then try again." % message, true)
 

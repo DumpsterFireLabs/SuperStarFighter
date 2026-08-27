@@ -39,7 +39,8 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 		context.expect_false(button.text.contains("% DROP"), "draft card %d keeps rarity out of the main body" % (index + 1))
 		var rarity_label := client.draft_rarity_labels[index] as Label
 		context.expect_true(rarity_label.visible and rarity_label.text.contains("TIER DROP"), "draft card %d renders rarity in a bottom badge" % (index + 1))
-		context.expect_true(rarity_label.get_theme_font_size("font_size") < button.get_theme_font_size("font_size"), "draft card %d rarity uses smaller print" % (index + 1))
+		var card_name_label := button.get_node("CardContent/Details/CardName") as Label
+		context.expect_true(rarity_label.get_theme_font_size("font_size") < card_name_label.get_theme_font_size("font_size"), "draft card %d rarity uses smaller print" % (index + 1))
 		context.expect_equal(button.get_meta("card_id"), card_ids[index], "draft card %d keeps its selectable card identity" % (index + 1))
 		context.expect_true(button.get_theme_stylebox("normal") is StyleBoxFlat, "draft card %d renders a category panel" % (index + 1))
 		var normal_style := button.get_theme_stylebox("normal") as StyleBoxFlat

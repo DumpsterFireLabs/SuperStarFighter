@@ -76,10 +76,10 @@ func _capture_sequence() -> void:
 	local_color_swatch.pressed.emit()
 	client.ship_color_picker.color = Color("ff4ea3")
 	await _capture(client, "lobby_color_picker")
-	client.ship_color_popup.hide()
+	client._hide_ship_color(false)
 	client._show_lobby_options()
 	await _capture(client, "lobby_options")
-	client.lobby_options_popup.hide()
+	client._hide_lobby_options(false)
 	var roster_scroll := client.lobby_roster.get_parent() as ScrollContainer
 	roster_scroll.scroll_vertical = 100000
 	await _capture(client, "lobby_npc_difficulties")

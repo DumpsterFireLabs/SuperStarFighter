@@ -1,6 +1,8 @@
 class_name CardHoverButton
 extends Button
 
+const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
+
 var card_definition: CardDefinition
 var stack_count: int = 1
 var footer_context: String = "CURRENT BUILD"
@@ -53,7 +55,7 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	title.text = card_definition.display_name.to_upper()
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	title.add_theme_font_size_override("font_size", 23)
-	title.add_theme_color_override("font_color", Color("f8fcff"))
+	title.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	title_column.add_child(title)
 	var tier := Label.new()
 	tier.text = "%s  •  %s  •  %s TIER DROP" % [
@@ -85,13 +87,13 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	description.custom_minimum_size.x = 344.0
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description.add_theme_font_size_override("font_size", 15)
-	description.add_theme_color_override("font_color", Color("d9e6f5"))
+	description.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	content.add_child(description)
 
 	var effects_heading := Label.new()
 	effects_heading.text = "STACKED CARD EFFECTS"
 	effects_heading.add_theme_font_size_override("font_size", 12)
-	effects_heading.add_theme_color_override("font_color", Color("8ba1c7"))
+	effects_heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 	content.add_child(effects_heading)
 	for effect in _effect_rows():
 		content.add_child(_effect_panel(effect, category_color))
@@ -155,14 +157,14 @@ func _effect_panel(effect: Dictionary, accent: Color) -> PanelContainer:
 	stat.text = String(effect["name"])
 	stat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stat.add_theme_font_size_override("font_size", 14)
-	stat.add_theme_color_override("font_color", Color("f0f7ff"))
+	stat.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(stat)
 	var each := Label.new()
 	each.text = String(effect["each"])
 	each.custom_minimum_size.x = 92.0
 	each.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	each.add_theme_font_size_override("font_size", 13)
-	each.add_theme_color_override("font_color", Color("aebbd4"))
+	each.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	row.add_child(each)
 	var total := Label.new()
 	total.text = String(effect["total"])
@@ -176,7 +178,7 @@ func _effect_panel(effect: Dictionary, accent: Color) -> PanelContainer:
 
 func _card_style(color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("071024f7")
+	style.bg_color = Color(DesignTokensScript.SURFACE, 0.97)
 	style.border_color = Color(color, 0.96)
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(16)

@@ -3,6 +3,7 @@ extends Node2D
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
+const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const PROJECTILE_COLLISION_ITERATIONS: int = 16
 const COLLISION_SURFACE_EPSILON: float = 0.35
 const LOCAL_CONTACT_ESCAPE_SPEED: float = 180.0
@@ -595,21 +596,22 @@ func _create_camera_and_hud() -> void:
 	hud_content.add_theme_constant_override("separation", 3)
 	hud_panel.add_child(hud_content)
 	match_status_label = Label.new()
-	match_status_label.add_theme_font_size_override("font_size", 16)
-	match_status_label.add_theme_color_override("font_color", Color("73f7ff"))
-	match_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	match_status_label.custom_minimum_size.x = 390.0
+	match_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	match_status_label.add_theme_font_size_override("font_size", 15)
+	match_status_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
 	hud_content.add_child(match_status_label)
 	resources_label = Label.new()
 	resources_label.add_theme_font_size_override("font_size", 17)
-	resources_label.add_theme_color_override("font_color", Color("e8f5ff"))
+	resources_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	hud_content.add_child(resources_label)
-	health_bar = _make_resource_bar(Color("54ff8b"))
+	health_bar = _make_resource_bar(DesignTokensScript.HEALTH)
 	hud_content.add_child(health_bar)
-	shield_bar = _make_resource_bar(Color("5cf6ff"))
+	shield_bar = _make_resource_bar(DesignTokensScript.SHIELD)
 	hud_content.add_child(shield_bar)
 	combat_status_label = Label.new()
 	combat_status_label.add_theme_font_size_override("font_size", 14)
-	combat_status_label.add_theme_color_override("font_color", Color("aebbd4"))
+	combat_status_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	hud_content.add_child(combat_status_label)
 	spectator_label = Label.new()
 	spectator_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -617,14 +619,14 @@ func _create_camera_and_hud() -> void:
 	spectator_label.custom_minimum_size = Vector2(720.0, 64.0)
 	spectator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	spectator_label.add_theme_font_size_override("font_size", 24)
-	spectator_label.add_theme_color_override("font_color", Color("fff36a"))
+	spectator_label.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
 	canvas.add_child(spectator_label)
 	diagnostics_label = Label.new()
 	diagnostics_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	diagnostics_label.position = Vector2(-620.0, -120.0)
 	diagnostics_label.custom_minimum_size = Vector2(600.0, 96.0)
 	diagnostics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	diagnostics_label.add_theme_color_override("font_color", Color("73f7ff"))
+	diagnostics_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
 	diagnostics_label.add_theme_font_size_override("font_size", 16)
 	diagnostics_label.visible = false
 	canvas.add_child(diagnostics_label)
@@ -843,13 +845,13 @@ func _make_resource_bar(color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(390.0, 12.0)
 	bar.show_percentage = false
-	bar.add_theme_stylebox_override("background", _flat_style(Color("101a36"), Color("31466c"), 1))
+	bar.add_theme_stylebox_override("background", _flat_style(DesignTokensScript.SURFACE_MUTED, Color("31466c"), 1))
 	bar.add_theme_stylebox_override("fill", _flat_style(Color(color.darkened(0.45), 0.94), color, 1))
 	return bar
 
 
 func _hud_panel_style() -> StyleBoxFlat:
-	var style := _flat_style(Color("071024", 0.9), Color("42e8ff", 0.75), 2)
+	var style := _flat_style(Color(DesignTokensScript.SURFACE, 0.9), Color(DesignTokensScript.INTERACTIVE, 0.75), 2)
 	style.content_margin_left = 12.0
 	style.content_margin_right = 12.0
 	style.content_margin_top = 9.0
