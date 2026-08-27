@@ -11,6 +11,7 @@ var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
+var _kills_since_drain: Array[Dictionary] = []
 
 const SHIP_SEPARATION_SPEED: float = 240.0
 const SHIP_OVERLAP_SOLVER_PASSES: int = 4
@@ -63,6 +64,8 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 		var frame := latest_inputs[peer_id] as PlayerInputFrame
 		var world_movement := MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle)
 		combatant.step(world_movement, frame.aim_angle, frame.shielding, delta)
+		if frame.special_activated:
+			combatant.activate_special()
 		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
@@ -83,6 +86,7 @@ func prepare_heat(
 ) -> void:
 	clear_projectiles()
 	_ram_contact_ticks.clear()
+	_kills_since_drain.clear()
 	for peer_id in _ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		if participant_stats.has(peer_id) and spawn_assignments.has(peer_id):
@@ -135,7 +139,7 @@ func apply_overtime(heat_elapsed: float, delta: float) -> Array[int]:
 				"target_id": peer_id,
 				"damage": damage,
 			})
-	var deaths := DamageResolver.resolve_tick(combatants, damage_events)
+	var deaths := _resolve_damage_events(damage_events)
 	for peer_id in deaths:
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	return deaths
@@ -155,6 +159,7 @@ func snapshot_states() -> Array[Dictionary]:
 			"ammunition": combatant.weapon.ammunition,
 			"alive": combatant.alive,
 			"shielding": combatant.shield.active,
+			"afterburner_active": combatant.afterburner_remaining > 0.0,
 		})
 	return states
 
@@ -175,6 +180,12 @@ func drain_projectile_batch() -> Dictionary:
 
 func active_projectiles() -> Array[ProjectileState]:
 	return projectile_registry.all_projectiles()
+
+
+func drain_kill_events() -> Array[Dictionary]:
+	var result := _kills_since_drain.duplicate(true)
+	_kills_since_drain.clear()
+	return result
 
 
 func _spawn_shot(combatant: CombatantState) -> void:
@@ -233,7 +244,7 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			else:
 				_remove_projectile(projectile.projectile_id)
 
-	for peer_id in DamageResolver.resolve_tick(combatants, damage_events):
+	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 
 
@@ -257,10 +268,18 @@ func _resolve_projectile_ship_hits(
 			continue
 		var impact_vector := end - target.position
 		if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
+			_apply_projectile_knockback(target, projectile, 0.2)
+			if target.stats.shield_damage_heal_fraction > 0.0:
+				target.health = minf(
+					target.health + projectile.damage * target.stats.shield_damage_heal_fraction,
+					target.stats.max_health
+				)
 			_remove_projectile(projectile.projectile_id)
 			return false
+		_apply_projectile_knockback(target, projectile, 1.0)
 		damage_events.append({
 			"projectile_id": projectile.projectile_id,
+			"attacker_id": projectile.owner_id,
 			"target_id": peer_id,
 			"damage": projectile.damage,
 		})
@@ -303,7 +322,7 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				left.velocity = left_safe.velocity
 				right.position = right_safe.position
 				right.velocity = right_safe.velocity
-	return DamageResolver.resolve_tick(combatants, ram_damage_events)
+	return _resolve_damage_events(ram_damage_events)
 
 
 func _separate_ship_pair(
@@ -367,9 +386,28 @@ func _append_ram_damage(
 	var speed_scale := clampf(impact_speed / RAM_REFERENCE_SPEED, 0.5, 2.0)
 	damage_events.append({
 		"projectile_id": 3_000_000_000 + attacker.peer_id,
+		"attacker_id": attacker.peer_id,
 		"target_id": target.peer_id,
 		"damage": attacker.stats.shield_ram_damage * speed_scale,
 	})
+
+
+func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
+	if projectile.knockback <= 0.0 or projectile.velocity.is_zero_approx():
+		return
+	target.velocity += projectile.velocity.normalized() * projectile.knockback * maxf(factor, 0.0)
+	target.velocity = target.velocity.limit_length(maxf(target.stats.max_speed * 2.5, 1.0))
+
+
+func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
+	var deaths: Array[int] = []
+	for death in DamageResolver.resolve_tick_with_attribution(combatants, damage_events):
+		var target_id := int(death.target_id)
+		var killer_id := int(death.killer_id)
+		deaths.append(target_id)
+		if killer_id != 0 and killer_id != target_id and combatants.has(killer_id):
+			_kills_since_drain.append({"killer_id": killer_id, "target_id": target_id})
+	return deaths
 
 
 func _remove_projectile(projectile_id: int) -> void:

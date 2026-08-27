@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"repulsor_payload"
+display_name = "Repulsor Payload"
+description = "Projectile hits add +320 knockback while projectile speed is multiplied by 0.90 per stack. Shields retain only 20% of the push."
+category = 2
+rarity = 3
+additive_modifiers = {"projectile_knockback": 320.0}
+multiplicative_modifiers = {"projectile_speed": 0.9}

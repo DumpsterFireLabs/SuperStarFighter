@@ -146,7 +146,13 @@ func submit_inputs(
 		var shielding := not escaping_close_contact and distance < float(profile.shield_range) and shield_phase < float(profile.shield_duty)
 		var fire_phase := float(posmod(world.server_tick + peer_id * 3, 120)) / 120.0
 		var firing := not escaping_close_contact and has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
-		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding)
+		var special := (
+			combatant.stats.afterburner_enabled
+			and combatant.afterburner_cooldown_remaining <= 0.0
+			and has_line_of_sight
+			and distance > float(profile.preferred_max) * 1.35
+		)
+		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special)
 
 
 static func is_valid_difficulty(difficulty: int) -> bool:
@@ -235,10 +241,10 @@ static func overtime_steering(position: Vector2, heat_elapsed: float, map_id: St
 	return (desired_position - position).normalized() * urgency
 
 
-func _submit_decision(world: AuthoritativeWorld, peer_id: int, movement: Vector2, aim_angle: float, firing: bool, shielding: bool) -> void:
+func _submit_decision(world: AuthoritativeWorld, peer_id: int, movement: Vector2, aim_angle: float, firing: bool, shielding: bool, special: bool = false) -> void:
 	var sequence := SequenceMath.increment(int(_sequences.get(peer_id, world.acknowledged_inputs.get(peer_id, 0))))
 	_sequences[peer_id] = sequence
-	world.submit_input(peer_id, PlayerInputFrame.new(sequence, world.server_tick, movement, aim_angle, firing, shielding))
+	world.submit_input(peer_id, PlayerInputFrame.new(sequence, world.server_tick, movement, aim_angle, firing, shielding, false, special))
 
 
 static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> Vector2:

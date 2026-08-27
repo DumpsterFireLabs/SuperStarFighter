@@ -7,6 +7,7 @@ var shot_sequence: int = 0
 var position: Vector2 = Vector2.ZERO
 var velocity: Vector2 = Vector2.ZERO
 var damage: float = 0.0
+var knockback: float = 0.0
 var radius: float = GameConstants.PROJECTILE_RADIUS
 var lifetime_remaining: float = GameConstants.PROJECTILE_LIFETIME_SECONDS
 var remaining_pierces: int = 0
@@ -31,6 +32,7 @@ static func create(
 	projectile.is_beam = stats.beam_weapon
 	projectile.velocity = Vector2.from_angle(angle) * (4000.0 if projectile.is_beam else stats.projectile_speed)
 	projectile.damage = stats.projectile_damage
+	projectile.knockback = stats.projectile_knockback
 	projectile.lifetime_remaining = stats.projectile_lifetime
 	if projectile.is_beam:
 		projectile.radius = 7.0

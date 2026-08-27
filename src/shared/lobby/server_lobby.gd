@@ -9,6 +9,7 @@ var match_active: bool = false
 var server_capacity: int = GameConstants.DEFAULT_MAX_PLAYERS
 var player_limit: int = GameConstants.DEFAULT_MAX_PLAYERS
 var npcs_enabled: bool = false
+var default_npc_difficulty: int = NpcPilotController.Difficulty.NEUTRAL
 var _next_join_sequence: int = 1
 var _next_npc_serial: int = 1
 
@@ -133,6 +134,25 @@ func request_npc_difficulty(sender_id: int, npc_peer_id: int, difficulty: int) -
 	return {"ok": true, "changed": true}
 
 
+func request_all_npc_difficulty(sender_id: int, difficulty: int) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if not NpcPilotController.is_valid_difficulty(difficulty):
+		return {"ok": false, "error": "NPC difficulty is outside the supported range."}
+	var changed := default_npc_difficulty != difficulty
+	default_npc_difficulty = difficulty
+	for peer_id in npc_peer_ids():
+		var npc := players[peer_id] as PlayerMatchState
+		if npc.npc_difficulty != difficulty:
+			npc.npc_difficulty = difficulty
+			changed = true
+	if changed:
+		_clear_human_ready()
+		_revision_changed()
+	return {"ok": true, "changed": changed}
+
+
 func request_random_spawn_powerups(sender_id: int, enabled: bool) -> Dictionary:
 	var authority_error := _settings_authority_error(sender_id)
 	if not authority_error.is_empty():
@@ -140,6 +160,46 @@ func request_random_spawn_powerups(sender_id: int, enabled: bool) -> Dictionary:
 	if config.random_spawn_powerups == enabled:
 		return {"ok": true, "changed": false}
 	config.random_spawn_powerups = enabled
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_random_powerup_interval(sender_id: int, seconds: float) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if not is_finite(seconds) or seconds < 5.0 or seconds > 90.0:
+		return {"ok": false, "error": "Random powerup interval must be from 5 through 90 seconds."}
+	if is_equal_approx(config.random_powerup_interval_seconds, seconds):
+		return {"ok": true, "changed": false}
+	config.random_powerup_interval_seconds = seconds
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_random_powerups_permanent(sender_id: int, permanent: bool) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if config.random_powerups_permanent == permanent:
+		return {"ok": true, "changed": false}
+	config.random_powerups_permanent = permanent
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_overtime_start(sender_id: int, seconds: float) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if not is_finite(seconds) or seconds < 30.0 or seconds > 120.0:
+		return {"ok": false, "error": "Overtime must begin from 30 through 120 seconds."}
+	if is_equal_approx(config.overtime_start_seconds, seconds):
+		return {"ok": true, "changed": false}
+	config.overtime_start_seconds = seconds
 	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true, "changed": true}
@@ -324,7 +384,11 @@ func serialize() -> Dictionary:
 		"player_limit": player_limit,
 		"server_capacity": server_capacity,
 		"npcs_enabled": npcs_enabled,
+		"default_npc_difficulty": default_npc_difficulty,
 		"random_spawn_powerups": config.random_spawn_powerups,
+		"random_powerup_interval_seconds": config.random_powerup_interval_seconds,
+		"random_powerups_permanent": config.random_powerups_permanent,
+		"overtime_start_seconds": config.overtime_start_seconds,
 		"npc_count": npc_count(),
 		"ready_human_count": ready_human_count(),
 		"all_humans_ready": all_humans_ready(),
@@ -391,6 +455,7 @@ func _fill_npc_seats() -> Array[PlayerMatchState]:
 		_next_npc_serial += 1
 		_next_join_sequence += 1
 		npc.is_npc = true
+		npc.npc_difficulty = default_npc_difficulty
 		npc.ship_color = _random_ship_color(peer_id, npc.join_sequence)
 		npc.participant = true
 		npc.spectator = false

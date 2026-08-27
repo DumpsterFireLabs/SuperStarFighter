@@ -63,10 +63,14 @@ var lobby_roster: VBoxContainer
 var ready_button: CheckButton
 var rounds_control: SpinBox
 var player_limit_control: SpinBox
+var npc_all_difficulty_control: OptionButton
 var npcs_button: CheckButton
 var lobby_options_button: Button
 var lobby_options_popup: PanelContainer
 var powerups_button: CheckButton
+var powerup_interval_control: SpinBox
+var powerups_permanent_button: CheckButton
+var overtime_start_control: SpinBox
 var ship_color_popup: PanelContainer
 var random_color_button: Button
 var ship_color_picker: ColorPicker
@@ -445,6 +449,20 @@ func _create_lobby_panel() -> void:
 	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
 	content.add_child(npcs_button)
+	var npc_difficulty_row := HBoxContainer.new()
+	npc_difficulty_row.add_theme_constant_override("separation", 14)
+	content.add_child(npc_difficulty_row)
+	var npc_difficulty_label := Label.new()
+	npc_difficulty_label.text = "Set all NPC difficulties"
+	npc_difficulty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	npc_difficulty_row.add_child(npc_difficulty_label)
+	npc_all_difficulty_control = OptionButton.new()
+	npc_all_difficulty_control.custom_minimum_size = Vector2(190.0, 42.0)
+	for difficulty in NpcPilotController.DIFFICULTY_NAMES.size():
+		npc_all_difficulty_control.add_item(NpcPilotController.difficulty_name(difficulty), difficulty)
+	npc_all_difficulty_control.select(NpcPilotController.Difficulty.NEUTRAL)
+	npc_all_difficulty_control.item_selected.connect(_on_all_npc_difficulty_selected)
+	npc_difficulty_row.add_child(npc_all_difficulty_control)
 	lobby_options_button = Button.new()
 	lobby_options_button.text = "MATCH OPTIONS"
 	lobby_options_button.custom_minimum_size.y = 48.0
@@ -473,8 +491,8 @@ func _create_lobby_options_popup() -> void:
 	lobby_options_popup = PanelContainer.new()
 	lobby_options_popup.name = "LobbyOptions"
 	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_options_popup.position = Vector2(-340.0, -170.0)
-	lobby_options_popup.custom_minimum_size = Vector2(680.0, 340.0)
+	lobby_options_popup.position = Vector2(-340.0, -285.0)
+	lobby_options_popup.custom_minimum_size = Vector2(680.0, 570.0)
 	lobby_options_popup.theme = interface_theme
 	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
 	lobby_options_popup.visible = false
@@ -490,12 +508,49 @@ func _create_lobby_options_popup() -> void:
 	content.add_child(title)
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Random spawn powerups"
-	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears every 20 seconds during active combat."
+	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears during active combat at the interval configured beside this toggle."
 	powerups_button.custom_minimum_size.y = 48.0
 	powerups_button.toggled.connect(_on_powerups_toggled)
-	content.add_child(powerups_button)
+	var powerup_row := HBoxContainer.new()
+	powerup_row.add_theme_constant_override("separation", 14)
+	powerup_row.add_child(powerups_button)
+	powerups_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var interval_label := Label.new()
+	interval_label.text = "Every"
+	powerup_row.add_child(interval_label)
+	powerup_interval_control = SpinBox.new()
+	powerup_interval_control.min_value = 5.0
+	powerup_interval_control.max_value = 90.0
+	powerup_interval_control.step = 1.0
+	powerup_interval_control.value = 20.0
+	powerup_interval_control.suffix = " sec"
+	powerup_interval_control.custom_minimum_size = Vector2(130.0, 44.0)
+	powerup_interval_control.value_changed.connect(_on_powerup_interval_changed)
+	powerup_row.add_child(powerup_interval_control)
+	content.add_child(powerup_row)
+	powerups_permanent_button = CheckButton.new()
+	powerups_permanent_button.text = "Powerup cards persist for the full match"
+	powerups_permanent_button.tooltip_text = "Off by default. When off, arena-drop cards are removed after the heat."
+	powerups_permanent_button.toggled.connect(_on_powerups_permanent_toggled)
+	content.add_child(powerups_permanent_button)
+	var overtime_row := HBoxContainer.new()
+	overtime_row.add_theme_constant_override("separation", 14)
+	content.add_child(overtime_row)
+	var overtime_label := Label.new()
+	overtime_label.text = "Overtime begins"
+	overtime_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	overtime_row.add_child(overtime_label)
+	overtime_start_control = SpinBox.new()
+	overtime_start_control.min_value = 30.0
+	overtime_start_control.max_value = 120.0
+	overtime_start_control.step = 1.0
+	overtime_start_control.value = 90.0
+	overtime_start_control.suffix = " sec"
+	overtime_start_control.custom_minimum_size = Vector2(150.0, 44.0)
+	overtime_start_control.value_changed.connect(_on_overtime_start_changed)
+	overtime_row.add_child(overtime_start_control)
 	var powerup_note := Label.new()
-	powerup_note.text = "When enabled, a Rare-or-better card spawns at a safe random map position every 20 seconds. Fly over it to add it to your build immediately."
+	powerup_note.text = "Rare-or-better drops appear at safe map positions. Temporary drops leave your inventory after each heat unless permanence is enabled."
 	powerup_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	powerup_note.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(powerup_note)
@@ -699,6 +754,7 @@ func _create_match_ui() -> void:
 	_add_results_column_heading(scoreboard_heading, "RANK / PILOT", 300.0)
 	_add_results_column_heading(scoreboard_heading, "HEATS", 90.0)
 	_add_results_column_heading(scoreboard_heading, "ROUNDS", 100.0)
+	_add_results_column_heading(scoreboard_heading, "KILLS", 80.0)
 	_add_results_column_heading(scoreboard_heading, "CURRENT BUILD", 0.0, true)
 	var scoreboard_scroll := ScrollContainer.new()
 	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 400.0)
@@ -778,6 +834,7 @@ func _create_match_ui() -> void:
 	_add_results_column_heading(standings_heading, "RANK", 72.0)
 	_add_results_column_heading(standings_heading, "PILOT", 230.0)
 	_add_results_column_heading(standings_heading, "ROUNDS WON", 150.0)
+	_add_results_column_heading(standings_heading, "KILLS", 100.0)
 	_add_results_column_heading(standings_heading, "FINAL BUILD", 0.0, true)
 	var results_scroll := ScrollContainer.new()
 	results_scroll.custom_minimum_size = Vector2(1060.0, 300.0)
@@ -1698,7 +1755,11 @@ func _on_lobby_state(state: Dictionary) -> void:
 	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
 	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
 	npcs_button.button_pressed = bool(state.get("npcs_enabled", false))
+	npc_all_difficulty_control.select(clampi(int(state.get("default_npc_difficulty", NpcPilotController.Difficulty.NEUTRAL)), NpcPilotController.Difficulty.PASSIVE, NpcPilotController.Difficulty.INSANE))
 	powerups_button.button_pressed = bool(state.get("random_spawn_powerups", false))
+	powerup_interval_control.value = float(state.get("random_powerup_interval_seconds", 20.0))
+	powerups_permanent_button.button_pressed = bool(state.get("random_powerups_permanent", false))
+	overtime_start_control.value = float(state.get("overtime_start_seconds", GameConstants.OVERTIME_START_SECONDS))
 	ready_button.button_pressed = local_ready
 	for player_value in state.get("players", []):
 		var player := player_value as Dictionary
@@ -1715,7 +1776,11 @@ func _on_lobby_state(state: Dictionary) -> void:
 	rounds_control.editable = settings_editable
 	player_limit_control.editable = settings_editable
 	npcs_button.disabled = not settings_editable
+	npc_all_difficulty_control.disabled = not settings_editable or not bool(state.get("npcs_enabled", false))
 	powerups_button.disabled = not settings_editable
+	powerup_interval_control.editable = settings_editable and bool(state.get("random_spawn_powerups", false))
+	powerups_permanent_button.disabled = not settings_editable or not bool(state.get("random_spawn_powerups", false))
+	overtime_start_control.editable = settings_editable
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
 	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false))
 	var human_count := total_count - npc_count
@@ -1866,6 +1931,26 @@ func _cancel_ship_color() -> void:
 
 func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
 	bridge.send_npc_difficulty(npc_peer_id, index)
+
+
+func _on_all_npc_difficulty_selected(index: int) -> void:
+	if not _applying_lobby_state:
+		bridge.send_all_npc_difficulty(index)
+
+
+func _on_powerup_interval_changed(value: float) -> void:
+	if not _applying_lobby_state:
+		bridge.send_random_powerup_interval(value)
+
+
+func _on_powerups_permanent_toggled(permanent: bool) -> void:
+	if not _applying_lobby_state:
+		bridge.send_random_powerups_permanent(permanent)
+
+
+func _on_overtime_start_changed(value: float) -> void:
+	if not _applying_lobby_state:
+		bridge.send_overtime_start(value)
 
 
 func _on_ready_toggled(ready: bool) -> void:
@@ -2242,6 +2327,13 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rounds_label.add_theme_color_override("font_color", Color("ff8ee8"))
 	row.add_child(rounds_label)
+	var kills_label := Label.new()
+	kills_label.name = "MatchKills"
+	kills_label.text = str(score.get("kills", 0))
+	kills_label.custom_minimum_size.x = 80.0
+	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kills_label.add_theme_color_override("font_color", Color("fff36a"))
+	row.add_child(kills_label)
 	_add_result_build(row, peer_id, "ScoreboardBuildCards")
 
 
@@ -2397,6 +2489,8 @@ func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: Stri
 		stat_lines.append("Weapon Form  Pulse beam")
 	elif card.special_behavior_id == &"auto_repair":
 		stat_lines.append("Special  Automatic hull repair")
+	elif card.special_behavior_id == &"afterburner":
+		stat_lines.append("Special  Forward burst on Special binding")
 	if stat_lines.is_empty():
 		stat_lines.append("Special behavior described above")
 	lines.append_array(stat_lines)
@@ -2442,6 +2536,14 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	score_label.add_theme_font_size_override("font_size", 16)
 	score_label.add_theme_color_override("font_color", Color("73f7ff"))
 	row.add_child(score_label)
+	var kills_label := Label.new()
+	kills_label.name = "MatchKills"
+	kills_label.text = str(int(score.get("kills", 0)))
+	kills_label.custom_minimum_size.x = 100.0
+	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kills_label.add_theme_font_size_override("font_size", 16)
+	kills_label.add_theme_color_override("font_color", Color("fff36a"))
+	row.add_child(kills_label)
 	_add_result_build(row, peer_id)
 
 

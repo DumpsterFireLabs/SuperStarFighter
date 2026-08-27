@@ -33,6 +33,8 @@ static func encode(server_tick: int, acknowledged_input: int, states: Array[Dict
 			flags |= 1
 		if bool(state.get("shielding", false)):
 			flags |= 2
+		if bool(state.get("afterburner_active", false)):
+			flags |= 4
 		ByteCodec.append_u8(bytes, flags)
 	return bytes
 
@@ -52,7 +54,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	var offset := HEADER_SIZE
 	for index in count:
 		var flags := ByteCodec.read_u8(bytes, offset + 19)
-		if flags & ~3:
+		if flags & ~7:
 			return _error("Player snapshot contains unsupported state flags.")
 		states.append({
 			"peer_id": ByteCodec.read_u32(bytes, offset),
@@ -64,6 +66,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 			"ammunition": ByteCodec.read_u8(bytes, offset + 18),
 			"alive": bool(flags & 1),
 			"shielding": bool(flags & 2),
+			"afterburner_active": bool(flags & 4),
 		})
 		offset += PLAYER_RECORD_SIZE
 	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states}

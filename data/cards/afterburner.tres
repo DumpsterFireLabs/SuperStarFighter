@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"afterburner"
+display_name = "Afterburner"
+description = "Press your Special binding (Shift by default) for a short forward burst. Each stack reduces cooldown by 12%."
+category = 0
+rarity = 2
+multiplicative_modifiers = {"afterburner_cooldown": 0.88}
+special_behavior_id = &"afterburner"

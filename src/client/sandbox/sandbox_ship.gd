@@ -11,6 +11,7 @@ var shield_flash_remaining: float = 0.0
 var elimination_pulse_remaining: float = 0.0
 var thruster_particles: CPUParticles2D
 var thruster_intensity: float = 0.0
+var afterburner_bloom_remaining: float = 0.0
 
 
 func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Color, is_local: bool = false, pilot_name: String = "") -> void:
@@ -37,6 +38,7 @@ func _process(delta: float) -> void:
 	damage_flash_remaining = maxf(damage_flash_remaining - delta, 0.0)
 	shield_flash_remaining = maxf(shield_flash_remaining - delta, 0.0)
 	elimination_pulse_remaining = maxf(elimination_pulse_remaining - delta, 0.0)
+	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining - delta, 0.0)
 	_update_thruster_particles()
 	if damage_flash_remaining > 0.0 or shield_flash_remaining > 0.0 or elimination_pulse_remaining > 0.0:
 		queue_redraw()
@@ -70,12 +72,18 @@ func flash_shield_block() -> void:
 	queue_redraw()
 
 
+func flash_afterburner(duration: float = 0.18) -> void:
+	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining, duration)
+	queue_redraw()
+
+
 func reset_ship(stats: CombatStats, spawn_position: Vector2) -> void:
 	combatant.reset_for_heat(stats, spawn_position)
 	global_position = spawn_position
 	damage_flash_remaining = 0.0
 	shield_flash_remaining = 0.0
 	elimination_pulse_remaining = 0.0
+	afterburner_bloom_remaining = 0.0
 	collision_layer = 2
 	collision_mask = 3
 	if thruster_particles != null:
@@ -122,9 +130,12 @@ func _update_thruster_particles() -> void:
 		thruster_particles.emitting = false
 		return
 	var travel_direction := combatant.velocity / speed
+	var afterburning := afterburner_bloom_remaining > 0.0
 	thruster_particles.position = -travel_direction * 18.0
 	thruster_particles.rotation = travel_direction.angle()
-	thruster_particles.speed_scale = lerpf(0.7, 1.35, thruster_intensity)
+	thruster_particles.amount = 24 if afterburning else 10
+	thruster_particles.scale_amount_max = 6.2 if afterburning else 3.2
+	thruster_particles.speed_scale = (2.0 if afterburning else lerpf(0.7, 1.35, thruster_intensity))
 	thruster_particles.emitting = true
 
 
@@ -146,7 +157,8 @@ func _draw() -> void:
 	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 else ship_color, 6.0 if local_control else 4.0)
 	draw_circle(Vector2.ZERO, 6.0, Color("ffffff"))
 	var exhaust_origin := -forward * 19.0
-	draw_line(exhaust_origin + side * 7.0, exhaust_origin - forward * (12.0 + combatant.velocity.length() * 0.015), Color(ship_color, 0.7), 4.0)
+	var afterburner_bloom := 30.0 if afterburner_bloom_remaining > 0.0 else 0.0
+	draw_line(exhaust_origin + side * 7.0, exhaust_origin - forward * (12.0 + combatant.velocity.length() * 0.015 + afterburner_bloom), Color.WHITE if afterburner_bloom > 0.0 else Color(ship_color, 0.7), 8.0 if afterburner_bloom > 0.0 else 4.0)
 	for mark in identity_pattern + 1:
 		var offset := (float(mark) - identity_pattern * 0.5) * 8.0
 		draw_line(-forward * 8.0 + side * offset, -forward * 16.0 + side * offset, Color.WHITE, 2.5)

@@ -3,6 +3,7 @@ extends Node2D
 
 var overtime_visible: bool = false
 var overtime_radius: float = OvertimeSystem.initial_radius()
+var show_spawn_anchors: bool = false
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var obstacle_root: Node2D
 
@@ -42,8 +43,9 @@ func _draw() -> void:
 	for circle in ArenaLayout.circle_obstacles(map_id):
 		draw_circle(circle.center, float(circle.radius), palette.obstacle)
 		draw_arc(circle.center, float(circle.radius), 0.0, TAU, 64, palette.line, 6.0)
-	for anchor in ArenaLayout.spawn_anchors(map_id):
-		draw_circle(anchor, 5.0, Color(0.2, 0.85, 1.0, 0.35))
+	if show_spawn_anchors:
+		for anchor in ArenaLayout.spawn_anchors(map_id):
+			draw_circle(anchor, 5.0, Color(0.2, 0.85, 1.0, 0.35))
 	draw_string(ThemeDB.fallback_font, Vector2(70.0, 92.0), ArenaLayout.display_name(map_id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 30, Color(palette.border, 0.34))
 	if overtime_visible:
 		var pulse := 0.72 + sin(Time.get_ticks_msec() * 0.008) * 0.2

@@ -46,6 +46,8 @@ var presentation_states: Dictionary = {}
 var camera_shake_remaining: float = 0.0
 var camera_shake_intensity: float = 0.0
 var diagnostics_visible: bool = false
+var special_activation_sends_remaining: int = 0
+var local_special_cooldown_remaining: float = 0.0
 
 
 func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
@@ -109,6 +111,8 @@ func reset_session() -> void:
 	presentation_states.clear()
 	camera_shake_remaining = 0.0
 	camera_shake_intensity = 0.0
+	special_activation_sends_remaining = 0
+	local_special_cooldown_remaining = 0.0
 	prediction = ClientPredictionBuffer.new()
 	interpolation = RemoteInterpolator.new()
 	predicted_tracker = PredictedProjectileTracker.new()
@@ -141,6 +145,7 @@ func _physics_process(delta: float) -> void:
 		return
 	client_tick = SequenceMath.increment(client_tick)
 	input_send_accumulator += delta
+	local_special_cooldown_remaining = maxf(local_special_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	var local_ship := ships[local_peer_id] as SandboxShip
 	var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else _unshaken_mouse_world_position() - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
@@ -150,6 +155,19 @@ func _physics_process(delta: float) -> void:
 	var local_alive := local_ship.combatant.alive
 	if not controls_enabled or input_blocked:
 		local_movement = Vector2.ZERO
+	var special_just_pressed := (
+		controls_enabled
+		and not input_blocked
+		and local_alive
+		and local_stats.afterburner_enabled
+		and local_special_cooldown_remaining <= 0.0
+		and Input.is_action_just_pressed("special")
+	)
+	if special_just_pressed:
+		special_activation_sends_remaining = 3
+		local_special_cooldown_remaining = local_stats.afterburner_cooldown
+	elif not controls_enabled or input_blocked or not local_alive:
+		special_activation_sends_remaining = 0
 	var frame := PlayerInputFrame.new(
 		input_sequence,
 		client_tick,
@@ -157,7 +175,8 @@ func _physics_process(delta: float) -> void:
 		aim_angle,
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("fire"),
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield"),
-		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload")
+		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
+		special_activation_sends_remaining > 0
 	)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
@@ -165,8 +184,14 @@ func _physics_process(delta: float) -> void:
 		input_sequence = SequenceMath.increment(input_sequence)
 		frame.sequence = input_sequence
 		bridge.send_input(frame)
+		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and controls_enabled:
 		prediction.predict(frame, local_stats, delta)
+		if special_just_pressed and local_stats.afterburner_enabled:
+			prediction.predicted_velocity = (
+				prediction.predicted_velocity + Vector2.from_angle(aim_angle) * local_stats.afterburner_impulse
+			).limit_length(local_stats.max_speed * local_stats.afterburner_speed_multiplier)
+			local_ship.flash_afterburner(local_stats.afterburner_duration)
 		local_ship.global_position = prediction.visual_position(delta)
 		local_ship.combatant.position = local_ship.global_position
 		local_ship.combatant.velocity = prediction.predicted_velocity
@@ -206,6 +231,7 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		var peer_id := int(state.peer_id)
 		present_ids[peer_id] = true
 		var ship := _ensure_ship(peer_id, state)
+		ship.visible = String(match_payload.get("state_name", "")) != "DRAFT"
 		_handle_snapshot_feedback(peer_id, state, ship)
 		_apply_snapshot_resources(ship, state)
 		if peer_id == local_peer_id:
@@ -236,6 +262,8 @@ func apply_match_state(payload: Dictionary) -> void:
 		arena.set_map_id(payload_map_id)
 	var state_name := String(payload.get("state_name", ""))
 	controls_enabled = state_name == "ACTIVE_HEAT"
+	for ship_value in ships.values():
+		(ship_value as SandboxShip).visible = state_name != "DRAFT"
 	if hud_panel != null:
 		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
 	apply_builds(payload.get("builds", {}) as Dictionary)
@@ -366,6 +394,9 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	ship.combatant.health = state.health
 	ship.combatant.shield.energy = state.shield
 	ship.combatant.shield.active = state.shielding
+	ship.combatant.afterburner_remaining = 0.1 if bool(state.get("afterburner_active", false)) else 0.0
+	if bool(state.get("afterburner_active", false)):
+		ship.flash_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
 	ship.combatant.alive = state.alive
 	if not state.alive:
@@ -509,6 +540,9 @@ func _update_diagnostics() -> void:
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
 		var reload_hint: String = input_profiles.binding_text(&"manual_reload") if input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
+		if local_stats.afterburner_enabled:
+			var special_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
+			combat_status += "   ·   %s Afterburner" % special_hint
 		if not local_ship.combatant.alive:
 			resources = "SHIP ELIMINATED"
 			var previous_hint: String = input_profiles.binding_text(&"spectator_previous") if input_profiles != null else "A"

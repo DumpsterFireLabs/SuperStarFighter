@@ -32,8 +32,8 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.2 |
-| Protocol version | 9 |
-| Automated suite | 1,769 assertions |
+| Protocol version | 10 |
+| Automated suite | 1,853 assertions |
 | Project gate | 81 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
@@ -176,7 +176,7 @@ Cards are data resources in `data/cards/`. `CardDefinition` supports:
 - Additive float modifiers.
 - Multiplicative modifiers.
 - Integer modifiers.
-- Optional `auto_repair` or `beam_weapon` special behavior.
+- Optional `auto_repair`, `beam_weapon`, or active `afterburner` special behavior.
 
 Example:
 
@@ -304,7 +304,7 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,769 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | 1,853 deterministic assertions | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 81 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |

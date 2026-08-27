@@ -189,6 +189,8 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 - Sets the **Player limit** from 2 through server capacity, never above 32 or below the number of connected humans.
 - Enables or disables NPC fill.
 - Enables **Random Spawn Powerups** when desired. It is off by default.
+- Sets random drops from 5 through 90 seconds, chooses whether collected drops expire after the heat or persist through the match, and sets overtime from 30 through 120 seconds.
+- Uses the bulk NPC difficulty dropdown to update every NPC together when desired.
 - Selects each NPC's difficulty.
 - Ejects other waiting human players.
 - Starts the match once the launch conditions are satisfied.
@@ -208,11 +210,11 @@ Changing a match option clears human readiness. Changing your own ship colour cl
 
 ### Random Spawn Powerups
 
-When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 20 seconds of active combat. Fly over its glowing rarity-coloured marker to collect it. The card is added immediately to that pilot's inventory and its stats take effect without waiting for another draft. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
+When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 5–90 seconds of active combat (20 seconds by default). Fly over its glowing rarity-coloured marker to collect it. The card is added immediately and its stats take effect without waiting for another draft. By default the stack expires when the heat ends; the leader may instead make arena drops permanent until the match ends. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
 
 ### NPC fill
 
-Enabling NPCs fills all open configured seats immediately. Each waiting NPC appears in the roster and can be configured before launch. If a human joins a full waiting lobby, that human replaces one NPC rather than being rejected. Disabling NPCs removes all waiting NPCs.
+Enabling NPCs fills all open configured seats immediately. Each waiting NPC appears in the roster and can be configured before launch. The leader may set every NPC together with the bulk dropdown, then override individual rows as needed. If a human joins a full waiting lobby, that human replaces one NPC rather than being rejected. Disabling NPCs removes all waiting NPCs.
 
 NPC difficulty changes behavior, not stats:
 
@@ -305,7 +307,9 @@ The base weapon deals 25 damage, fires four shots per second, holds eight rounds
 
 When the magazine empties, reload begins automatically. Press the configured manual-reload action (`R` or X / Square by default) to reload a partially used magazine. Firing is disabled during reload and while shielding.
 
-Cards can alter damage, cadence, magazine size, reload, projectile count, spread, speed, lifetime, pierces, and ricochets. Beam cards transform shots into fast, short-lived pulse beams while retaining authoritative collision and damage.
+Cards can alter damage, cadence, magazine size, reload, projectile count, spread, speed, lifetime, pierces, ricochets, and knockback. Concussion Rounds and Repulsor Payload push struck ships; a shield block retains only 20% of that push. Beam cards transform shots into fast, short-lived pulse beams while retaining authoritative collision and damage.
+
+Afterburner is an active Ship card. Press the configured Special action (`Shift` or Left Stick Click by default) for a short forward speed and acceleration burst. It has an authoritative cooldown, works for human and NPC pilots, and produces a larger exhaust bloom while active.
 
 ### 7.3 Directional shields
 
@@ -317,7 +321,9 @@ After shield activity, regeneration waits 1.25 seconds, then restores 30 energy 
 
 Shielding prevents firing and normally reduces acceleration, so timing matters: turn the arc into danger, absorb the burst, then release to shoot and recover maneuverability.
 
-Ordinary collisions remain harmless. A melee card enables shield ramming: hit an enemy inside your forward shield arc while shielding and moving fast enough. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Kinetic Prow begins the archetype at Rare; Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow progressively add damage, durability, speed access, and faster repeat impacts through Unobtanium.
+Ordinary collisions remain harmless. A melee card enables shield ramming: hit an enemy inside your forward shield arc while shielding and moving fast enough. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Ramming Shields is the direct serious-damage option; Kinetic Prow, Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow provide further damage, durability, speed access, and faster repeat impacts.
+
+Nosferatu Shield restores hull equal to a percentage of the incoming projectile damage whenever the shield successfully blocks that hit. Healing is capped at the pilot's card-modified maximum hull.
 
 ### 7.4 Collision and cover
 
@@ -331,7 +337,7 @@ The active map appears in the countdown banner, combat HUD, and live scoreboard.
 
 ### 7.5 Overtime
 
-After 90 seconds of active combat, a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
+After the configured 30–120 second delay (90 seconds by default), a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
 
 Overtime exists to force a conclusion. Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
 
@@ -398,13 +404,13 @@ Cards do not always contain a downside. Higher rarity means scarcity, not a guar
 - Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
 - Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
 
-The complete 125-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+The complete 130-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 
 The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
 
-Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Builds are public after every draft.
+Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
 
 When eliminated, you immediately spectate. Use the configured previous/next-target actions (`A`/`D` or the controller bumpers by default) to move among living ships. Late joiners also spectate until the current match returns to the lobby.
 

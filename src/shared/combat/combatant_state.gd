@@ -9,6 +9,8 @@ var aim_angle: float = 0.0
 var health: float = 0.0
 var alive: bool = true
 var time_since_damage: float = 0.0
+var afterburner_remaining: float = 0.0
+var afterburner_cooldown_remaining: float = 0.0
 var shield: ShieldState = ShieldState.new()
 var weapon: WeaponState = WeaponState.new()
 
@@ -32,6 +34,8 @@ func reset_for_heat(combat_stats: CombatStats, spawn_position: Vector2) -> void:
 	health = stats.max_health
 	alive = true
 	time_since_damage = 0.0
+	afterburner_remaining = 0.0
+	afterburner_cooldown_remaining = 0.0
 	shield.reset(stats)
 	weapon.reset(stats)
 
@@ -47,15 +51,19 @@ func step(
 		return
 	aim_angle = MovementSystem.normalize_aim_angle(new_aim_angle, aim_angle)
 	shield.step(shield_held, stats, delta)
+	var safe_delta := maxf(delta, 0.0)
+	afterburner_remaining = maxf(afterburner_remaining - safe_delta, 0.0)
+	afterburner_cooldown_remaining = maxf(afterburner_cooldown_remaining - safe_delta, 0.0)
 	velocity = MovementSystem.step_velocity(
 		velocity,
 		input_direction,
 		stats,
 		delta,
-		shield.active
+		shield.active,
+		stats.afterburner_speed_multiplier if afterburner_remaining > 0.0 else 1.0,
+		stats.afterburner_acceleration_multiplier if afterburner_remaining > 0.0 else 1.0
 	)
 	weapon.step(stats, delta)
-	var safe_delta := maxf(delta, 0.0)
 	var previous_damage_time := time_since_damage
 	time_since_damage += safe_delta
 	if stats.auto_repair_enabled:
@@ -77,6 +85,18 @@ func request_reload() -> bool:
 	if not alive:
 		return false
 	return weapon.request_reload(stats)
+
+
+func activate_special() -> bool:
+	if not alive or not stats.afterburner_enabled or afterburner_cooldown_remaining > 0.0:
+		return false
+	afterburner_remaining = stats.afterburner_duration
+	afterburner_cooldown_remaining = stats.afterburner_cooldown
+	var forward := Vector2.from_angle(aim_angle)
+	velocity = (velocity + forward * stats.afterburner_impulse).limit_length(
+		stats.max_speed * stats.afterburner_speed_multiplier
+	)
+	return true
 
 
 func apply_damage(amount: float) -> bool:

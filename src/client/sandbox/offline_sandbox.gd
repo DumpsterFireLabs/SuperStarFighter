@@ -54,6 +54,9 @@ func _physics_process(delta: float) -> void:
 			aim_angle = aim_vector.angle()
 		var movement: Vector2 = input_profiles.world_movement_for_aim(aim_angle) if input_profiles != null else MovementSystem.ship_relative_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"), aim_angle)
 		player.simulate(movement, aim_angle, Input.is_action_pressed("shield"), delta)
+		if Input.is_action_just_pressed("special") and player.combatant.activate_special():
+			player.velocity = player.combatant.velocity
+			player.flash_afterburner(player.combatant.stats.afterburner_duration)
 		if Input.is_action_pressed("manual_reload"):
 			player.combatant.request_reload()
 		if Input.is_action_pressed("fire") and player.combatant.try_fire():
@@ -205,7 +208,8 @@ func _update_help_text() -> void:
 			input_profiles.binding_text(&"fire"),
 			input_profiles.binding_text(&"shield"),
 		]
-	help_label.text = "%s\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help" % combat_help
+	var special_help: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
+	help_label.text = "%s · %s special\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help" % [combat_help, special_help]
 
 
 func _on_input_profile_changed(_scheme: int) -> void:
@@ -260,9 +264,16 @@ func _simulate_projectiles(delta: float) -> void:
 		if collider is SandboxShip:
 			var target := collider as SandboxShip
 			if target.combatant.shield.try_block(target.combatant.aim_angle, impact_position - target.global_position, target.combatant.stats):
+				_apply_projectile_knockback(target.combatant, projectile, 0.2)
+				if target.combatant.stats.shield_damage_heal_fraction > 0.0:
+					target.combatant.health = minf(
+						target.combatant.health + projectile.damage * target.combatant.stats.shield_damage_heal_fraction,
+						target.combatant.stats.max_health
+					)
 				projectile_registry.remove(projectile.projectile_id)
 				continue
 			if projectile.can_hit(target.combatant.peer_id):
+				_apply_projectile_knockback(target.combatant, projectile, 1.0)
 				damage_events.append({"projectile_id": projectile.projectile_id, "target_id": target.combatant.peer_id, "damage": projectile.damage})
 				if not projectile.register_hull_hit(target.combatant.peer_id):
 					projectile_registry.remove(projectile.projectile_id)
@@ -275,6 +286,14 @@ func _simulate_projectiles(delta: float) -> void:
 			else:
 				projectile_registry.remove(projectile.projectile_id)
 	_apply_damage_events(damage_events)
+
+
+func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
+	if projectile.knockback <= 0.0 or projectile.velocity.is_zero_approx():
+		return
+	target.velocity = (
+		target.velocity + projectile.velocity.normalized() * projectile.knockback * maxf(factor, 0.0)
+	).limit_length(maxf(target.stats.max_speed * 2.5, 1.0))
 
 
 func _apply_overtime_damage(delta: float) -> void:

@@ -10,6 +10,9 @@ var countdown_duration_seconds: float = GameConstants.COUNTDOWN_DURATION_SECONDS
 var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SECONDS
 var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
 var random_spawn_powerups: bool = false
+var random_powerup_interval_seconds: float = 20.0
+var random_powerups_permanent: bool = false
+var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
 
 
 func validate() -> PackedStringArray:
@@ -41,6 +44,10 @@ func validate() -> PackedStringArray:
 		if not is_finite(duration) or duration <= 0.0:
 			errors.append("All state durations must be finite and greater than zero.")
 			break
+	if not is_finite(random_powerup_interval_seconds) or random_powerup_interval_seconds < 5.0 or random_powerup_interval_seconds > 90.0:
+		errors.append("Random powerup interval must be from 5 through 90 seconds.")
+	if not is_finite(overtime_start_seconds) or overtime_start_seconds < 30.0 or overtime_start_seconds > 120.0:
+		errors.append("Overtime must begin from 30 through 120 seconds.")
 	return errors
 
 
@@ -59,4 +66,7 @@ func duplicate_config() -> MatchConfig:
 	copy.heat_result_duration_seconds = heat_result_duration_seconds
 	copy.round_result_duration_seconds = round_result_duration_seconds
 	copy.random_spawn_powerups = random_spawn_powerups
+	copy.random_powerup_interval_seconds = random_powerup_interval_seconds
+	copy.random_powerups_permanent = random_powerups_permanent
+	copy.overtime_start_seconds = overtime_start_seconds
 	return copy

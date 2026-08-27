@@ -16,6 +16,7 @@ static func run(context: TestContext) -> void:
 	_validate_npc_lobby_and_inputs(context)
 	_validate_prediction_and_interpolation(context)
 	_validate_authoritative_world(context)
+	_validate_new_card_mechanics(context)
 	_validate_card_powerups(context)
 	_validate_connection_admission(context)
 	_validate_reconnect_reset(context)
@@ -66,7 +67,7 @@ static func _validate_lan_discovery_protocol(context: TestContext) -> void:
 
 
 static func _validate_input_codec(context: TestContext) -> void:
-	var original := PlayerInputFrame.new(0xfffffffe, 800, Vector2(0.5, -0.75), 5.5, true, true, true)
+	var original := PlayerInputFrame.new(0xfffffffe, 800, Vector2(0.5, -0.75), 5.5, true, true, true, true)
 	var packet := InputPacketCodec.encode(original)
 	context.expect_equal(packet.size(), InputPacketCodec.PACKET_SIZE, "input codec uses a fixed packet size")
 	var decoded := InputPacketCodec.decode(packet)
@@ -78,13 +79,13 @@ static func _validate_input_codec(context: TestContext) -> void:
 		context.expect_approx(frame.movement.x, original.movement.x, "input X quantization round-trips", 0.0001)
 		context.expect_approx(frame.movement.y, original.movement.y, "input Y quantization round-trips", 0.0001)
 		context.expect_approx(angle_difference(frame.aim_angle, original.aim_angle), 0.0, "input aim quantization round-trips", 0.0001)
-		context.expect_true(frame.firing and frame.shielding and frame.manual_reload, "input action bits round-trip")
+		context.expect_true(frame.firing and frame.shielding and frame.manual_reload and frame.special_activated, "input action bits round-trip")
 	context.expect_false(InputPacketCodec.decode(packet.slice(0, 12)).ok, "truncated input packet is rejected")
 	var bad_version := packet.duplicate()
 	bad_version[0] = 99
 	context.expect_false(InputPacketCodec.decode(bad_version).ok, "input packet version mismatch is rejected")
 	var bad_actions := packet.duplicate()
-	bad_actions[15] = 8
+	bad_actions[15] = 16
 	context.expect_false(InputPacketCodec.decode(bad_actions).ok, "impossible input action bits are rejected")
 	var excessive_movement := packet.duplicate()
 	excessive_movement[9] = 0xff
@@ -107,6 +108,7 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 			"ammunition": 7,
 			"alive": true,
 			"shielding": peer_id % 2 == 0,
+			"afterburner_active": peer_id == 2,
 		})
 	var packet := PlayerSnapshotCodec.encode(900, 44, states)
 	var decoded := PlayerSnapshotCodec.decode(packet)
@@ -119,6 +121,7 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 		context.expect_equal(first.peer_id, 2, "snapshot player identity round-trips")
 		context.expect_approx((first.position as Vector2).x, 20.5, "snapshot position quantization round-trips")
 		context.expect_approx((first.velocity as Vector2).y, -80.25, "snapshot velocity quantization round-trips")
+		context.expect_true(bool(first.afterburner_active), "snapshot carries the authoritative Afterburner bloom state")
 	context.expect_false(PlayerSnapshotCodec.decode(packet.slice(0, packet.size() - 1)).ok, "truncated player snapshot is rejected")
 	var oversized := PackedByteArray()
 	oversized.resize(PlayerSnapshotCodec.HEADER_SIZE)
@@ -230,6 +233,12 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_false(lobby.request_random_spawn_powerups(3, true).ok, "non-leader cannot enable random spawn powerups")
 	context.expect_true(lobby.request_random_spawn_powerups(2, true).ok, "leader can enable random spawn powerups")
 	context.expect_true(lobby.config.random_spawn_powerups, "authoritative lobby retains the powerup option")
+	context.expect_false(lobby.request_random_powerup_interval(3, 12.0).ok, "non-leader cannot change the random drop interval")
+	context.expect_false(lobby.request_random_powerup_interval(2, 4.0).ok, "drop intervals below five seconds are rejected")
+	context.expect_true(lobby.request_random_powerup_interval(2, 12.0).ok, "leader can configure the random drop interval")
+	context.expect_true(lobby.request_random_powerups_permanent(2, true).ok, "leader can make random drops permanent for the match")
+	context.expect_false(lobby.request_overtime_start(2, 121.0).ok, "overtime values beyond two minutes are rejected")
+	context.expect_true(lobby.request_overtime_start(2, 75.0).ok, "leader can configure when overtime begins")
 	context.expect_false(lobby.request_player_color(3, false, "not-a-colour").ok, "malformed custom ship colours are rejected")
 	context.expect_true(lobby.request_player_color(3, false, "ff00aa").ok, "each human can choose a custom ship colour")
 	context.expect_equal((lobby.players[3] as PlayerMatchState).ship_color, "ff00aa", "custom ship colour is stored authoritatively")
@@ -252,6 +261,9 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_equal(serialized.leader_id, 3, "serialized lobby contains authoritative leader")
 	context.expect_equal((serialized.players as Array).size(), 4, "serialized lobby contains all admitted peers")
 	context.expect_true(serialized.random_spawn_powerups, "serialized lobby publishes the optional powerup rule")
+	context.expect_approx(float(serialized.random_powerup_interval_seconds), 12.0, "serialized lobby publishes the drop interval")
+	context.expect_true(serialized.random_powerups_permanent, "serialized lobby publishes drop permanence")
+	context.expect_approx(float(serialized.overtime_start_seconds), 75.0, "serialized lobby publishes the overtime start")
 	var serialized_player := (serialized.players as Array).filter(func(player: Dictionary) -> bool: return int(player.peer_id) == 3)[0] as Dictionary
 	context.expect_equal(String(serialized_player.ship_color).length(), 6, "serialized player rows publish canonical RGB ship colours")
 
@@ -267,6 +279,10 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	var enable_result := lobby.request_npcs_enabled(100, true)
 	context.expect_true(enable_result.ok, "leader can enable server NPCs")
 	context.expect_equal((enable_result.added_npcs as Array).size(), 3, "enabling NPC fill creates configurable waiting NPC rows")
+	context.expect_true(lobby.request_all_npc_difficulty(100, NpcPilotController.Difficulty.INSANE).ok, "leader can set every waiting NPC difficulty at once")
+	for bulk_npc_id in lobby.npc_peer_ids():
+		context.expect_equal((lobby.players[bulk_npc_id] as PlayerMatchState).npc_difficulty, NpcPilotController.Difficulty.INSANE, "bulk difficulty applies to every existing NPC")
+	context.expect_equal(lobby.default_npc_difficulty, NpcPilotController.Difficulty.INSANE, "bulk difficulty becomes the default for future NPC seats")
 	var npc_id := lobby.npc_peer_ids()[0]
 	context.expect_false(lobby.request_npc_difficulty(999, npc_id, NpcPilotController.Difficulty.SKILLED).ok, "non-leader cannot change NPC difficulty")
 	context.expect_false(lobby.request_npc_difficulty(100, 100, NpcPilotController.Difficulty.SKILLED).ok, "human players cannot be assigned NPC difficulty")
@@ -287,6 +303,7 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	context.expect_true(serialized.all_humans_ready, "serialized lobby publishes aggregate readiness")
 	var serialized_npc := (serialized.players as Array).filter(func(player: Dictionary) -> bool: return int(player.peer_id) == npc_id)[0] as Dictionary
 	context.expect_equal(serialized_npc.npc_difficulty, NpcPilotController.Difficulty.SKILLED, "serialized NPC row publishes its individual difficulty")
+	context.expect_equal(serialized.default_npc_difficulty, NpcPilotController.Difficulty.INSANE, "serialized lobby publishes the bulk NPC difficulty")
 
 	for difficulty in range(NpcPilotController.Difficulty.EASY, NpcPilotController.Difficulty.INSANE + 1):
 		var lower := NpcPilotController.difficulty_profile(difficulty - 1)
@@ -787,8 +804,79 @@ static func _validate_card_powerups(context: TestContext) -> void:
 	combatant.position = spawned.position
 	var collection_events := system.step(1301, world, players)
 	context.expect_equal(collection_events.size(), 1, "touching an authoritative powerup collects it")
-	context.expect_equal(player.card_stack(card.card_id), 1, "collected powerup enters the player's persistent match inventory")
+	context.expect_equal(int(player.temporary_card_stacks.get(card.card_id, 0)), 1, "default arena powerup enters the player's heat-only inventory")
 	context.expect_empty(system.snapshot(), "collected powerup is removed from authoritative map state")
+	var permanent_system := CardPowerupSystemScript.new(catalog, 31337)
+	permanent_system.begin_heat(200, &"prism_array", true, 5.0, true)
+	context.expect_empty(permanent_system.step(499, world, players), "custom five-second drop interval waits until its exact boundary")
+	var fast_spawn_events := permanent_system.step(500, world, players)
+	context.expect_equal(fast_spawn_events.size(), 1, "custom drop interval drives authoritative spawn timing")
+	if not fast_spawn_events.is_empty():
+		var fast_spawn := (fast_spawn_events[0] as Dictionary).payload as Dictionary
+		combatant.position = fast_spawn.position
+		permanent_system.step(501, world, players)
+		context.expect_equal(player.card_stack(StringName(fast_spawn.card_id)), 1, "permanent-drop option stores the pickup in the match-long inventory")
+
+
+static func _validate_new_card_mechanics(context: TestContext) -> void:
+	var catalog := CardCatalog.create_default()
+	var afterburner_stats := StatSystem.derive({&"afterburner": 1}, catalog)
+	context.expect_true(afterburner_stats.afterburner_enabled, "Afterburner card enables the authoritative special action")
+	var boost_world := AuthoritativeWorld.new()
+	var boosted := boost_world.add_peer(200, afterburner_stats)
+	boosted.position = Vector2(400.0, 400.0)
+	boost_world.submit_input(200, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
+	boost_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(boosted.velocity.x >= afterburner_stats.afterburner_impulse - 0.01, "Shift special applies an immediate forward Afterburner burst")
+	context.expect_true(boosted.afterburner_remaining > 0.0, "Afterburner retains a short boosted acceleration window")
+	var first_cooldown := boosted.afterburner_cooldown_remaining
+	boost_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(boosted.afterburner_cooldown_remaining < first_cooldown, "holding the special input cannot reset the Afterburner cooldown")
+
+	var ramming_stats := StatSystem.derive({&"ramming_shields": 1}, catalog)
+	context.expect_true(ramming_stats.shield_ram_damage >= 44.0, "Ramming Shields independently enables serious melee damage")
+
+	var knockback_stats := StatSystem.derive({&"concussion_rounds": 1}, catalog)
+	var hull_world := AuthoritativeWorld.new()
+	hull_world.add_peer(210, knockback_stats)
+	var hull_target := hull_world.add_peer(211)
+	hull_target.position = Vector2(600.0, 400.0)
+	var hull_projectile := ProjectileState.create(500, 210, 1, Vector2(500.0, 400.0), 0.0, knockback_stats)
+	var hull_damage_events: Array[Dictionary] = []
+	hull_world._resolve_projectile_ship_hits(hull_projectile, Vector2(500.0, 400.0), Vector2(590.0, 400.0), [210, 211], hull_damage_events)
+	context.expect_approx(hull_target.velocity.x, knockback_stats.projectile_knockback, "unshielded projectile hit applies full knockback", 0.01)
+
+	var nosferatu_stats := StatSystem.derive({&"nosferatu_shield": 1}, catalog)
+	var shield_world := AuthoritativeWorld.new()
+	shield_world.add_peer(220, knockback_stats)
+	var shield_target := shield_world.add_peer(221, nosferatu_stats)
+	shield_target.position = Vector2(600.0, 400.0)
+	shield_target.health = 50.0
+	shield_target.aim_angle = PI
+	shield_target.shield.active = true
+	var shield_projectile := ProjectileState.create(501, 220, 1, Vector2(500.0, 400.0), 0.0, knockback_stats)
+	var shield_damage_events: Array[Dictionary] = []
+	shield_world._resolve_projectile_ship_hits(shield_projectile, Vector2(500.0, 400.0), Vector2(590.0, 400.0), [220, 221], shield_damage_events)
+	context.expect_approx(shield_target.velocity.x, knockback_stats.projectile_knockback * 0.2, "shield block retains only a small fraction of projectile knockback", 0.01)
+	context.expect_approx(shield_target.health, 50.0 + shield_projectile.damage * nosferatu_stats.shield_damage_heal_fraction, "Nosferatu Shield converts a percentage of blocked damage into hull health", 0.01)
+
+	var lethal_world := AuthoritativeWorld.new()
+	lethal_world.add_peer(230)
+	var lethal_target := lethal_world.add_peer(231)
+	lethal_target.position = Vector2(600.0, 400.0)
+	lethal_target.health = 10.0
+	var lethal_projectile := ProjectileState.create(502, 230, 1, Vector2(550.0, 400.0), 0.0, CombatStats.create_base())
+	lethal_world.projectile_registry.add(lethal_projectile)
+	lethal_world.step(0.05)
+	var kill_events := lethal_world.drain_kill_events()
+	context.expect_equal(kill_events.size(), 1, "authoritative lethal damage emits exactly one kill attribution")
+	if not kill_events.is_empty():
+		context.expect_equal(int(kill_events[0].killer_id), 230, "projectile kill is credited to its owning pilot")
+	var match_scores := MatchScoreState.new()
+	match_scores.register_player(230)
+	match_scores.award_kill(230)
+	match_scores.clear_heat_wins()
+	context.expect_equal(int((match_scores.snapshot()[230] as Dictionary).kills), 1, "kill total persists when a heat score is reset")
 
 
 static func _validate_connection_admission(context: TestContext) -> void:

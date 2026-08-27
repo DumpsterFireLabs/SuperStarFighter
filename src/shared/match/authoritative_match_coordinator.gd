@@ -27,14 +27,14 @@ func _init(
 	server_lobby: ServerLobby,
 	authoritative_world: AuthoritativeWorld,
 	seed_value: int,
-	overtime_start_override: float = GameConstants.OVERTIME_START_SECONDS
+	overtime_start_override: float = -1.0
 ) -> void:
 	lobby = server_lobby
 	world = authoritative_world
 	catalog = CardCatalog.create_default()
 	powerups = CardPowerupSystemScript.new(catalog, seed_value)
 	match_seed = seed_value
-	overtime_start_seconds = overtime_start_override
+	overtime_start_seconds = overtime_start_override if overtime_start_override >= 0.0 else lobby.config.overtime_start_seconds
 	_rng.seed = match_seed
 	_map_rotation = ArenaLayout.map_ids()
 	var map_rng := RandomNumberGenerator.new()
@@ -204,6 +204,9 @@ func _capture_transitions() -> void:
 	while _emitted_history_count < machine.event_history.size():
 		var transition := machine.event_history[_emitted_history_count] as Dictionary
 		_emitted_history_count += 1
+		if int(transition.state) == MatchStateMachine.State.HEAT_RESULT and not lobby.config.random_powerups_permanent:
+			for player_value in machine.players.values():
+				(player_value as PlayerMatchState).clear_temporary_cards()
 		if int(transition.state) == MatchStateMachine.State.DRAFT:
 			_select_map_for_round(int(transition.round_number))
 		_events.append({
@@ -222,7 +225,13 @@ func _handle_state_entry(new_state: int) -> void:
 			powerups.clear()
 			_prepare_world_heat()
 		MatchStateMachine.State.ACTIVE_HEAT:
-			powerups.begin_heat(world.server_tick, current_map_id, lobby.config.random_spawn_powerups)
+			powerups.begin_heat(
+				world.server_tick,
+				current_map_id,
+				lobby.config.random_spawn_powerups,
+				lobby.config.random_powerup_interval_seconds,
+				lobby.config.random_powerups_permanent
+			)
 		MatchStateMachine.State.HEAT_RESULT:
 			powerups.clear()
 			world.clear_projectiles()
@@ -280,7 +289,7 @@ func _prepare_world_heat() -> void:
 	for index in participant_ids.size():
 		var peer_id := participant_ids[index]
 		var player := machine.players[peer_id] as PlayerMatchState
-		participant_stats[peer_id] = StatSystem.derive(player.card_stacks, catalog)
+		participant_stats[peer_id] = StatSystem.derive(player.effective_card_stacks(), catalog)
 		spawn_assignments[peer_id] = anchors[index]
 	world.prepare_heat(participant_stats, spawn_assignments)
 
@@ -294,6 +303,8 @@ func _select_map_for_round(round_number: int) -> void:
 
 
 func _sync_combat_and_resolve(tick: int) -> void:
+	for kill_event in world.drain_kill_events():
+		machine.scores.award_kill(int(kill_event.killer_id))
 	var newly_eliminated: Array[int] = []
 	for peer_id in machine.participant_ids():
 		var player := machine.players[peer_id] as PlayerMatchState
@@ -336,6 +347,8 @@ func _state_payload() -> Dictionary:
 		"builds": _public_builds(),
 		"powerups": powerups.snapshot() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else [],
 		"random_spawn_powerups": lobby.config.random_spawn_powerups,
+		"random_powerup_interval_seconds": lobby.config.random_powerup_interval_seconds,
+		"random_powerups_permanent": lobby.config.random_powerups_permanent,
 		"overtime_start_tick": machine.state_entered_tick + roundi(
 			overtime_start_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND
 		) if machine.state == MatchStateMachine.State.ACTIVE_HEAT else -1,
@@ -347,7 +360,7 @@ func _public_builds() -> Dictionary:
 	for player_value in machine.players.values():
 		var player := player_value as PlayerMatchState
 		if player.connected:
-			builds[player.peer_id] = player.card_stacks.duplicate(true)
+			builds[player.peer_id] = player.effective_card_stacks()
 	return builds
 
 

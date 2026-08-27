@@ -8,6 +8,7 @@ var aim_angle: float = 0.0
 var firing: bool = false
 var shielding: bool = false
 var manual_reload: bool = false
+var special_activated: bool = false
 
 
 func _init(
@@ -17,7 +18,8 @@ func _init(
 	aim_angle_value: float = 0.0,
 	firing_value: bool = false,
 	shielding_value: bool = false,
-	manual_reload_value: bool = false
+	manual_reload_value: bool = false,
+	special_activated_value: bool = false
 ) -> void:
 	sequence = sequence_value
 	client_tick = client_tick_value
@@ -26,6 +28,7 @@ func _init(
 	firing = firing_value
 	shielding = shielding_value
 	manual_reload = manual_reload_value
+	special_activated = special_activated_value
 
 
 func is_valid() -> bool:

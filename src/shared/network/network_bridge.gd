@@ -220,6 +220,26 @@ func send_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
 		request_npc_difficulty.rpc_id(NetworkProtocol.SERVER_PEER_ID, npc_peer_id, difficulty)
 
 
+func send_all_npc_difficulty(difficulty: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_all_npc_difficulty.rpc_id(NetworkProtocol.SERVER_PEER_ID, difficulty)
+
+
+func send_random_powerup_interval(seconds: float) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_random_powerup_interval.rpc_id(NetworkProtocol.SERVER_PEER_ID, seconds)
+
+
+func send_random_powerups_permanent(permanent: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_random_powerups_permanent.rpc_id(NetworkProtocol.SERVER_PEER_ID, permanent)
+
+
+func send_overtime_start(seconds: float) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_overtime_start.rpc_id(NetworkProtocol.SERVER_PEER_ID, seconds)
+
+
 func send_ready_state(ready: bool) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_ready_state.rpc_id(NetworkProtocol.SERVER_PEER_ID, ready)
@@ -428,6 +448,62 @@ func request_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
 			_broadcast_lobby_state()
 	else:
 		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_all_npc_difficulty(difficulty: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "all_npc_difficulty"):
+		return
+	var result := lobby.request_all_npc_difficulty(sender_id, difficulty)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_random_powerup_interval(seconds: float) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "random_powerup_interval"):
+		return
+	var result := lobby.request_random_powerup_interval(sender_id, seconds)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_random_powerups_permanent(permanent: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "random_powerups_permanent"):
+		return
+	var result := lobby.request_random_powerups_permanent(sender_id, permanent)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_overtime_start(seconds: float) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "overtime_start"):
+		return
+	var result := lobby.request_overtime_start(sender_id, seconds)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -733,7 +809,7 @@ func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void
 func _start_match_coordinator(leader_id: int) -> void:
 	var configured_seed := int(_configuration.get("test_match_seed", 0))
 	var seed_value := configured_seed if configured_seed > 0 else int(Time.get_unix_time_from_system())
-	var overtime_start := 2.0 if bool(_configuration.get("test_fast_match", false)) else GameConstants.OVERTIME_START_SECONDS
+	var overtime_start := 2.0 if bool(_configuration.get("test_fast_match", false)) else lobby.config.overtime_start_seconds
 	match_coordinator = AuthoritativeMatchCoordinator.new(lobby, world, seed_value, overtime_start)
 	_logged_overtime_key = ""
 	if not match_coordinator.start(world.server_tick):

@@ -146,7 +146,18 @@ static func _validate_powerup_match_integration(context: TestContext) -> void:
 		if StringName(event.event_type) == &"CARD_POWERUP_COLLECTED" and int((event.payload as Dictionary).peer_id) == 70:
 			collected = (event.payload as Dictionary).has("builds")
 	context.expect_true(collected, "coordinator publishes collected inventory builds for immediate client prediction")
-	context.expect_equal((coordinator.machine.players[70] as PlayerMatchState).card_stack(StringName(spawned.card_id)), 1, "coordinator pickup persists in the match inventory")
+	var collector := coordinator.machine.players[70] as PlayerMatchState
+	context.expect_equal(int(collector.temporary_card_stacks.get(StringName(spawned.card_id), 0)), 1, "default coordinator pickup is retained for the current heat")
+	context.expect_equal(int((coordinator.current_state_payload().builds as Dictionary)[70].get(StringName(spawned.card_id), 0)), 1, "temporary pickup is included in the authoritative effective build")
+	var target := world.combatants[71] as CombatantState
+	target.health = 10.0
+	var lethal := ProjectileState.create(900, 70, 1, target.position - Vector2(30.0, 0.0), 0.0, CombatStats.create_base())
+	var lethal_events: Array[Dictionary] = []
+	world._resolve_projectile_ship_hits(lethal, target.position - Vector2(30.0, 0.0), target.position - Vector2(10.0, 0.0), [70, 71], lethal_events)
+	world._resolve_damage_events(lethal_events)
+	coordinator.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(int((coordinator.current_state_payload().scores as Dictionary)[70].kills), 1, "coordinator publishes a match-total kill credited to the attacker")
+	context.expect_empty(collector.temporary_card_stacks, "non-permanent arena pickup is removed when its heat ends")
 
 
 static func _validate_last_survivor_resolution(context: TestContext) -> void:

@@ -32,7 +32,7 @@ const AIM_ACTIONS: Array[StringName] = [
 	&"aim_up", &"aim_down", &"aim_left", &"aim_right",
 ]
 const COMBAT_ACTIONS: Array[StringName] = [
-	&"fire", &"shield", &"manual_reload", &"scoreboard", &"pause_overlay", &"diagnostics",
+	&"fire", &"shield", &"manual_reload", &"special", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 ]
 const DRAFT_ACTIONS: Array[StringName] = [
@@ -43,7 +43,7 @@ const MENU_ACTIONS: Array[StringName] = [
 ]
 const KEYBOARD_REBIND_ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
-	&"fire", &"shield", &"manual_reload", &"scoreboard", &"pause_overlay", &"diagnostics",
+	&"fire", &"shield", &"manual_reload", &"special", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 	&"draft_1", &"draft_2", &"draft_3", &"draft_4", &"draft_5",
 	&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
@@ -51,7 +51,7 @@ const KEYBOARD_REBIND_ACTIONS: Array[StringName] = [
 const CONTROLLER_REBIND_ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
 	&"aim_up", &"aim_down", &"aim_left", &"aim_right",
-	&"fire", &"shield", &"manual_reload", &"scoreboard", &"pause_overlay", &"diagnostics",
+	&"fire", &"shield", &"manual_reload", &"special", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 	&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
 ]
@@ -67,6 +67,7 @@ const ACTION_LABELS: Dictionary = {
 	&"fire": "Fire",
 	&"shield": "Shield",
 	&"manual_reload": "Manual Reload",
+	&"special": "Activate Special Card",
 	&"scoreboard": "Hold Scoreboard",
 	&"pause_overlay": "Pilot Menu",
 	&"diagnostics": "Diagnostics",
@@ -317,6 +318,7 @@ func _default_keyboard_bindings() -> Dictionary:
 		&"fire": _mouse_binding(MOUSE_BUTTON_LEFT),
 		&"shield": _mouse_binding(MOUSE_BUTTON_RIGHT),
 		&"manual_reload": _key_binding(KEY_R),
+		&"special": _key_binding(KEY_SHIFT),
 		&"scoreboard": _key_binding(KEY_TAB),
 		&"pause_overlay": _key_binding(KEY_ESCAPE),
 		&"diagnostics": _key_binding(KEY_F3),
@@ -349,6 +351,7 @@ func _default_controller_bindings() -> Dictionary:
 		&"fire": _axis_binding(JOY_AXIS_TRIGGER_RIGHT, 1.0),
 		&"shield": _axis_binding(JOY_AXIS_TRIGGER_LEFT, 1.0),
 		&"manual_reload": _button_binding(JOY_BUTTON_X),
+		&"special": _button_binding(JOY_BUTTON_LEFT_STICK),
 		&"scoreboard": _button_binding(JOY_BUTTON_BACK),
 		&"pause_overlay": _button_binding(JOY_BUTTON_START),
 		&"diagnostics": _button_binding(JOY_BUTTON_Y),

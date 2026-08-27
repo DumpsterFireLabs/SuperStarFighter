@@ -127,6 +127,11 @@ const DEFAULT_CARD_PATHS: Array[String] = [
 	"res://data/cards/horizon_round.tres",
 	"res://data/cards/storm_of_one.tres",
 	"res://data/cards/supernova_array.tres",
+	"res://data/cards/afterburner.tres",
+	"res://data/cards/ramming_shields.tres",
+	"res://data/cards/concussion_rounds.tres",
+	"res://data/cards/repulsor_payload.tres",
+	"res://data/cards/nosferatu_shield.tres",
 ]
 
 var _cards: Dictionary = {}

@@ -29,17 +29,19 @@ static func step_velocity(
 	input_direction: Vector2,
 	stats: CombatStats,
 	delta: float,
-	shielding: bool = false
+	shielding: bool = false,
+	speed_multiplier: float = 1.0,
+	acceleration_multiplier: float = 1.0
 ) -> Vector2:
 	var safe_delta := maxf(delta, 0.0)
 	var movement := sanitize_input(input_direction)
 	if movement.is_zero_approx():
 		return current_velocity.move_toward(Vector2.ZERO, stats.drag * safe_delta)
-	var acceleration := stats.acceleration
+	var acceleration := stats.acceleration * maxf(acceleration_multiplier, 0.0)
 	if shielding:
 		acceleration *= stats.shield_acceleration_factor
 	return current_velocity.move_toward(
-		movement * stats.max_speed,
+		movement * stats.max_speed * maxf(speed_multiplier, 0.0),
 		acceleration * safe_delta
 	)
 

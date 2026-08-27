@@ -220,7 +220,7 @@ func _prepare_heat() -> void:
 	for player in players.values():
 		var typed_player := player as PlayerMatchState
 		if typed_player.connected and typed_player.participant:
-			var stats := StatSystem.derive(typed_player.card_stacks, catalog)
+			var stats := StatSystem.derive(typed_player.effective_card_stacks(), catalog)
 			typed_player.reset_for_heat(stats)
 		else:
 			typed_player.eliminate()

@@ -47,6 +47,14 @@ func award_forfeit(peer_id: int, rounds_to_win: int) -> void:
 	clear_heat_wins()
 
 
+func award_kill(peer_id: int) -> bool:
+	var score := get_score(peer_id)
+	if score == null:
+		return false
+	score.kills += 1
+	return true
+
+
 func clear_heat_wins() -> void:
 	for score in _scores.values():
 		(score as PlayerScoreState).reset_heat_wins()
@@ -66,6 +74,6 @@ func snapshot() -> Dictionary:
 		result[peer_id] = {
 			"heat_wins": score.heat_wins,
 			"round_wins": score.round_wins,
+			"kills": score.kills,
 		}
 	return result
-

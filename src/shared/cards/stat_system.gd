@@ -12,6 +12,12 @@ const FLOAT_STATS: Array[StringName] = [
 	&"projectile_speed",
 	&"projectile_spread_degrees",
 	&"projectile_lifetime",
+	&"projectile_knockback",
+	&"afterburner_impulse",
+	&"afterburner_duration",
+	&"afterburner_cooldown",
+	&"afterburner_speed_multiplier",
+	&"afterburner_acceleration_multiplier",
 	&"shield_capacity",
 	&"shield_regeneration",
 	&"shield_continuous_drain",
@@ -23,6 +29,7 @@ const FLOAT_STATS: Array[StringName] = [
 	&"shield_ram_damage",
 	&"shield_ram_min_speed",
 	&"shield_ram_cooldown",
+	&"shield_damage_heal_fraction",
 	&"auto_repair_delay",
 	&"auto_repair_rate",
 ]
@@ -64,6 +71,8 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 			stats.auto_repair_enabled = true
 		elif card.special_behavior_id == &"beam_weapon":
 			stats.beam_weapon = true
+		elif card.special_behavior_id == &"afterburner":
+			stats.afterburner_enabled = true
 
 	for property_name in FLOAT_STATS:
 		var value := (float(stats.get(property_name)) + float(additive_totals[property_name])) * float(multiplier_totals[property_name])
@@ -91,7 +100,7 @@ static func validate_card(card: CardDefinition) -> PackedStringArray:
 	for property_name in card.integer_modifiers:
 		if StringName(property_name) not in INTEGER_STATS:
 			errors.append("Card %s has unsupported integer stat %s." % [card.card_id, property_name])
-	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon"]:
+	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner"]:
 		errors.append("Card %s has unsupported special behavior %s." % [card.card_id, card.special_behavior_id])
 	return errors
 
@@ -111,6 +120,12 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.projectile_count = clampi(stats.projectile_count, 1, 6)
 	stats.projectile_spread_degrees = clampf(stats.projectile_spread_degrees, 0.0, 90.0)
 	stats.projectile_lifetime = clampf(stats.projectile_lifetime, 0.1, 12.0)
+	stats.projectile_knockback = clampf(stats.projectile_knockback, 0.0, 1800.0)
+	stats.afterburner_impulse = clampf(stats.afterburner_impulse, 50.0, 1800.0)
+	stats.afterburner_duration = clampf(stats.afterburner_duration, 0.1, 3.0)
+	stats.afterburner_cooldown = clampf(stats.afterburner_cooldown, 0.5, 20.0)
+	stats.afterburner_speed_multiplier = clampf(stats.afterburner_speed_multiplier, 1.0, 4.0)
+	stats.afterburner_acceleration_multiplier = clampf(stats.afterburner_acceleration_multiplier, 1.0, 6.0)
 	stats.pierce_count = clampi(stats.pierce_count, 0, 12)
 	stats.ricochet_count = clampi(stats.ricochet_count, 0, 12)
 	stats.shield_capacity = clampf(stats.shield_capacity, 5.0, 600.0)
@@ -124,5 +139,6 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.shield_ram_damage = clampf(stats.shield_ram_damage, 0.0, 300.0)
 	stats.shield_ram_min_speed = clampf(stats.shield_ram_min_speed, 40.0, 1200.0)
 	stats.shield_ram_cooldown = clampf(stats.shield_ram_cooldown, 0.15, 4.0)
+	stats.shield_damage_heal_fraction = clampf(stats.shield_damage_heal_fraction, 0.0, 1.0)
 	stats.auto_repair_delay = clampf(stats.auto_repair_delay, 0.1, 20.0)
 	stats.auto_repair_rate = clampf(stats.auto_repair_rate, 0.1, 400.0)

@@ -66,6 +66,9 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	ship.combatant.velocity = Vector2(240.0, 0.0)
 	ship._process(1.0 / 60.0)
 	context.expect_true(ship.thruster_particles.emitting and ship.thruster_intensity > 0.0, "ship movement activates speed-responsive thruster particles")
+	ship.flash_afterburner(0.5)
+	ship._process(1.0 / 60.0)
+	context.expect_true(ship.thruster_particles.amount > 10 and ship.thruster_particles.speed_scale >= 2.0, "Afterburner produces a visibly larger exhaust bloom")
 	ship.flash_damage()
 	ship.flash_shield_block()
 	context.expect_true(ship.damage_flash_remaining > 0.0, "damage has a distinct ship flash")
@@ -223,6 +226,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.lobby_options_popup != null and client.powerups_button != null, "lobby exposes a dedicated match options menu")
 	context.expect_equal(client.lobby_options_button.text, "MATCH OPTIONS", "ship colour is no longer presented as a separate lobby option")
 	context.expect_false(client.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
+	context.expect_approx(client.powerup_interval_control.value, 20.0, "random drop interval visibly defaults to twenty seconds")
+	context.expect_false(client.powerups_permanent_button.button_pressed, "random drop permanence visibly defaults off")
+	context.expect_approx(client.overtime_start_control.value, 90.0, "overtime visibly defaults to ninety seconds")
+	context.expect_equal(client.npc_all_difficulty_control.item_count, 5, "lobby provides one bulk dropdown covering every NPC difficulty")
 	context.expect_true(client.ship_color_popup != null and client.random_color_button != null and client.ship_color_picker != null and client.apply_ship_color_button != null, "roster colour selection owns a wheel with Random and explicit Apply actions")
 	context.expect_equal(client.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
@@ -312,12 +319,17 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": false},
 		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true},
 	]
-	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 2, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 2, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
 	var difficulty_control := client.lobby_roster.get_child(1).get_node("NpcDifficulty") as OptionButton
 	context.expect_true(difficulty_control != null, "each waiting NPC renders an individual difficulty dropdown")
 	context.expect_equal(difficulty_control.item_count, 5, "NPC dropdown exposes passive through insane")
 	context.expect_equal(difficulty_control.get_selected_id(), NpcPilotController.Difficulty.SKILLED, "NPC dropdown reflects authoritative per-NPC difficulty")
 	context.expect_false(difficulty_control.disabled, "lobby leader may edit an NPC difficulty before launch")
+	context.expect_equal(client.npc_all_difficulty_control.get_selected_id(), NpcPilotController.Difficulty.INSANE, "bulk NPC dropdown reflects the authoritative lobby setting")
+	context.expect_false(client.npc_all_difficulty_control.disabled, "bulk NPC difficulty remains editable for the lobby leader")
+	context.expect_approx(client.powerup_interval_control.value, 12.0, "lobby renders the authoritative random drop interval")
+	context.expect_true(client.powerups_permanent_button.button_pressed, "lobby renders authoritative drop permanence")
+	context.expect_approx(client.overtime_start_control.value, 75.0, "lobby renders the authoritative overtime start")
 	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
 	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
 	context.expect_true(client.start_button.disabled and client.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")
@@ -327,6 +339,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
 	context.expect_true(client.network_world.visible and client.network_world.process_mode != Node.PROCESS_MODE_DISABLED, "match start reactivates world rendering and prediction")
 	context.expect_equal(client.network_world.local_peer_id, 2, "match start retains local identity for movement and predicted shots")
+	client.network_world._on_snapshot({"server_tick": 1, "acknowledged_input": 0, "states": [
+		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "position": Vector2(400.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 0.0, "shield": 0.0, "ammunition": 0, "alive": false, "shielding": false},
+	]})
+	context.expect_false((client.network_world.ships[ServerLobby.NPC_PEER_ID_BASE + 1] as SandboxShip).visible, "inactive NPC markers remain hidden during the initial draft")
+	context.expect_false(client.network_world.arena.show_spawn_anchors, "production arena never exposes internal spawn anchors")
 	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 120, "deadline_tick": 300, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 180
 	client.network_world.apply_match_state(client.latest_match_payload)
@@ -351,7 +368,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"CARD_POWERUP_COLLECTED", 308, {"powerup_id": 9, "card_id": &"kinetic_prow", "peer_id": 2, "position": Vector2(700.0, 500.0), "builds": {2: {&"kinetic_prow": 1}}})
 	context.expect_false(client.network_world.powerup_layer.powerups.has(9), "reliable collection event removes the arena card visual")
 	context.expect_true(client.network_world.local_stats.shield_ram_damage > 0.0, "local prediction adopts a collected card build immediately")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {&"heavy_rounds": 2}, 3: {&"glass_reactor": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 4}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}, "builds": {2: {&"heavy_rounds": 2}, 3: {&"glass_reactor": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
 	var npc_max_health := StatSystem.derive({&"glass_reactor": 2}, client.card_catalog).max_health
@@ -379,6 +396,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
 	context.expect_true(client.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
 	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  HEAVY ELECTRONIC EDGE MAIN"), "scoreboard identifies the active gameplay song")
+	var live_kills := client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
+	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
 	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
 	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
 	var scoreboard_build_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
@@ -397,7 +416,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._input(controller_scoreboard)
 	context.expect_false(client.scoreboard_panel.visible, "releasing the configured controller button closes the scoreboard")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
-	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2}
+	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1, "kills": 7}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()
 	context.expect_true(client.win_overlay.visible and client.results_panel.visible, "match result opens the dedicated final standings screen")
@@ -407,6 +426,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var round_wins_label := client.results_standings_container.get_child(0).find_child("RoundWins", true, false) as Label
 	context.expect_equal(round_wins_label.text, "1", "victory standings retain round wins without the always-reset heat-win value")
 	context.expect_false(round_wins_label.text.contains("HEAT"), "victory standings omit the unnecessary heat-wins column")
+	var result_kills_label := client.results_standings_container.get_child(0).find_child("MatchKills", true, false) as Label
+	context.expect_equal(result_kills_label.text, "7", "victory standings retain the pilot's full-match kill total")
 	var final_build_cards := client.results_standings_container.get_child(0).find_child("FinalBuildCards", true, false) as HFlowContainer
 	context.expect_true(final_build_cards != null and final_build_cards.get_child_count() == 1, "final build renders each owned card as an individual hover target")
 	var result_card_chip := final_build_cards.get_child(0) as Button

@@ -1,7 +1,8 @@
 class_name CardPowerupSystem
 extends RefCounted
 
-const SPAWN_INTERVAL_SECONDS: float = 20.0
+const DEFAULT_SPAWN_INTERVAL_SECONDS: float = 20.0
+const SPAWN_INTERVAL_SECONDS: float = DEFAULT_SPAWN_INTERVAL_SECONDS
 const POWERUP_RADIUS: float = 26.0
 const SPAWN_MARGIN: float = 90.0
 const SHIP_CLEARANCE: float = 180.0
@@ -12,6 +13,8 @@ var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var next_spawn_tick: int = -1
 var next_powerup_id: int = 1
 var active_powerups: Dictionary = {}
+var spawn_interval_seconds: float = DEFAULT_SPAWN_INTERVAL_SECONDS
+var permanent_drops: bool = false
 
 var _catalog: CardCatalog
 var _rng := RandomNumberGenerator.new()
@@ -22,11 +25,19 @@ func _init(catalog: CardCatalog = null, seed_value: int = 1) -> void:
 	_rng.seed = seed_value ^ 0x504F_5745
 
 
-func begin_heat(start_tick: int, selected_map_id: StringName, powerups_enabled: bool) -> void:
+func begin_heat(
+	start_tick: int,
+	selected_map_id: StringName,
+	powerups_enabled: bool,
+	interval_seconds: float = DEFAULT_SPAWN_INTERVAL_SECONDS,
+	permanent: bool = false
+) -> void:
 	clear()
 	enabled = powerups_enabled
 	map_id = ArenaLayout.normalized_map_id(selected_map_id)
-	next_spawn_tick = start_tick + roundi(SPAWN_INTERVAL_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND) if enabled else -1
+	spawn_interval_seconds = clampf(interval_seconds, 5.0, 90.0)
+	permanent_drops = permanent
+	next_spawn_tick = start_tick + roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND) if enabled else -1
 
 
 func clear() -> void:
@@ -42,7 +53,7 @@ func step(server_tick: int, world: AuthoritativeWorld, players: Dictionary) -> A
 		var spawned := _spawn_powerup(world)
 		if not spawned.is_empty():
 			events.append({"event_type": &"CARD_POWERUP_SPAWNED", "payload": spawned})
-		next_spawn_tick += roundi(SPAWN_INTERVAL_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND)
+		next_spawn_tick += roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
 	events.append_array(_collect_powerups(world, players))
 	return events
 
@@ -92,9 +103,12 @@ func _collect_powerups(world: AuthoritativeWorld, players: Dictionary) -> Array[
 			if combatant.position.distance_to(powerup.position as Vector2) > GameConstants.SHIP_COLLISION_RADIUS + POWERUP_RADIUS:
 				continue
 			var card := _catalog.get_card(StringName(powerup.card_id))
-			if card == null or not player.add_card(card):
+			if card == null:
 				break
-			_apply_updated_stats(combatant, StatSystem.derive(player.card_stacks, _catalog))
+			var added := player.add_card(card) if permanent_drops else player.add_temporary_card(card)
+			if not added:
+				break
+			_apply_updated_stats(combatant, StatSystem.derive(player.effective_card_stacks(), _catalog))
 			active_powerups.erase(powerup_id)
 			events.append({
 				"event_type": &"CARD_POWERUP_COLLECTED",

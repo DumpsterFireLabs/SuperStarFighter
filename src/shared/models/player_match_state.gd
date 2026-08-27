@@ -17,6 +17,7 @@ var health: float = 0.0
 var shield_energy: float = 0.0
 var ammunition: int = 0
 var card_stacks: Dictionary = {}
+var temporary_card_stacks: Dictionary = {}
 var score := PlayerScoreState.new()
 
 
@@ -38,6 +39,24 @@ func add_card(card: CardDefinition) -> bool:
 	return true
 
 
+func add_temporary_card(card: CardDefinition) -> bool:
+	if card == null:
+		return false
+	temporary_card_stacks[card.card_id] = int(temporary_card_stacks.get(card.card_id, 0)) + 1
+	return true
+
+
+func effective_card_stacks() -> Dictionary:
+	var result := card_stacks.duplicate(true)
+	for card_id in temporary_card_stacks:
+		result[card_id] = int(result.get(card_id, 0)) + int(temporary_card_stacks[card_id])
+	return result
+
+
+func clear_temporary_cards() -> void:
+	temporary_card_stacks.clear()
+
+
 func reset_for_heat(stats: CombatStats) -> void:
 	alive = connected and participant
 	spectator = not alive
@@ -56,6 +75,7 @@ func reset_match() -> void:
 	alive = false
 	spectator = true
 	card_stacks.clear()
+	temporary_card_stacks.clear()
 	score.reset_match()
 	health = 0.0
 	shield_energy = 0.0
