@@ -740,6 +740,28 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 		var bounced := ricochet_batch.spawned[0] as ProjectileState
 		context.expect_true(bounced.velocity.x > 0.0, "wall-adjacent ricochet reflects back into arena")
 
+	var beam_rebound_stats := CombatStats.create_base()
+	beam_rebound_stats.beam_weapon = true
+	beam_rebound_stats.ricochet_count = 1
+	var beam_rebound_world := AuthoritativeWorld.new()
+	for beam_index in 3:
+		var tangent_beam := ProjectileState.create(
+			100 + beam_index,
+			90,
+			7,
+			Vector2(1565.0, 1085.0 + float(beam_index) * 0.5),
+			0.0,
+			beam_rebound_stats
+		)
+		beam_rebound_world.projectile_registry.add(tangent_beam)
+	beam_rebound_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(beam_rebound_world.projectile_registry.size(), 3, "every near-tangent beam in a multi-shot volley survives its rebound")
+	var all_beams_rebounded := true
+	for tangent_beam in beam_rebound_world.active_projectiles():
+		if tangent_beam.velocity.y <= 0.0 or tangent_beam.remaining_ricochets != 0:
+			all_beams_rebounded = false
+	context.expect_true(all_beams_rebounded, "swept authority independently rebounds every beam in the volley")
+
 
 static func _validate_card_powerups(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()

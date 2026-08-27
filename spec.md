@@ -221,7 +221,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 - Reload begins automatically when the magazine reaches zero. The remappable manual-reload action (`R` or X / Square by default) starts the same authoritative reload when the magazine is partially used.
 - Firing is disabled while reloading or shielding. Releasing the shield does not reset the fire cooldown.
 - Projectiles ignore their owner, do not collide with other projectiles, and damage every other participant because the mode is free-for-all.
-- A normal projectile is destroyed on its first ship, shield, wall, or obstacle collision. Piercing allows additional unshielded ship hits; ricochet allows wall/obstacle bounces. A shield always consumes the projectile regardless of remaining pierces or bounces.
+- A normal projectile is destroyed on its first ship, shield, wall, or obstacle collision. Piercing allows additional unshielded ship hits; ricochet allows wall/obstacle bounces. Every projectile and beam uses continuous swept arena collision between its prior and next positions so fast or near-tangent volley members cannot tunnel through boundaries, rectangular cover, or circular obstacles. A shield always consumes the projectile regardless of remaining pierces or bounces.
 - A projectile cannot damage the same ship more than once. Its server record tracks already-hit peer IDs.
 - Enforce 64 active projectiles per owner and 1024 globally. When a new projectile would exceed a limit, despawn the oldest projectile owned by that shooter first; if the global limit remains exceeded, despawn the globally oldest projectile.
 
@@ -500,7 +500,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Correction errors up to 128 pixels are smoothed over 100 ms. Larger errors snap immediately and increment a diagnostic counter.
 - Remote players render approximately 100 ms behind server time by interpolating the two surrounding snapshots. Extrapolation is limited to 100 ms before holding the last state.
 - The local client may show an immediate predicted muzzle flash and projectile volley. Every predicted projectile in a multi-shot volley is tracked under its owner ID and shot sequence; the entire predicted volley is replaced when the authoritative spawns arrive so no collisionless visual copies survive. Rejected shots fade within 100 ms.
-- Clients simulate projectile visuals from authoritative spawn data. The 5 Hz correction list adds missed projectiles, corrects ricochets, and removes projectiles absent from the authoritative list.
+- Clients simulate every projectile visual from authoritative spawn data using the same swept arena rebound geometry as the server, so each projectile and short-lived beam in a multi-shot volley visibly ricochets without waiting for the 5 Hz correction interval. The correction list adds missed projectiles, synchronizes position, velocity, lifetime, pierce and ricochet budgets, and removes projectiles absent from the authoritative list.
 
 ### 8.5 Validation and Rejection
 
@@ -549,7 +549,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 ### 11.1 Automated Tests
 
 - **Stat tests:** Every card alone and at cap, order-independent stacking, clamps, Twin Shot spread, and build-complete offers.
-- **Combat tests:** Movement normalization and both flight bases, fire cadence, automatic/manual reload, ship-overlap recovery, shield arc edges, depletion lock, shield-ram qualification/cooldown, pierce, ricochet, owner immunity, timed powerup placement/pickup, overtime, repair interruption, and simultaneous lethal hits.
+- **Combat tests:** Movement normalization and both flight bases, fire cadence, automatic/manual reload, ship-overlap recovery, shield arc edges, depletion lock, shield-ram qualification/cooldown, pierce, continuous swept ricochet for complete projectile/beam volleys, owner immunity, timed powerup placement/pickup, overtime, repair interruption, and simultaneous lethal hits.
 - **State tests:** Valid transition graph, first-to-two heat resolution with more than three heats, round target 1 and 5, draft early completion/timeout, forfeit, leader transfer, and lobby reset.
 - **Protocol tests:** Encode/decode round trips, maximum bounded payloads, sequence wraparound, malformed/truncated packets, lobby option and colour authorization, rate limiting, version mismatch, and stale card tokens.
 - **Integration tests:** One server plus two protocol clients completes a seeded match, returns to lobby, starts a second match with cleared state, and exits cleanly. A separate production-flow test starts an in-process authority, admits its loopback client through the real handshake, discovers its advertisement through the LAN browser, and shuts both roles down cleanly.

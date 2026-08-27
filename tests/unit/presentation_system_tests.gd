@@ -152,6 +152,43 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 		only_authoritative_projectiles,
 		"only authoritative barrier-colliding projectiles remain after multi-shot reconciliation"
 	)
+	for scatter_projectile in view.authoritative_projectiles.all_projectiles():
+		view.authoritative_projectiles.remove(scatter_projectile.projectile_id)
+	var beam_volley_stats := CombatStats.create_base()
+	beam_volley_stats.beam_weapon = true
+	beam_volley_stats.projectile_count = 3
+	beam_volley_stats.projectile_spread_degrees = 18.0
+	beam_volley_stats.ricochet_count = 1
+	view.local_stats = beam_volley_stats
+	view.local_weapon.shot_sequence = 10
+	local_ship.global_position = Vector2(100.0, 900.0)
+	view._spawn_predicted_projectile(local_ship, PI)
+	view._step_projectile_visuals(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(view.authoritative_projectiles.size(), 3, "client retains every reflected beam in the predicted multi-shot volley")
+	var every_beam_visually_rebounded := true
+	for beam_projectile in view.authoritative_projectiles.all_projectiles():
+		if beam_projectile.velocity.x <= 0.0 or beam_projectile.remaining_ricochets != 0:
+			every_beam_visually_rebounded = false
+	context.expect_true(every_beam_visually_rebounded, "client immediately renders rebound behavior for every beam instead of waiting for correction")
+	for beam_projectile in view.authoritative_projectiles.all_projectiles():
+		view.authoritative_projectiles.remove(beam_projectile.projectile_id)
+	var correction_stats := CombatStats.create_base()
+	correction_stats.ricochet_count = 2
+	var stale_projectile := ProjectileState.create(400, 2, 12, Vector2(500.0, 500.0), 0.0, correction_stats)
+	view.authoritative_projectiles.add(stale_projectile)
+	var corrected_projectile := ProjectileState.create(400, 2, 12, Vector2(540.0, 510.0), PI * 0.5, correction_stats)
+	corrected_projectile.remaining_ricochets = 0
+	corrected_projectile.remaining_pierces = 1
+	corrected_projectile.lifetime_remaining = 0.4
+	view._on_projectile_correction({"spawned": [corrected_projectile]})
+	var synchronized_projectile := view.authoritative_projectiles.get_projectile(400)
+	context.expect_true(
+		synchronized_projectile.velocity.y > 0.0
+		and synchronized_projectile.remaining_ricochets == 0
+		and synchronized_projectile.remaining_pierces == 1
+		and is_equal_approx(synchronized_projectile.lifetime_remaining, 0.4),
+		"projectile correction synchronizes rebound direction and every remaining traversal budget"
+	)
 	local_ship.free()
 	view.camera.free()
 	view.free()

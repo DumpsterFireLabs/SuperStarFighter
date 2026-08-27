@@ -239,6 +239,16 @@ static func _validate_projectiles(context: TestContext) -> void:
 	context.expect_true(projectile.velocity.x < 0.0, "ricochet reflects projectile velocity")
 	context.expect_approx(projectile.velocity.length(), speed_before, "ricochet preserves projectile speed")
 	context.expect_false(projectile.ricochet(Vector2.RIGHT), "projectile expires on wall after ricochets are spent")
+	var tangent_start := ArenaLayout.center() + Vector2(-35.0, ArenaLayout.CENTRAL_RADIUS + projectile.radius - 2.0)
+	var tangent_end := tangent_start + Vector2(70.0, 0.0)
+	var tangent_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+		tangent_start,
+		tangent_end,
+		projectile.radius,
+		ArenaLayout.DEFAULT_MAP_ID
+	)
+	context.expect_true(bool(tangent_hit.get("hit", false)), "swept projectile collision catches a near-tangent obstacle crossing with clear endpoints")
+	context.expect_true((tangent_hit.normal as Vector2).y > 0.9, "near-tangent circle collision returns the outward rebound normal")
 	stats.projectile_lifetime = 4.0
 	var lifetime_projectile := ProjectileState.create(11, 1, 4, Vector2.ZERO, 0.0, stats)
 	context.expect_true(

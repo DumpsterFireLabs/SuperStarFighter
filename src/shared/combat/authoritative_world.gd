@@ -216,42 +216,58 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 		if not projectile.step(delta):
 			_remove_projectile(projectile.projectile_id)
 			continue
-		var obstacle_normal := ArenaCollisionSystem.projectile_obstacle_normal(
+		var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+			start,
 			projectile.position,
 			projectile.radius,
 			map_id
 		)
-		if not obstacle_normal.is_zero_approx():
+		if bool(obstacle_hit.get("hit", false)):
+			projectile.position = obstacle_hit.position as Vector2
+		if not _resolve_projectile_ship_hits(projectile, start, projectile.position, peer_ids, damage_events):
+			continue
+		if bool(obstacle_hit.get("hit", false)):
+			var obstacle_normal := obstacle_hit.normal as Vector2
 			if projectile.ricochet(obstacle_normal):
-				projectile.position += obstacle_normal * (projectile.radius + 0.1)
+				projectile.position += obstacle_normal * 0.1
 			else:
 				_remove_projectile(projectile.projectile_id)
-			continue
-		for peer_id in peer_ids:
-			var target := combatants[peer_id] as CombatantState
-			if not target.alive or not projectile.can_hit(peer_id):
-				continue
-			if not _segment_intersects_circle(
-				start,
-				projectile.position,
-				target.position,
-				GameConstants.SHIP_COLLISION_RADIUS + projectile.radius
-			):
-				continue
-			var impact_vector := projectile.position - target.position
-			if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
-				_remove_projectile(projectile.projectile_id)
-				break
-			damage_events.append({
-				"projectile_id": projectile.projectile_id,
-				"target_id": peer_id,
-				"damage": projectile.damage,
-			})
-			if not projectile.register_hull_hit(peer_id):
-				_remove_projectile(projectile.projectile_id)
-				break
+
 	for peer_id in DamageResolver.resolve_tick(combatants, damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
+
+
+func _resolve_projectile_ship_hits(
+	projectile: ProjectileState,
+	start: Vector2,
+	end: Vector2,
+	peer_ids: Array[int],
+	damage_events: Array[Dictionary]
+) -> bool:
+	for peer_id in peer_ids:
+		var target := combatants[peer_id] as CombatantState
+		if not target.alive or not projectile.can_hit(peer_id):
+			continue
+		if not _segment_intersects_circle(
+			start,
+			end,
+			target.position,
+			GameConstants.SHIP_COLLISION_RADIUS + projectile.radius
+		):
+			continue
+		var impact_vector := end - target.position
+		if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
+			_remove_projectile(projectile.projectile_id)
+			return false
+		damage_events.append({
+			"projectile_id": projectile.projectile_id,
+			"target_id": peer_id,
+			"damage": projectile.damage,
+		})
+		if not projectile.register_hull_hit(peer_id):
+			_remove_projectile(projectile.projectile_id)
+			return false
+	return true
 
 
 func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:

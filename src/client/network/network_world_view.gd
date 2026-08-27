@@ -333,6 +333,11 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 		else:
 			existing.position = projectile.position
 			existing.velocity = projectile.velocity
+			existing.damage = projectile.damage
+			existing.remaining_pierces = projectile.remaining_pierces
+			existing.remaining_ricochets = projectile.remaining_ricochets
+			existing.lifetime_remaining = projectile.lifetime_remaining
+			existing.is_beam = projectile.is_beam
 	for projectile in authoritative_projectiles.all_projectiles():
 		if projectile.projectile_id > 0 and not authoritative_ids.has(projectile.projectile_id):
 			authoritative_projectiles.remove(projectile.projectile_id)
@@ -405,9 +410,25 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 
 func _step_projectile_visuals(delta: float) -> void:
 	for projectile in authoritative_projectiles.all_projectiles():
+		var start := projectile.position
 		if not projectile.step(delta):
 			authoritative_projectiles.remove(projectile.projectile_id)
-	projectile_layer.queue_redraw()
+			continue
+		var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+			start,
+			projectile.position,
+			projectile.radius,
+			arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+		)
+		if bool(obstacle_hit.get("hit", false)):
+			projectile.position = obstacle_hit.position as Vector2
+			var obstacle_normal := obstacle_hit.normal as Vector2
+			if projectile.ricochet(obstacle_normal):
+				projectile.position += obstacle_normal * 0.1
+			else:
+				authoritative_projectiles.remove(projectile.projectile_id)
+	if projectile_layer != null:
+		projectile_layer.queue_redraw()
 
 
 func _update_camera(local_ship: SandboxShip, delta: float) -> void:
