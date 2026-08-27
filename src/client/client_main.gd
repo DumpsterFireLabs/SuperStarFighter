@@ -74,6 +74,8 @@ var powerups_permanent_button: CheckButton
 var overtime_start_control: SpinBox
 var game_mode_control: OptionButton
 var game_mode_note: Label
+var team_count_row: HBoxContainer
+var team_count_control: SpinBox
 var ship_color_popup: PanelContainer
 var random_color_button: Button
 var ship_color_picker: ColorPicker
@@ -528,6 +530,24 @@ func _create_lobby_options_popup() -> void:
 	game_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	game_mode_note.add_theme_color_override("font_color", Color("73f7ff"))
 	content.add_child(game_mode_note)
+	team_count_row = HBoxContainer.new()
+	team_count_row.name = "TeamCountRow"
+	team_count_row.add_theme_constant_override("separation", 14)
+	team_count_row.visible = false
+	content.add_child(team_count_row)
+	var team_count_label := Label.new()
+	team_count_label.text = "Number of teams"
+	team_count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	team_count_row.add_child(team_count_label)
+	team_count_control = SpinBox.new()
+	team_count_control.min_value = GameModeRules.MIN_TEAM_COUNT
+	team_count_control.max_value = GameModeRules.MAX_TEAM_COUNT
+	team_count_control.value = GameModeRules.DEFAULT_TEAM_COUNT
+	team_count_control.step = 1.0
+	team_count_control.custom_minimum_size = Vector2(150.0, 44.0)
+	team_count_control.tooltip_text = "Team Death Match supports two through eight teams. Every configured team needs at least one participant."
+	team_count_control.value_changed.connect(_on_team_count_changed)
+	team_count_row.add_child(team_count_control)
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Random spawn powerups"
 	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears during active combat at the interval configured beside this toggle."
@@ -1778,6 +1798,9 @@ func _on_lobby_state(state: Dictionary) -> void:
 	var selected_game_mode := clampi(int(state.get("game_mode", GameModeRules.Mode.DEATH_MATCH)), GameModeRules.Mode.DEATH_MATCH, GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG)
 	game_mode_control.select(selected_game_mode)
 	game_mode_note.text = GameModeRules.mode_description(selected_game_mode)
+	team_count_row.visible = selected_game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH
+	team_count_control.max_value = mini(GameModeRules.MAX_TEAM_COUNT, int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS)))
+	team_count_control.value = clampi(int(state.get("team_count", GameModeRules.DEFAULT_TEAM_COUNT)), GameModeRules.MIN_TEAM_COUNT, GameModeRules.MAX_TEAM_COUNT)
 	rounds_control.value = int(state.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
 	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
 	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
@@ -1801,6 +1824,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
 	var settings_editable := is_leader and not match_active
 	game_mode_control.disabled = not settings_editable
+	team_count_control.editable = settings_editable and selected_game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH
 	rounds_control.editable = settings_editable
 	player_limit_control.editable = settings_editable
 	npcs_button.disabled = not settings_editable
@@ -1810,10 +1834,14 @@ func _on_lobby_state(state: Dictionary) -> void:
 	powerups_permanent_button.disabled = not settings_editable or not bool(state.get("random_spawn_powerups", false))
 	overtime_start_control.editable = settings_editable
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
-	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false))
+	var team_setup_valid := bool(state.get("team_setup_valid", true))
+	var team_setup_error := String(state.get("team_setup_error", ""))
+	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false)) or not team_setup_valid
 	var human_count := total_count - npc_count
 	if not is_leader:
 		start_button.text = "Waiting for Lobby Leader"
+	elif not team_setup_valid:
+		start_button.text = "Configure All Teams"
 	elif not bool(state.get("all_humans_ready", false)):
 		start_button.text = "Waiting for Players to Ready"
 	elif human_count == 1 and not bool(state.get("npcs_enabled", false)):
@@ -1822,7 +1850,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 		start_button.text = "Start Match with NPCs"
 	else:
 		start_button.text = "Start Match"
-	start_button.tooltip_text = "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
+	start_button.tooltip_text = team_setup_error if not team_setup_valid else "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
 	if input_profiles.uses_controller() and get_viewport().gui_get_focus_owner() == null:
 		ready_button.grab_focus()
 
@@ -1831,6 +1859,10 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 	for child in lobby_roster.get_children():
 		lobby_roster.remove_child(child)
 		child.queue_free()
+	var game_mode := int(state.get("game_mode", GameModeRules.Mode.DEATH_MATCH))
+	var team_mode := GameModeRules.is_team_mode(game_mode)
+	var team_count := GameModeRules.team_count_for_mode(game_mode, int(state.get("team_count", GameModeRules.DEFAULT_TEAM_COUNT)))
+	var match_active := bool(state.get("match_active", false))
 	for player_value in state.get("players", []):
 		var player := player_value as Dictionary
 		var peer_id := int(player.get("peer_id", 0))
@@ -1858,17 +1890,32 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		row.add_child(color_swatch)
 		var name_label := Label.new()
 		name_label.text = String(player.get("display_name", "Pilot"))
-		name_label.custom_minimum_size.x = 300.0
+		name_label.custom_minimum_size.x = 190.0 if team_mode else 300.0
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_label.add_theme_color_override("font_color", Color("fff36a") if peer_id == int(state.get("leader_id", 0)) else Color("e8f5ff"))
 		row.add_child(name_label)
 		var role_label := Label.new()
 		var team_id := int(player.get("team_id", 0))
 		var role_name := "HOST" if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
-		role_label.text = "%s · %s" % [role_name, GameModeRules.team_name(team_id)] if team_id > 0 else role_name
-		role_label.custom_minimum_size.x = 170.0 if team_id > 0 else 90.0
+		role_label.text = role_name if team_mode else "%s · %s" % [role_name, GameModeRules.team_name(team_id)] if team_id > 0 else role_name
+		role_label.custom_minimum_size.x = 80.0 if team_mode else 170.0 if team_id > 0 else 90.0
 		role_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id) if team_id > 0 else Color("d39cff"))
 		row.add_child(role_label)
+		if team_mode:
+			var team_control := OptionButton.new()
+			team_control.name = "TeamAssignment"
+			team_control.custom_minimum_size = Vector2(160.0, 38.0)
+			var team_selection := clampi(int(player.get("team_selection", 0)), 0, team_count)
+			team_control.add_item("AUTO · %s" % GameModeRules.team_name(team_id).trim_suffix(" TEAM"), 0)
+			for selectable_team_id in range(1, team_count + 1):
+				team_control.add_item(GameModeRules.team_name(selectable_team_id), selectable_team_id)
+			team_control.select(team_selection)
+			team_control.add_theme_color_override("font_color", GameModeRules.team_color(team_id))
+			var can_assign_team := not match_active and (is_leader or peer_id == bridge.local_peer_id or is_npc)
+			team_control.disabled = not can_assign_team
+			team_control.tooltip_text = "Choose a specific team or keep automatic balancing." if can_assign_team else "Only the host or this player may change this team."
+			team_control.item_selected.connect(_on_team_assignment_selected.bind(peer_id))
+			row.add_child(team_control)
 		if is_npc:
 			var difficulty_control := OptionButton.new()
 			difficulty_control.name = "NpcDifficulty"
@@ -1913,8 +1960,18 @@ func _on_npcs_toggled(enabled: bool) -> void:
 func _on_game_mode_selected(index: int) -> void:
 	var mode := game_mode_control.get_item_id(index)
 	game_mode_note.text = GameModeRules.mode_description(mode)
+	team_count_row.visible = mode == GameModeRules.Mode.TEAM_DEATH_MATCH
 	if not _applying_lobby_state:
 		bridge.send_game_mode(mode)
+
+
+func _on_team_count_changed(value: float) -> void:
+	if not _applying_lobby_state:
+		bridge.send_team_count(roundi(value))
+
+
+func _on_team_assignment_selected(index: int, peer_id: int) -> void:
+	bridge.send_team_assignment(peer_id, index)
 
 
 func _show_lobby_options() -> void:

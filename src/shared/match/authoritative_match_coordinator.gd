@@ -68,6 +68,7 @@ func _init(
 		player.npc_difficulty = lobby_player.npc_difficulty
 		player.ship_color = lobby_player.ship_color
 		player.team_id = lobby_player.team_id
+		player.team_selection = lobby_player.team_selection
 	_rebuild_team_assignments_cache()
 	_rebuild_objective_static_cache()
 	draft = DraftManager.new(catalog, match_seed)
@@ -318,28 +319,51 @@ func _start_draft() -> void:
 
 func _prepare_world_heat() -> void:
 	var participant_stats: Dictionary = {}
-	var spawn_assignments: Dictionary = {}
 	var anchors := ArenaLayout.spawn_anchors(current_map_id)
 	_shuffle_anchors(anchors)
 	var participant_ids := machine.participant_ids()
-	var team_members: Dictionary = {1: [], 2: []}
-	if GameModeRules.is_team_mode(lobby.config.game_mode):
-		anchors.sort_custom(func(left: Vector2, right: Vector2) -> bool: return left.x < right.x)
-		for peer_id in participant_ids:
-			var team_id := (machine.players[peer_id] as PlayerMatchState).team_id
-			(team_members[team_id] as Array).append(peer_id)
+	var spawn_assignments := (
+		_team_spawn_assignments(participant_ids, anchors)
+		if GameModeRules.is_team_mode(lobby.config.game_mode) else
+		{}
+	)
 	for index in participant_ids.size():
 		var peer_id := participant_ids[index]
 		var player := machine.players[peer_id] as PlayerMatchState
 		participant_stats[peer_id] = StatSystem.derive(player.effective_card_stacks(), catalog)
-		if GameModeRules.is_team_mode(lobby.config.game_mode):
-			var player_team_members := team_members[player.team_id] as Array
-			var team_index := player_team_members.find(peer_id)
-			spawn_assignments[peer_id] = anchors[team_index if player.team_id == 1 else anchors.size() - 1 - team_index]
-		else:
+		if not spawn_assignments.has(peer_id):
 			spawn_assignments[peer_id] = anchors[index]
 	world.set_team_assignments(_team_assignments_cache)
 	world.prepare_heat(participant_stats, spawn_assignments)
+
+
+func _team_spawn_assignments(participant_ids: Array[int], anchors: Array[Vector2]) -> Dictionary:
+	var result: Dictionary = {}
+	var available := anchors.duplicate()
+	var team_count := GameModeRules.team_count_for_mode(lobby.config.game_mode, lobby.config.team_count)
+	var center := ArenaLayout.center(current_map_id)
+	for team_id in range(1, team_count + 1):
+		var members: Array[int] = []
+		for peer_id in participant_ids:
+			if (machine.players[peer_id] as PlayerMatchState).team_id == team_id:
+				members.append(peer_id)
+		members.sort()
+		var team_angle := PI + TAU * float(team_id - 1) / float(team_count)
+		for member_index in members.size():
+			if available.is_empty():
+				break
+			var member_offset := (float(member_index) - float(members.size() - 1) * 0.5) * 0.12
+			var desired_angle := team_angle + member_offset
+			var best_index := 0
+			var best_difference := INF
+			for anchor_index in available.size():
+				var anchor := available[anchor_index] as Vector2
+				var difference := absf(angle_difference((anchor - center).angle(), desired_angle))
+				if difference < best_difference:
+					best_difference = difference
+					best_index = anchor_index
+			result[members[member_index]] = available.pop_at(best_index)
+	return result
 
 
 func _select_map_for_round(round_number: int) -> void:

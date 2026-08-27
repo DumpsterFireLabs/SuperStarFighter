@@ -65,6 +65,6 @@ The workspace contains a complete vertical slice with a Windows client, headless
 ## Assumptions and Defaults
 
 - Godot and its export templates are not currently installed; implementation will bootstrap the official portable Godot 4.7.2 Standard tools.
-- The vertical slice has no public internet server directory, matchmaking, accounts, persistence, custom team selection, chat, cosmetic unlocks, monetization, or reconnect restoration. Its server browser is LAN-only; team modes use automatic Cyan/Magenta assignment.
+- The vertical slice has no public internet server directory, matchmaking, accounts, persistence, custom team-colour design, chat, cosmetic unlocks, monetization, or reconnect restoration. Its server browser is LAN-only; Team Death Match supports two through eight teams with Auto or permission-controlled explicit assignments, while Team Capture the Flag retains fixed Cyan/Magenta bases.
 - Balance values are initial playable defaults stored as data resources so they can be tuned without changing networking or combat code.
 - Direct-IP traffic is unauthenticated and unencrypted for this milestone; server authority protects game state but is not a substitute for a production account or anti-abuse service.

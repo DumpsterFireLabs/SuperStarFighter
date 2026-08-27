@@ -14,6 +14,7 @@ static func run(context: TestContext) -> void:
 	_validate_rate_limiting(context)
 	_validate_observability_bounds(context)
 	_validate_lobby_authority(context)
+	_validate_team_assignment_authority(context)
 	_validate_npc_lobby_and_inputs(context)
 	_validate_prediction_and_interpolation(context)
 	_validate_authoritative_world(context)
@@ -272,6 +273,7 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_equal(lobby.config.game_mode, GameModeRules.Mode.DEATH_MATCH, "Death Match is the default lobby mode")
 	context.expect_false(lobby.request_game_mode(3, GameModeRules.Mode.TEAM_DEATH_MATCH).ok, "non-leader cannot change the game mode")
 	context.expect_true(lobby.request_game_mode(2, GameModeRules.Mode.TEAM_DEATH_MATCH).ok, "leader can select Team Death Match")
+	context.expect_equal(lobby.config.team_count, 2, "Team Death Match defaults to two teams")
 	context.expect_equal((lobby.players[2] as PlayerMatchState).team_id, 1, "team modes deterministically place the first participant on Cyan")
 	context.expect_equal((lobby.players[3] as PlayerMatchState).team_id, 2, "team modes balance the next participant onto Magenta")
 	context.expect_false(lobby.request_random_spawn_powerups(3, true).ok, "non-leader cannot enable random spawn powerups")
@@ -309,8 +311,39 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_true(serialized.random_powerups_permanent, "serialized lobby publishes drop permanence")
 	context.expect_approx(float(serialized.overtime_start_seconds), 75.0, "serialized lobby publishes the overtime start")
 	context.expect_equal(serialized.game_mode, GameModeRules.Mode.TEAM_DEATH_MATCH, "serialized lobby publishes the selected game mode")
+	context.expect_equal(serialized.team_count, 2, "serialized lobby publishes the configured team count")
 	var serialized_player := (serialized.players as Array).filter(func(player: Dictionary) -> bool: return int(player.peer_id) == 3)[0] as Dictionary
 	context.expect_equal(String(serialized_player.ship_color).length(), 6, "serialized player rows publish canonical RGB ship colours")
+	context.expect_true(serialized_player.has("team_selection"), "serialized player rows distinguish Auto from an explicit team selection")
+
+
+static func _validate_team_assignment_authority(context: TestContext) -> void:
+	var config := MatchConfig.new()
+	config.max_players = 4
+	var lobby := ServerLobby.new(config)
+	context.expect_true(lobby.admit(10, "Host").ok, "team authority fixture admits its host")
+	context.expect_true(lobby.admit(11, "Guest").ok, "team authority fixture admits a second human")
+	context.expect_true(lobby.request_player_limit(10, 4).ok, "team authority fixture reserves four participant seats")
+	context.expect_true(lobby.request_npcs_enabled(10, true).ok, "team authority fixture fills its remaining seats with NPCs")
+	context.expect_true(lobby.request_game_mode(10, GameModeRules.Mode.TEAM_DEATH_MATCH).ok, "host can enable Team Death Match")
+	context.expect_false(lobby.request_team_count(11, 4).ok, "non-host cannot change the configured team count")
+	context.expect_false(lobby.request_team_count(10, 5).ok, "team count cannot exceed the participant limit")
+	context.expect_true(lobby.request_team_count(10, 4).ok, "host can configure up to four populated teams")
+	context.expect_equal(lobby.config.team_count, 4, "authoritative lobby retains the configured team count")
+	context.expect_equal(lobby.team_setup_error(), "", "Auto assignment balances four participants across all four teams")
+	var npc_ids := lobby.npc_peer_ids()
+	context.expect_equal(npc_ids.size(), 2, "team authority fixture exposes two NPC assignment targets")
+	var npc_id := npc_ids[0]
+	context.expect_true(lobby.request_team_assignment(11, npc_id, 4).ok, "any connected human may assign an NPC team")
+	context.expect_equal((lobby.players[npc_id] as PlayerMatchState).team_selection, 4, "NPC stores its explicit team selection")
+	context.expect_false(lobby.request_team_assignment(11, 10, 2).ok, "non-host cannot assign another human's team")
+	context.expect_true(lobby.request_team_assignment(11, 11, 3).ok, "a non-host human may assign their own team")
+	context.expect_true(lobby.request_team_assignment(10, 11, 2).ok, "host may override another human's team")
+	context.expect_false(lobby.request_team_assignment(11, npc_id, 5).ok, "team selections outside the configured range are rejected")
+	context.expect_equal(lobby.team_setup_error(), "", "Auto seats rebalance around explicit assignments so every team remains populated")
+	var serialized := lobby.serialize()
+	context.expect_true(serialized.team_setup_valid, "serialized lobby publishes a valid multi-team setup")
+	context.expect_equal(serialized.team_count, 4, "serialized lobby keeps the multi-team selection")
 
 
 static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:

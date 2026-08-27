@@ -244,6 +244,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_approx(client.overtime_start_control.value, 90.0, "overtime visibly defaults to ninety seconds")
 	context.expect_equal(client.game_mode_control.item_count, 5, "lobby options expose all five selectable game modes")
 	context.expect_equal(client.game_mode_control.get_selected_id(), GameModeRules.Mode.DEATH_MATCH, "Death Match is visibly selected by default")
+	context.expect_true(client.team_count_row != null and client.team_count_control != null, "lobby options provide a configurable Team Death Match team count")
+	context.expect_false(client.team_count_row.visible, "team count stays hidden outside Team Death Match")
+	context.expect_equal(int(client.team_count_control.min_value), 2, "Team Death Match requires at least two teams")
+	context.expect_equal(int(client.team_count_control.max_value), 8, "Team Death Match supports up to eight teams")
 	context.expect_equal(client.npc_all_difficulty_control.item_count, 5, "lobby provides one bulk dropdown covering every NPC difficulty")
 	context.expect_true(client.ship_color_popup != null and client.random_color_button != null and client.ship_color_picker != null and client.apply_ship_color_button != null, "roster colour selection owns a wheel with Random and explicit Apply actions")
 	context.expect_equal(client.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
@@ -331,10 +335,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
 	context.expect_equal(client.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
 	var configurable_players: Array[Dictionary] = [
-		{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": false},
-		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true},
+		{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": false, "team_id": 1, "team_selection": 0},
+		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true, "team_id": 2, "team_selection": 2},
+		{"peer_id": 3, "display_name": "Pilot 02", "spectator": false, "is_npc": false, "ready": false, "team_id": 1, "team_selection": 1},
 	]
-	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 2, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 3, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "team_setup_valid": true, "team_setup_error": "", "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
 	var difficulty_control := client.lobby_roster.get_child(1).get_node("NpcDifficulty") as OptionButton
 	context.expect_true(difficulty_control != null, "each waiting NPC renders an individual difficulty dropdown")
 	context.expect_equal(difficulty_control.item_count, 5, "NPC dropdown exposes passive through insane")
@@ -347,6 +352,19 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_approx(client.overtime_start_control.value, 75.0, "lobby renders the authoritative overtime start")
 	context.expect_equal(client.game_mode_control.get_selected_id(), GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "lobby renders the authoritative game-mode selection")
 	context.expect_true(client.game_mode_note.text.contains("neutral center flag"), "game-mode selection explains its objective")
+	context.expect_false(client.team_count_row.visible, "Team Capture the Flag remains a fixed two-team mode")
+	context.expect_false((client.lobby_roster.get_child(0).get_node("TeamAssignment") as OptionButton).disabled, "host may assign a human team")
+	context.expect_false((client.lobby_roster.get_child(1).get_node("TeamAssignment") as OptionButton).disabled, "host may assign an NPC team")
+	client.bridge.local_peer_id = 3
+	client._rebuild_lobby_roster({"players": configurable_players, "leader_id": 2, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "match_active": false}, false)
+	context.expect_true((client.lobby_roster.get_child(0).get_node("TeamAssignment") as OptionButton).disabled, "non-host cannot change another human's team")
+	context.expect_false((client.lobby_roster.get_child(1).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign an NPC team")
+	context.expect_false((client.lobby_roster.get_child(2).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign their own team")
+	client.bridge.local_peer_id = 2
+	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": false, "team_setup_error": "Every configured team needs at least one participant.", "match_active": false, "rounds_to_win": 3})
+	context.expect_true(client.team_count_row.visible, "Team Death Match reveals the team-count option")
+	context.expect_equal(int(client.team_count_control.value), 4, "team-count option reflects authoritative lobby state")
+	context.expect_true(client.start_button.disabled and client.start_button.text == "Configure All Teams", "host cannot launch until every configured team is populated")
 	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
 	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
 	context.expect_true(client.start_button.disabled and client.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")

@@ -186,6 +186,7 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 ### Lobby leader
 
 - Selects **Death Match**, **Team Death Match**, **King of the Hill**, **Capture the Flag**, or **Team Capture the Flag** from Match Options. Death Match is the default.
+- When Team Death Match is selected, sets **Number of teams** from 2 through 8 without exceeding the player limit.
 - Sets **Rounds to win** from 1 through 5.
 - Sets the **Player limit** from 2 through server capacity, never above 32 or below the number of connected humans.
 - Enables or disables NPC fill.
@@ -204,6 +205,7 @@ The leader cannot eject players during an active match and cannot eject themselv
 - Every connected human must be ready.
 - With NPCs disabled, at least two humans are required.
 - With NPCs enabled, one ready human may start with the configured NPC roster.
+- In a team mode, every available team must contain at least one participant.
 
 The start button explains whichever requirement is missing. When a normal human lobby is ready it reads **Start Match**; a solo NPC-assisted launch reads **Start Match with NPCs**.
 
@@ -218,12 +220,12 @@ When the leader enables this optional rule, one Rare-or-better card appears at a
 | Mode | Heat objective |
 | --- | --- |
 | Death Match | Be the final surviving pilot. |
-| Team Death Match | Be the final team with at least one living pilot. |
+| Team Death Match | Be the final team with at least one living pilot; the host may configure two through eight teams. |
 | King of the Hill | Hold the marked point alone and uncontested for 20 uninterrupted seconds. Leaving or sharing the point resets progress. |
 | Capture the Flag | Collect the neutral center flag and carry it to the neutral extraction zone. |
 | Team Capture the Flag | Collect the neutral center flag and carry it to your team's coloured base. |
 
-Team modes automatically balance humans and NPCs between **Cyan Team** and **Magenta Team** in join order. The roster, live standings, and results identify each pilot's team. Friendly projectile, beam, and shield-ram damage is disabled; ships still separate physically so teammates cannot occupy the same space. NPCs do not target or dodge allies and will pursue the active objective.
+Every participant row in a team-mode lobby has a team dropdown. **Auto** balances that participant onto the least-populated available team; a specific choice locks them to that team. The host may assign anyone, each human may assign themselves, and any human may assign an NPC. A non-host cannot alter another human's selection. Team Death Match supports two through eight named/coloured teams; Team Capture the Flag stays fixed to **Cyan Team** and **Magenta Team** because each map has two bases. The roster, live standings, and results identify each pilot's team. Friendly projectile, beam, and shield-ram damage is disabled; ships still separate physically so teammates cannot occupy the same space. NPCs do not target or dodge allies and will pursue the active objective.
 
 Flags drop where their carrier dies and can be recovered. An untouched dropped flag returns to the center after eight seconds. King of the Hill and both flag modes deliberately do not award a heat merely because only one pilot remains—the survivor must finish the objective. A simultaneous all-pilot elimination is still a tie.
 
@@ -607,6 +609,6 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, custom team selection, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web builds.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web builds.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.

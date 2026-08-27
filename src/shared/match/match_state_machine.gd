@@ -28,8 +28,8 @@ var match_winner: int = 0
 var last_heat_winner_team: int = 0
 var last_round_winner_team: int = 0
 var match_winner_team: int = 0
-var team_heat_wins: Dictionary = {1: 0, 2: 0}
-var team_round_wins: Dictionary = {1: 0, 2: 0}
+var team_heat_wins: Dictionary = {}
+var team_round_wins: Dictionary = {}
 var tied_heat: bool = false
 var event_history: Array[Dictionary] = []
 
@@ -42,8 +42,7 @@ var _pending_match_winner_team: int = 0
 func _init(configuration: MatchConfig = null, card_catalog: CardCatalog = null) -> void:
 	config = configuration.duplicate_config() if configuration != null else MatchConfig.new()
 	catalog = card_catalog if card_catalog != null else CardCatalog.create_default()
-	team_scores.register_player(1)
-	team_scores.register_player(2)
+	_ensure_team_score_entries()
 	_refresh_team_score_views()
 
 
@@ -70,6 +69,7 @@ func start_match(at_tick: int) -> bool:
 		player.participant = true
 	players = _sorted_player_dictionary(players)
 	scores.reset_match()
+	_ensure_team_score_entries()
 	team_scores.reset_match()
 	round_number = 1
 	heat_number = 0
@@ -435,7 +435,14 @@ func _team_representative(team_id: int) -> int:
 func _refresh_team_score_views() -> void:
 	team_heat_wins = {}
 	team_round_wins = {}
-	for team_id in [1, 2]:
+	var team_count := GameModeRules.team_count_for_mode(config.game_mode, config.team_count)
+	for team_id in range(1, team_count + 1):
 		var score := team_scores.get_score(team_id)
 		team_heat_wins[team_id] = score.heat_wins if score != null else 0
 		team_round_wins[team_id] = score.round_wins if score != null else 0
+
+
+func _ensure_team_score_entries() -> void:
+	var team_count := GameModeRules.team_count_for_mode(config.game_mode, config.team_count)
+	for team_id in range(1, team_count + 1):
+		team_scores.register_player(team_id)

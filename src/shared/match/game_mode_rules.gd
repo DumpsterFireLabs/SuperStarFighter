@@ -18,13 +18,34 @@ const MODE_NAMES: Array[String] = [
 ]
 const MODE_DESCRIPTIONS: Array[String] = [
 	"Free-for-all combat. The last surviving pilot wins the heat.",
-	"Two balanced teams fight with friendly fire disabled. Eliminate the opposing team to win the heat.",
+	"Two to eight configured teams fight with friendly fire disabled. Eliminate every opposing team to win the heat.",
 	"Hold the central control point uncontested for 20 seconds without dying.",
 	"Take the neutral flag from the middle of the arena to the marked extraction zone.",
 	"Two balanced teams contest a neutral center flag and carry it into their own team base.",
 ]
-const TEAM_NAMES := {1: "CYAN TEAM", 2: "MAGENTA TEAM"}
-const TEAM_COLORS := {1: Color("42e8ff"), 2: Color("ff4fd8")}
+const MIN_TEAM_COUNT: int = 2
+const MAX_TEAM_COUNT: int = 8
+const DEFAULT_TEAM_COUNT: int = 2
+const TEAM_NAMES := {
+	1: "CYAN TEAM",
+	2: "MAGENTA TEAM",
+	3: "GOLD TEAM",
+	4: "GREEN TEAM",
+	5: "VIOLET TEAM",
+	6: "ORANGE TEAM",
+	7: "BLUE TEAM",
+	8: "RED TEAM",
+}
+const TEAM_COLORS := {
+	1: Color("42e8ff"),
+	2: Color("ff4fd8"),
+	3: Color("ffe45c"),
+	4: Color("62ff9b"),
+	5: Color("b58cff"),
+	6: Color("ff9f43"),
+	7: Color("6f8cff"),
+	8: Color("ff5d68"),
+}
 const HILL_HOLD_SECONDS: float = 20.0
 const OBJECTIVE_ZONE_RADIUS: float = 125.0
 const FLAG_PICKUP_RADIUS: float = 42.0
@@ -45,6 +66,18 @@ static func mode_description(mode: int) -> String:
 
 static func is_team_mode(mode: int) -> bool:
 	return mode == Mode.TEAM_DEATH_MATCH or mode == Mode.TEAM_CAPTURE_THE_FLAG
+
+
+static func is_valid_team_count(team_count: int) -> bool:
+	return team_count >= MIN_TEAM_COUNT and team_count <= MAX_TEAM_COUNT
+
+
+static func team_count_for_mode(mode: int, configured_count: int) -> int:
+	if mode == Mode.TEAM_DEATH_MATCH:
+		return clampi(configured_count, MIN_TEAM_COUNT, MAX_TEAM_COUNT)
+	if mode == Mode.TEAM_CAPTURE_THE_FLAG:
+		return DEFAULT_TEAM_COUNT
+	return 0
 
 
 static func uses_hill(mode: int) -> bool:

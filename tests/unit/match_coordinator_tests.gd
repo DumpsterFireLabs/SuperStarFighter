@@ -12,6 +12,7 @@ static func run(context: TestContext) -> void:
 	_validate_forfeit(context)
 	_validate_powerup_match_integration(context)
 	_validate_objective_modes(context)
+	_validate_multi_team_spawns(context)
 
 
 static func _validate_complete_match_and_rematch(context: TestContext) -> void:
@@ -217,6 +218,32 @@ static func _objective_fixture(mode: int, player_count: int, seed: int) -> Dicti
 	coordinator.start(0)
 	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
 	return {"world": world, "coordinator": coordinator}
+
+
+static func _validate_multi_team_spawns(context: TestContext) -> void:
+	var config := _fast_config()
+	config.max_players = 6
+	var lobby := ServerLobby.new(config)
+	var world := AuthoritativeWorld.new()
+	for peer_id in range(1, 7):
+		lobby.admit(peer_id, "SpawnPilot%d" % peer_id)
+		world.add_peer(peer_id)
+	lobby.request_game_mode(1, GameModeRules.Mode.TEAM_DEATH_MATCH)
+	lobby.request_team_count(1, 3)
+	_ready_all(lobby)
+	context.expect_true(lobby.request_start(1).ok, "three-team spawn fixture passes lobby validation")
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 8181)
+	context.expect_true(coordinator.start(0), "three-team coordinator starts")
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	var occupied_positions: Dictionary = {}
+	var represented_teams: Dictionary = {}
+	for peer_id in coordinator.machine.participant_ids():
+		var player := coordinator.machine.players[peer_id] as PlayerMatchState
+		var combatant := world.combatants[peer_id] as CombatantState
+		represented_teams[player.team_id] = true
+		occupied_positions[combatant.position] = true
+	context.expect_equal(represented_teams.size(), 3, "coordinator preserves all configured teams")
+	context.expect_equal(occupied_positions.size(), 6, "multi-team heat preparation gives every participant a unique spawn anchor")
 
 
 static func _validate_last_survivor_resolution(context: TestContext) -> void:

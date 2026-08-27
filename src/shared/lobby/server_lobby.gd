@@ -93,6 +93,8 @@ func request_player_limit(sender_id: int, value: int) -> Dictionary:
 		return {"ok": false, "error": "Player limit must be from 2 through %d." % mini(server_capacity, GameConstants.MAX_PLAYERS)}
 	if value < human_count():
 		return {"ok": false, "error": "Player limit cannot be lower than the connected human count."}
+	if config.game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH and value < config.team_count:
+		return {"ok": false, "error": "Player limit cannot be lower than the configured team count."}
 	if player_limit == value:
 		return {"ok": true, "removed_npc_ids": [], "added_npcs": []}
 	player_limit = value
@@ -180,10 +182,56 @@ func request_game_mode(sender_id: int, mode: int) -> Dictionary:
 	if config.game_mode == mode:
 		return {"ok": true, "changed": false}
 	config.game_mode = mode
+	if mode == GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG:
+		config.team_count = GameModeRules.DEFAULT_TEAM_COUNT
+	_reset_invalid_team_selections()
 	_assign_teams()
 	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true, "changed": true}
+
+
+func request_team_count(sender_id: int, team_count: int) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if config.game_mode != GameModeRules.Mode.TEAM_DEATH_MATCH:
+		return {"ok": false, "error": "Team count is configurable only for Team Death Match."}
+	if not GameModeRules.is_valid_team_count(team_count) or team_count > player_limit:
+		return {"ok": false, "error": "Team count must be from %d through %d and cannot exceed the player limit." % [GameModeRules.MIN_TEAM_COUNT, GameModeRules.MAX_TEAM_COUNT]}
+	if config.team_count == team_count:
+		return {"ok": true, "changed": false}
+	config.team_count = team_count
+	_reset_invalid_team_selections()
+	_assign_teams()
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_team_assignment(sender_id: int, target_peer_id: int, team_selection: int) -> Dictionary:
+	if match_active:
+		return {"ok": false, "error": "Team assignments cannot change during a match."}
+	if not GameModeRules.is_team_mode(config.game_mode):
+		return {"ok": false, "error": "Team assignments are available only in team modes."}
+	var sender := players.get(sender_id) as PlayerMatchState
+	if sender == null or sender.is_npc or not sender.connected:
+		return {"ok": false, "error": "Only connected human players may assign teams."}
+	var target := players.get(target_peer_id) as PlayerMatchState
+	if target == null or not target.connected or not target.participant:
+		return {"ok": false, "error": "That participant is no longer available in the lobby."}
+	if sender_id != leader_id and sender_id != target_peer_id and not target.is_npc:
+		return {"ok": false, "error": "Only the lobby leader or that player may change this team."}
+	var available_team_count := GameModeRules.team_count_for_mode(config.game_mode, config.team_count)
+	if team_selection < 0 or team_selection > available_team_count:
+		return {"ok": false, "error": "Team selection is outside the configured range."}
+	if target.team_selection == team_selection:
+		return {"ok": true, "changed": false}
+	target.team_selection = team_selection
+	_assign_teams()
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true, "team_id": target.team_id}
 
 
 func request_random_powerup_interval(sender_id: int, seconds: float) -> Dictionary:
@@ -255,6 +303,9 @@ func request_start(sender_id: int) -> Dictionary:
 		added_npcs = _fill_npc_seats()
 	if participant_count() < GameConstants.MIN_PLAYERS:
 		return {"ok": false, "error": "At least two participants are required; enable NPCs to start solo."}
+	var team_error := team_setup_error()
+	if not team_error.is_empty():
+		return {"ok": false, "error": team_error}
 	match_active = true
 	_revision_changed()
 	return {"ok": true, "added_npcs": added_npcs}
@@ -395,8 +446,10 @@ func serialize() -> Dictionary:
 			"npc_difficulty": player.npc_difficulty,
 			"ship_color": player.ship_color,
 			"team_id": player.team_id,
+			"team_selection": player.team_selection,
 			"ready": player.lobby_ready,
 		})
+	var setup_error := team_setup_error()
 	return {
 		"revision": revision,
 		"leader_id": leader_id,
@@ -408,6 +461,9 @@ func serialize() -> Dictionary:
 		"default_npc_difficulty": default_npc_difficulty,
 		"game_mode": config.game_mode,
 		"game_mode_name": GameModeRules.mode_name(config.game_mode),
+		"team_count": GameModeRules.team_count_for_mode(config.game_mode, config.team_count) if GameModeRules.is_team_mode(config.game_mode) else config.team_count,
+		"team_setup_valid": setup_error.is_empty(),
+		"team_setup_error": setup_error,
 		"random_spawn_powerups": config.random_spawn_powerups,
 		"random_powerup_interval_seconds": config.random_powerup_interval_seconds,
 		"random_powerups_permanent": config.random_powerups_permanent,
@@ -511,14 +567,58 @@ func _fill_npc_seats() -> Array[PlayerMatchState]:
 func _assign_teams() -> void:
 	var ordered: Array = players.values()
 	ordered.sort_custom(func(left: PlayerMatchState, right: PlayerMatchState) -> bool: return left.join_sequence < right.join_sequence)
-	var team_index := 0
+	var team_count := GameModeRules.team_count_for_mode(config.game_mode, config.team_count)
+	var team_counts: Dictionary = {}
+	for team_id in range(1, team_count + 1):
+		team_counts[team_id] = 0
 	for player_value in ordered:
 		var player := player_value as PlayerMatchState
 		if not player.connected or not player.participant:
 			player.team_id = 0
 			continue
-		player.team_id = 1 + team_index % 2 if GameModeRules.is_team_mode(config.game_mode) else 0
-		team_index += 1
+		if team_count == 0:
+			player.team_id = 0
+		elif player.team_selection > 0 and player.team_selection <= team_count:
+			player.team_id = player.team_selection
+			team_counts[player.team_id] = int(team_counts[player.team_id]) + 1
+		else:
+			player.team_id = 0
+	if team_count == 0:
+		return
+	for player_value in ordered:
+		var player := player_value as PlayerMatchState
+		if not player.connected or not player.participant or player.team_id != 0:
+			continue
+		var selected_team := 1
+		for team_id in range(2, team_count + 1):
+			if int(team_counts[team_id]) < int(team_counts[selected_team]):
+				selected_team = team_id
+		player.team_id = selected_team
+		team_counts[selected_team] = int(team_counts[selected_team]) + 1
+
+
+func team_setup_error() -> String:
+	var team_count := GameModeRules.team_count_for_mode(config.game_mode, config.team_count)
+	if team_count == 0:
+		return ""
+	if participant_count() < team_count:
+		return "At least %d participants are required for %d teams." % [team_count, team_count]
+	var populated: Dictionary = {}
+	for player_value in players.values():
+		var player := player_value as PlayerMatchState
+		if player.connected and player.participant and player.team_id > 0:
+			populated[player.team_id] = true
+	if populated.size() < team_count:
+		return "Every configured team must contain at least one participant."
+	return ""
+
+
+func _reset_invalid_team_selections() -> void:
+	var team_count := GameModeRules.team_count_for_mode(config.game_mode, config.team_count)
+	for player_value in players.values():
+		var player := player_value as PlayerMatchState
+		if player.team_selection > team_count:
+			player.team_selection = 0
 
 
 func _trim_npcs_to_limit() -> Array[int]:

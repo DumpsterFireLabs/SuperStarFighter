@@ -14,6 +14,7 @@ var random_powerup_interval_seconds: float = 20.0
 var random_powerups_permanent: bool = false
 var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
 var game_mode: int = GameModeRules.Mode.DEATH_MATCH
+var team_count: int = GameModeRules.DEFAULT_TEAM_COUNT
 
 
 func validate() -> PackedStringArray:
@@ -51,6 +52,8 @@ func validate() -> PackedStringArray:
 		errors.append("Overtime must begin from 30 through 120 seconds.")
 	if not GameModeRules.is_valid_mode(game_mode):
 		errors.append("Game mode is outside the supported range.")
+	if not GameModeRules.is_valid_team_count(team_count) or team_count > max_players:
+		errors.append("Team count must be from %d through %d and cannot exceed the player limit." % [GameModeRules.MIN_TEAM_COUNT, GameModeRules.MAX_TEAM_COUNT])
 	return errors
 
 
@@ -73,4 +76,5 @@ func duplicate_config() -> MatchConfig:
 	copy.random_powerups_permanent = random_powerups_permanent
 	copy.overtime_start_seconds = overtime_start_seconds
 	copy.game_mode = game_mode
+	copy.team_count = team_count
 	return copy

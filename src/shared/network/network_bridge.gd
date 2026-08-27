@@ -222,6 +222,16 @@ func send_game_mode(mode: int) -> void:
 		request_game_mode.rpc_id(NetworkProtocol.SERVER_PEER_ID, mode)
 
 
+func send_team_count(team_count: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_team_count.rpc_id(NetworkProtocol.SERVER_PEER_ID, team_count)
+
+
+func send_team_assignment(peer_id: int, team_selection: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_team_assignment.rpc_id(NetworkProtocol.SERVER_PEER_ID, peer_id, team_selection)
+
+
 func send_random_spawn_powerups(enabled: bool) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_random_spawn_powerups.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
@@ -430,6 +440,34 @@ func request_game_mode(mode: int) -> void:
 	if not _accept_control_request(sender_id, "game_mode"):
 		return
 	var result := lobby.request_game_mode(sender_id, mode)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_team_count(team_count: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "team_count"):
+		return
+	var result := lobby.request_team_count(sender_id, team_count)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_team_assignment(peer_id: int, team_selection: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "team_assignment"):
+		return
+	var result := lobby.request_team_assignment(sender_id, peer_id, team_selection)
 	if not result.ok:
 		_send_request_rejected(sender_id, result.error)
 	elif bool(result.get("changed", false)):

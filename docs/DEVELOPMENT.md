@@ -32,8 +32,8 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.3 |
-| Protocol version | 12 |
-| Automated suite | 1,970 assertions |
+| Protocol version | 13 |
+| Automated suite | 2,018 assertions |
 | Project gate | 86 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
@@ -153,7 +153,7 @@ LOBBY
 
 State deadlines use server ticks. UI countdowns derive from server time and must not create independent gameplay timers.
 
-`GameModeRules` is the shared mode registry. Death Match remains the default. Team modes deterministically balance the waiting roster across Cyan and Magenta; the coordinator copies those assignments into the combat world and state payload at match start. King of the Hill requires one uncontested pilot for 20 uninterrupted seconds. Both flag modes use a neutral center flag, authoritative carrier/drop/reset state, and either a neutral extraction zone or team-coloured bases. NPC objective steering consumes only coordinator-owned snapshots and still yields to overtime safety.
+`GameModeRules` is the shared mode registry. Death Match remains the default. Team Death Match supports two through eight configured teams; Team Capture the Flag remains fixed to two. `ServerLobby` balances Auto seats around authoritative explicit assignments, enforces host/self/NPC permissions, and requires every team to be populated. The coordinator copies those assignments into the combat world and places each team in a distinct spawn sector at match start. King of the Hill requires one uncontested pilot for 20 uninterrupted seconds. Both flag modes use a neutral center flag, authoritative carrier/drop/reset state, and either a neutral extraction zone or team-coloured bases. NPC objective steering consumes only coordinator-owned snapshots and still yields to overtime safety.
 
 ## 5. Authority and Protocol Rules
 
@@ -317,7 +317,7 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,970 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | 2,018 deterministic assertions | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 86 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |

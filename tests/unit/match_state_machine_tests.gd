@@ -10,6 +10,7 @@ static func run(context: TestContext) -> void:
 	_validate_forfeit_and_late_spectator(context)
 	_validate_empty_session_return(context)
 	_validate_team_death_match_scoring(context)
+	_validate_multi_team_death_match_scoring(context)
 	_validate_team_forfeit(context)
 
 
@@ -167,6 +168,29 @@ static func _validate_team_forfeit(context: TestContext) -> void:
 	context.expect_equal(machine.match_winner_team, 1, "team forfeit records the remaining team")
 	context.expect_equal((machine.score_snapshot()[1] as Dictionary).round_wins, 3, "team forfeit publishes the round target for the first teammate")
 	context.expect_equal((machine.score_snapshot()[3] as Dictionary).round_wins, 3, "team forfeit publishes the round target for every winning teammate")
+
+
+static func _validate_multi_team_death_match_scoring(context: TestContext) -> void:
+	var config := MatchConfig.new()
+	config.game_mode = GameModeRules.Mode.TEAM_DEATH_MATCH
+	config.team_count = 3
+	config.rounds_to_win = 1
+	var machine := MatchStateMachine.new(config, CardCatalog.create_default())
+	for peer_id in range(1, 7):
+		var player := machine.add_player(peer_id, "MultiTeamPilot%d" % peer_id, peer_id)
+		player.team_id = ((peer_id - 1) % 3) + 1
+	context.expect_true(machine.start_match(0), "three-team death match starts with every configured team populated")
+	context.expect_true(machine.team_heat_wins.has(3), "team score storage includes every configured team")
+	var active_tick := _complete_draft_and_enter_heat(machine, 0)
+	context.expect_true(machine.eliminate_players([2, 3, 5, 6], active_tick), "eliminating two opposing teams resolves a three-team heat")
+	context.expect_equal(machine.last_heat_winner_team, 1, "the surviving team wins a multi-team heat")
+	context.expect_equal((machine.score_snapshot()[1] as Dictionary).heat_wins, 1, "multi-team heat score reaches the first winning teammate")
+	context.expect_equal((machine.score_snapshot()[4] as Dictionary).heat_wins, 1, "multi-team heat score reaches every winning teammate")
+	active_tick = _advance_heat_result_to_active(machine)
+	machine.eliminate_players([2, 3, 5, 6], active_tick)
+	machine.advance_time(machine.state_deadline_tick)
+	context.expect_equal(machine.state, MatchStateMachine.State.MATCH_RESULT, "multi-team scoring completes the configured match")
+	context.expect_equal(machine.match_winner_team, 1, "multi-team match result preserves the winning team")
 
 
 static func _create_started_machine(player_count: int, rounds_to_win: int) -> MatchStateMachine:
