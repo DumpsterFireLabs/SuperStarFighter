@@ -48,7 +48,7 @@ Display settings support persistent Windowed, Borderless Fullscreen, and Exclusi
 
 ## Windows Beta Build
 
-The main menu identifies the current release as **Beta 1**, version `0.1.0-beta.1`. Build and verify the friend-ready Windows x64 client with:
+The main menu identifies the current release as **Beta 2**, version `0.1.0-beta.2`. Build and verify the friend-ready Windows x64 client with:
 
 ```powershell
 .\tools\build-beta.ps1
@@ -140,7 +140,7 @@ The current gate passes 1,753 automated assertions and 81 project checks. Networ
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, timed arena card pickups, 125 cards, custom ship colours, and validated 32-client server behavior.
 
-The Beta 1 Windows client export and packaging path is operational. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
+The Beta 2 Windows client export and packaging path is operational, while the prior Beta 1 package remains archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
 
 ## License and Assets
 

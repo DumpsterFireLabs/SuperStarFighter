@@ -1,17 +1,24 @@
-SUPER STAR FIGHTER — BETA 1
-Version 0.1.0-beta.1
+SUPER STAR FIGHTER — BETA 2
+Version 0.1.0-beta.2
 
 QUICK START
 
 1. Extract the entire ZIP to a writable folder.
-2. Run SuperStarFighter-Beta1.exe.
+2. Run SuperStarFighter-Beta2.exe.
 3. One player chooses Host Game, selects a gameplay UDP port, and chooses Host & Join.
 4. Friends on the same local network join from LAN Servers.
 5. Internet players use Direct Connect with the host's public IP address and gameplay port.
 
 INTERNET HOSTING
 
-The host must allow the executable through Windows Firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 1.
+The host must allow the executable through Windows Firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 2.
+
+BETA 2 HIGHLIGHTS
+
+- Optional Rare-or-better arena powerups can be enabled by the lobby leader.
+- Shield-ram cards, persistent ship colour selection, and a full HSV colour wheel are available in the lobby.
+- NPC pursuit and obstacle-loop recovery have been improved across the full arena.
+- Ship contact escape is stronger, NPC health rings start full, and draft/victory card details share the graphical card presentation.
 
 WINDOWS WARNING
 

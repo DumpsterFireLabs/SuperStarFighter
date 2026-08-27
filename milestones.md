@@ -42,9 +42,10 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.19 — Full-Arena NPC Pursuit, Contact Recovery, and Flight UX | Complete | Extended every NPC profile to full-arena acquisition; added close-contact disengagement and deterministic authoritative ship separation; added an in-world ammo/reload display, authoritative remappable manual reload, and persistent Newtonian/Relative flight modes; protocol 8, 1,666 assertions, 79 project checks, real ENet/NPC flows, and 180 production captures passed. |
 | 6.20 — Lobby Powerups, Shield-Ram Builds, and Ship Colours | Complete | Added a default-off leader option for authoritative twenty-second Rare-or-better arena card spawns with safe placement, collection, inventory, immediate stat application, late-join state, and NPC pickup support; added five audited Rare-through-Unobtanium shield-ram cards; added persistent per-human Random or HSV-wheel ship colours with lobby swatches; protocol 9, 1,740 assertions, 81 project checks, real ENet/NPC/match-loop flows, and 186 production captures passed. |
 | 6.21 — Contact Escape, Full NPC Health, and Unified Card Hovers | Complete | Reworked authoritative ship separation to transfer wall/cover-blocked correction and apply stronger escape impulses through rapid shield/fire transitions; fixed remote health rings to use each pilot's derived maximum; removed reset heat wins from victory standings; reused the rarity-styled graphical build preview for draft choices; 1,753 assertions, 81 project checks, real ENet/NPC/match-loop flows, and 192 production captures passed. |
-| 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and the verified Beta 1 Windows client package are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
+| 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and verified Beta 1/Beta 2 Windows client packages are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
 | 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; rebuilt a 127,516,408-byte embedded-PCK Windows x64 client with protocol 8, verified version metadata, rendered startup, and all six authored music tracks discovered; packaged a 57,045,256-byte friend ZIP with instructions and Godot notices; 1,666 assertions, 79 project checks, and 180 production captures passed. |
+| 7.3 — Windows Beta 2 Client Package | Complete | Advanced the visible/package identity to 0.1.0-beta.2 without replacing Beta 1; exported a 127,553,472-byte embedded-PCK Windows x64 client with protocol 9 and verified 0.1.0.2 file/product metadata; packaged a 57,077,237-byte friend ZIP with updated instructions and notices; 1,753 assertions, 81 project checks, 192 production captures, rendered startup, and all six authored music tracks passed. |
 | 8 — Ten-Map Expansion | In Progress | The static ten-map roster and automatic round rotation are playable; advanced per-map mechanics, optional rotation controls, full-capacity map simulations, and the rotating-map soak remain. |
 | 8.1 — Static Ten-Map Roster and Per-Round Rotation | Complete | Added ten visually distinct static topologies with 32 validated spawns each; a seeded shuffled deck changes maps only after a round is won and retains the same map through all heats and ties; authoritative collision, projectiles, overtime, NPC behavior, client reconstruction, HUD names, and protocol state are synchronized; 1,629 assertions, 79 project checks, real network/match-loop gates, and 150 production captures passed. |
 
@@ -297,11 +298,11 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ## Milestone 7 — Export, Documentation, and Release Candidate
 
-**Status:** In Progress — documentation completed 2026-08-25 and Windows Beta 1 client package completed 2026-08-26; dedicated-server and final release-candidate work remains
+**Status:** In Progress — documentation completed 2026-08-25 and Windows Beta 1/Beta 2 client packages completed 2026-08-26; dedicated-server and final release-candidate work remains
 
 **Outcome:** A clean checkout can produce and operate the deliverable Windows client and dedicated server.
 
-### Delivered in 7.1–7.2
+### Delivered in 7.1–7.3
 
 - Completed the repository README, player/host manual, contributor guide, documentation index, controls, architecture, local/LAN/internet hosting, troubleshooting, content authoring, tests, logs, limitations, and verification guidance.
 - Pinned `0.1.0-beta.1` as the shared/project game version and displayed **BETA 1 · VERSION 0.1.0-beta.1** on the main connection screen.
@@ -311,11 +312,13 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Added friend-facing extraction, LAN/direct-connect, firewall/port-forwarding, unsigned-build, controls, and known-limitation guidance plus the Godot third-party license notice.
 - Corrected exported music discovery to use Godot's remap-aware resource inventory, then verified the package finds one menu track, four gameplay tracks, and one victory track.
 - Produced `SuperStarFighter-Beta1.exe` at 127,516,408 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,045,256 bytes; both are generated under ignored `builds/beta-1/`.
+- Advanced the shared, project, main-screen, Windows metadata, preset, executable, archive, and tester-guide identity to `0.1.0-beta.2` / **BETA 2** while preserving Beta 1 in its original folder.
+- Produced `SuperStarFighter-Beta2.exe` at 127,553,472 bytes and `SuperStarFighter-Beta2-Windows-x64.zip` at 57,077,237 bytes under ignored `builds/beta-2/`; SHA-256 values are `11CA16C334C24CA53C9894AA874729AEC870750B13141F05086335AA343616F6` and `675D3A5EFCE2758BD439E43D7F04DD218FA42AE7A62F364A20877BCC1B03D9AB` respectively.
 
 ### Remaining Work
 
 - Configure the Windows x64 dedicated-server export preset and strip client-only visual/audio resources while retaining shared collision/gameplay data.
-- Extend release packaging to produce and validate `SuperStarFighterServer.exe` alongside the completed Beta 1 client.
+- Extend release packaging to produce and validate `SuperStarFighterServer.exe` alongside the completed Beta 2 client.
 - Add a release smoke script that starts the exported server, connects exported/headless clients, completes the minimum deterministic scenario, and shuts down cleanly.
 - Maintain the completed documentation and add final dedicated-server/export instructions with the remaining packaging work.
 - Audit repository contents for generated files, local paths, downloaded executables, secrets, and unlicensed assets.
@@ -325,6 +328,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 - Beta 1 client acceptance passed 1,666 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
 - The exported executable passed embedded-resource creation, Windows metadata inspection, off-screen rendered startup, real Windows audio-driver startup, and packaged inventory validation for all six authored music tracks without runtime errors; the friend ZIP contains only the executable, Beta README, and third-party notice.
+- Beta 2 client acceptance passed the current 1,753 deterministic assertions, 81 project checks, and 192 production captures; its embedded executable reported the expected client-ready marker and one menu, four gameplay, and one victory track without runtime errors. The ZIP contains only the Beta 2 executable, updated Beta README, and Godot third-party notice.
 
 - Produce both release artifacts from a clean checkout using only the documented bootstrap and export commands.
 - Connect two Windows clients to the exported server over localhost and LAN and complete two consecutive matches.

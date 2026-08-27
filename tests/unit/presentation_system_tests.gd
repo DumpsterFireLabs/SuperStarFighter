@@ -162,7 +162,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var client := packed_scene.instantiate()
 	tree_parent.add_child(client)
 	context.expect_true(client.connection_screen != null, "production connection screen exists")
-	context.expect_equal(client.version_label.text, "BETA 1  ·  VERSION 0.1.0-beta.1", "main screen displays the canonical Beta 1 version")
+	context.expect_equal(client.version_label.text, "BETA 2  ·  VERSION 0.1.0-beta.2", "main screen displays the canonical Beta 2 version")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
 	var discovered_servers: Array[Dictionary] = [

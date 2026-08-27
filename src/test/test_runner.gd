@@ -24,7 +24,7 @@ func _ready() -> void:
 
 
 func _run_foundation_tests() -> void:
-	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.1", "game version is pinned to Beta 1")
+	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.2", "game version is pinned to Beta 2")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
 	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 9, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")

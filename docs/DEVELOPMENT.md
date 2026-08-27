@@ -31,7 +31,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.1 |
+| Game version | 0.1.0-beta.2 |
 | Protocol version | 9 |
 | Automated suite | 1,753 assertions |
 | Project gate | 81 checks |
@@ -390,8 +390,8 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. The Beta 1 Windows client preset, repeatable package script, embedded-PCK executable, exported-client launch smoke, friend README, and Godot notice are implemented. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing, and final release-candidate artifact checks remain.
+The source-playable vertical slice and hardening milestone are complete. The Beta 2 Windows client preset, repeatable package script, embedded-PCK executable, exported-client launch smoke, friend README, and Godot notice are implemented. The prior Beta 1 package remains archived in its own output folder. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing, and final release-candidate artifact checks remain.
 
-Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; a source-only gameplay change does not retroactively rename the existing Beta 1 package.
+Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
 Until those pieces land, treat the repository bootstrap/start scripts as the supported distribution path for playtests.

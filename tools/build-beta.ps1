@@ -4,10 +4,13 @@ param()
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-$presetName = 'Windows Beta 1'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-1'
-$clientPath = Join-Path $buildRoot 'SuperStarFighter-Beta1.exe'
-$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta1-Windows-x64.zip'
+$presetName = 'Windows Beta 2'
+$releaseLabel = 'Beta 2'
+$expectedGameVersion = '0.1.0-beta.2'
+$expectedWindowsVersion = '0.1.0.2'
+$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-2'
+$clientPath = Join-Path $buildRoot 'SuperStarFighter-Beta2.exe'
+$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta2-Windows-x64.zip'
 $smokeLog = Join-Path $buildRoot 'beta-smoke.log'
 $friendReadme = Join-Path $buildRoot 'README-BETA.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES.txt'
@@ -45,6 +48,12 @@ foreach ($path in @($buildRoot, $clientPath, $archivePath, $smokeLog, $friendRea
     Assert-BetaBuildPath -Path $path
 }
 
+$projectText = Get-Content -LiteralPath (Join-Path $SsfRepositoryRoot 'project.godot') -Raw
+$projectVersionMatch = [regex]::Match($projectText, 'config/version="([^"]+)"')
+if (-not $projectVersionMatch.Success -or $projectVersionMatch.Groups[1].Value -ne $expectedGameVersion) {
+    throw "Project version must be $expectedGameVersion before producing $releaseLabel."
+}
+
 Write-Host 'Running the complete project gate before export...'
 & (Join-Path $PSScriptRoot 'verify-foundation.ps1')
 if ($LASTEXITCODE -ne 0) {
@@ -65,6 +74,11 @@ if ($exportExitCode -ne 0) {
 if (-not (Test-Path -LiteralPath $clientPath -PathType Leaf)) {
     throw "Windows export did not create $clientPath."
 }
+$versionInfo = (Get-Item -LiteralPath $clientPath).VersionInfo
+if ($versionInfo.FileVersion -ne $expectedWindowsVersion -or $versionInfo.ProductVersion -ne $expectedWindowsVersion) {
+    throw "Exported Windows metadata mismatch. Expected $expectedWindowsVersion; file=$($versionInfo.FileVersion), product=$($versionInfo.ProductVersion)."
+}
+Write-Host "Windows metadata verified: game=$expectedGameVersion file/product=$expectedWindowsVersion"
 
 Write-Host 'Launching the exported client through its normal rendered startup path...'
 $smokeProcess = Start-Process -FilePath $clientPath `
@@ -99,7 +113,7 @@ Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices) -Destinati
 $clientHash = (Get-FileHash -LiteralPath $clientPath -Algorithm SHA256).Hash
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
 Write-Host ''
-Write-Host 'Windows Beta 1 package passed export and launch smoke verification.'
+Write-Host "Windows $releaseLabel package passed export and launch smoke verification."
 Write-Host "Executable: $clientPath"
 Write-Host "Executable SHA-256: $clientHash"
 Write-Host "Friend ZIP: $archivePath"
