@@ -1,11 +1,14 @@
 class_name AuthoritativeWorld
 extends RefCounted
 
+const CombatSpatialIndexScript = preload("res://src/shared/combat/combat_spatial_index.gd")
+
 var server_tick: int = 0
 var combatants: Dictionary = {}
 var latest_inputs: Dictionary = {}
 var acknowledged_inputs: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
+var spatial_index := CombatSpatialIndexScript.new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var team_assignments: Dictionary = {}
 var _next_projectile_id: int = 1
@@ -13,6 +16,12 @@ var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
 var _kills_since_drain: Array[Dictionary] = []
+var _ordered_peer_ids_cache: Array[int] = []
+var _ordered_peer_ids_dirty: bool = true
+var performance_profiling_enabled: bool = false
+var last_step_profile_usec: Dictionary = {}
+var _projectile_geometry_normal: Dictionary = {}
+var _projectile_geometry_beam: Dictionary = {}
 
 const SHIP_SEPARATION_SPEED: float = 360.0
 const SHIP_OVERLAP_SOLVER_PASSES: int = 6
@@ -30,6 +39,7 @@ func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
 	var combat_stats := stats if stats != null else CombatStats.create_base()
 	var combatant := CombatantState.create(peer_id, combat_stats, anchors[spawn_index])
 	combatants[peer_id] = combatant
+	_ordered_peer_ids_dirty = true
 	latest_inputs[peer_id] = PlayerInputFrame.new()
 	acknowledged_inputs[peer_id] = 0
 	return combatant
@@ -37,6 +47,7 @@ func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
 
 func remove_peer(peer_id: int) -> void:
 	combatants.erase(peer_id)
+	_ordered_peer_ids_dirty = true
 	latest_inputs.erase(peer_id)
 	acknowledged_inputs.erase(peer_id)
 	team_assignments.erase(peer_id)
@@ -71,6 +82,7 @@ func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
 
 
 func step(delta: float, controls_enabled: bool = true) -> void:
+	var phase_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	server_tick = SequenceMath.increment(server_tick)
 	if not controls_enabled:
 		return
@@ -91,11 +103,25 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 			combatant.request_reload()
 		if frame.firing and combatant.try_fire():
 			_spawn_shot(combatant)
+	var movement_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
+	spatial_index.rebuild_ships(combatants, peer_ids)
 	for peer_id in _resolve_ship_overlaps(peer_ids):
 		projectile_registry.schedule_owner_cleanup(peer_id)
+	spatial_index.rebuild_ships(combatants, peer_ids)
+	var overlaps_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	_step_projectiles(delta, peer_ids)
+	var projectiles_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for projectile_id in projectile_registry.step_cleanup(delta):
 		_record_removed(projectile_id)
+	spatial_index.rebuild_projectile_threats(projectile_registry)
+	if performance_profiling_enabled:
+		var completed := Time.get_ticks_usec()
+		last_step_profile_usec = {
+			"movement": movement_complete - phase_started,
+			"overlaps": overlaps_complete - movement_complete,
+			"projectiles": projectiles_complete - overlaps_complete,
+			"cleanup_and_threats": completed - projectiles_complete,
+		}
 
 
 func prepare_heat(
@@ -121,6 +147,10 @@ func prepare_heat(
 
 func set_map_id(value: StringName) -> void:
 	map_id = ArenaLayout.normalized_map_id(value)
+	# These dictionaries reference immutable entries owned by ArenaCollisionSystem's
+	# shared geometry cache. Detach from them instead of clearing the cache entry.
+	_projectile_geometry_normal = {}
+	_projectile_geometry_beam = {}
 	clear_projectiles()
 
 
@@ -182,6 +212,10 @@ func snapshot_states() -> Array[Dictionary]:
 	return states
 
 
+func ordered_peer_ids_view() -> Array[int]:
+	return _ordered_peer_ids()
+
+
 func acknowledged_input(peer_id: int) -> int:
 	return int(acknowledged_inputs.get(peer_id, 0))
 
@@ -198,6 +232,22 @@ func drain_projectile_batch() -> Dictionary:
 
 func active_projectiles() -> Array[ProjectileState]:
 	return projectile_registry.all_projectiles()
+
+
+func active_projectile_ids_view() -> Array[int]:
+	return projectile_registry.ordered_ids_view()
+
+
+func projectile_threat_ids(position: Vector2, radius: float, maximum_count: int) -> Array[int]:
+	if spatial_index.projectile_revision != projectile_registry.revision:
+		spatial_index.rebuild_projectile_threats(projectile_registry)
+	return spatial_index.query_projectile_threats(position, radius, maximum_count)
+
+
+func maximum_projectile_speed() -> float:
+	if spatial_index.projectile_revision != projectile_registry.revision:
+		spatial_index.rebuild_projectile_threats(projectile_registry)
+	return spatial_index.maximum_projectile_speed
 
 
 func drain_kill_events() -> Array[Dictionary]:
@@ -240,31 +290,45 @@ func _spawn_shot(combatant: CombatantState) -> void:
 
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	var damage_events: Array[Dictionary] = []
-	for projectile in projectile_registry.all_projectiles():
-		var safe_delta := maxf(delta, 0.0)
+	var safe_delta := maxf(delta, 0.0)
+	for projectile_id in projectile_registry.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var projectile := projectile_registry.get_projectile(projectile_id)
+		if projectile == null:
+			continue
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			_remove_projectile(projectile.projectile_id)
 			continue
-		var travel_remaining := projectile.velocity.length() * safe_delta
+		var projectile_speed := projectile.velocity.length()
+		var travel_remaining := projectile_speed * safe_delta
 		var collision_iterations := 0
 		while travel_remaining > 0.001 and collision_iterations < PROJECTILE_COLLISION_ITERATIONS:
-			if projectile_registry.get_projectile(projectile.projectile_id) == null or projectile.velocity.is_zero_approx():
+			if projectile_speed <= 0.001:
 				break
 			collision_iterations += 1
-			var direction := projectile.velocity.normalized()
+			var direction := projectile.velocity / projectile_speed
 			var start := projectile.position
 			var finish := start + direction * travel_remaining
-			var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+			var projectile_geometry := _projectile_geometry_beam if projectile.is_beam else _projectile_geometry_normal
+			if projectile_geometry.is_empty():
+				projectile_geometry = ArenaCollisionSystem.projectile_geometry(map_id, projectile.radius)
+				if projectile.is_beam:
+					_projectile_geometry_beam = projectile_geometry
+				else:
+					_projectile_geometry_normal = projectile_geometry
+			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
 				projectile.radius,
-				map_id
+				map_id,
+				projectile_geometry
 			)
-			var obstacle_fraction := clampf(float(obstacle_hit.get("fraction", INF)), 0.0, 1.0)
-			var ship_hit := _nearest_projectile_ship_hit(projectile, start, finish, peer_ids)
-			var ship_fraction := clampf(float(ship_hit.get("fraction", INF)), 0.0, 1.0)
-			if not ship_hit.is_empty() and ship_fraction <= obstacle_fraction:
+			var obstacle_fraction := clampf(float(obstacle_hit.get("fraction", INF)), 0.0, 1.0) if obstacle_hit != null else INF
+			var ship_hit: Variant = _nearest_projectile_ship_hit(projectile, start, finish, peer_ids)
+			var ship_fraction := clampf(float(ship_hit.get("fraction", INF)), 0.0, 1.0) if ship_hit != null else INF
+			if ship_hit != null and ship_fraction <= obstacle_fraction:
 				projectile.position = ship_hit.position as Vector2
 				travel_remaining *= maxf(1.0 - ship_fraction, 0.0)
 				if not _resolve_projectile_ship_hit(projectile, int(ship_hit.peer_id), damage_events):
@@ -272,7 +336,7 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 				projectile.position += direction * COLLISION_SURFACE_EPSILON
 				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
 				continue
-			if bool(obstacle_hit.get("hit", false)):
+			if obstacle_hit != null:
 				projectile.position = obstacle_hit.position as Vector2
 				travel_remaining *= maxf(1.0 - obstacle_fraction, 0.0)
 				var obstacle_normal := obstacle_hit.normal as Vector2
@@ -294,10 +358,15 @@ func _nearest_projectile_ship_hit(
 	start: Vector2,
 	finish: Vector2,
 	peer_ids: Array[int]
-) -> Dictionary:
-	var nearest_hit: Dictionary = {}
+) -> Variant:
+	var nearest_peer_id := 0
 	var nearest_fraction := INF
-	for peer_id in peer_ids:
+	var candidates := spatial_index.query_ships_along_segment(
+		start,
+		finish,
+		GameConstants.SHIP_COLLISION_RADIUS + projectile.radius
+	)
+	for peer_id in candidates:
 		var target := combatants[peer_id] as CombatantState
 		if not target.alive or not projectile.can_hit(peer_id) or are_allies(projectile.owner_id, peer_id):
 			continue
@@ -310,12 +379,14 @@ func _nearest_projectile_ship_hit(
 		if fraction < 0.0 or fraction >= nearest_fraction:
 			continue
 		nearest_fraction = fraction
-		nearest_hit = {
-			"peer_id": peer_id,
-			"fraction": fraction,
-			"position": start.lerp(finish, fraction),
-		}
-	return nearest_hit
+		nearest_peer_id = peer_id
+	if nearest_peer_id == 0:
+		return null
+	return {
+		"peer_id": nearest_peer_id,
+		"fraction": nearest_fraction,
+		"position": start.lerp(finish, nearest_fraction),
+	}
 
 
 func _resolve_projectile_ship_hit(
@@ -355,12 +426,15 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 	var minimum_distance := GameConstants.SHIP_COLLISION_RADIUS * 2.0
 	var ram_damage_events: Array[Dictionary] = []
 	for _pass in SHIP_OVERLAP_SOLVER_PASSES:
-		for left_index in peer_ids.size():
-			var left := combatants[peer_ids[left_index]] as CombatantState
+		spatial_index.rebuild_ships(combatants, peer_ids)
+		for left_peer_id in peer_ids:
+			var left := combatants[left_peer_id] as CombatantState
 			if not left.alive:
 				continue
-			for right_index in range(left_index + 1, peer_ids.size()):
-				var right := combatants[peer_ids[right_index]] as CombatantState
+			for right_peer_id in spatial_index.query_nearby_ships(left.position, minimum_distance):
+				if right_peer_id <= left_peer_id:
+					continue
+				var right := combatants[right_peer_id] as CombatantState
 				if not right.alive:
 					continue
 				var difference := right.position - left.position
@@ -565,11 +639,13 @@ func _record_removed(projectile_id: int) -> void:
 
 
 func _ordered_peer_ids() -> Array[int]:
-	var result: Array[int] = []
-	for peer_value in combatants.keys():
-		result.append(int(peer_value))
-	result.sort()
-	return result
+	if _ordered_peer_ids_dirty:
+		_ordered_peer_ids_cache.clear()
+		for peer_value in combatants.keys():
+			_ordered_peer_ids_cache.append(int(peer_value))
+		_ordered_peer_ids_cache.sort()
+		_ordered_peer_ids_dirty = false
+	return _ordered_peer_ids_cache
 
 
 static func _segment_circle_hit_fraction(

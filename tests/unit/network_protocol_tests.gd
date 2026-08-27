@@ -2,6 +2,7 @@ class_name NetworkProtocolTests
 extends RefCounted
 
 const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
+const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
 
 
 static func run(context: TestContext) -> void:
@@ -138,11 +139,14 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	var projectile := ProjectileState.create(77, 4, 12, Vector2(321.25, 654.5), 0.75, stats)
 	projectile.lifetime_remaining = 1.875
 	var spawned: Array[ProjectileState] = [projectile]
-	var packet := ProjectilePacketCodec.encode_batch(1000, spawned, [10, 11])
+	var packets := ProjectilePacketCodec.encode_batch_chunks(1000, 7, spawned, [10, 11])
+	context.expect_equal(packets.size(), 1, "small projectile batch fits one bounded transport message")
+	var packet := packets[0]
 	var decoded := ProjectilePacketCodec.decode_batch(packet)
 	context.expect_true(decoded.ok, "projectile batch decodes")
 	if decoded.ok:
 		context.expect_equal(decoded.server_tick, 1000, "projectile batch tick round-trips")
+		context.expect_equal(decoded.batch_sequence, 7, "projectile batch sequence round-trips")
 		context.expect_equal(decoded.removed, [10, 11], "projectile removals round-trip")
 		var decoded_projectile := decoded.spawned[0] as ProjectileState
 		context.expect_equal(decoded_projectile.projectile_id, 77, "projectile identity round-trips")
@@ -157,9 +161,44 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	var bad_flags := packet.duplicate()
 	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 2
 	context.expect_false(ProjectilePacketCodec.decode_batch(bad_flags).ok, "unsupported projectile presentation flags are rejected")
-	var correction := ProjectilePacketCodec.encode_correction(1001, spawned)
+	var correction := ProjectilePacketCodec.encode_correction_chunks(1001, 8, spawned, true)[0]
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_correction(packet).ok, "projectile correction rejects removal records")
+	var crowded: Array[ProjectileState] = []
+	for projectile_id in 100:
+		crowded.append(ProjectileState.create(1000 + projectile_id, 4, projectile_id, Vector2(20.0 + projectile_id, 40.0), 0.0, stats))
+	var crowded_packets := ProjectilePacketCodec.encode_correction_chunks(1002, 9, crowded, true)
+	context.expect_true(crowded_packets.size() > 1, "crowded projectile correction is divided into transport-safe chunks")
+	var reconstructed_count := 0
+	var assembler := ProjectileCorrectionAssemblerScript.new()
+	var assembled_correction: Dictionary = {}
+	for crowded_packet in crowded_packets:
+		context.expect_true(crowded_packet.size() <= NetworkProtocol.MAX_PROJECTILE_MESSAGE_BYTES, "projectile chunk stays within its transport byte budget")
+		var crowded_decoded := ProjectilePacketCodec.decode_correction(crowded_packet)
+		context.expect_true(crowded_decoded.ok, "each crowded projectile chunk decodes independently")
+		if crowded_decoded.ok:
+			reconstructed_count += (crowded_decoded.spawned as Array).size()
+			var assembled := assembler.accept(crowded_decoded)
+			if not assembled.is_empty():
+				assembled_correction = assembled
+	context.expect_equal(reconstructed_count, crowded.size(), "chunked correction preserves every projectile record")
+	context.expect_equal((assembled_correction.get("spawned", []) as Array).size(), crowded.size(), "client correction assembly applies a full snapshot only after every chunk arrives")
+	context.expect_true(bool(assembled_correction.get("complete_snapshot", false)), "assembled crowded correction retains full-snapshot semantics")
+	var removed: Array[int] = []
+	for projectile_id in 100:
+		removed.append(2000 + projectile_id)
+	var mixed_packets := ProjectilePacketCodec.encode_batch_chunks(1003, 10, crowded, removed)
+	var mixed_spawned_count := 0
+	var mixed_removed_count := 0
+	for mixed_packet in mixed_packets:
+		context.expect_true(mixed_packet.size() <= NetworkProtocol.MAX_PROJECTILE_MESSAGE_BYTES, "mixed projectile batch chunk stays within its transport byte budget")
+		var mixed_decoded := ProjectilePacketCodec.decode_batch(mixed_packet)
+		context.expect_true(mixed_decoded.ok, "each mixed projectile batch chunk decodes")
+		if mixed_decoded.ok:
+			mixed_spawned_count += (mixed_decoded.spawned as Array).size()
+			mixed_removed_count += (mixed_decoded.removed as Array).size()
+	context.expect_equal(mixed_spawned_count, crowded.size(), "chunked projectile batch preserves all spawn records")
+	context.expect_equal(mixed_removed_count, removed.size(), "chunked projectile batch preserves all removal records")
 
 
 static func _validate_rate_limiting(context: TestContext) -> void:

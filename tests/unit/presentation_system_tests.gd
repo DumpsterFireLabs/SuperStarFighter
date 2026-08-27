@@ -418,6 +418,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  HEAVY ELECTRONIC EDGE MAIN"), "scoreboard identifies the active gameplay song")
 	var live_kills := client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
+	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})
+	client._update_scoreboard()
+	live_kills = client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
+	context.expect_equal(live_kills.text, "5", "live elimination score payload refreshes cached scoreboard rows immediately")
 	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
 	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
 	var scoreboard_build_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer

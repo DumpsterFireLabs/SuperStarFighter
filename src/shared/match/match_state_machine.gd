@@ -15,6 +15,7 @@ var config: MatchConfig
 var catalog: CardCatalog
 var players: Dictionary = {}
 var scores := MatchScoreState.new()
+var team_scores := MatchScoreState.new()
 
 var state: int = State.LOBBY
 var state_entered_tick: int = 0
@@ -41,6 +42,9 @@ var _pending_match_winner_team: int = 0
 func _init(configuration: MatchConfig = null, card_catalog: CardCatalog = null) -> void:
 	config = configuration.duplicate_config() if configuration != null else MatchConfig.new()
 	catalog = card_catalog if card_catalog != null else CardCatalog.create_default()
+	team_scores.register_player(1)
+	team_scores.register_player(2)
+	_refresh_team_score_views()
 
 
 func add_player(peer_id: int, display_name: String, join_sequence: int) -> PlayerMatchState:
@@ -66,6 +70,7 @@ func start_match(at_tick: int) -> bool:
 		player.participant = true
 	players = _sorted_player_dictionary(players)
 	scores.reset_match()
+	team_scores.reset_match()
 	round_number = 1
 	heat_number = 0
 	last_heat_winner = 0
@@ -74,8 +79,7 @@ func start_match(at_tick: int) -> bool:
 	last_heat_winner_team = 0
 	last_round_winner_team = 0
 	match_winner_team = 0
-	team_heat_wins = {1: 0, 2: 0}
-	team_round_wins = {1: 0, 2: 0}
+	_refresh_team_score_views()
 	tied_heat = false
 	_pending_round_winner = 0
 	_pending_match_winner = 0
@@ -247,6 +251,21 @@ func state_name() -> String:
 	return State.keys()[state]
 
 
+func score_snapshot() -> Dictionary:
+	var result := scores.snapshot()
+	if not GameModeRules.is_team_mode(config.game_mode):
+		return result
+	for peer_id in participant_ids():
+		var player := players[peer_id] as PlayerMatchState
+		var team_score := team_scores.get_score(player.team_id)
+		if team_score == null or not result.has(peer_id):
+			continue
+		var player_score := result[peer_id] as Dictionary
+		player_score.heat_wins = team_score.heat_wins
+		player_score.round_wins = team_score.round_wins
+	return result
+
+
 func return_to_lobby(at_tick: int) -> bool:
 	if state != State.MATCH_RESULT:
 		return false
@@ -278,16 +297,13 @@ func _resolve_team_heat(winner_team_id: int, at_tick: int) -> void:
 	_pending_round_winner_team = 0
 	_pending_match_winner_team = 0
 	if winner_team_id != 0:
-		team_heat_wins[winner_team_id] = int(team_heat_wins.get(winner_team_id, 0)) + 1
-		if int(team_heat_wins[winner_team_id]) >= GameConstants.HEAT_WINS_TO_WIN_ROUND:
-			_pending_round_winner_team = winner_team_id
-			team_round_wins[winner_team_id] = int(team_round_wins.get(winner_team_id, 0)) + 1
-			team_heat_wins = {1: 0, 2: 0}
-			if int(team_round_wins[winner_team_id]) >= config.rounds_to_win:
-				_pending_match_winner_team = winner_team_id
-				_pending_match_winner = _team_representative(winner_team_id)
+		var result := team_scores.award_heat(winner_team_id, config.rounds_to_win)
+		_pending_round_winner_team = int(result.round_winner)
+		_pending_match_winner_team = int(result.match_winner)
+		if _pending_match_winner_team != 0:
+			_pending_match_winner = _team_representative(_pending_match_winner_team)
 		_pending_round_winner = _team_representative(_pending_round_winner_team)
-	_sync_team_scores_to_players()
+	_refresh_team_score_views()
 	_transition(State.HEAT_RESULT, at_tick)
 
 
@@ -310,15 +326,14 @@ func _award_forfeit(peer_id: int, at_tick: int) -> void:
 
 
 func _award_team_forfeit(team_id: int, at_tick: int) -> void:
-	team_heat_wins = {1: 0, 2: 0}
-	team_round_wins[team_id] = config.rounds_to_win
+	team_scores.award_forfeit(team_id, config.rounds_to_win)
+	_refresh_team_score_views()
 	match_winner_team = team_id
 	match_winner = _team_representative(team_id)
 	_pending_match_winner_team = team_id
 	_pending_match_winner = match_winner
 	_pending_round_winner = 0
 	_pending_round_winner_team = 0
-	_sync_team_scores_to_players()
 	_transition(State.MATCH_RESULT, at_tick)
 
 
@@ -335,6 +350,7 @@ func _return_to_lobby(at_tick: int) -> void:
 		players.erase(peer_id)
 		scores.remove_player(peer_id)
 	scores.reset_match()
+	team_scores.reset_match()
 	round_number = 0
 	heat_number = 0
 	last_heat_winner = 0
@@ -343,8 +359,7 @@ func _return_to_lobby(at_tick: int) -> void:
 	last_heat_winner_team = 0
 	last_round_winner_team = 0
 	match_winner_team = 0
-	team_heat_wins = {1: 0, 2: 0}
-	team_round_wins = {1: 0, 2: 0}
+	_refresh_team_score_views()
 	tied_heat = false
 	_pending_round_winner = 0
 	_pending_match_winner = 0
@@ -417,10 +432,10 @@ func _team_representative(team_id: int) -> int:
 	return 0
 
 
-func _sync_team_scores_to_players() -> void:
-	for peer_id in participant_ids():
-		var player := players[peer_id] as PlayerMatchState
-		if player.team_id <= 0:
-			continue
-		player.score.heat_wins = int(team_heat_wins.get(player.team_id, 0))
-		player.score.round_wins = int(team_round_wins.get(player.team_id, 0))
+func _refresh_team_score_views() -> void:
+	team_heat_wins = {}
+	team_round_wins = {}
+	for team_id in [1, 2]:
+		var score := team_scores.get_score(team_id)
+		team_heat_wins[team_id] = score.heat_wins if score != null else 0
+		team_round_wins[team_id] = score.round_wins if score != null else 0

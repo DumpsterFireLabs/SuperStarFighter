@@ -2,12 +2,19 @@ class_name SandboxProjectileLayer
 extends Node2D
 
 var registry: ProjectileRegistry
+var visible_world_rect: Rect2 = Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
 
 
 func _draw() -> void:
 	if registry == null:
 		return
-	for projectile in registry.all_projectiles():
+	var cull_rect := visible_world_rect.grow(260.0)
+	for projectile_id in registry.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var projectile := registry.get_projectile(projectile_id)
+		if projectile == null or not cull_rect.has_point(projectile.position):
+			continue
 		var direction := projectile.velocity.normalized()
 		if projectile.is_beam:
 			var tail := projectile.position - direction * 230.0

@@ -15,6 +15,8 @@ const MAP_NAMES := {
 const CENTRAL_RADIUS: float = 180.0
 const COVER_SIZE: Vector2 = Vector2(360.0, 130.0)
 const SPAWN_CLEAR_RADIUS: float = 96.0
+static var _cover_rectangle_cache: Dictionary = {}
+static var _circle_obstacle_cache: Dictionary = {}
 
 
 static func map_ids() -> Array[StringName]:
@@ -56,7 +58,16 @@ static func central_octagon(map_id: StringName = DEFAULT_MAP_ID) -> PackedVector
 
 
 static func cover_rectangles(map_id: StringName = DEFAULT_MAP_ID) -> Array[Rect2]:
-	match normalized_map_id(map_id):
+	var normalized := normalized_map_id(map_id)
+	if _cover_rectangle_cache.has(normalized):
+		return _cover_rectangle_cache[normalized] as Array[Rect2]
+	var rectangles := _build_cover_rectangles(normalized)
+	_cover_rectangle_cache[normalized] = rectangles
+	return rectangles
+
+
+static func _build_cover_rectangles(map_id: StringName) -> Array[Rect2]:
+	match map_id:
 		&"riftline":
 			return [_rect(1600, 300, 150, 360), _rect(1600, 690, 150, 220), _rect(1600, 1110, 150, 220), _rect(1600, 1500, 150, 360)]
 		&"prism_array":
@@ -101,7 +112,16 @@ static func cover_rectangles(map_id: StringName = DEFAULT_MAP_ID) -> Array[Rect2
 
 
 static func circle_obstacles(map_id: StringName = DEFAULT_MAP_ID) -> Array[Dictionary]:
-	match normalized_map_id(map_id):
+	var normalized := normalized_map_id(map_id)
+	if _circle_obstacle_cache.has(normalized):
+		return _circle_obstacle_cache[normalized] as Array[Dictionary]
+	var circles := _build_circle_obstacles(normalized)
+	_circle_obstacle_cache[normalized] = circles
+	return circles
+
+
+static func _build_circle_obstacles(map_id: StringName) -> Array[Dictionary]:
+	match map_id:
 		DEFAULT_MAP_ID:
 			return [{"center": center(map_id), "radius": CENTRAL_RADIUS}]
 		&"twin_suns":

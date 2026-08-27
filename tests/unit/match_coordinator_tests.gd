@@ -58,10 +58,14 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 
 	_finish_heat(world, coordinator, 0)
 	var observed_elimination_event := false
+	var elimination_scores: Dictionary = {}
 	for event_value in coordinator.drain_events():
-		if (event_value as Dictionary).event_type == &"PLAYER_ELIMINATED":
+		var event := event_value as Dictionary
+		if event.event_type == &"PLAYER_ELIMINATED":
 			observed_elimination_event = true
+			elimination_scores = (event.payload as Dictionary).get("scores", {}) as Dictionary
 	context.expect_true(observed_elimination_event, "combat elimination emits a reliable match event")
+	context.expect_true(elimination_scores.has(2) and elimination_scores.has(3) and elimination_scores.has(4), "combat elimination publishes current scores for live scoreboard refresh")
 	context.expect_true(coordinator.machine.tied_heat, "simultaneous death produces tied heat")
 	context.expect_equal(coordinator.machine.scores.get_score(2).heat_wins, 0, "tied heat awards no score")
 	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)

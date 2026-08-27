@@ -7,6 +7,8 @@ const SERVER_PEER_ID: int = 1
 const CHANNEL_CONTROL: int = 0
 const CHANNEL_INPUT: int = 1
 const CHANNEL_SNAPSHOT: int = 2
+const CHANNEL_OBJECTIVE: int = 3
+const CHANNEL_COUNT: int = 4
 
 const ACTION_FIRE: int = 1
 const ACTION_SHIELD: int = 2
@@ -24,6 +26,7 @@ const MAX_LOG_STRING_LENGTH: int = 128
 const MAX_LOG_COLLECTION_LENGTH: int = 16
 const MAX_SNAPSHOT_PLAYERS: int = GameConstants.MAX_PLAYERS
 const MAX_PACKET_PROJECTILES: int = GameConstants.MAX_PROJECTILES_GLOBAL
+const MAX_PROJECTILE_MESSAGE_BYTES: int = 1200
 
 const REJECT_SERVER_FULL: StringName = &"SERVER_FULL"
 const REJECT_VERSION_MISMATCH: StringName = &"VERSION_MISMATCH"

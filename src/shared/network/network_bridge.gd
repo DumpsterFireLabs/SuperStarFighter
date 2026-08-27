@@ -1,6 +1,8 @@
 class_name NetworkBridge
 extends Node
 
+const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
+
 signal server_peer_admitted(peer_id: int, player: PlayerMatchState)
 signal server_peer_departed(peer_id: int)
 signal client_connected(peer_id: int)
@@ -46,6 +48,12 @@ var _outbound_bytes: int = 0
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
 var _discovery_instance_id: String = ""
+var _projectile_message_sequence: int = 0
+var _projectile_correction_cursor: int = 0
+var _projectile_correction_send_count: int = 0
+var _projectile_correction_assembler := ProjectileCorrectionAssemblerScript.new()
+
+const PARTIAL_PROJECTILE_CORRECTION_COUNT: int = 40
 
 
 func start_server(configuration: Dictionary) -> Error:
@@ -73,7 +81,7 @@ func start_server(configuration: Dictionary) -> Error:
 	_logged_overtime_key = ""
 	_discovery_instance_id = "%x-%x" % [Time.get_ticks_msec(), get_instance_id()]
 	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, 3)
+	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, NetworkProtocol.CHANNEL_COUNT)
 	if error != OK:
 		last_error = "Could not bind UDP port %d (error %d)." % [match_config.port, error]
 		_log("error", "server_bind_failed", {"port": match_config.port, "error": error})
@@ -112,7 +120,7 @@ func start_client(
 	_client_name = display_name
 	_client_protocol_version = protocol_version
 	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_client(host, port, 3)
+	var error := _enet_peer.create_client(host, port, NetworkProtocol.CHANNEL_COUNT)
 	if error != OK:
 		last_error = "Could not connect to %s:%d (error %d)." % [host, port, error]
 		role = Role.NONE
@@ -150,6 +158,10 @@ func stop() -> void:
 	_rate_limiter.clear()
 	_control_rate_limiter.clear()
 	_malformed_control_strikes.clear()
+	_projectile_message_sequence = 0
+	_projectile_correction_cursor = 0
+	_projectile_correction_send_count = 0
+	_projectile_correction_assembler.clear()
 	local_peer_id = 0
 	match_coordinator = null
 	npc_controller.clear()
@@ -283,8 +295,8 @@ func _physics_process(delta: float) -> void:
 	if match_coordinator != null and match_coordinator.controls_enabled():
 		npc_controller.submit_inputs(
 			world,
-			lobby.npc_peer_ids(),
-			lobby.npc_difficulties(),
+			lobby.npc_peer_ids_view(),
+			lobby.npc_difficulties_view(),
 			match_coordinator.npc_overtime_elapsed(),
 			match_coordinator.npc_objective_state()
 		)
@@ -688,6 +700,12 @@ func match_event(event_type: StringName, server_tick_value: int, payload: Dictio
 		client_match_event_received.emit(event_type, server_tick_value, payload)
 
 
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_OBJECTIVE)
+func objective_snapshot(server_tick_value: int, payload: Dictionary) -> void:
+	if role == Role.CLIENT and multiplayer.get_remote_sender_id() == NetworkProtocol.SERVER_PEER_ID:
+		client_match_event_received.emit(&"OBJECTIVE_UPDATED", server_tick_value, payload)
+
+
 @rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
 func world_snapshot(packet: PackedByteArray) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
@@ -702,7 +720,7 @@ func projectile_batch(packet: PackedByteArray) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return
 	var decoded := ProjectilePacketCodec.decode_batch(packet)
-	if decoded.ok:
+	if decoded.ok and int(decoded.kind) == ProjectilePacketCodec.KIND_DELTA:
 		client_projectile_batch_received.emit(decoded)
 
 
@@ -712,7 +730,7 @@ func projectile_correction(packet: PackedByteArray) -> void:
 		return
 	var decoded := ProjectilePacketCodec.decode_correction(packet)
 	if decoded.ok:
-		client_projectile_correction_received.emit(decoded)
+		_accept_projectile_correction_chunk(decoded)
 
 
 func _on_server_peer_connected(peer_id: int) -> void:
@@ -872,7 +890,10 @@ func _drain_match_coordinator() -> void:
 		var event_type := event.event_type as StringName
 		var server_tick_value := int(event.server_tick)
 		var payload := event.payload as Dictionary
-		match_event.rpc(event_type, server_tick_value, payload)
+		if event_type == &"OBJECTIVE_UPDATED":
+			objective_snapshot.rpc(server_tick_value, payload)
+		else:
+			match_event.rpc(event_type, server_tick_value, payload)
 		if event_type != &"OBJECTIVE_UPDATED":
 			_log("info", "match_event", {
 				"event_type": String(event_type),
@@ -898,9 +919,9 @@ func _drain_match_coordinator() -> void:
 func _send_player_snapshots() -> void:
 	if lobby == null or lobby.players.is_empty():
 		return
-	var states := world.snapshot_states()
-	for peer_id in lobby.human_peer_ids():
-		var packet := PlayerSnapshotCodec.encode(world.server_tick, world.acknowledged_input(peer_id), states)
+	var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view())
+	for peer_id in lobby.human_peer_ids_view():
+		var packet := PlayerSnapshotCodec.assemble(world.server_tick, world.acknowledged_input(peer_id), body)
 		world_snapshot.rpc_id(peer_id, packet)
 		_outbound_bytes += packet.size()
 
@@ -909,17 +930,54 @@ func _send_projectile_batch() -> void:
 	var batch := world.drain_projectile_batch()
 	if (batch.spawned as Array).is_empty() and (batch.removed as Array).is_empty():
 		return
-	var packet := ProjectilePacketCodec.encode_batch(world.server_tick, batch.spawned, batch.removed)
-	projectile_batch.rpc(packet)
-	_outbound_bytes += packet.size() * maxi(lobby.human_count(), 1)
+	var sequence := _next_projectile_message_sequence()
+	var packets := ProjectilePacketCodec.encode_batch_chunks(
+		world.server_tick,
+		sequence,
+		batch.spawned as Array[ProjectileState],
+		batch.removed as Array[int]
+	)
+	for packet in packets:
+		projectile_batch.rpc(packet)
+		_outbound_bytes += packet.size() * maxi(lobby.human_count(), 1)
 
 
 func _send_projectile_correction() -> void:
 	if lobby == null or lobby.players.is_empty():
 		return
-	var packet := ProjectilePacketCodec.encode_correction(world.server_tick, world.active_projectiles())
-	projectile_correction.rpc(packet)
-	_outbound_bytes += packet.size() * lobby.human_count()
+	var complete_snapshot := _projectile_correction_send_count % GameConstants.PROJECTILE_CORRECTION_RATE == 0
+	var active: Array[ProjectileState] = []
+	if complete_snapshot:
+		active = world.active_projectiles()
+	else:
+		var window := world.projectile_registry.projectile_window(
+			_projectile_correction_cursor,
+			PARTIAL_PROJECTILE_CORRECTION_COUNT
+		)
+		active = window.projectiles as Array[ProjectileState]
+		_projectile_correction_cursor = int(window.next_slot)
+	_projectile_correction_send_count += 1
+	var sequence := _next_projectile_message_sequence()
+	var packets := ProjectilePacketCodec.encode_correction_chunks(
+		world.server_tick,
+		sequence,
+		active,
+		complete_snapshot
+	)
+	for packet in packets:
+		projectile_correction.rpc(packet)
+		_outbound_bytes += packet.size() * lobby.human_count()
+
+
+func _next_projectile_message_sequence() -> int:
+	_projectile_message_sequence = (_projectile_message_sequence + 1) & 0xffff
+	return _projectile_message_sequence
+
+
+func _accept_projectile_correction_chunk(decoded: Dictionary) -> void:
+	var assembled := _projectile_correction_assembler.accept(decoded)
+	if not assembled.is_empty():
+		client_projectile_correction_received.emit(assembled)
 
 
 func _log_metrics() -> void:

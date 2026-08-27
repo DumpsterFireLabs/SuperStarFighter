@@ -17,6 +17,7 @@ const BLOCKED_LOOP_BREAKOUT_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND 
 const BLOCKED_LOOP_RESET_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND
 const FULL_MAP_ACQUISITION_RANGE: float = 4000.0
 const CLOSE_CONTACT_ESCAPE_DISTANCE: float = GameConstants.SHIP_COLLISION_RADIUS * 2.0 + 48.0
+const MAX_PROJECTILE_THREAT_CANDIDATES: int = 48
 const DIFFICULTY_PROFILES := {
 	Difficulty.PASSIVE: {
 		"reaction_ticks": 36, "aim_error_degrees": 24.0, "lead_seconds": 0.0,
@@ -55,7 +56,7 @@ const DIFFICULTY_PROFILES := {
 		"reactive_shield_seconds": 0.22, "flank_commit": 0.75,
 	},
 	Difficulty.INSANE: {
-		"reaction_ticks": 1, "aim_error_degrees": 0.15, "lead_seconds": 1.5,
+		"reaction_ticks": 4, "aim_error_degrees": 0.15, "lead_seconds": 1.5,
 		"awareness_range": 4000.0, "pursuit": 1.0, "strafe": 0.85,
 		"preferred_min": 170.0, "preferred_max": 410.0,
 		"fire_range": 4000.0, "fire_duty": 0.99, "shield_range": 1250.0, "shield_duty": 0.2,
@@ -85,7 +86,13 @@ func submit_inputs(
 		var profile := difficulty_profile(difficulty)
 		if world.server_tick < int(_next_decision_ticks.get(peer_id, 0)):
 			continue
-		_next_decision_ticks[peer_id] = world.server_tick + int(profile.reaction_ticks)
+		var reaction_ticks := int(profile.reaction_ticks)
+		var first_decision := not _next_decision_ticks.has(peer_id)
+		_next_decision_ticks[peer_id] = (
+			world.server_tick + reaction_ticks + posmod(peer_id, reaction_ticks)
+			if first_decision and reaction_ticks > 1 else
+			world.server_tick + reaction_ticks
+		)
 		var zone_steering := overtime_steering(combatant.position, overtime_elapsed, world.map_id)
 		var objective_steering := _objective_steering(world, combatant, objective_state)
 		var target := _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
@@ -215,7 +222,19 @@ func _projectile_evasion(world: AuthoritativeWorld, combatant: CombatantState, p
 	var reactive_seconds := maxf(float(profile.reactive_shield_seconds), 0.0)
 	var steering := Vector2.ZERO
 	var imminent := false
-	for projectile in world.active_projectiles():
+	var query_radius := (
+		world.maximum_projectile_speed() * horizon +
+		combatant.velocity.length() * horizon +
+		dodge_range
+	)
+	for projectile_id in world.projectile_threat_ids(
+		combatant.position,
+		query_radius,
+		MAX_PROJECTILE_THREAT_CANDIDATES
+	):
+		var projectile := world.projectile_registry.get_projectile(projectile_id)
+		if projectile == null:
+			continue
 		if projectile.owner_id == combatant.peer_id or world.are_allies(projectile.owner_id, combatant.peer_id) or projectile.velocity.is_zero_approx():
 			continue
 		var relative_position := projectile.position - combatant.position

@@ -12,6 +12,10 @@ var npcs_enabled: bool = false
 var default_npc_difficulty: int = NpcPilotController.Difficulty.NEUTRAL
 var _next_join_sequence: int = 1
 var _next_npc_serial: int = 1
+var _cached_roster_revision: int = -1
+var _cached_human_ids: Array[int] = []
+var _cached_npc_ids: Array[int] = []
+var _cached_npc_difficulties: Dictionary = {}
 
 const NPC_PEER_ID_BASE: int = 1_800_000_000
 const RANDOM_SHIP_COLORS: Array[String] = [
@@ -306,19 +310,13 @@ func participant_count() -> int:
 
 
 func human_count() -> int:
-	var count := 0
-	for player_value in players.values():
-		if not (player_value as PlayerMatchState).is_npc:
-			count += 1
-	return count
+	_ensure_roster_cache()
+	return _cached_human_ids.size()
 
 
 func npc_count() -> int:
-	var count := 0
-	for player_value in players.values():
-		if (player_value as PlayerMatchState).is_npc:
-			count += 1
-	return count
+	_ensure_roster_cache()
+	return _cached_npc_ids.size()
 
 
 func ready_human_count() -> int:
@@ -335,30 +333,33 @@ func all_humans_ready() -> bool:
 
 
 func human_peer_ids() -> Array[int]:
-	var result: Array[int] = []
-	for player_value in players.values():
-		var player := player_value as PlayerMatchState
-		if not player.is_npc:
-			result.append(player.peer_id)
-	result.sort()
-	return result
+	_ensure_roster_cache()
+	return _cached_human_ids.duplicate()
+
+
+func human_peer_ids_view() -> Array[int]:
+	_ensure_roster_cache()
+	return _cached_human_ids
 
 
 func npc_peer_ids() -> Array[int]:
-	var result: Array[int] = []
-	for player_value in players.values():
-		var player := player_value as PlayerMatchState
-		if player.is_npc:
-			result.append(player.peer_id)
-	result.sort()
-	return result
+	_ensure_roster_cache()
+	return _cached_npc_ids.duplicate()
+
+
+func npc_peer_ids_view() -> Array[int]:
+	_ensure_roster_cache()
+	return _cached_npc_ids
 
 
 func npc_difficulties() -> Dictionary:
-	var result: Dictionary = {}
-	for peer_id in npc_peer_ids():
-		result[peer_id] = (players[peer_id] as PlayerMatchState).npc_difficulty
-	return result
+	_ensure_roster_cache()
+	return _cached_npc_difficulties.duplicate()
+
+
+func npc_difficulties_view() -> Dictionary:
+	_ensure_roster_cache()
+	return _cached_npc_difficulties
 
 
 func remove_all_npcs() -> Array[int]:
@@ -456,6 +457,25 @@ func _earliest_joined_peer() -> int:
 
 func _revision_changed() -> void:
 	revision = SequenceMath.increment(revision)
+	_cached_roster_revision = -1
+
+
+func _ensure_roster_cache() -> void:
+	if _cached_roster_revision == revision:
+		return
+	_cached_human_ids.clear()
+	_cached_npc_ids.clear()
+	_cached_npc_difficulties.clear()
+	for player_value in players.values():
+		var player := player_value as PlayerMatchState
+		if player.is_npc:
+			_cached_npc_ids.append(player.peer_id)
+			_cached_npc_difficulties[player.peer_id] = player.npc_difficulty
+		else:
+			_cached_human_ids.append(player.peer_id)
+	_cached_human_ids.sort()
+	_cached_npc_ids.sort()
+	_cached_roster_revision = revision
 
 
 func _settings_authority_error(sender_id: int) -> String:

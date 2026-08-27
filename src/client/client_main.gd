@@ -2,6 +2,7 @@ extends Node
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
+const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
@@ -96,13 +97,13 @@ var scoreboard_media_label: Label
 var scoreboard_rows_container: VBoxContainer
 var scoreboard_hint_label: Label
 var scoreboard_open: bool = false
-var _scoreboard_signature: String = ""
+var _scoreboard_rows_dirty: bool = true
 var results_panel: PanelContainer
 var results_label: Label
 var results_winner_label: Label
 var results_standings_container: VBoxContainer
 var results_return_button: Button
-var _results_signature: String = ""
+var _results_rows_dirty: bool = true
 var _return_to_lobby_requested: bool = false
 var win_overlay: Control
 var pause_overlay: PanelContainer
@@ -1742,6 +1743,8 @@ func _on_connected(peer_id: int) -> void:
 
 func _on_lobby_state(state: Dictionary) -> void:
 	bridge.latest_lobby_state = state.duplicate(true)
+	_scoreboard_rows_dirty = true
+	_results_rows_dirty = true
 	var npc_count := int(state.get("npc_count", 0))
 	var total_count := (state.get("players", []) as Array).size()
 	var match_active := bool(state.get("match_active", false))
@@ -2010,6 +2013,8 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 	elif event_type == &"STATE_CHANGED":
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		latest_match_payload = payload.duplicate(true)
+		_scoreboard_rows_dirty = true
+		_results_rows_dirty = true
 		var entering_match := String(payload.get("state_name", "LOBBY")) != "LOBBY"
 		if entering_match:
 			network_world.set_network_active(true)
@@ -2024,6 +2029,8 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
 		latest_match_payload["builds"] = payload.get("builds", {})
+		_scoreboard_rows_dirty = true
+		_results_rows_dirty = true
 		active_offer_token = ""
 		active_offer_deadline = -1
 		draft_panel.visible = false
@@ -2032,13 +2039,19 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		for peer_value in payload.get("peer_ids", []):
 			alive_peer_ids.erase(int(peer_value))
 		latest_match_payload["alive_peer_ids"] = alive_peer_ids
-	elif event_type == &"OBJECTIVE_UPDATED":
+		if payload.has("scores"):
+			latest_match_payload["scores"] = (payload.scores as Dictionary).duplicate(true)
+			_scoreboard_rows_dirty = true
+			_results_rows_dirty = true
+	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
 		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
 		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)
 	elif event_type == &"CARD_POWERUP_COLLECTED":
 		latest_match_payload["builds"] = payload.get("builds", latest_match_payload.get("builds", {}))
+		_scoreboard_rows_dirty = true
+		_results_rows_dirty = true
 		network_world.apply_builds(latest_match_payload.get("builds", {}) as Dictionary)
 		network_world.collect_card_powerup(payload)
 		audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
@@ -2361,15 +2374,9 @@ func _update_scoreboard() -> void:
 		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 		track_name.to_upper(),
 	]
-	var signature := "%s|%s|%s|%s" % [
-		latest_match_payload.get("participant_peer_ids", []),
-		latest_match_payload.get("scores", {}),
-		latest_match_payload.get("builds", {}),
-		bridge.local_peer_id,
-	]
-	if signature == _scoreboard_signature:
+	if not _scoreboard_rows_dirty:
 		return
-	_scoreboard_signature = signature
+	_scoreboard_rows_dirty = false
 	for child in scoreboard_rows_container.get_children():
 		scoreboard_rows_container.remove_child(child)
 		child.free()
@@ -2383,7 +2390,7 @@ func _set_scoreboard_open(open: bool) -> void:
 	if scoreboard_panel != null:
 		scoreboard_panel.visible = scoreboard_open
 	if scoreboard_open:
-		_scoreboard_signature = ""
+		_scoreboard_rows_dirty = true
 		_update_scoreboard()
 
 
@@ -2451,10 +2458,9 @@ func _update_results_screen() -> void:
 	else:
 		results_return_button.text = "WAITING FOR LOBBY LEADER"
 		results_return_button.tooltip_text = "The lobby leader controls when everyone leaves the final standings."
-	var signature := "%d|%s|%s" % [winner_id, latest_match_payload.get("scores", {}), latest_match_payload.get("builds", {})]
-	if signature == _results_signature:
+	if not _results_rows_dirty:
 		return
-	_results_signature = signature
+	_results_rows_dirty = false
 	for child in results_standings_container.get_children():
 		results_standings_container.remove_child(child)
 		child.free()
@@ -2473,43 +2479,15 @@ func _on_results_return_pressed() -> void:
 
 
 func _result_peer_ids() -> Array[int]:
-	var result: Array[int] = []
-	for peer_value in latest_match_payload.get("participant_peer_ids", []):
-		var peer_id := int(peer_value)
-		if peer_id != 0 and peer_id not in result:
-			result.append(peer_id)
-	var scores := latest_match_payload.get("scores", {}) as Dictionary
-	for peer_value in scores.keys():
-		var peer_id := int(peer_value)
-		if peer_id != 0 and peer_id not in result:
-			result.append(peer_id)
-	var winner_id := int(latest_match_payload.get("match_winner", 0))
-	if winner_id != 0 and winner_id not in result:
-		result.append(winner_id)
-	result.sort_custom(func(first: int, second: int) -> bool:
-		var first_score := _result_score(first)
-		var second_score := _result_score(second)
-		var first_rounds := int(first_score.get("round_wins", 0))
-		var second_rounds := int(second_score.get("round_wins", 0))
-		if first_rounds != second_rounds:
-			return first_rounds > second_rounds
-		var first_heats := int(first_score.get("heat_wins", 0))
-		var second_heats := int(second_score.get("heat_wins", 0))
-		if first_heats != second_heats:
-			return first_heats > second_heats
-		return first < second
-	)
-	return result
+	return StandingsModelScript.peer_ids(latest_match_payload)
 
 
 func _result_score(peer_id: int) -> Dictionary:
-	var scores := latest_match_payload.get("scores", {}) as Dictionary
-	return scores.get(peer_id, scores.get(str(peer_id), {})) as Dictionary
+	return StandingsModelScript.score(latest_match_payload, peer_id)
 
 
 func _result_build(peer_id: int) -> Dictionary:
-	var builds := latest_match_payload.get("builds", {}) as Dictionary
-	return builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary
+	return StandingsModelScript.build(latest_match_payload, peer_id)
 
 
 func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: String = "FinalBuildCards") -> void:
@@ -2712,7 +2690,7 @@ func _set_win_screen_visible(visible: bool) -> void:
 	if results_panel != null:
 		results_panel.visible = visible
 	if not visible:
-		_results_signature = ""
+		_results_rows_dirty = true
 	elif results_return_button != null and not results_return_button.disabled:
 		results_return_button.grab_focus()
 

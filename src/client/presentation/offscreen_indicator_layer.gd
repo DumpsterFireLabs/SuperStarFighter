@@ -2,6 +2,7 @@ class_name OffscreenIndicatorLayer
 extends Control
 
 var world_view: NetworkWorldView
+var _redraw_accumulator: float = 0.0
 
 
 func setup(view: NetworkWorldView) -> void:
@@ -10,8 +11,11 @@ func setup(view: NetworkWorldView) -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+func _process(delta: float) -> void:
+	_redraw_accumulator += maxf(delta, 0.0)
+	if _redraw_accumulator >= 0.05:
+		_redraw_accumulator = fmod(_redraw_accumulator, 0.05)
+		queue_redraw()
 
 
 func _draw() -> void:

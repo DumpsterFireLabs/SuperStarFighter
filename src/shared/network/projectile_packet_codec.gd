@@ -1,31 +1,97 @@
 class_name ProjectilePacketCodec
 extends RefCounted
 
-const HEADER_SIZE: int = 7
+const HEADER_SIZE: int = 14
 const PROJECTILE_RECORD_SIZE: int = 27
 const POSITION_SCALE: float = 16.0
 const VELOCITY_SCALE: float = 8.0
 const DAMAGE_SCALE: float = 100.0
 const LIFETIME_SCALE: float = 1000.0
 
+const KIND_DELTA: int = 0
+const KIND_PARTIAL_CORRECTION: int = 1
+const KIND_FULL_CORRECTION: int = 2
 
-static func encode_batch(
+
+static func encode_batch_chunks(
 	server_tick: int,
+	batch_sequence: int,
+	spawned: Array[ProjectileState],
+	removed: Array[int]
+) -> Array[PackedByteArray]:
+	return _encode_chunks(server_tick, batch_sequence, KIND_DELTA, spawned, removed)
+
+
+static func encode_correction_chunks(
+	server_tick: int,
+	batch_sequence: int,
+	active: Array[ProjectileState],
+	complete_snapshot: bool
+) -> Array[PackedByteArray]:
+	var kind := KIND_FULL_CORRECTION if complete_snapshot else KIND_PARTIAL_CORRECTION
+	return _encode_chunks(server_tick, batch_sequence, kind, active, [])
+
+
+static func _encode_chunks(
+	server_tick: int,
+	batch_sequence: int,
+	kind: int,
+	spawned: Array[ProjectileState],
+	removed: Array[int]
+) -> Array[PackedByteArray]:
+	var pieces: Array[Dictionary] = []
+	var spawn_index := 0
+	var removed_index := 0
+	while spawn_index < spawned.size() or removed_index < removed.size() or pieces.is_empty():
+		var chunk_spawned: Array[ProjectileState] = []
+		var chunk_removed: Array[int] = []
+		var remaining_bytes := NetworkProtocol.MAX_PROJECTILE_MESSAGE_BYTES - HEADER_SIZE - 2
+		while spawn_index < spawned.size() and remaining_bytes >= PROJECTILE_RECORD_SIZE:
+			chunk_spawned.append(spawned[spawn_index])
+			spawn_index += 1
+			remaining_bytes -= PROJECTILE_RECORD_SIZE
+		while removed_index < removed.size() and remaining_bytes >= 4:
+			chunk_removed.append(removed[removed_index])
+			removed_index += 1
+			remaining_bytes -= 4
+		pieces.append({"spawned": chunk_spawned, "removed": chunk_removed})
+	var result: Array[PackedByteArray] = []
+	for chunk_index in pieces.size():
+		var piece := pieces[chunk_index] as Dictionary
+		result.append(_encode_chunk(
+			server_tick,
+			batch_sequence,
+			kind,
+			chunk_index,
+			pieces.size(),
+			piece.spawned as Array[ProjectileState],
+			piece.removed as Array[int]
+		))
+	return result
+
+
+static func _encode_chunk(
+	server_tick: int,
+	batch_sequence: int,
+	kind: int,
+	chunk_index: int,
+	chunk_count: int,
 	spawned: Array[ProjectileState],
 	removed: Array[int]
 ) -> PackedByteArray:
 	var bytes := PackedByteArray()
 	ByteCodec.append_u8(bytes, NetworkProtocol.PACKET_VERSION)
 	ByteCodec.append_u32(bytes, server_tick)
-	var spawn_count := mini(spawned.size(), NetworkProtocol.MAX_PACKET_PROJECTILES)
-	ByteCodec.append_u16(bytes, spawn_count)
-	for index in spawn_count:
-		_append_projectile(bytes, spawned[index])
-	var remaining_capacity := NetworkProtocol.MAX_PACKET_PROJECTILES - spawn_count
-	var removed_count := mini(removed.size(), remaining_capacity)
-	ByteCodec.append_u16(bytes, removed_count)
-	for index in removed_count:
-		ByteCodec.append_u32(bytes, removed[index])
+	ByteCodec.append_u8(bytes, kind)
+	ByteCodec.append_u16(bytes, batch_sequence & 0xffff)
+	ByteCodec.append_u16(bytes, chunk_index)
+	ByteCodec.append_u16(bytes, chunk_count)
+	ByteCodec.append_u16(bytes, spawned.size())
+	for projectile in spawned:
+		_append_projectile(bytes, projectile)
+	ByteCodec.append_u16(bytes, removed.size())
+	for projectile_id in removed:
+		ByteCodec.append_u32(bytes, projectile_id)
 	return bytes
 
 
@@ -34,7 +100,16 @@ static func decode_batch(bytes: PackedByteArray) -> Dictionary:
 		return _error("Projectile packet header is truncated.")
 	if ByteCodec.read_u8(bytes, 0) != NetworkProtocol.PACKET_VERSION:
 		return _error("Unsupported projectile packet version.")
-	var spawn_count := ByteCodec.read_u16(bytes, 5)
+	if bytes.size() > NetworkProtocol.MAX_PROJECTILE_MESSAGE_BYTES:
+		return _error("Projectile packet exceeds the transport message budget.")
+	var kind := ByteCodec.read_u8(bytes, 5)
+	if kind < KIND_DELTA or kind > KIND_FULL_CORRECTION:
+		return _error("Projectile packet kind is invalid.")
+	var chunk_index := ByteCodec.read_u16(bytes, 8)
+	var chunk_count := ByteCodec.read_u16(bytes, 10)
+	if chunk_count == 0 or chunk_index >= chunk_count:
+		return _error("Projectile packet chunk metadata is invalid.")
+	var spawn_count := ByteCodec.read_u16(bytes, 12)
 	if spawn_count > NetworkProtocol.MAX_PACKET_PROJECTILES:
 		return _error("Projectile spawn count exceeds the protocol bound.")
 	var removed_count_offset := HEADER_SIZE + spawn_count * PROJECTILE_RECORD_SIZE
@@ -58,15 +133,23 @@ static func decode_batch(bytes: PackedByteArray) -> Dictionary:
 	for index in removed_count:
 		removed.append(ByteCodec.read_u32(bytes, offset))
 		offset += 4
-	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "spawned": spawned, "removed": removed}
-
-
-static func encode_correction(server_tick: int, active: Array[ProjectileState]) -> PackedByteArray:
-	return encode_batch(server_tick, active, [])
+	return {
+		"ok": true,
+		"server_tick": ByteCodec.read_u32(bytes, 1),
+		"kind": kind,
+		"batch_sequence": ByteCodec.read_u16(bytes, 6),
+		"chunk_index": chunk_index,
+		"chunk_count": chunk_count,
+		"complete_snapshot": kind == KIND_FULL_CORRECTION,
+		"spawned": spawned,
+		"removed": removed,
+	}
 
 
 static func decode_correction(bytes: PackedByteArray) -> Dictionary:
 	var decoded := decode_batch(bytes)
+	if decoded.ok and int(decoded.kind) == KIND_DELTA:
+		return _error("Projectile correction packet has the wrong kind.")
 	if decoded.ok and not (decoded.removed as Array).is_empty():
 		return _error("Projectile correction packets cannot contain removals.")
 	return decoded

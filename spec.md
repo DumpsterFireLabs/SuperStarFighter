@@ -152,7 +152,7 @@ State transitions are reliable server events containing the new state, server ti
   - **King of the Hill:** a single uncontested living pilot must remain inside the authoritative hill for 20 uninterrupted seconds. Leaving or contesting the hill resets progress. Elimination alone does not award the heat unless all pilots die, which produces a tie.
   - **Capture the Flag:** the first pilot to collect the neutral center flag and carry it to the neutral extraction zone wins the heat.
   - **Team Capture the Flag:** the first team to collect the neutral center flag and carry it to that team's base wins the heat.
-- A flag follows its living carrier, drops at the carrier's death position, may be recovered by another eligible pilot, and resets to center after eight seconds untouched. Hill, flag, extraction, and team-base positions are deterministic clear points derived from the active map. The server owns pickup, occupancy, progress, drops, capture, scoring, and reliable objective updates.
+- A flag follows its living carrier, drops at the carrier's death position, may be recovered by another eligible pilot, and resets to center after eight seconds untouched. Hill, flag, extraction, and team-base positions are deterministic clear points derived from the active map. The server owns pickup, occupancy, progress, drops, capture, and scoring. Controller changes, pickups, drops, and resets are reliable transitions; replaceable progress/position state is sent separately as an unreliable ordered snapshot.
 - Random Spawn Powerups defaults off. When enabled, the server starts a fresh leader-configured 5–90 second timer at heat unlock (20 seconds by default), then spawns one Rare-or-better card at each interval at a legal position clear of obstacles and living ships. Uncollected cards persist until collected or the heat ends; a nearby living human or NPC collects one authoritatively and receives the recomputed build immediately. Drops expire after the current heat by default; a separate default-off permanence toggle retains them until match end. Tier selection uses the configured rarity weights conditioned on Rare or above. Active pickups and effective builds are included in late-join state.
 - Spawn assignments are shuffled by the server each heat. Controls remain locked during the countdown. Every heat presents a centered `READY` alert during the lock. At exactly 0.10 seconds remaining it changes to `BEGIN`, remains through the first 0.10 seconds of authoritative control, and fades to transparent across that post-roll.
 - A player at zero health is eliminated immediately and becomes a spectator for the remainder of the heat.
@@ -467,9 +467,9 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `11` and a maximum of 32 client peers in addition to the server. Version 11 adds authoritative selectable game modes, team identity/scoring, friendly-fire rules, and reliable hill/flag objective state.
-- The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile correction snapshots are sent at 5 Hz.
-- Use three logical channels: reliable ordered control/state events, unreliable ordered input, and unreliable ordered snapshots/projectile batches.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `12` and a maximum of 32 client peers in addition to the server. Version 12 adds bounded/chunked projectile replication, partial/full correction semantics, and an independent objective-snapshot channel.
+- The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile corrections are sent at 5 Hz; replaceable objective snapshots are sent at 4 Hz.
+- Use four logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player/projectile snapshots, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
 
 ### 8.2 One-Click Hosting and LAN Discovery
@@ -512,10 +512,11 @@ Server-to-client messages:
 - `draft_offer(offer_token, card_ids, deadline_tick)` — reliable and sent only to its owner.
 - `match_event(event_type, server_tick, payload)` — reliable transitions, card results, powerup spawn/collection, damage deaths, and scores.
 - `world_snapshot(server_tick, acknowledged_input, player_states)` — unreliable ordered.
-- `projectile_batch(server_tick, spawned, removed)` — unreliable ordered.
-- `projectile_correction(server_tick, active_projectiles)` — unreliable ordered recovery snapshot.
+- `projectile_batch(server_tick, sequence, chunk, spawned, removed)` — unreliable ordered; every spawn/removal is preserved across bounded chunks.
+- `projectile_correction(server_tick, sequence, chunk, active_projectiles, complete_snapshot)` — unreliable ordered; rotating partial corrections update a subset and periodic complete corrections are applied only after all chunks assemble.
+- `objective_snapshot(server_tick, objective)` — unreliable ordered replaceable progress, carrier, and position state.
 
-Control payloads may use typed Godot arrays/dictionaries because they are low frequency. Input, player snapshots, and projectile payloads must use versioned `PackedByteArray` encoding with fixed field order, bounded counts, and explicit decode failure handling.
+Control and objective payloads may use typed Godot arrays/dictionaries because they are low frequency and bounded by the participant/objective model. Input, player snapshots, and projectile payloads must use versioned `PackedByteArray` encoding with fixed field order, bounded counts, explicit decode failure handling, and projectile transport messages no larger than 1,200 bytes.
 
 ### 8.4 Input, Prediction, and Rendering
 
@@ -526,7 +527,7 @@ Control payloads may use typed Godot arrays/dictionaries because they are low fr
 - Correction errors up to 128 pixels are smoothed over 100 ms. Larger errors snap immediately and increment a diagnostic counter.
 - Remote players render approximately 100 ms behind server time by interpolating the two surrounding snapshots. Extrapolation is limited to 100 ms before holding the last state.
 - The local client may show an immediate predicted muzzle flash and projectile volley. Every predicted projectile in a multi-shot volley is tracked under its owner ID and shot sequence; the entire predicted volley is replaced when the authoritative spawns arrive so no collisionless visual copies survive. Rejected shots fade within 100 ms.
-- Clients simulate every projectile visual from authoritative spawn data using the same swept arena rebound geometry as the server, so each projectile and short-lived beam in a multi-shot volley visibly ricochets without waiting for the 5 Hz correction interval. The correction list adds missed projectiles, synchronizes position, velocity, lifetime, pierce and ricochet budgets, and removes projectiles absent from the authoritative list.
+- Clients simulate every projectile visual from authoritative spawn data using the same swept arena rebound geometry as the server, so each projectile and short-lived beam in a multi-shot volley visibly ricochets without waiting for the 5 Hz correction interval. Partial corrections add or synchronize their listed projectiles without deleting absent ones. A complete correction adds missed projectiles, synchronizes position, velocity, lifetime, pierce and ricochet budgets, and removes absent projectiles only after every chunk for that sequence has assembled.
 
 ### 8.5 Validation and Rejection
 

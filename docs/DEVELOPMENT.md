@@ -32,9 +32,9 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.3 |
-| Protocol version | 11 |
-| Automated suite | 1,947 assertions |
-| Project gate | 82 checks |
+| Protocol version | 12 |
+| Automated suite | 1,970 assertions |
+| Project gate | 86 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -115,6 +115,7 @@ Client reconciliation ←─20 Hz player snapshots
 Projectile presentation ←─spawn batches + 5 Hz corrections
 Remote interpolation ←─buffered authoritative snapshots
 Reliable UI/state ←─lobby, draft, powerups, match, score, results events
+Objective presentation ←─4 Hz replaceable snapshots + reliable transitions
 ```
 
 The client may predict local movement and shots for responsiveness, but it never decides legal positions, projectile creation, hits, damage, RNG, cards, scores, or winners.
@@ -127,6 +128,15 @@ The client may predict local movement and shots for responsiveness, but it never
 - `AuthoritativeWorld` owns deterministic per-tick combat state, including team-aware damage exclusion.
 - `NetworkWorldView` turns authoritative state into predicted/interpolated client presentation.
 - `ClientMain` owns screen flow and production UI, not gameplay authority.
+
+### Competitive hot paths
+
+- `CombatSpatialIndex` bounds ship-overlap, ship-hit, and NPC projectile-threat candidate searches by arena cells instead of scanning every entity for every query.
+- `ProjectileRegistry` keeps indexed global/owner order, O(1) live counts, tombstoned removal, and allocation-free ordered views for simulation and rendering loops.
+- Arena layouts and radius-expanded projectile geometry are immutable shared caches. A world may retain a cache entry but must never mutate or clear it.
+- Projectile messages are divided into messages no larger than 1,200 bytes. Four rotating partial corrections keep positions fresh; the fifth correction is a complete, chunk-assembled recovery snapshot.
+- Player snapshot bodies, roster views, team assignments, objective views, standings data, and common UI rows are reused until their source revision changes.
+- `ProjectileCorrectionAssembler` and `StandingsModel` keep packet reconstruction and result ordering out of the bridge and screen controller respectively.
 
 ### Match state
 
@@ -157,13 +167,14 @@ When adding networked behavior:
 6. Add encode/decode, malformed/truncated, and integration coverage.
 7. Bump the compatibility protocol when a wire-format or semantic mismatch would make old/new builds unsafe together.
 
-The three logical channels are:
+The four logical channels are:
 
 | Channel | Delivery | Use |
 | --- | --- | --- |
 | Control | Reliable ordered | Handshake, lobby, draft, match events, results |
 | Input | Unreliable ordered | Latest local movement/aim/action frame |
 | Snapshot | Unreliable ordered | Player state and projectile batches/corrections |
+| Objective | Unreliable ordered | Replaceable hill/flag state at 4 Hz; durable objective transitions remain on Control |
 
 LAN discovery is a separate bounded UDP query/response service on port `7359`. It advertises session metadata only and conveys no gameplay authority.
 
@@ -306,11 +317,12 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,947 deterministic assertions | After any gameplay/model/UI logic edit |
-| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 82 project checks | Before commit/handoff |
+| `.\tools\run-tests.ps1` | 1,970 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 86 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
+| `.\tools\run-performance-benchmark.ps1` | 32 Insane NPCs, 1,024 projectile churn, p50/p95/p99 tick timings | Combat, projectile, NPC, or networking hot-path changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
 | `.\tools\verify-presentation.ps1` | 198 production captures at six resolutions | UI, map, text, theme, timing changes |
 | `.\tools\build-beta.ps1` | Full foundation gate, Windows x64 export, rendered startup and packaged-audio inventory smoke, and friend ZIP | Beta/release packaging |
@@ -357,6 +369,8 @@ Good regression coverage normally includes:
 - Smallest supported UI size.
 
 The foundation script deliberately runs a forced-failure test and expects its nonzero exit. Seeing that one intentional failure in the verbose gate output is normal when the script itself ultimately reports success.
+
+The performance benchmark is an overload regression gate: it combines all 32 participants at Insane decision quality with the global ceiling of 1,024 active projectiles. It fails above 20 ms p95, 24 ms p99, or 30 ms maximum on the development machine. The ordinary 32-client soak retains the stricter 16.67 ms p95 server-simulation requirement from the specification.
 
 ## 13. Documentation and Spec Discipline
 

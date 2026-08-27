@@ -9,34 +9,100 @@ const RESOURCE_SCALE: float = 100.0
 
 
 static func encode(server_tick: int, acknowledged_input: int, states: Array[Dictionary]) -> PackedByteArray:
+	return assemble(server_tick, acknowledged_input, encode_state_body(states))
+
+
+static func encode_state_body(states: Array[Dictionary]) -> PackedByteArray:
+	var body := PackedByteArray()
+	var count := mini(states.size(), NetworkProtocol.MAX_SNAPSHOT_PLAYERS)
+	ByteCodec.append_u8(body, count)
+	for index in count:
+		_append_state(body, states[index])
+	return body
+
+
+static func encode_combatant_body(combatants: Dictionary, ordered_peer_ids: Array[int]) -> PackedByteArray:
+	var body := PackedByteArray()
+	var count := mini(ordered_peer_ids.size(), NetworkProtocol.MAX_SNAPSHOT_PLAYERS)
+	ByteCodec.append_u8(body, count)
+	for index in count:
+		var peer_id := ordered_peer_ids[index]
+		var combatant := combatants[peer_id] as CombatantState
+		_append_combatant(body, peer_id, combatant)
+	return body
+
+
+static func assemble(server_tick: int, acknowledged_input: int, body: PackedByteArray) -> PackedByteArray:
 	var bytes := PackedByteArray()
 	ByteCodec.append_u8(bytes, NetworkProtocol.PACKET_VERSION)
 	ByteCodec.append_u32(bytes, server_tick)
 	ByteCodec.append_u32(bytes, acknowledged_input)
-	var count := mini(states.size(), NetworkProtocol.MAX_SNAPSHOT_PLAYERS)
-	ByteCodec.append_u8(bytes, count)
-	for index in count:
-		var state := states[index]
-		ByteCodec.append_u32(bytes, int(state.get("peer_id", 0)))
-		var position: Vector2 = state.get("position", Vector2.ZERO)
-		var velocity: Vector2 = state.get("velocity", Vector2.ZERO)
-		ByteCodec.append_u16(bytes, roundi(clampf(position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
-		ByteCodec.append_u16(bytes, roundi(clampf(position.y, 0.0, GameConstants.ARENA_SIZE.y) * POSITION_SCALE))
-		ByteCodec.append_i16(bytes, roundi(clampf(velocity.x, -4095.0, 4095.0) * VELOCITY_SCALE))
-		ByteCodec.append_i16(bytes, roundi(clampf(velocity.y, -4095.0, 4095.0) * VELOCITY_SCALE))
-		ByteCodec.append_u16(bytes, roundi(MovementSystem.normalize_aim_angle(float(state.get("aim_angle", 0.0))) / TAU * 65535.0))
-		ByteCodec.append_u16(bytes, roundi(clampf(float(state.get("health", 0.0)), 0.0, 655.35) * RESOURCE_SCALE))
-		ByteCodec.append_u16(bytes, roundi(clampf(float(state.get("shield", 0.0)), 0.0, 655.35) * RESOURCE_SCALE))
-		ByteCodec.append_u8(bytes, clampi(int(state.get("ammunition", 0)), 0, 255))
-		var flags := 0
-		if bool(state.get("alive", true)):
-			flags |= 1
-		if bool(state.get("shielding", false)):
-			flags |= 2
-		if bool(state.get("afterburner_active", false)):
-			flags |= 4
-		ByteCodec.append_u8(bytes, flags)
+	bytes.append_array(body)
 	return bytes
+
+
+static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
+	_append_values(
+		bytes,
+		int(state.get("peer_id", 0)),
+		state.get("position", Vector2.ZERO) as Vector2,
+		state.get("velocity", Vector2.ZERO) as Vector2,
+		float(state.get("aim_angle", 0.0)),
+		float(state.get("health", 0.0)),
+		float(state.get("shield", 0.0)),
+		int(state.get("ammunition", 0)),
+		bool(state.get("alive", true)),
+		bool(state.get("shielding", false)),
+		bool(state.get("afterburner_active", false))
+	)
+
+
+static func _append_combatant(bytes: PackedByteArray, peer_id: int, combatant: CombatantState) -> void:
+	_append_values(
+		bytes,
+		peer_id,
+		combatant.position,
+		combatant.velocity,
+		combatant.aim_angle,
+		combatant.health,
+		combatant.shield.energy,
+		combatant.weapon.ammunition,
+		combatant.alive,
+		combatant.shield.active,
+		combatant.afterburner_remaining > 0.0
+	)
+
+
+static func _append_values(
+	bytes: PackedByteArray,
+	peer_id: int,
+	position: Vector2,
+	velocity: Vector2,
+	aim_angle: float,
+	health: float,
+	shield: float,
+	ammunition: int,
+	alive: bool,
+	shielding: bool,
+	afterburner_active: bool
+) -> void:
+	ByteCodec.append_u32(bytes, peer_id)
+	ByteCodec.append_u16(bytes, roundi(clampf(position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
+	ByteCodec.append_u16(bytes, roundi(clampf(position.y, 0.0, GameConstants.ARENA_SIZE.y) * POSITION_SCALE))
+	ByteCodec.append_i16(bytes, roundi(clampf(velocity.x, -4095.0, 4095.0) * VELOCITY_SCALE))
+	ByteCodec.append_i16(bytes, roundi(clampf(velocity.y, -4095.0, 4095.0) * VELOCITY_SCALE))
+	ByteCodec.append_u16(bytes, roundi(MovementSystem.normalize_aim_angle(aim_angle) / TAU * 65535.0))
+	ByteCodec.append_u16(bytes, roundi(clampf(health, 0.0, 655.35) * RESOURCE_SCALE))
+	ByteCodec.append_u16(bytes, roundi(clampf(shield, 0.0, 655.35) * RESOURCE_SCALE))
+	ByteCodec.append_u8(bytes, clampi(ammunition, 0, 255))
+	var flags := 0
+	if alive:
+		flags |= 1
+	if shielding:
+		flags |= 2
+	if afterburner_active:
+		flags |= 4
+	ByteCodec.append_u8(bytes, flags)
 
 
 static func decode(bytes: PackedByteArray) -> Dictionary:

@@ -139,15 +139,15 @@ static func _validate_team_death_match_scoring(context: TestContext) -> void:
 	var active_tick := _complete_draft_and_enter_heat(machine, 0)
 	context.expect_true(machine.eliminate_players([2, 4], active_tick), "eliminating the final enemy resolves a team heat")
 	context.expect_equal(machine.last_heat_winner_team, 1, "the surviving team owns the heat result")
-	context.expect_equal(machine.scores.get_score(1).heat_wins, 1, "team heat score is mirrored to its first member")
-	context.expect_equal(machine.scores.get_score(3).heat_wins, 1, "team heat score is mirrored to every teammate")
+	context.expect_equal((machine.score_snapshot()[1] as Dictionary).heat_wins, 1, "team heat score is published for its first member")
+	context.expect_equal((machine.score_snapshot()[3] as Dictionary).heat_wins, 1, "team heat score is published for every teammate")
 	active_tick = _advance_heat_result_to_active(machine)
 	machine.eliminate_players([2, 4], active_tick)
 	machine.advance_time(machine.state_deadline_tick)
 	context.expect_equal(machine.state, MatchStateMachine.State.MATCH_RESULT, "two team heat wins complete a one-round team match")
 	context.expect_equal(machine.match_winner_team, 1, "team match result preserves the winning team")
-	context.expect_equal(machine.scores.get_score(1).round_wins, 1, "winning team members share the round score")
-	context.expect_equal(machine.scores.get_score(3).round_wins, 1, "all winning teammates share the final round score")
+	context.expect_equal((machine.score_snapshot()[1] as Dictionary).round_wins, 1, "winning team members share the published round score")
+	context.expect_equal((machine.score_snapshot()[3] as Dictionary).round_wins, 1, "all winning teammates share the published final round score")
 
 
 static func _validate_team_forfeit(context: TestContext) -> void:
@@ -165,8 +165,8 @@ static func _validate_team_forfeit(context: TestContext) -> void:
 	context.expect_true(machine.disconnect_player(4, 201), "final opposing-team disconnect is accepted")
 	context.expect_equal(machine.state, MatchStateMachine.State.MATCH_RESULT, "one remaining team wins the match by forfeit")
 	context.expect_equal(machine.match_winner_team, 1, "team forfeit records the remaining team")
-	context.expect_equal(machine.scores.get_score(1).round_wins, 3, "team forfeit advances the first teammate to the round target")
-	context.expect_equal(machine.scores.get_score(3).round_wins, 3, "team forfeit advances every winning teammate")
+	context.expect_equal((machine.score_snapshot()[1] as Dictionary).round_wins, 3, "team forfeit publishes the round target for the first teammate")
+	context.expect_equal((machine.score_snapshot()[3] as Dictionary).round_wins, 3, "team forfeit publishes the round target for every winning teammate")
 
 
 static func _create_started_machine(player_count: int, rounds_to_win: int) -> MatchStateMachine:

@@ -1,5 +1,8 @@
 class_name ArenaCollisionSystem
 extends RefCounted
+static var _projectile_geometry_cache: Dictionary = {}
+static var _empty_obstacle_indices: Array[int] = []
+const PROJECTILE_OBSTACLE_CELL_SIZE: float = 240.0
 
 
 static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Dictionary:
@@ -73,16 +76,13 @@ static func projectile_obstacle_normal(position: Vector2, radius: float, map_id:
 		return Vector2.DOWN
 	if position.y >= GameConstants.ARENA_SIZE.y - radius:
 		return Vector2.UP
-	for rectangle in ArenaLayout.cover_rectangles(map_id):
-		var expanded := rectangle.grow(radius)
-		if expanded.has_point(position):
-			var local := position - expanded.get_center()
-			var normalized := Vector2(local.x / expanded.size.x, local.y / expanded.size.y)
-			var normal := Vector2(signf(local.x), 0.0) if absf(normalized.x) > absf(normalized.y) else Vector2(0.0, signf(local.y))
-			return normal if not normal.is_zero_approx() else Vector2.UP
-	for circle in ArenaLayout.circle_obstacles(map_id):
-		var from_center := position - (circle.center as Vector2)
-		if from_center.length() <= float(circle.radius) + radius:
+	var geometry := _projectile_geometry(map_id, radius)
+	for rectangle in geometry.rectangles as Array:
+		if rectangle.has_point(position):
+			return _rectangle_normal(position, rectangle)
+	for circle in geometry.circles as Array:
+		var from_center := position - Vector2(circle.x, circle.y)
+		if from_center.length_squared() <= circle.z * circle.z:
 			return from_center.normalized() if not from_center.is_zero_approx() else Vector2.RIGHT
 	return Vector2.ZERO
 
@@ -93,36 +93,172 @@ static func projectile_obstacle_sweep(
 	radius: float,
 	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 ) -> Dictionary:
-	var start_normal := projectile_obstacle_normal(start, radius, map_id)
-	if not start_normal.is_zero_approx():
-		return {"hit": true, "fraction": 0.0, "position": start, "normal": start_normal}
+	var hit: Variant = projectile_obstacle_sweep_hit(start, end, radius, map_id)
+	return hit as Dictionary if hit != null else {"hit": false}
+
+
+static func projectile_obstacle_sweep_hit(
+	start: Vector2,
+	end: Vector2,
+	radius: float,
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
+	geometry_override: Dictionary = {}
+) -> Variant:
+	if start.x <= radius:
+		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.RIGHT}
+	if start.x >= GameConstants.ARENA_SIZE.x - radius:
+		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.LEFT}
+	if start.y <= radius:
+		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.DOWN}
+	if start.y >= GameConstants.ARENA_SIZE.y - radius:
+		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.UP}
+	var geometry := geometry_override if not geometry_override.is_empty() else _projectile_geometry(map_id, radius)
+	var rectangles := geometry.rectangles as Array
+	var circles := geometry.circles as Array
+	var rectangle_cells := geometry.rectangle_cells as Dictionary
+	var circle_cells := geometry.circle_cells as Dictionary
+	var start_cell := _projectile_obstacle_cell(start)
+	for rectangle_index in rectangle_cells.get(start_cell, _empty_obstacle_indices) as Array:
+		var rectangle := rectangles[int(rectangle_index)] as Rect2
+		if rectangle.has_point(start):
+			return {"hit": true, "fraction": 0.0, "position": start, "normal": _rectangle_normal(start, rectangle)}
+	for circle_index in circle_cells.get(start_cell, _empty_obstacle_indices) as Array:
+		var circle := circles[int(circle_index)] as Vector3
+		var from_center := start - Vector2(circle.x, circle.y)
+		if from_center.length_squared() <= circle.z * circle.z:
+			var normal := from_center.normalized() if not from_center.is_zero_approx() else Vector2.RIGHT
+			return {"hit": true, "fraction": 0.0, "position": start, "normal": normal}
 	var direction := end - start
 	if direction.is_zero_approx():
-		return {"hit": false}
-	var best_hit := {"hit": false, "fraction": INF, "position": end, "normal": Vector2.ZERO}
+		return null
+	var best_fraction := INF
+	var best_normal := Vector2.ZERO
 	var minimum := Vector2(radius, radius)
 	var maximum := GameConstants.ARENA_SIZE - minimum
 	if direction.x < 0.0 and end.x <= minimum.x:
-		best_hit = _nearer_projectile_hit(best_hit, _sweep_candidate(start, direction, (minimum.x - start.x) / direction.x, Vector2.RIGHT))
+		best_fraction = (minimum.x - start.x) / direction.x
+		best_normal = Vector2.RIGHT
 	elif direction.x > 0.0 and end.x >= maximum.x:
-		best_hit = _nearer_projectile_hit(best_hit, _sweep_candidate(start, direction, (maximum.x - start.x) / direction.x, Vector2.LEFT))
+		best_fraction = (maximum.x - start.x) / direction.x
+		best_normal = Vector2.LEFT
 	if direction.y < 0.0 and end.y <= minimum.y:
-		best_hit = _nearer_projectile_hit(best_hit, _sweep_candidate(start, direction, (minimum.y - start.y) / direction.y, Vector2.DOWN))
+		var candidate_fraction := (minimum.y - start.y) / direction.y
+		if candidate_fraction < best_fraction:
+			best_fraction = candidate_fraction
+			best_normal = Vector2.DOWN
 	elif direction.y > 0.0 and end.y >= maximum.y:
-		best_hit = _nearer_projectile_hit(best_hit, _sweep_candidate(start, direction, (maximum.y - start.y) / direction.y, Vector2.UP))
+		var candidate_fraction := (maximum.y - start.y) / direction.y
+		if candidate_fraction < best_fraction:
+			best_fraction = candidate_fraction
+			best_normal = Vector2.UP
+	var segment_minimum := _projectile_obstacle_cell(Vector2(minf(start.x, end.x), minf(start.y, end.y)))
+	var segment_maximum := _projectile_obstacle_cell(Vector2(maxf(start.x, end.x), maxf(start.y, end.y)))
+	if (
+		segment_minimum == segment_maximum and
+		not rectangle_cells.has(segment_minimum) and
+		not circle_cells.has(segment_minimum)
+	):
+		if best_normal.is_zero_approx():
+			return null
+		return {"hit": true, "fraction": best_fraction, "position": start + direction * best_fraction, "normal": best_normal}
+	var tested_rectangles := 0
+	var tested_circles := 0
+	for cell_y in range(segment_minimum.y, segment_maximum.y + 1):
+		for cell_x in range(segment_minimum.x, segment_maximum.x + 1):
+			var cell := Vector2i(cell_x, cell_y)
+			for rectangle_index_value in rectangle_cells.get(cell, _empty_obstacle_indices) as Array:
+				var rectangle_index := int(rectangle_index_value)
+				var rectangle_bit := 1 << rectangle_index
+				if tested_rectangles & rectangle_bit:
+					continue
+				tested_rectangles |= rectangle_bit
+				var candidate := _segment_aabb_hit_vector(start, direction, rectangles[rectangle_index] as Rect2)
+				if candidate.x < best_fraction:
+					best_fraction = candidate.x
+					best_normal = Vector2(candidate.y, candidate.z)
+			for circle_index_value in circle_cells.get(cell, _empty_obstacle_indices) as Array:
+				var circle_index := int(circle_index_value)
+				var circle_bit := 1 << circle_index
+				if tested_circles & circle_bit:
+					continue
+				tested_circles |= circle_bit
+				var circle := circles[circle_index] as Vector3
+				var candidate := _segment_circle_hit_vector(start, direction, Vector2(circle.x, circle.y), circle.z)
+				if candidate.x < best_fraction:
+					best_fraction = candidate.x
+					best_normal = Vector2(candidate.y, candidate.z)
+	if best_fraction < 0.0 or best_fraction > 1.0 or best_normal.is_zero_approx():
+		return null
+	return {
+		"hit": true,
+		"fraction": best_fraction,
+		"position": start + direction * best_fraction,
+		"normal": best_normal,
+	}
+
+
+static func _projectile_geometry(map_id: StringName, radius: float) -> Dictionary:
+	var key := "%s:%d" % [ArenaLayout.normalized_map_id(map_id), roundi(radius * 100.0)]
+	if _projectile_geometry_cache.has(key):
+		return _projectile_geometry_cache[key] as Dictionary
+	var rectangles: Array[Rect2] = []
 	for rectangle in ArenaLayout.cover_rectangles(map_id):
-		best_hit = _nearer_projectile_hit(best_hit, _segment_aabb_hit(start, direction, rectangle.grow(radius)))
+		rectangles.append(rectangle.grow(radius))
+	var circles: Array[Vector3] = []
 	for circle in ArenaLayout.circle_obstacles(map_id):
-		best_hit = _nearer_projectile_hit(best_hit, _segment_circle_hit(
-			start,
-			direction,
-			circle.center as Vector2,
-			float(circle.radius) + radius
-		))
-	return best_hit if bool(best_hit.hit) else {"hit": false}
+		var center := circle.center as Vector2
+		circles.append(Vector3(center.x, center.y, float(circle.radius) + radius))
+	var rectangle_cells: Dictionary = {}
+	for rectangle_index in rectangles.size():
+		_append_obstacle_to_cells(rectangle_cells, rectangles[rectangle_index], rectangle_index)
+	var circle_cells: Dictionary = {}
+	for circle_index in circles.size():
+		var circle := circles[circle_index]
+		var extent := Vector2.ONE * circle.z
+		_append_obstacle_to_cells(circle_cells, Rect2(Vector2(circle.x, circle.y) - extent, extent * 2.0), circle_index)
+	var result := {
+		"rectangles": rectangles,
+		"circles": circles,
+		"rectangle_cells": rectangle_cells,
+		"circle_cells": circle_cells,
+	}
+	_projectile_geometry_cache[key] = result
+	return result
 
 
-static func _segment_aabb_hit(start: Vector2, direction: Vector2, rectangle: Rect2) -> Dictionary:
+static func projectile_geometry(map_id: StringName, radius: float) -> Dictionary:
+	return _projectile_geometry(map_id, radius)
+
+
+static func _append_obstacle_to_cells(cells: Dictionary, bounds: Rect2, obstacle_index: int) -> void:
+	var minimum := _projectile_obstacle_cell(bounds.position)
+	var maximum := _projectile_obstacle_cell(bounds.end)
+	for cell_y in range(minimum.y, maximum.y + 1):
+		for cell_x in range(minimum.x, maximum.x + 1):
+			var cell := Vector2i(cell_x, cell_y)
+			var indices: Array[int] = []
+			if cells.has(cell):
+				indices = cells[cell] as Array[int]
+			else:
+				cells[cell] = indices
+			indices.append(obstacle_index)
+
+
+static func _projectile_obstacle_cell(position: Vector2) -> Vector2i:
+	return Vector2i(
+		floori(position.x / PROJECTILE_OBSTACLE_CELL_SIZE),
+		floori(position.y / PROJECTILE_OBSTACLE_CELL_SIZE)
+	)
+
+
+static func _rectangle_normal(position: Vector2, rectangle: Rect2) -> Vector2:
+	var local := position - rectangle.get_center()
+	var normalized := Vector2(local.x / rectangle.size.x, local.y / rectangle.size.y)
+	var normal := Vector2(signf(local.x), 0.0) if absf(normalized.x) > absf(normalized.y) else Vector2(0.0, signf(local.y))
+	return normal if not normal.is_zero_approx() else Vector2.UP
+
+
+static func _segment_aabb_hit_vector(start: Vector2, direction: Vector2, rectangle: Rect2) -> Vector3:
 	var entry_fraction := 0.0
 	var exit_fraction := 1.0
 	var entry_normal := Vector2.ZERO
@@ -133,7 +269,7 @@ static func _segment_aabb_hit(start: Vector2, direction: Vector2, rectangle: Rec
 		var maximum := rectangle.end[axis]
 		if absf(direction_value) <= 0.000001:
 			if start_value < minimum or start_value > maximum:
-				return {"hit": false}
+				return Vector3(INF, 0.0, 0.0)
 			continue
 		var near_fraction := (minimum - start_value) / direction_value
 		var far_fraction := (maximum - start_value) / direction_value
@@ -146,41 +282,26 @@ static func _segment_aabb_hit(start: Vector2, direction: Vector2, rectangle: Rec
 			entry_normal = Vector2(-signf(direction_value), 0.0) if axis == 0 else Vector2(0.0, -signf(direction_value))
 		exit_fraction = minf(exit_fraction, far_fraction)
 		if entry_fraction > exit_fraction:
-			return {"hit": false}
+			return Vector3(INF, 0.0, 0.0)
 	if entry_normal.is_zero_approx() or entry_fraction < 0.0 or entry_fraction > 1.0:
-		return {"hit": false}
-	return _sweep_candidate(start, direction, entry_fraction, entry_normal)
+		return Vector3(INF, 0.0, 0.0)
+	return Vector3(entry_fraction, entry_normal.x, entry_normal.y)
 
 
-static func _segment_circle_hit(start: Vector2, direction: Vector2, center: Vector2, radius: float) -> Dictionary:
+static func _segment_circle_hit_vector(start: Vector2, direction: Vector2, center: Vector2, radius: float) -> Vector3:
 	var offset := start - center
 	var a := direction.length_squared()
 	if a <= 0.000001:
-		return {"hit": false}
+		return Vector3(INF, 0.0, 0.0)
 	var b := 2.0 * offset.dot(direction)
 	var c := offset.length_squared() - radius * radius
 	var discriminant := b * b - 4.0 * a * c
 	if discriminant < 0.0:
-		return {"hit": false}
+		return Vector3(INF, 0.0, 0.0)
 	var fraction := (-b - sqrt(discriminant)) / (2.0 * a)
 	if fraction < 0.0 or fraction > 1.0:
-		return {"hit": false}
-	var position := start + direction * fraction
-	var normal := (position - center).normalized()
+		return Vector3(INF, 0.0, 0.0)
+	var normal := (start + direction * fraction - center).normalized()
 	if normal.is_zero_approx():
 		normal = -direction.normalized()
-	return {"hit": true, "fraction": fraction, "position": position, "normal": normal}
-
-
-static func _sweep_candidate(start: Vector2, direction: Vector2, fraction: float, normal: Vector2) -> Dictionary:
-	if fraction < 0.0 or fraction > 1.0 or normal.is_zero_approx():
-		return {"hit": false}
-	return {"hit": true, "fraction": fraction, "position": start + direction * fraction, "normal": normal}
-
-
-static func _nearer_projectile_hit(current: Dictionary, candidate: Dictionary) -> Dictionary:
-	if not bool(candidate.get("hit", false)):
-		return current
-	if not bool(current.get("hit", false)) or float(candidate.fraction) < float(current.fraction):
-		return candidate
-	return current
+	return Vector3(fraction, normal.x, normal.y)

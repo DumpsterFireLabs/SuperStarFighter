@@ -51,6 +51,10 @@ var camera_shake_intensity: float = 0.0
 var diagnostics_visible: bool = false
 var special_activation_sends_remaining: int = 0
 var local_special_cooldown_remaining: float = 0.0
+var _nearest_incoming_cache: ProjectileState
+var _nearest_incoming_revision: int = -1
+var _incoming_refresh_accumulator: float = 0.0
+var _diagnostics_refresh_accumulator: float = 0.0
 
 
 func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
@@ -116,6 +120,10 @@ func reset_session() -> void:
 	camera_shake_intensity = 0.0
 	special_activation_sends_remaining = 0
 	local_special_cooldown_remaining = 0.0
+	_nearest_incoming_cache = null
+	_nearest_incoming_revision = -1
+	_incoming_refresh_accumulator = 0.0
+	_diagnostics_refresh_accumulator = 0.0
 	prediction = ClientPredictionBuffer.new()
 	interpolation = RemoteInterpolator.new()
 	predicted_tracker = PredictedProjectileTracker.new()
@@ -213,11 +221,15 @@ func _physics_process(delta: float) -> void:
 	_update_remote_ships()
 	_separate_local_visual_from_remote(local_ship)
 	_step_projectile_visuals(delta)
+	_incoming_refresh_accumulator += maxf(delta, 0.0)
+	if _incoming_refresh_accumulator >= 0.1:
+		_incoming_refresh_accumulator = fmod(_incoming_refresh_accumulator, 0.1)
+		_refresh_nearest_incoming_projectile()
 	_update_camera(local_ship, delta)
 	_update_camera_shake(delta)
 	_update_overtime_presentation()
 	predicted_tracker.step(_now_seconds())
-	_update_diagnostics()
+	_update_diagnostics(delta)
 	queue_redraw()
 
 
@@ -378,9 +390,10 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 			existing.remaining_ricochets = projectile.remaining_ricochets
 			existing.lifetime_remaining = projectile.lifetime_remaining
 			existing.is_beam = projectile.is_beam
-	for projectile in authoritative_projectiles.all_projectiles():
-		if projectile.projectile_id > 0 and not authoritative_ids.has(projectile.projectile_id):
-			authoritative_projectiles.remove(projectile.projectile_id)
+	if bool(decoded.get("complete_snapshot", true)):
+		for projectile in authoritative_projectiles.all_projectiles():
+			if projectile.projectile_id > 0 and not authoritative_ids.has(projectile.projectile_id):
+				authoritative_projectiles.remove(projectile.projectile_id)
 
 
 func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
@@ -452,7 +465,12 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 
 
 func _step_projectile_visuals(delta: float) -> void:
-	for projectile in authoritative_projectiles.all_projectiles():
+	for projectile_id in authoritative_projectiles.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var projectile := authoritative_projectiles.get_projectile(projectile_id)
+		if projectile == null:
+			continue
 		var safe_delta := maxf(delta, 0.0)
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
@@ -467,13 +485,13 @@ func _step_projectile_visuals(delta: float) -> void:
 			var direction := projectile.velocity.normalized()
 			var start := projectile.position
 			var finish := start + direction * travel_remaining
-			var obstacle_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
+			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
 				projectile.radius,
 				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
 			)
-			if not bool(obstacle_hit.get("hit", false)):
+			if obstacle_hit == null:
 				projectile.position = finish
 				break
 			var collision_fraction := clampf(float(obstacle_hit.get("fraction", 0.0)), 0.0, 1.0)
@@ -487,6 +505,7 @@ func _step_projectile_visuals(delta: float) -> void:
 			authoritative_projectiles.remove(projectile.projectile_id)
 			break
 	if projectile_layer != null:
+		projectile_layer.visible_world_rect = _visible_world_rect()
 		projectile_layer.queue_redraw()
 
 
@@ -611,7 +630,7 @@ func _create_camera_and_hud() -> void:
 	canvas.add_child(diagnostics_label)
 
 
-func _update_diagnostics() -> void:
+func _update_diagnostics(delta: float = 0.0) -> void:
 	var resources := "Waiting for combat snapshot"
 	var diagnostics_hint: String = input_profiles.binding_text(&"diagnostics") if input_profiles != null else "F3"
 	var scoreboard_hint: String = input_profiles.binding_text(&"scoreboard") if input_profiles != null else "Tab"
@@ -638,7 +657,10 @@ func _update_diagnostics() -> void:
 			spectator_label.visible = false
 	resources_label.text = resources
 	combat_status_label.text = combat_status
-	diagnostics_label.text = "NETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
+	_diagnostics_refresh_accumulator += maxf(delta, 0.0)
+	if diagnostics_visible and _diagnostics_refresh_accumulator >= 0.25:
+		_diagnostics_refresh_accumulator = fmod(_diagnostics_refresh_accumulator, 0.25)
+		diagnostics_label.text = "NETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
 
 
 func _local_is_eliminated() -> bool:
@@ -678,12 +700,24 @@ func _cycle_spectator(direction: int) -> void:
 
 
 func nearest_incoming_offscreen_projectile() -> ProjectileState:
+	if _nearest_incoming_revision != authoritative_projectiles.revision:
+		_refresh_nearest_incoming_projectile()
+	return _nearest_incoming_cache
+
+
+func _refresh_nearest_incoming_projectile() -> void:
+	_nearest_incoming_cache = null
+	_nearest_incoming_revision = authoritative_projectiles.revision
 	if not ships.has(local_peer_id):
-		return null
+		return
 	var local_position := (ships[local_peer_id] as SandboxShip).global_position
-	var nearest: ProjectileState
 	var nearest_distance := INF
-	for projectile in authoritative_projectiles.all_projectiles():
+	for projectile_id in authoritative_projectiles.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var projectile := authoritative_projectiles.get_projectile(projectile_id)
+		if projectile == null:
+			continue
 		if projectile.owner_id == local_peer_id:
 			continue
 		var offset := local_position - projectile.position
@@ -691,9 +725,17 @@ func nearest_incoming_offscreen_projectile() -> ProjectileState:
 		if distance <= 0.001 or projectile.velocity.normalized().dot(offset / distance) < 0.72:
 			continue
 		if distance < nearest_distance:
-			nearest = projectile
+			_nearest_incoming_cache = projectile
 			nearest_distance = distance
-	return nearest
+
+
+func _visible_world_rect() -> Rect2:
+	if camera == null:
+		return Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
+	var viewport_size := get_viewport_rect().size
+	var zoom := Vector2(maxf(camera.zoom.x, 0.001), maxf(camera.zoom.y, 0.001))
+	var world_size := viewport_size / zoom
+	return Rect2(camera.position - world_size * 0.5, world_size)
 
 
 func trigger_camera_shake(intensity: float, duration: float) -> void:

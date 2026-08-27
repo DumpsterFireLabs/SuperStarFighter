@@ -384,6 +384,7 @@ static func _validate_sandbox_and_soak(context: TestContext) -> void:
 				registry.remove(projectile.projectile_id)
 	context.expect_true(peak_count <= 11, "15-minute projectile soak keeps bounded active entities")
 	context.expect_equal(registry.size(), 0, "15-minute projectile soak returns entity count to baseline")
+	context.expect_equal(registry.retained_owner_slot_count(), 0, "15-minute projectile soak releases historical owner-order slots")
 
 
 static func _validate_overtime_debug_toggle(context: TestContext) -> void:

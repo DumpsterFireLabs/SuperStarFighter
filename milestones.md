@@ -302,6 +302,16 @@ This ledger maps the major delivered increments to their local commits. Small co
 - The full automated protocol, integration, smoke, and soak suites pass from a single documented command.
 - The performance and stability criteria in section 11.2 of `spec.md` are met and recorded.
 
+### Post-completion competitive performance and architecture pass — 2026-08-27
+
+- Replaced global projectile/ship and NPC-threat scans with deterministic arena-cell indexes, indexed projectile ownership/order, allocation-free hot-path views, and cached map collision geometry.
+- Bounded every projectile transport message to 1,200 bytes without dropping spawn/removal records. Added rotating partial corrections, periodic complete recovery corrections, client-side full-chunk assembly, and protocol version 12.
+- Moved replaceable hill/flag snapshots to their own unreliable ordered channel while retaining controller, pickup, drop, and reset transitions on reliable control delivery.
+- Reused encoded player snapshot bodies and revision-cached roster, team, objective, score, standings, and UI data instead of rebuilding equivalent collections for every peer or frame.
+- Extracted `CombatSpatialIndex`, `ProjectileCorrectionAssembler`, and `StandingsModel` from the authoritative world, network bridge, and client screen controller to give those responsibilities isolated APIs and tests.
+- Added a repeatable overload benchmark for 32 Insane NPCs and the 1,024-projectile global ceiling. The final accepted run recorded 14,979 µs p50, 16,523 µs p95, 18,264 µs p99, and 18,716 µs maximum, down from an initial approximately 71.7 ms p95 implementation profile.
+- Recorded 1,970 passing deterministic assertions plus passing real-ENet network, malicious-traffic hardening, NPC-lobby, and two-match/rematch verification. The existing ten-minute 32-client soak remains the release acceptance gate for ordinary-load p95 and long-duration stability.
+
 ## Milestone 7 — Export, Documentation, and Release Candidate
 
 **Status:** In Progress — documentation completed 2026-08-25 and Windows Beta 1/Beta 2/Beta 3 client packages completed 2026-08-26; dedicated-server and final release-candidate work remains
