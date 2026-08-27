@@ -2,7 +2,7 @@
 
 Super Star Fighter is a Windows-first, server-authoritative, top-down multiplayer arena shooter built with Godot 4.7.2 and GDScript.
 
-Up to 32 human and NPC pilots fight through last-ship-standing heats. Before each round, eligible pilots choose one upgrade from a private five-card draw. Cards stack without limit, their effects compound, and a sensible little starter ship can become a screen-filling mechanical disaster. The first pilot to win two heats wins the round; the first to reach the configured round target wins the match.
+Up to 32 human and NPC pilots fight through solo or team heats. Before each round, eligible pilots choose one upgrade from a private five-card draw. Cards stack without limit, their effects compound, and a sensible little starter ship can become a screen-filling mechanical disaster. The first pilot or team to win two heats wins the round; the first to reach the configured round target wins the match.
 
 ## Highlights
 
@@ -11,6 +11,7 @@ Up to 32 human and NPC pilots fight through last-ship-standing heats. Before eac
 - 130 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner and Nosferatu Shield.
 - 34 numeric build stats plus beam, auto-repair, and active Afterburner transformations.
 - Two to 32 total participants with individual and bulk NPC difficulty controls.
+- Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with balanced teams, friendly-fire protection, objective-aware NPCs, live objective HUD state, and team scoring.
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
 - Persistent Random or colour-wheel ship appearance selection with non-colour identity patterns.
 - One-click local hosting, LAN server discovery, and direct-IP joining.
@@ -34,7 +35,7 @@ In the game:
 1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
 3. Choose a server name and gameplay UDP port, then select **Host & Join**.
-4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options** contains the optional timed powerup rule. Click your colour swatch beside your roster name to open the colour wheel, then apply a custom colour or choose Random.
+4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options** contains the game-mode selector plus optional timed-powerup and overtime rules. Click your colour swatch beside your roster name to open the colour wheel, then apply a custom colour or choose Random.
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 
@@ -134,13 +135,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,869 automated assertions and 81 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,947 automated assertions and 82 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
-Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable NPCs, timed arena card pickups, 130 cards, custom ship colours, and validated 32-client server behavior.
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 130 cards, custom ship colours, and validated 32-client server behavior.
 
-The Beta 3 Windows client export and packaging path is operational, while the prior Beta 1 and Beta 2 packages remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, teams, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
+The Beta 3 Windows client export and packaging path is operational, while the prior Beta 1 and Beta 2 packages remain archived separately. The next tester-facing export must advance to Beta 4 because the game-mode work uses protocol 11. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, custom team selection, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
 
 ## License and Assets
 

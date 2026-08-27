@@ -48,14 +48,15 @@ The workspace contains a complete vertical slice with a Windows client, headless
 - Provide server options: `--server`, `--port=7000`, `--server-name=Super Star Fighter Server`, `--max-players=32`, `--rounds-to-win=3`, and a test-only `--auto-start`.
 - Clients connect through an IP/hostname and UDP port. The first connected player becomes lobby leader; leadership transfers to the earliest remaining player on disconnect.
 - The client also provides Host & Join through an isolated in-process authority, plus bounded UDP local-subnet discovery and a one-click LAN server browser. Direct IP/hostname remains the routed-LAN and internet fallback.
-- NPCs consume match participant seats but no ENet client connections. Their movement, full-arena target acquisition, close-contact recovery, firing, shielding, and draft choices run exclusively on the authoritative server through the same validated combat-input and card systems used for humans. Obstacle navigation tracks persistent blocked engagements and escalates a hold/flank pair into an opposite-side breakout before overtime can become the only source of progress.
+- NPCs consume match participant seats but no ENet client connections. Their movement, full-arena non-ally target acquisition, objective pursuit, close-contact recovery, firing, shielding, and draft choices run exclusively on the authoritative server through the same validated combat-input and card systems used for humans. Obstacle navigation tracks persistent blocked engagements and escalates a hold/flank pair into an opposite-side breakout before overtime can become the only source of progress.
+- Let the lobby leader select Death Match, Team Death Match, King of the Hill, Capture the Flag, or Team Capture the Flag. Keep Death Match as the default; balance team rosters automatically; disable friendly projectile, beam, and shield-ram damage; and retain the existing two-heats-per-round structure around every objective.
 - Add a headless test-client mode that connects through the real protocol, drafts cards, and generates scripted movement/combat input. It remains developer tooling and is not exposed as playable AI.
 - Initialize Git, add Godot-appropriate ignores, and provide PowerShell commands for tests, client/server exports, local server startup, and multi-client smoke tests.
 
 ## Test Plan and Acceptance
 
 - Unit-test stat recomputation, stacking caps, card-offer uniqueness, seeded RNG reproducibility, shield-angle detection, projectile damage, reload timing, overtime damage, and input validation.
-- Exercise the complete match state machine, including draft timeout, first-to-two heat scoring with multiplayer ties beyond three heats, configurable round targets, simultaneous deaths, leader transfer, active-player disconnects, and late spectators.
+- Exercise the complete match state machine, including draft timeout, solo/team first-to-two heat scoring, hill and flag completion, multiplayer ties beyond three heats, configurable round targets, simultaneous deaths, team forfeits, leader transfer, active-player disconnects, and late spectators.
 - Run integration tests with one headless server and two protocol clients through a complete match, verifying authoritative card selection, combat, scores, rematch reset, and clean shutdown.
 - Run a 32-client, ten-minute local soak test using randomized real-protocol test clients. Require all peers to connect and remain synchronized, no unhandled errors, invalid states, orphan nodes, or unbounded entity/allocation trends, and server p95 simulation time to remain within its 16.67 ms tick budget on the development machine.
 - Manually verify prediction, interpolation, shield feedback, spectator cycling, card readability, and all HUD states at 1280×720, 1920×1080, 2560×1080, and 3440×1440.
@@ -64,6 +65,6 @@ The workspace contains a complete vertical slice with a Windows client, headless
 ## Assumptions and Defaults
 
 - Godot and its export templates are not currently installed; implementation will bootstrap the official portable Godot 4.7.2 Standard tools.
-- The vertical slice has no public internet server directory, matchmaking, accounts, persistence, teams, chat, cosmetics, monetization, or reconnect restoration. Its server browser is LAN-only.
+- The vertical slice has no public internet server directory, matchmaking, accounts, persistence, custom team selection, chat, cosmetic unlocks, monetization, or reconnect restoration. Its server browser is LAN-only; team modes use automatic Cyan/Magenta assignment.
 - Balance values are initial playable defaults stored as data resources so they can be tuned without changing networking or combat code.
 - Direct-IP traffic is unauthenticated and unencrypted for this milestone; server authority protects game state but is not a substitute for a production account or anti-abuse service.

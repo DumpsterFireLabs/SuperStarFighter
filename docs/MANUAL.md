@@ -26,9 +26,9 @@ This manual explains how to launch, host, join, play, troubleshoot, and run a go
 
 ## 1. What Kind of Game Is This?
 
-Super Star Fighter is a free-for-all top-down space shooter about mechanical skill and increasingly unreasonable upgrades.
+Super Star Fighter is a top-down space shooter about mechanical skill, solo or team objectives, and increasingly unreasonable upgrades.
 
-Every match is made of rounds. Every round is made of last-ship-standing heats. Before round one, every pilot receives a private draw of five cards and chooses one. Before later rounds, everyone except the previous round winner drafts another card. The cards permanently modify that pilot's build for the remainder of the match.
+Every match is made of rounds, and every round is made of heats governed by the lobby's selected game mode. Before round one, every pilot receives a private draw of five cards and chooses one. Before later rounds, everyone except the previous solo round winner—or every member of the previous winning team—drafts another card. The cards permanently modify that pilot's build for the remainder of the match.
 
 There are no card stack limits. Flat bonuses add, multipliers compound, and complementary cards interact. A build can become extremely fast, extremely durable, flood the arena with projectiles, fire long-lived ricochets, repair itself, or convert its weapon into pulse beams. This escalation is intentional.
 
@@ -185,6 +185,7 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 
 ### Lobby leader
 
+- Selects **Death Match**, **Team Death Match**, **King of the Hill**, **Capture the Flag**, or **Team Capture the Flag** from Match Options. Death Match is the default.
 - Sets **Rounds to win** from 1 through 5.
 - Sets the **Player limit** from 2 through server capacity, never above 32 or below the number of connected humans.
 - Enables or disables NPC fill.
@@ -212,6 +213,20 @@ Changing a match option clears human readiness. Changing your own ship colour cl
 
 When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 5–90 seconds of active combat (20 seconds by default). Fly over its glowing rarity-coloured marker to collect it. The card is added immediately and its stats take effect without waiting for another draft. By default the stack expires when the heat ends; the leader may instead make arena drops permanent until the match ends. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
 
+### Game modes
+
+| Mode | Heat objective |
+| --- | --- |
+| Death Match | Be the final surviving pilot. |
+| Team Death Match | Be the final team with at least one living pilot. |
+| King of the Hill | Hold the marked point alone and uncontested for 20 uninterrupted seconds. Leaving or sharing the point resets progress. |
+| Capture the Flag | Collect the neutral center flag and carry it to the neutral extraction zone. |
+| Team Capture the Flag | Collect the neutral center flag and carry it to your team's coloured base. |
+
+Team modes automatically balance humans and NPCs between **Cyan Team** and **Magenta Team** in join order. The roster, live standings, and results identify each pilot's team. Friendly projectile, beam, and shield-ram damage is disabled; ships still separate physically so teammates cannot occupy the same space. NPCs do not target or dodge allies and will pursue the active objective.
+
+Flags drop where their carrier dies and can be recovered. An untouched dropped flag returns to the center after eight seconds. King of the Hill and both flag modes deliberately do not award a heat merely because only one pilot remains—the survivor must finish the objective. A simultaneous all-pilot elimination is still a tie.
+
 ### NPC fill
 
 Enabling NPCs fills all open configured seats immediately. Each waiting NPC appears in the roster and can be configured before launch. The leader may set every NPC together with the bulk dropdown, then override individual rows as needed. If a human joins a full waiting lobby, that human replaces one NPC rather than being rejected. Disabling NPCs removes all waiting NPCs.
@@ -234,7 +249,7 @@ NPCs respect arena cover and overtime. They do not deliberately fire through blo
 
 ### Draft
 
-Every participant drafts before round one. Before later rounds, the pilot who just won the round receives no card; everyone else receives a comeback draft. This prevents the leader from automatically snowballing through extra upgrades.
+Every participant drafts before round one. Before later rounds, the pilot who just won the round receives no card; in a team mode, the entire winning team receives that bye. Everyone else receives a comeback draft. This prevents the leader from automatically snowballing through extra upgrades.
 
 Human players see five private cards and have 30 seconds to choose. Hover a choice to open the same rarity-styled graphical stat card used for inspected builds; it previews the compounded build totals after taking that card. Click a card or press `1` through `5`. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
 
@@ -248,9 +263,11 @@ The camera snaps to your ship at the start of every heat.
 
 ### Active heat
 
-Fight until one ship remains. That survivor gains one heat win. Two heat wins award the round.
+Complete the selected mode's heat objective. A solo winner gains one heat win; in team modes, every member shares the team's heat and round score. Two heat wins award the round.
 
 If every remaining ship dies during the same authoritative tick, the heat is a tie: nobody receives a heat win and the heat is replayed after the result screen.
+
+The HUD names the current mode and reports hill control time or flag ownership. The arena draws the active hill, neutral flag, extraction zone, or coloured team bases. Overtime continues to apply in every mode, so objective play still converges if pilots try to stall.
 
 ### Round and match results
 
@@ -590,6 +607,6 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, teams, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web builds.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, custom team selection, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web builds.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.

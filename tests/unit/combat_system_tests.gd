@@ -29,6 +29,11 @@ static func _validate_arena(context: TestContext) -> void:
 		context.expect_false(ArenaLayout.display_name(map_id).is_empty(), "%s has a visible map name" % map_id)
 		var signature := "%s|%s" % [ArenaLayout.cover_rectangles(map_id), ArenaLayout.circle_obstacles(map_id)]
 		topology_signatures[signature] = map_id
+		var objective_margin := GameModeRules.OBJECTIVE_ZONE_RADIUS - GameConstants.SHIP_COLLISION_RADIUS
+		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.objective_spawn(map_id), map_id, objective_margin), "%s provides a clear central objective zone" % map_id)
+		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.capture_zone(GameModeRules.Mode.CAPTURE_THE_FLAG, 0, map_id), map_id, objective_margin), "%s provides a clear neutral flag extraction zone" % map_id)
+		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.capture_zone(GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, 1, map_id), map_id, objective_margin), "%s provides a clear Cyan flag base" % map_id)
+		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.capture_zone(GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, 2, map_id), map_id, objective_margin), "%s provides a clear Magenta flag base" % map_id)
 	context.expect_equal(topology_signatures.size(), 10, "all ten maps have mechanically distinct obstacle topologies")
 	var twin_collision := ArenaCollisionSystem.move_ship(Vector2(860.0, 900.0), Vector2(100.0, 0.0), 0.2, &"twin_suns")
 	context.expect_true((twin_collision.position as Vector2).x <= 865.001, "selected Twin Suns geometry blocks ships at its western reactor")

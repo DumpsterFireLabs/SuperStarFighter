@@ -7,6 +7,7 @@ var latest_inputs: Dictionary = {}
 var acknowledged_inputs: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+var team_assignments: Dictionary = {}
 var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
@@ -38,7 +39,22 @@ func remove_peer(peer_id: int) -> void:
 	combatants.erase(peer_id)
 	latest_inputs.erase(peer_id)
 	acknowledged_inputs.erase(peer_id)
+	team_assignments.erase(peer_id)
 	projectile_registry.schedule_owner_cleanup(peer_id)
+
+
+func set_team_assignments(assignments: Dictionary) -> void:
+	team_assignments.clear()
+	for peer_value in assignments.keys():
+		var peer_id := int(peer_value)
+		var team_id := int(assignments[peer_value])
+		if team_id > 0:
+			team_assignments[peer_id] = team_id
+
+
+func are_allies(left_peer_id: int, right_peer_id: int) -> bool:
+	var left_team := int(team_assignments.get(left_peer_id, 0))
+	return left_team > 0 and left_team == int(team_assignments.get(right_peer_id, 0))
 
 
 func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
@@ -283,7 +299,7 @@ func _nearest_projectile_ship_hit(
 	var nearest_fraction := INF
 	for peer_id in peer_ids:
 		var target := combatants[peer_id] as CombatantState
-		if not target.alive or not projectile.can_hit(peer_id):
+		if not target.alive or not projectile.can_hit(peer_id) or are_allies(projectile.owner_id, peer_id):
 			continue
 		var fraction := _segment_circle_hit_fraction(
 			start,
@@ -499,7 +515,7 @@ func _append_ram_damage(
 	direction_to_target: Vector2,
 	damage_events: Array[Dictionary]
 ) -> void:
-	if attacker.stats.shield_ram_damage <= 0.0 or not attacker.shield.active:
+	if are_allies(attacker.peer_id, target.peer_id) or attacker.stats.shield_ram_damage <= 0.0 or not attacker.shield.active:
 		return
 	var impact_speed := (attacker.velocity - target.velocity).dot(direction_to_target)
 	if impact_speed < attacker.stats.shield_ram_min_speed:

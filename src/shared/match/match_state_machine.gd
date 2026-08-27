@@ -24,11 +24,18 @@ var heat_number: int = 0
 var last_heat_winner: int = 0
 var last_round_winner: int = 0
 var match_winner: int = 0
+var last_heat_winner_team: int = 0
+var last_round_winner_team: int = 0
+var match_winner_team: int = 0
+var team_heat_wins: Dictionary = {1: 0, 2: 0}
+var team_round_wins: Dictionary = {1: 0, 2: 0}
 var tied_heat: bool = false
 var event_history: Array[Dictionary] = []
 
 var _pending_round_winner: int = 0
 var _pending_match_winner: int = 0
+var _pending_round_winner_team: int = 0
+var _pending_match_winner_team: int = 0
 
 
 func _init(configuration: MatchConfig = null, card_catalog: CardCatalog = null) -> void:
@@ -64,9 +71,16 @@ func start_match(at_tick: int) -> bool:
 	last_heat_winner = 0
 	last_round_winner = 0
 	match_winner = 0
+	last_heat_winner_team = 0
+	last_round_winner_team = 0
+	match_winner_team = 0
+	team_heat_wins = {1: 0, 2: 0}
+	team_round_wins = {1: 0, 2: 0}
 	tied_heat = false
 	_pending_round_winner = 0
 	_pending_match_winner = 0
+	_pending_round_winner_team = 0
+	_pending_match_winner_team = 0
 	event_history.clear()
 	_transition(State.DRAFT, at_tick)
 	return true
@@ -95,12 +109,15 @@ func advance_time(at_tick: int) -> Array[Dictionary]:
 			State.COUNTDOWN:
 				_transition(State.ACTIVE_HEAT, transition_tick)
 			State.HEAT_RESULT:
-				if _pending_match_winner != 0:
+				if _pending_match_winner != 0 or _pending_match_winner_team != 0:
 					last_round_winner = _pending_round_winner
+					last_round_winner_team = _pending_round_winner_team
 					match_winner = _pending_match_winner
+					match_winner_team = _pending_match_winner_team
 					_transition(State.MATCH_RESULT, transition_tick)
-				elif _pending_round_winner != 0:
+				elif _pending_round_winner != 0 or _pending_round_winner_team != 0:
 					last_round_winner = _pending_round_winner
+					last_round_winner_team = _pending_round_winner_team
 					_transition(State.ROUND_RESULT, transition_tick)
 				else:
 					heat_number += 1
@@ -111,7 +128,10 @@ func advance_time(at_tick: int) -> Array[Dictionary]:
 				heat_number = 0
 				last_heat_winner = 0
 				last_round_winner = 0
+				last_heat_winner_team = 0
+				last_round_winner_team = 0
 				_pending_round_winner = 0
+				_pending_round_winner_team = 0
 				_transition(State.DRAFT, transition_tick)
 			_:
 				break
@@ -136,6 +156,19 @@ func finish_heat(winner_peer_id: int, at_tick: int) -> bool:
 	return true
 
 
+func finish_team_heat(winner_team_id: int, at_tick: int) -> bool:
+	if state != State.ACTIVE_HEAT or not GameModeRules.is_team_mode(config.game_mode):
+		return false
+	if winner_team_id != 0 and not _team_has_living_participant(winner_team_id):
+		return false
+	for player in players.values():
+		var typed_player := player as PlayerMatchState
+		if typed_player.participant and typed_player.team_id != winner_team_id:
+			typed_player.eliminate()
+	_resolve_team_heat(winner_team_id, at_tick)
+	return true
+
+
 func eliminate_players(peer_ids: Array[int], at_tick: int) -> bool:
 	if state != State.ACTIVE_HEAT:
 		return false
@@ -144,8 +177,15 @@ func eliminate_players(peer_ids: Array[int], at_tick: int) -> bool:
 		if player != null and player.alive:
 			player.eliminate()
 	var survivors := alive_participant_ids()
-	if survivors.size() <= 1:
-		_resolve_heat(survivors[0] if survivors.size() == 1 else 0, at_tick)
+	if config.game_mode == GameModeRules.Mode.DEATH_MATCH:
+		if survivors.size() <= 1:
+			_resolve_heat(survivors[0] if survivors.size() == 1 else 0, at_tick)
+	elif config.game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH:
+		var living_teams := alive_team_ids()
+		if living_teams.size() <= 1:
+			_resolve_team_heat(living_teams[0] if living_teams.size() == 1 else 0, at_tick)
+	elif survivors.is_empty():
+		_resolve_heat(0, at_tick)
 	return true
 
 
@@ -164,12 +204,12 @@ func disconnect_player(peer_id: int, at_tick: int) -> bool:
 	var remaining := participant_ids()
 	if remaining.is_empty():
 		_return_to_lobby(at_tick)
+	elif GameModeRules.is_team_mode(config.game_mode) and _participant_team_ids().size() == 1:
+		_award_team_forfeit(_participant_team_ids()[0], at_tick)
 	elif remaining.size() == 1:
 		_award_forfeit(remaining[0], at_tick)
 	elif state == State.ACTIVE_HEAT:
-		var survivors := alive_participant_ids()
-		if survivors.size() <= 1:
-			_resolve_heat(survivors[0] if survivors.size() == 1 else 0, at_tick)
+		eliminate_players([], at_tick)
 	return true
 
 
@@ -193,6 +233,16 @@ func alive_participant_ids() -> Array[int]:
 	return result
 
 
+func alive_team_ids() -> Array[int]:
+	var result: Array[int] = []
+	for peer_id in alive_participant_ids():
+		var team_id := (players[peer_id] as PlayerMatchState).team_id
+		if team_id > 0 and team_id not in result:
+			result.append(team_id)
+	result.sort()
+	return result
+
+
 func state_name() -> String:
 	return State.keys()[state]
 
@@ -206,13 +256,38 @@ func return_to_lobby(at_tick: int) -> bool:
 
 func _resolve_heat(winner_peer_id: int, at_tick: int) -> void:
 	last_heat_winner = winner_peer_id
+	last_heat_winner_team = 0
 	tied_heat = winner_peer_id == 0
 	_pending_round_winner = 0
 	_pending_match_winner = 0
+	_pending_round_winner_team = 0
+	_pending_match_winner_team = 0
 	if winner_peer_id != 0:
 		var result := scores.award_heat(winner_peer_id, config.rounds_to_win)
 		_pending_round_winner = result.round_winner
 		_pending_match_winner = result.match_winner
+	_transition(State.HEAT_RESULT, at_tick)
+
+
+func _resolve_team_heat(winner_team_id: int, at_tick: int) -> void:
+	last_heat_winner_team = winner_team_id
+	last_heat_winner = _team_representative(winner_team_id)
+	tied_heat = winner_team_id == 0
+	_pending_round_winner = 0
+	_pending_match_winner = 0
+	_pending_round_winner_team = 0
+	_pending_match_winner_team = 0
+	if winner_team_id != 0:
+		team_heat_wins[winner_team_id] = int(team_heat_wins.get(winner_team_id, 0)) + 1
+		if int(team_heat_wins[winner_team_id]) >= GameConstants.HEAT_WINS_TO_WIN_ROUND:
+			_pending_round_winner_team = winner_team_id
+			team_round_wins[winner_team_id] = int(team_round_wins.get(winner_team_id, 0)) + 1
+			team_heat_wins = {1: 0, 2: 0}
+			if int(team_round_wins[winner_team_id]) >= config.rounds_to_win:
+				_pending_match_winner_team = winner_team_id
+				_pending_match_winner = _team_representative(winner_team_id)
+		_pending_round_winner = _team_representative(_pending_round_winner_team)
+	_sync_team_scores_to_players()
 	_transition(State.HEAT_RESULT, at_tick)
 
 
@@ -234,6 +309,19 @@ func _award_forfeit(peer_id: int, at_tick: int) -> void:
 	_transition(State.MATCH_RESULT, at_tick)
 
 
+func _award_team_forfeit(team_id: int, at_tick: int) -> void:
+	team_heat_wins = {1: 0, 2: 0}
+	team_round_wins[team_id] = config.rounds_to_win
+	match_winner_team = team_id
+	match_winner = _team_representative(team_id)
+	_pending_match_winner_team = team_id
+	_pending_match_winner = match_winner
+	_pending_round_winner = 0
+	_pending_round_winner_team = 0
+	_sync_team_scores_to_players()
+	_transition(State.MATCH_RESULT, at_tick)
+
+
 func _return_to_lobby(at_tick: int) -> void:
 	var disconnected_ids: Array[int] = []
 	for player in players.values():
@@ -252,9 +340,16 @@ func _return_to_lobby(at_tick: int) -> void:
 	last_heat_winner = 0
 	last_round_winner = 0
 	match_winner = 0
+	last_heat_winner_team = 0
+	last_round_winner_team = 0
+	match_winner_team = 0
+	team_heat_wins = {1: 0, 2: 0}
+	team_round_wins = {1: 0, 2: 0}
 	tied_heat = false
 	_pending_round_winner = 0
 	_pending_match_winner = 0
+	_pending_round_winner_team = 0
+	_pending_match_winner_team = 0
 	_transition(State.LOBBY, at_tick)
 
 
@@ -271,6 +366,8 @@ func _transition(next_state: int, at_tick: int) -> void:
 		"round_number": round_number,
 		"heat_number": heat_number,
 		"scores": scores.snapshot(),
+		"team_heat_wins": team_heat_wins.duplicate(true),
+		"team_round_wins": team_round_wins.duplicate(true),
 	})
 
 
@@ -295,3 +392,35 @@ func _sorted_player_dictionary(source: Dictionary) -> Dictionary:
 	for peer_id in peer_ids:
 		result[peer_id] = source[peer_id]
 	return result
+
+
+func _team_has_living_participant(team_id: int) -> bool:
+	return team_id in alive_team_ids()
+
+
+func _participant_team_ids() -> Array[int]:
+	var result: Array[int] = []
+	for peer_id in participant_ids():
+		var team_id := (players[peer_id] as PlayerMatchState).team_id
+		if team_id > 0 and team_id not in result:
+			result.append(team_id)
+	result.sort()
+	return result
+
+
+func _team_representative(team_id: int) -> int:
+	if team_id <= 0:
+		return 0
+	for peer_id in participant_ids():
+		if (players[peer_id] as PlayerMatchState).team_id == team_id:
+			return peer_id
+	return 0
+
+
+func _sync_team_scores_to_players() -> void:
+	for peer_id in participant_ids():
+		var player := players[peer_id] as PlayerMatchState
+		if player.team_id <= 0:
+			continue
+		player.score.heat_wins = int(team_heat_wins.get(player.team_id, 0))
+		player.score.round_wins = int(team_round_wins.get(player.team_id, 0))

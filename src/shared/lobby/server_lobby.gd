@@ -47,6 +47,7 @@ func admit(peer_id: int, raw_name: String) -> Dictionary:
 	player.participant = not match_active
 	player.spectator = match_active
 	players[peer_id] = player
+	_assign_teams()
 	if leader_id == 0:
 		leader_id = peer_id
 	_revision_changed()
@@ -58,6 +59,7 @@ func remove(peer_id: int) -> PlayerMatchState:
 	if removed == null:
 		return null
 	players.erase(peer_id)
+	_assign_teams()
 	if leader_id == peer_id:
 		leader_id = _earliest_joined_peer()
 	_revision_changed()
@@ -160,6 +162,21 @@ func request_random_spawn_powerups(sender_id: int, enabled: bool) -> Dictionary:
 	if config.random_spawn_powerups == enabled:
 		return {"ok": true, "changed": false}
 	config.random_spawn_powerups = enabled
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
+func request_game_mode(sender_id: int, mode: int) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if not GameModeRules.is_valid_mode(mode):
+		return {"ok": false, "error": "Game mode is outside the supported range."}
+	if config.game_mode == mode:
+		return {"ok": true, "changed": false}
+	config.game_mode = mode
+	_assign_teams()
 	_clear_human_ready()
 	_revision_changed()
 	return {"ok": true, "changed": true}
@@ -276,6 +293,7 @@ func return_to_lobby() -> void:
 		player.spectator = true
 		player.lobby_ready = player.is_npc
 		player.reset_match()
+	_assign_teams()
 	_revision_changed()
 
 
@@ -347,6 +365,7 @@ func remove_all_npcs() -> Array[int]:
 	var removed := npc_peer_ids()
 	for peer_id in removed:
 		players.erase(peer_id)
+	_assign_teams()
 	return removed
 
 
@@ -374,6 +393,7 @@ func serialize() -> Dictionary:
 			"is_npc": player.is_npc,
 			"npc_difficulty": player.npc_difficulty,
 			"ship_color": player.ship_color,
+			"team_id": player.team_id,
 			"ready": player.lobby_ready,
 		})
 	return {
@@ -385,6 +405,8 @@ func serialize() -> Dictionary:
 		"server_capacity": server_capacity,
 		"npcs_enabled": npcs_enabled,
 		"default_npc_difficulty": default_npc_difficulty,
+		"game_mode": config.game_mode,
+		"game_mode_name": GameModeRules.mode_name(config.game_mode),
 		"random_spawn_powerups": config.random_spawn_powerups,
 		"random_powerup_interval_seconds": config.random_powerup_interval_seconds,
 		"random_powerups_permanent": config.random_powerups_permanent,
@@ -462,7 +484,21 @@ func _fill_npc_seats() -> Array[PlayerMatchState]:
 		npc.lobby_ready = true
 		players[peer_id] = npc
 		added.append(npc)
+	_assign_teams()
 	return added
+
+
+func _assign_teams() -> void:
+	var ordered: Array = players.values()
+	ordered.sort_custom(func(left: PlayerMatchState, right: PlayerMatchState) -> bool: return left.join_sequence < right.join_sequence)
+	var team_index := 0
+	for player_value in ordered:
+		var player := player_value as PlayerMatchState
+		if not player.connected or not player.participant:
+			player.team_id = 0
+			continue
+		player.team_id = 1 + team_index % 2 if GameModeRules.is_team_mode(config.game_mode) else 0
+		team_index += 1
 
 
 func _trim_npcs_to_limit() -> Array[int]:

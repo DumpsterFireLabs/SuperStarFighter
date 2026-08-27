@@ -128,6 +128,7 @@ func reset_session() -> void:
 	if arena != null:
 		arena.set_map_id(ArenaLayout.DEFAULT_MAP_ID)
 		arena.set_overtime(false, OvertimeSystem.initial_radius())
+		arena.set_objective({})
 	if camera != null:
 		camera.position = ArenaLayout.center(ArenaLayout.DEFAULT_MAP_ID)
 		camera.offset = Vector2.ZERO
@@ -264,6 +265,7 @@ func apply_match_state(payload: Dictionary) -> void:
 	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
 	if arena != null:
 		arena.set_map_id(payload_map_id)
+		arena.set_objective(payload.get("objective", {}) as Dictionary)
 	var state_name := String(payload.get("state_name", ""))
 	controls_enabled = state_name == "ACTIVE_HEAT"
 	for ship_value in ships.values():
@@ -281,6 +283,12 @@ func apply_match_state(payload: Dictionary) -> void:
 			effects_layer.clear_effects()
 		snap_camera_to_local_ship()
 	_update_spectator_target()
+
+
+func apply_objective_state(objective: Dictionary) -> void:
+	match_payload["objective"] = objective.duplicate(true)
+	if arena != null:
+		arena.set_objective(objective)
 
 
 func apply_builds(builds: Dictionary) -> void:

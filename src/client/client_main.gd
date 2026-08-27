@@ -71,6 +71,8 @@ var powerups_button: CheckButton
 var powerup_interval_control: SpinBox
 var powerups_permanent_button: CheckButton
 var overtime_start_control: SpinBox
+var game_mode_control: OptionButton
+var game_mode_note: Label
 var ship_color_popup: PanelContainer
 var random_color_button: Button
 var ship_color_picker: ColorPicker
@@ -491,8 +493,8 @@ func _create_lobby_options_popup() -> void:
 	lobby_options_popup = PanelContainer.new()
 	lobby_options_popup.name = "LobbyOptions"
 	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_options_popup.position = Vector2(-340.0, -285.0)
-	lobby_options_popup.custom_minimum_size = Vector2(680.0, 570.0)
+	lobby_options_popup.position = Vector2(-340.0, -350.0)
+	lobby_options_popup.custom_minimum_size = Vector2(680.0, 700.0)
 	lobby_options_popup.theme = interface_theme
 	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(Color("d39cff"), 0.98))
 	lobby_options_popup.visible = false
@@ -506,6 +508,25 @@ func _create_lobby_options_popup() -> void:
 	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(title)
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 14)
+	content.add_child(mode_row)
+	var mode_label := Label.new()
+	mode_label.text = "Game mode"
+	mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mode_row.add_child(mode_label)
+	game_mode_control = OptionButton.new()
+	game_mode_control.custom_minimum_size = Vector2(300.0, 44.0)
+	for mode in GameModeRules.MODE_NAMES.size():
+		game_mode_control.add_item(GameModeRules.mode_name(mode), mode)
+	game_mode_control.select(GameModeRules.Mode.DEATH_MATCH)
+	game_mode_control.item_selected.connect(_on_game_mode_selected)
+	mode_row.add_child(game_mode_control)
+	game_mode_note = Label.new()
+	game_mode_note.text = GameModeRules.mode_description(GameModeRules.Mode.DEATH_MATCH)
+	game_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	game_mode_note.add_theme_color_override("font_color", Color("73f7ff"))
+	content.add_child(game_mode_note)
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Random spawn powerups"
 	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears during active combat at the interval configured beside this toggle."
@@ -1751,6 +1772,9 @@ func _on_lobby_state(state: Dictionary) -> void:
 			local_ready = bool(player.get("ready", false))
 			break
 	_applying_lobby_state = true
+	var selected_game_mode := clampi(int(state.get("game_mode", GameModeRules.Mode.DEATH_MATCH)), GameModeRules.Mode.DEATH_MATCH, GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG)
+	game_mode_control.select(selected_game_mode)
+	game_mode_note.text = GameModeRules.mode_description(selected_game_mode)
 	rounds_control.value = int(state.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
 	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
 	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
@@ -1773,6 +1797,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 	ready_button.disabled = match_active
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
 	var settings_editable := is_leader and not match_active
+	game_mode_control.disabled = not settings_editable
 	rounds_control.editable = settings_editable
 	player_limit_control.editable = settings_editable
 	npcs_button.disabled = not settings_editable
@@ -1835,9 +1860,11 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		name_label.add_theme_color_override("font_color", Color("fff36a") if peer_id == int(state.get("leader_id", 0)) else Color("e8f5ff"))
 		row.add_child(name_label)
 		var role_label := Label.new()
-		role_label.text = "HOST" if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
-		role_label.custom_minimum_size.x = 90.0
-		role_label.add_theme_color_override("font_color", Color("d39cff"))
+		var team_id := int(player.get("team_id", 0))
+		var role_name := "HOST" if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
+		role_label.text = "%s · %s" % [role_name, GameModeRules.team_name(team_id)] if team_id > 0 else role_name
+		role_label.custom_minimum_size.x = 170.0 if team_id > 0 else 90.0
+		role_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id) if team_id > 0 else Color("d39cff"))
 		row.add_child(role_label)
 		if is_npc:
 			var difficulty_control := OptionButton.new()
@@ -1878,6 +1905,13 @@ func _on_player_limit_changed(value: float) -> void:
 func _on_npcs_toggled(enabled: bool) -> void:
 	if not _applying_lobby_state:
 		bridge.send_npcs_enabled(enabled)
+
+
+func _on_game_mode_selected(index: int) -> void:
+	var mode := game_mode_control.get_item_id(index)
+	game_mode_note.text = GameModeRules.mode_description(mode)
+	if not _applying_lobby_state:
+		bridge.send_game_mode(mode)
 
 
 func _show_lobby_options() -> void:
@@ -1998,6 +2032,9 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		for peer_value in payload.get("peer_ids", []):
 			alive_peer_ids.erase(int(peer_value))
 		latest_match_payload["alive_peer_ids"] = alive_peer_ids
+	elif event_type == &"OBJECTIVE_UPDATED":
+		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
+		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)
 	elif event_type == &"CARD_POWERUP_COLLECTED":
@@ -2130,8 +2167,9 @@ func _update_match_presentation() -> void:
 		deadline = active_offer_deadline
 	var seconds_left := maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0) if deadline >= 0 else 0.0
 	_update_heat_intro(state_name, seconds_left)
-	var status := "%s · %s · Round %d · Heat %d" % [
+	var status := "%s · %s · %s · Round %d · Heat %d" % [
 		state_name.replace("_", " ").capitalize(),
+		String(latest_match_payload.get("game_mode_name", GameModeRules.mode_name(int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH))))),
 		String(latest_match_payload.get("map_name", ArenaLayout.display_name())),
 		int(latest_match_payload.get("round_number", 0)),
 		int(latest_match_payload.get("heat_number", 0)),
@@ -2144,17 +2182,22 @@ func _update_match_presentation() -> void:
 		if overtime_tick >= 0:
 			status += " · OVERTIME" if network_world.latest_server_tick >= overtime_tick else " · overtime in %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
 	elif state_name == "HEAT_RESULT":
-		status += " · %s" % ("Tie" if bool(latest_match_payload.get("tied_heat", false)) else "%s wins heat" % _player_name(int(latest_match_payload.get("last_heat_winner", 0))))
+		var heat_team := int(latest_match_payload.get("last_heat_winner_team", 0))
+		var heat_winner := GameModeRules.team_name(heat_team) if heat_team > 0 else _player_name(int(latest_match_payload.get("last_heat_winner", 0)))
+		status += " · %s" % ("Tie" if bool(latest_match_payload.get("tied_heat", false)) else "%s wins heat" % heat_winner)
 	elif state_name == "ROUND_RESULT":
-		status += " · %s wins round" % _player_name(int(latest_match_payload.get("last_round_winner", 0)))
+		var round_team := int(latest_match_payload.get("last_round_winner_team", 0))
+		status += " · %s wins round" % (GameModeRules.team_name(round_team) if round_team > 0 else _player_name(int(latest_match_payload.get("last_round_winner", 0))))
 	elif state_name == "MATCH_RESULT":
-		status = "★ VICTORY · %s ★" % _player_name(int(latest_match_payload.get("match_winner", 0)))
+		var winner_team := int(latest_match_payload.get("match_winner_team", 0))
+		status = "★ VICTORY · %s ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(int(latest_match_payload.get("match_winner", 0))))
 		_update_results_screen()
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
 		var bye_peer_id := int(latest_match_payload.get("draft_bye_peer_id", 0))
-		if bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id:
+		var bye_peer_ids := latest_match_payload.get("draft_bye_peer_ids", []) as Array
+		if (bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id) or bridge.local_peer_id in bye_peer_ids:
 			if not draft_bye_label.visible or not draft_panel.visible:
 				_show_draft_bye(deadline)
 			draft_title.text = "ROUND WINNER BYE · OTHERS DRAFTING · %.1fs" % seconds_left
@@ -2189,26 +2232,68 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 				int(latest_match_payload.get("heat_number", 0)),
 			]
 			heat_intro_title.text = "BEGIN"
-			heat_intro_subtitle.text = "WEAPONS HOT  ·  LAST SHIP STANDING"
+			heat_intro_subtitle.text = "WEAPONS HOT  ·  %s" % _mode_objective_prompt().to_upper()
 			return
 	heat_intro_panel.visible = false
 	heat_intro_panel.modulate.a = 1.0
 
 
 func _combat_hud_status(state_name: String, seconds_left: float) -> String:
-	var parts := PackedStringArray([
+	var header_parts := PackedStringArray([
 		state_name.replace("_", " ").to_upper(),
+		String(latest_match_payload.get("game_mode_name", GameModeRules.mode_name(int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH))))).to_upper(),
 		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 		"R%d H%d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))],
 	])
+	var detail_parts := PackedStringArray()
 	if state_name == "ACTIVE_HEAT":
-		parts.append("%d ALIVE" % (latest_match_payload.get("alive_peer_ids", []) as Array).size())
+		detail_parts.append("%d ALIVE" % (latest_match_payload.get("alive_peer_ids", []) as Array).size())
+		var objective_status := _objective_status_text()
+		if not objective_status.is_empty():
+			detail_parts.append(objective_status)
 		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
 		if overtime_tick >= 0:
-			parts.append("OVERTIME" if network_world.latest_server_tick >= overtime_tick else "OT %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
+			detail_parts.append("OVERTIME" if network_world.latest_server_tick >= overtime_tick else "OT %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
 	elif state_name in ["COUNTDOWN", "HEAT_RESULT", "ROUND_RESULT"]:
-		parts.append("%.1fs" % seconds_left)
-	return " · ".join(parts)
+		detail_parts.append("%.1fs" % seconds_left)
+	var header := " · ".join(header_parts)
+	return header if detail_parts.is_empty() else "%s\n%s" % [header, " · ".join(detail_parts)]
+
+
+func _mode_objective_prompt() -> String:
+	match int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH)):
+		GameModeRules.Mode.TEAM_DEATH_MATCH:
+			return "eliminate the enemy team"
+		GameModeRules.Mode.KING_OF_THE_HILL:
+			return "hold the central point"
+		GameModeRules.Mode.CAPTURE_THE_FLAG:
+			return "carry the flag to extraction"
+		GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG:
+			return "carry the flag to your team base"
+		_:
+			return "last ship standing"
+
+
+func _objective_status_text() -> String:
+	var objective := latest_match_payload.get("objective", {}) as Dictionary
+	if objective.is_empty():
+		return ""
+	var mode := int(objective.get("mode", GameModeRules.Mode.DEATH_MATCH))
+	if mode == GameModeRules.Mode.KING_OF_THE_HILL:
+		var controller_id := int(objective.get("controller_id", 0))
+		if controller_id == 0:
+			return "HILL CONTESTED"
+		var progress := objective.get("progress", {}) as Dictionary
+		var held := float(progress.get(controller_id, progress.get(str(controller_id), 0.0)))
+		return "HILL %s %.1f/%.0fs" % [_player_name(controller_id).to_upper(), held, float(objective.get("target_seconds", GameModeRules.HILL_HOLD_SECONDS))]
+	if GameModeRules.uses_flag(mode):
+		var carrier_id := int(objective.get("flag_carrier_id", 0))
+		if carrier_id != 0:
+			return "FLAG: %s" % _player_name(carrier_id).to_upper()
+		var flag_position := objective.get("flag_position", Vector2.ZERO) as Vector2
+		var spawn_position := objective.get("position", flag_position) as Vector2
+		return "FLAG DROPPED" if flag_position.distance_to(spawn_position) > 1.0 else "FLAG AT CENTER"
+	return ""
 
 
 func _draft_category_color(category: int) -> Color:
@@ -2246,6 +2331,19 @@ func _player_name(peer_id: int) -> String:
 		if int(player.get("peer_id", 0)) == peer_id:
 			return String(player.get("display_name", "Pilot"))
 	return "Pilot %d" % peer_id
+
+
+func _player_team(peer_id: int) -> int:
+	var teams := latest_match_payload.get("teams", {}) as Dictionary
+	if teams.has(peer_id):
+		return int(teams[peer_id])
+	if teams.has(str(peer_id)):
+		return int(teams[str(peer_id)])
+	for player_value in bridge.latest_lobby_state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == peer_id:
+			return int(player.get("team_id", 0))
+	return 0
 
 
 func _update_scoreboard() -> void:
@@ -2297,7 +2395,8 @@ func _scoreboard_available() -> bool:
 
 func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	var is_local := peer_id == bridge.local_peer_id
-	var accent := Color("fff36a") if is_local else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
+	var team_id := _player_team(peer_id)
+	var accent := Color("fff36a") if is_local else GameModeRules.team_color(team_id) if team_id > 0 else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
 	var row_panel := PanelContainer.new()
 	row_panel.custom_minimum_size.y = 58.0
 	row_panel.set_meta("peer_id", peer_id)
@@ -2308,7 +2407,7 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	row.add_theme_constant_override("separation", 12)
 	row_panel.add_child(row)
 	var player_label := Label.new()
-	player_label.text = "#%02d   %s%s" % [rank, _player_name(peer_id), "  ★ YOU" if is_local else ""]
+	player_label.text = "#%02d   %s%s%s" % [rank, _player_name(peer_id), "  ·  %s" % GameModeRules.team_name(team_id) if team_id > 0 else "", "  ★ YOU" if is_local else ""]
 	player_label.custom_minimum_size.x = 300.0
 	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	player_label.add_theme_font_size_override("font_size", 19 if is_local else 17)
@@ -2339,7 +2438,8 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 
 func _update_results_screen() -> void:
 	var winner_id := int(latest_match_payload.get("match_winner", 0))
-	results_winner_label.text = "★  %s  ★" % _player_name(winner_id).to_upper()
+	var winner_team := int(latest_match_payload.get("match_winner_team", 0))
+	results_winner_label.text = "★  %s  ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(winner_id).to_upper())
 	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
 	results_return_button.disabled = not is_leader or _return_to_lobby_requested
 	if _return_to_lobby_requested:
@@ -2360,7 +2460,8 @@ func _update_results_screen() -> void:
 		child.free()
 	var peer_ids := _result_peer_ids()
 	for index in peer_ids.size():
-		_add_result_row(index + 1, peer_ids[index], peer_ids[index] == winner_id)
+		var peer_team := _player_team(peer_ids[index])
+		_add_result_row(index + 1, peer_ids[index], peer_team == winner_team if winner_team > 0 else peer_ids[index] == winner_id)
 
 
 func _on_results_return_pressed() -> void:
@@ -2502,7 +2603,8 @@ func _card_stat_name(property_name: String) -> String:
 
 
 func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
-	var accent := Color("fff36a") if winner else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
+	var team_id := _player_team(peer_id)
+	var accent := Color("fff36a") if winner else GameModeRules.team_color(team_id) if team_id > 0 else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
 	var row_panel := PanelContainer.new()
 	row_panel.custom_minimum_size.y = 58.0
 	row_panel.set_meta("peer_id", peer_id)
@@ -2521,7 +2623,7 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	rank_label.add_theme_color_override("font_color", accent)
 	row.add_child(rank_label)
 	var player_label := Label.new()
-	player_label.text = "%s%s" % [_player_name(peer_id), "  ★" if winner else ""]
+	player_label.text = "%s%s%s" % [_player_name(peer_id), "  ·  %s" % GameModeRules.team_name(team_id) if team_id > 0 else "", "  ★" if winner else ""]
 	player_label.custom_minimum_size.x = 230.0
 	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	player_label.add_theme_font_size_override("font_size", 20 if winner else 18)

@@ -68,9 +68,9 @@ func _capture_sequence() -> void:
 
 	var players: Array[Dictionary] = []
 	for index in 32:
-		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": index >= 8, "npc_difficulty": index % NpcPilotController.DIFFICULTY_NAMES.size(), "ready": index != 5})
+		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": index >= 8, "npc_difficulty": index % NpcPilotController.DIFFICULTY_NAMES.size(), "ready": index != 5, "team_id": 1 + index % 2})
 	client.bridge.local_peer_id = 2
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG})
 	await _capture(client, "lobby_32")
 	var local_color_swatch := client.lobby_roster.get_child(0).get_node("ShipColor") as Button
 	local_color_swatch.pressed.emit()
@@ -114,7 +114,7 @@ func _capture_sequence() -> void:
 		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2(280.0, 0.0), "aim_angle": 0.0, "health": 78.0, "shield": 64.0, "ammunition": 5, "alive": true, "shielding": false},
 		{"peer_id": 3, "position": Vector2(980.0, 520.0), "velocity": Vector2(-210.0, 70.0), "aim_angle": PI, "health": 125.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true},
 	]})
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 100, "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "powerups": [{"powerup_id": 1, "card_id": &"kinetic_prow", "position": Vector2(700.0, 430.0), "rarity": CardDefinition.Rarity.RARE}], "random_spawn_powerups": true, "overtime_start_tick": 5600}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 100, "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "powerups": [{"powerup_id": 1, "card_id": &"kinetic_prow", "position": Vector2(700.0, 430.0), "rarity": CardDefinition.Rarity.RARE}], "random_spawn_powerups": true, "overtime_start_tick": 5600, "game_mode": GameModeRules.Mode.KING_OF_THE_HILL, "teams": {2: 1, 3: 2}, "objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(700.0, 430.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 12.5}, "target_seconds": GameModeRules.HILL_HOLD_SECONDS}}
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	await _capture(client, "combat")
@@ -159,8 +159,10 @@ func _capture_sequence() -> void:
 
 	client.latest_match_payload = {
 		"state_name": "MATCH_RESULT", "round_number": 3, "heat_number": 2,
-		"deadline_tick": -1, "match_winner": 2, "alive_peer_ids": [2],
+		"deadline_tick": -1, "match_winner": 2, "match_winner_team": 1, "alive_peer_ids": [2, 4],
 		"map_id": &"relay_zero", "map_name": "Relay Zero",
+		"game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH,
+		"teams": {2: 1, 3: 2, 4: 1, 5: 2},
 		"participant_peer_ids": [2, 3, 4, 5],
 		"scores": {
 			2: {"heat_wins": 0, "round_wins": 3},

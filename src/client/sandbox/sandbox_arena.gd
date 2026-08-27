@@ -6,6 +6,7 @@ var overtime_radius: float = OvertimeSystem.initial_radius()
 var show_spawn_anchors: bool = false
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var obstacle_root: Node2D
+var objective_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -30,6 +31,11 @@ func set_overtime(active: bool, radius: float) -> void:
 	queue_redraw()
 
 
+func set_objective(state: Dictionary) -> void:
+	objective_state = state.duplicate(true)
+	queue_redraw()
+
+
 func _draw() -> void:
 	var palette := ArenaLayout.theme(map_id)
 	draw_rect(ArenaLayout.arena_rect().grow(1600.0), Color("030716"), true)
@@ -47,12 +53,50 @@ func _draw() -> void:
 		for anchor in ArenaLayout.spawn_anchors(map_id):
 			draw_circle(anchor, 5.0, Color(0.2, 0.85, 1.0, 0.35))
 	draw_string(ThemeDB.fallback_font, Vector2(70.0, 92.0), ArenaLayout.display_name(map_id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 30, Color(palette.border, 0.34))
+	_draw_objective()
 	if overtime_visible:
 		var pulse := 0.72 + sin(Time.get_ticks_msec() * 0.008) * 0.2
 		draw_circle(ArenaLayout.center(map_id), overtime_radius, Color(1.0, 0.2, 0.42, 0.1))
 		draw_arc(ArenaLayout.center(map_id), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse * 0.2), 22.0)
 		draw_arc(ArenaLayout.center(map_id), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse), 8.0)
 		queue_redraw()
+	elif not objective_state.is_empty() and bool(objective_state.get("active", false)):
+		queue_redraw()
+
+
+func _draw_objective() -> void:
+	if objective_state.is_empty() or not bool(objective_state.get("active", false)):
+		return
+	var mode := int(objective_state.get("mode", GameModeRules.Mode.DEATH_MATCH))
+	var pulse := 0.78 + sin(Time.get_ticks_msec() * 0.006) * 0.18
+	var radius := float(objective_state.get("zone_radius", GameModeRules.OBJECTIVE_ZONE_RADIUS))
+	if mode == GameModeRules.Mode.KING_OF_THE_HILL:
+		var position := objective_state.get("position", ArenaLayout.center(map_id)) as Vector2
+		var controller_id := int(objective_state.get("controller_id", 0))
+		var color := Color("fff36a") if controller_id == 0 else Color("62ff9b")
+		draw_circle(position, radius, Color(color, 0.10))
+		draw_arc(position, radius, 0.0, TAU, 96, Color(color, pulse), 7.0)
+		draw_string(ThemeDB.fallback_font, position + Vector2(-54.0, 8.0), "THE HILL", HORIZONTAL_ALIGNMENT_CENTER, 108.0, 22, color)
+	elif GameModeRules.uses_flag(mode):
+		var zones := objective_state.get("capture_zones", {}) as Dictionary
+		var zone_ids := [1, 2] if GameModeRules.is_team_mode(mode) else [0]
+		for team_id in zone_ids:
+			var position := zones.get(team_id, zones.get(str(team_id), Vector2.ZERO)) as Vector2
+			if position.is_zero_approx():
+				continue
+			var color := GameModeRules.team_color(team_id) if team_id > 0 else Color("fff36a")
+			draw_circle(position, radius, Color(color, 0.09))
+			draw_arc(position, radius, 0.0, TAU, 96, Color(color, pulse), 7.0)
+			draw_string(ThemeDB.fallback_font, position + Vector2(-62.0, 8.0), GameModeRules.team_name(team_id) if team_id > 0 else "EXTRACTION", HORIZONTAL_ALIGNMENT_CENTER, 124.0, 20, color)
+		var flag_position := objective_state.get("flag_position", objective_state.get("position", ArenaLayout.center(map_id))) as Vector2
+		var flag_points := PackedVector2Array([
+			flag_position + Vector2(0.0, -25.0),
+			flag_position + Vector2(20.0, 0.0),
+			flag_position + Vector2(0.0, 25.0),
+			flag_position + Vector2(-20.0, 0.0),
+		])
+		draw_colored_polygon(flag_points, Color(Color("fff36a"), pulse))
+		draw_polyline(PackedVector2Array([flag_points[0], flag_points[1], flag_points[2], flag_points[3], flag_points[0]]), Color.WHITE, 3.0)
 
 
 func _draw_stars() -> void:

@@ -74,7 +74,8 @@ func submit_inputs(
 	world: AuthoritativeWorld,
 	npc_peer_ids: Array[int],
 	difficulties: Dictionary = {},
-	overtime_elapsed: float = -1.0
+	overtime_elapsed: float = -1.0,
+	objective_state: Dictionary = {}
 ) -> void:
 	for peer_id in npc_peer_ids:
 		var combatant := world.combatants.get(peer_id) as CombatantState
@@ -86,13 +87,15 @@ func submit_inputs(
 			continue
 		_next_decision_ticks[peer_id] = world.server_tick + int(profile.reaction_ticks)
 		var zone_steering := overtime_steering(combatant.position, overtime_elapsed, world.map_id)
+		var objective_steering := _objective_steering(world, combatant, objective_state)
 		var target := _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
 		if target == null:
 			_blocked_engagements.erase(peer_id)
+			var idle_steering := (zone_steering + objective_steering).limit_length(1.0)
 			_submit_decision(
 				world,
 				peer_id,
-				_world_to_ship_input(zone_steering, combatant.aim_angle),
+				_world_to_ship_input(idle_steering, combatant.aim_angle),
 				combatant.aim_angle,
 				false,
 				false
@@ -159,6 +162,8 @@ func submit_inputs(
 			var outside_boundary := combatant.position.distance_to(ArenaLayout.center(world.map_id)) > boundary_radius
 			var tactical_weight := 0.08 if outside_boundary else 0.28
 			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
+		elif not objective_steering.is_zero_approx():
+			tactical_movement = (objective_steering + tactical_movement * 0.4).limit_length(1.0)
 		var projectile_threat := _projectile_evasion(world, combatant, profile)
 		var evasion := projectile_threat.get("steering", Vector2.ZERO) as Vector2
 		if not evasion.is_zero_approx():
@@ -181,6 +186,29 @@ func submit_inputs(
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special)
 
 
+func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, objective: Dictionary) -> Vector2:
+	if objective.is_empty() or not bool(objective.get("active", false)):
+		return Vector2.ZERO
+	var mode := int(objective.get("mode", GameModeRules.Mode.DEATH_MATCH))
+	var destination := Vector2.ZERO
+	if mode == GameModeRules.Mode.KING_OF_THE_HILL:
+		destination = objective.get("position", Vector2.ZERO) as Vector2
+	elif GameModeRules.uses_flag(mode):
+		var carrier_id := int(objective.get("flag_carrier_id", 0))
+		if carrier_id == combatant.peer_id:
+			var team_id := int(world.team_assignments.get(combatant.peer_id, 0))
+			var zones := objective.get("capture_zones", {}) as Dictionary
+			destination = zones.get(team_id, zones.get(str(team_id), Vector2.ZERO)) as Vector2
+		else:
+			destination = objective.get("flag_position", Vector2.ZERO) as Vector2
+	if destination.is_zero_approx():
+		return Vector2.ZERO
+	var offset := destination - combatant.position
+	if offset.length() <= GameConstants.SHIP_COLLISION_RADIUS * 2.5:
+		return Vector2.ZERO
+	return offset.normalized()
+
+
 func _projectile_evasion(world: AuthoritativeWorld, combatant: CombatantState, profile: Dictionary) -> Dictionary:
 	var horizon := maxf(float(profile.dodge_horizon), 0.01)
 	var dodge_range := maxf(float(profile.dodge_range), 1.0)
@@ -188,7 +216,7 @@ func _projectile_evasion(world: AuthoritativeWorld, combatant: CombatantState, p
 	var steering := Vector2.ZERO
 	var imminent := false
 	for projectile in world.active_projectiles():
-		if projectile.owner_id == combatant.peer_id or projectile.velocity.is_zero_approx():
+		if projectile.owner_id == combatant.peer_id or world.are_allies(projectile.owner_id, combatant.peer_id) or projectile.velocity.is_zero_approx():
 			continue
 		var relative_position := projectile.position - combatant.position
 		var relative_velocity := projectile.velocity - combatant.velocity
@@ -420,7 +448,7 @@ func _nearest_target(world: AuthoritativeWorld, source: CombatantState, awarenes
 	var nearest_distance_squared := awareness_range * awareness_range
 	for peer_value in world.combatants.keys():
 		var peer_id := int(peer_value)
-		if peer_id == source.peer_id:
+		if peer_id == source.peer_id or world.are_allies(source.peer_id, peer_id):
 			continue
 		var candidate := world.combatants[peer_id] as CombatantState
 		if not candidate.alive:

@@ -32,9 +32,9 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.3 |
-| Protocol version | 10 |
-| Automated suite | 1,869 assertions |
-| Project gate | 81 checks |
+| Protocol version | 11 |
+| Automated suite | 1,947 assertions |
+| Project gate | 82 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -109,7 +109,7 @@ Client input frame ──30 Hz UDP──→ AuthoritativeWorld at 60 Hz
 Local prediction                       ├─ movement/collision
                                        ├─ weapons/projectiles
                                        ├─ damage/shields/shield rams/overtime
-                                       └─ survivor/scoring decisions
+                                       └─ mode objectives/team scoring
                                               ↓
 Client reconciliation ←─20 Hz player snapshots
 Projectile presentation ←─spawn batches + 5 Hz corrections
@@ -122,9 +122,9 @@ The client may predict local movement and shots for responsiveness, but it never
 ### Main layers
 
 - `NetworkBridge` owns ENet lifecycle, RPC direction, admission, rate limiting, serialization cadence, and logs.
-- `ServerLobby` owns participant records, leadership, readiness, player limits, NPC fill, timed-powerup configuration, player colours, and lobby permissions.
-- `AuthoritativeMatchCoordinator` connects draft, match state, combat world, timed card powerups, and reliable match events.
-- `AuthoritativeWorld` owns deterministic per-tick combat state.
+- `ServerLobby` owns participant records, leadership, readiness, player limits, NPC fill, game-mode/team assignment, timed-powerup configuration, player colours, and lobby permissions.
+- `AuthoritativeMatchCoordinator` connects draft, match state, combat world, timed card powerups, map-safe hill/flag objectives, and reliable match events.
+- `AuthoritativeWorld` owns deterministic per-tick combat state, including team-aware damage exclusion.
 - `NetworkWorldView` turns authoritative state into predicted/interpolated client presentation.
 - `ClientMain` owns screen flow and production UI, not gameplay authority.
 
@@ -142,6 +142,8 @@ LOBBY
 ```
 
 State deadlines use server ticks. UI countdowns derive from server time and must not create independent gameplay timers.
+
+`GameModeRules` is the shared mode registry. Death Match remains the default. Team modes deterministically balance the waiting roster across Cyan and Magenta; the coordinator copies those assignments into the combat world and state payload at match start. King of the Hill requires one uncontested pilot for 20 uninterrupted seconds. Both flag modes use a neutral center flag, authoritative carrier/drop/reset state, and either a neutral extraction zone or team-coloured bases. NPC objective steering consumes only coordinator-owned snapshots and still yields to overtime safety.
 
 ## 5. Authority and Protocol Rules
 
@@ -304,8 +306,8 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,869 deterministic assertions | After any gameplay/model/UI logic edit |
-| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 81 project checks | Before commit/handoff |
+| `.\tools\run-tests.ps1` | 1,947 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 82 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |

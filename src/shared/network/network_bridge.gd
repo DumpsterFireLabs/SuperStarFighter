@@ -205,6 +205,11 @@ func send_npcs_enabled(enabled: bool) -> void:
 		request_npcs_enabled.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
+func send_game_mode(mode: int) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_game_mode.rpc_id(NetworkProtocol.SERVER_PEER_ID, mode)
+
+
 func send_random_spawn_powerups(enabled: bool) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_random_spawn_powerups.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
@@ -280,7 +285,8 @@ func _physics_process(delta: float) -> void:
 			world,
 			lobby.npc_peer_ids(),
 			lobby.npc_difficulties(),
-			match_coordinator.npc_overtime_elapsed()
+			match_coordinator.npc_overtime_elapsed(),
+			match_coordinator.npc_objective_state()
 		)
 	world.step(delta, match_coordinator != null and match_coordinator.controls_enabled())
 	if match_coordinator != null:
@@ -402,6 +408,20 @@ func request_npcs_enabled(enabled: bool) -> void:
 		_broadcast_lobby_state()
 	else:
 		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_game_mode(mode: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "game_mode"):
+		return
+	var result := lobby.request_game_mode(sender_id, mode)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -853,14 +873,15 @@ func _drain_match_coordinator() -> void:
 		var server_tick_value := int(event.server_tick)
 		var payload := event.payload as Dictionary
 		match_event.rpc(event_type, server_tick_value, payload)
-		_log("info", "match_event", {
-			"event_type": String(event_type),
-			"server_tick": server_tick_value,
-			"state": payload.get("state_name", ""),
-			"round": payload.get("round_number", 0),
-			"heat": payload.get("heat_number", 0),
-			"winner": payload.get("match_winner", 0),
-		})
+		if event_type != &"OBJECTIVE_UPDATED":
+			_log("info", "match_event", {
+				"event_type": String(event_type),
+				"server_tick": server_tick_value,
+				"state": payload.get("state_name", ""),
+				"round": payload.get("round_number", 0),
+				"heat": payload.get("heat_number", 0),
+				"winner": payload.get("match_winner", 0),
+			})
 	for offer_value in match_coordinator.drain_private_offers():
 		var offer := offer_value as Dictionary
 		var peer_id := int(offer.peer_id)

@@ -13,6 +13,7 @@ var random_spawn_powerups: bool = false
 var random_powerup_interval_seconds: float = 20.0
 var random_powerups_permanent: bool = false
 var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
+var game_mode: int = GameModeRules.Mode.DEATH_MATCH
 
 
 func validate() -> PackedStringArray:
@@ -48,6 +49,8 @@ func validate() -> PackedStringArray:
 		errors.append("Random powerup interval must be from 5 through 90 seconds.")
 	if not is_finite(overtime_start_seconds) or overtime_start_seconds < 30.0 or overtime_start_seconds > 120.0:
 		errors.append("Overtime must begin from 30 through 120 seconds.")
+	if not GameModeRules.is_valid_mode(game_mode):
+		errors.append("Game mode is outside the supported range.")
 	return errors
 
 
@@ -69,4 +72,5 @@ func duplicate_config() -> MatchConfig:
 	copy.random_powerup_interval_seconds = random_powerup_interval_seconds
 	copy.random_powerups_permanent = random_powerups_permanent
 	copy.overtime_start_seconds = overtime_start_seconds
+	copy.game_mode = game_mode
 	return copy

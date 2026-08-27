@@ -11,6 +11,7 @@ static func run(context: TestContext) -> void:
 	_validate_npc_draft(context)
 	_validate_forfeit(context)
 	_validate_powerup_match_integration(context)
+	_validate_objective_modes(context)
 
 
 static func _validate_complete_match_and_rematch(context: TestContext) -> void:
@@ -157,6 +158,61 @@ static func _validate_powerup_match_integration(context: TestContext) -> void:
 	coordinator.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(int((coordinator.current_state_payload().scores as Dictionary)[70].kills), 1, "coordinator publishes a match-total kill credited to the attacker")
 	context.expect_empty(collector.temporary_card_stacks, "non-permanent arena pickup is removed when its heat ends")
+
+
+static func _validate_objective_modes(context: TestContext) -> void:
+	var hill_fixture := _objective_fixture(GameModeRules.Mode.KING_OF_THE_HILL, 2, 6060)
+	var hill_world := hill_fixture.world as AuthoritativeWorld
+	var hill_coordinator := hill_fixture.coordinator as AuthoritativeMatchCoordinator
+	var hill_position := (hill_coordinator.current_state_payload().objective as Dictionary).position as Vector2
+	(hill_world.combatants[1] as CombatantState).position = hill_position
+	(hill_world.combatants[2] as CombatantState).position = hill_position + Vector2(GameModeRules.OBJECTIVE_ZONE_RADIUS + 200.0, 0.0)
+	_advance(hill_world, hill_coordinator, ceili(GameModeRules.HILL_HOLD_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND) + 1)
+	context.expect_equal(hill_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "uncontested hill control for twenty seconds resolves the heat")
+	context.expect_equal(hill_coordinator.machine.last_heat_winner, 1, "the surviving hill controller wins the objective heat")
+
+	var flag_fixture := _objective_fixture(GameModeRules.Mode.CAPTURE_THE_FLAG, 2, 7070)
+	var flag_world := flag_fixture.world as AuthoritativeWorld
+	var flag_coordinator := flag_fixture.coordinator as AuthoritativeMatchCoordinator
+	var flag_objective := flag_coordinator.current_state_payload().objective as Dictionary
+	(flag_world.combatants[1] as CombatantState).position = flag_objective.flag_position as Vector2
+	_advance(flag_world, flag_coordinator, 1)
+	context.expect_equal(int((flag_coordinator.current_state_payload().objective as Dictionary).flag_carrier_id), 1, "touching the neutral flag assigns its carrier authoritatively")
+	flag_objective = flag_coordinator.current_state_payload().objective as Dictionary
+	var neutral_zones := flag_objective.capture_zones as Dictionary
+	(flag_world.combatants[1] as CombatantState).position = neutral_zones[0] as Vector2
+	_advance(flag_world, flag_coordinator, 1)
+	context.expect_equal(flag_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "solo capture the flag resolves at the neutral extraction zone")
+	context.expect_equal(flag_coordinator.machine.last_heat_winner, 1, "the neutral flag carrier wins the capture heat")
+
+	var team_flag_fixture := _objective_fixture(GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, 4, 8081)
+	var team_flag_world := team_flag_fixture.world as AuthoritativeWorld
+	var team_flag_coordinator := team_flag_fixture.coordinator as AuthoritativeMatchCoordinator
+	var team_flag_objective := team_flag_coordinator.current_state_payload().objective as Dictionary
+	(team_flag_world.combatants[1] as CombatantState).position = team_flag_objective.flag_position as Vector2
+	_advance(team_flag_world, team_flag_coordinator, 1)
+	team_flag_objective = team_flag_coordinator.current_state_payload().objective as Dictionary
+	var team_zones := team_flag_objective.capture_zones as Dictionary
+	(team_flag_world.combatants[1] as CombatantState).position = team_zones[1] as Vector2
+	_advance(team_flag_world, team_flag_coordinator, 1)
+	context.expect_equal(team_flag_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "team flag capture resolves when the carrier reaches its own base")
+	context.expect_equal(team_flag_coordinator.machine.last_heat_winner_team, 1, "team capture credits the carrier's full team")
+
+
+static func _objective_fixture(mode: int, player_count: int, seed: int) -> Dictionary:
+	var config := _fast_config()
+	config.game_mode = mode
+	var lobby := ServerLobby.new(config)
+	var world := AuthoritativeWorld.new()
+	for peer_id in range(1, player_count + 1):
+		lobby.admit(peer_id, "Objective%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(1)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, seed)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	return {"world": world, "coordinator": coordinator}
 
 
 static func _validate_last_survivor_resolution(context: TestContext) -> void:

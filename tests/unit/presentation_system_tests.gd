@@ -242,6 +242,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_approx(client.powerup_interval_control.value, 20.0, "random drop interval visibly defaults to twenty seconds")
 	context.expect_false(client.powerups_permanent_button.button_pressed, "random drop permanence visibly defaults off")
 	context.expect_approx(client.overtime_start_control.value, 90.0, "overtime visibly defaults to ninety seconds")
+	context.expect_equal(client.game_mode_control.item_count, 5, "lobby options expose all five selectable game modes")
+	context.expect_equal(client.game_mode_control.get_selected_id(), GameModeRules.Mode.DEATH_MATCH, "Death Match is visibly selected by default")
 	context.expect_equal(client.npc_all_difficulty_control.item_count, 5, "lobby provides one bulk dropdown covering every NPC difficulty")
 	context.expect_true(client.ship_color_popup != null and client.random_color_button != null and client.ship_color_picker != null and client.apply_ship_color_button != null, "roster colour selection owns a wheel with Random and explicit Apply actions")
 	context.expect_equal(client.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
@@ -332,7 +334,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": false},
 		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true},
 	]
-	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 2, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
+	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 2, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
 	var difficulty_control := client.lobby_roster.get_child(1).get_node("NpcDifficulty") as OptionButton
 	context.expect_true(difficulty_control != null, "each waiting NPC renders an individual difficulty dropdown")
 	context.expect_equal(difficulty_control.item_count, 5, "NPC dropdown exposes passive through insane")
@@ -343,6 +345,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_approx(client.powerup_interval_control.value, 12.0, "lobby renders the authoritative random drop interval")
 	context.expect_true(client.powerups_permanent_button.button_pressed, "lobby renders authoritative drop permanence")
 	context.expect_approx(client.overtime_start_control.value, 75.0, "lobby renders the authoritative overtime start")
+	context.expect_equal(client.game_mode_control.get_selected_id(), GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "lobby renders the authoritative game-mode selection")
+	context.expect_true(client.game_mode_note.text.contains("neutral center flag"), "game-mode selection explains its objective")
 	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
 	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
 	context.expect_true(client.start_button.disabled and client.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")
@@ -357,6 +361,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	]})
 	context.expect_false((client.network_world.ships[ServerLobby.NPC_PEER_ID_BASE + 1] as SandboxShip).visible, "inactive NPC markers remain hidden during the initial draft")
 	context.expect_false(client.network_world.arena.show_spawn_anchors, "production arena never exposes internal spawn anchors")
+	client._on_match_event(&"OBJECTIVE_UPDATED", 2, {"objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(800.0, 600.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 7.5}, "target_seconds": 20.0}})
+	context.expect_equal(int(client.network_world.arena.objective_state.controller_id), 2, "live objective updates reach the arena presentation")
+	context.expect_true(client._objective_status_text().contains("7.5/20s"), "combat HUD reports live hill-control progress")
 	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 120, "deadline_tick": 300, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 180
 	client.network_world.apply_match_state(client.latest_match_payload)
