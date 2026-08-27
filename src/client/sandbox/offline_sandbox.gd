@@ -48,13 +48,14 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	heat_elapsed += delta
 	if player.combatant.alive:
-		var local_movement: Vector2 = input_profiles.movement_vector() if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 		var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else get_global_mouse_position() - player.global_position
 		var aim_angle := player.combatant.aim_angle
 		if not aim_vector.is_zero_approx():
 			aim_angle = aim_vector.angle()
-		var movement := MovementSystem.ship_relative_to_world(local_movement, aim_angle)
+		var movement: Vector2 = input_profiles.world_movement_for_aim(aim_angle) if input_profiles != null else MovementSystem.ship_relative_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"), aim_angle)
 		player.simulate(movement, aim_angle, Input.is_action_pressed("shield"), delta)
+		if Input.is_action_pressed("manual_reload"):
+			player.combatant.request_reload()
 		if Input.is_action_pressed("fire") and player.combatant.try_fire():
 			_spawn_shot(player)
 	for target in targets:

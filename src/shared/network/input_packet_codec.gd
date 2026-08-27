@@ -22,6 +22,8 @@ static func encode(frame: PlayerInputFrame) -> PackedByteArray:
 		action_bits |= NetworkProtocol.ACTION_FIRE
 	if frame.shielding:
 		action_bits |= NetworkProtocol.ACTION_SHIELD
+	if frame.manual_reload:
+		action_bits |= NetworkProtocol.ACTION_RELOAD
 	ByteCodec.append_u8(bytes, action_bits)
 	return bytes
 
@@ -47,7 +49,8 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 		movement.limit_length(1.0),
 		float(ByteCodec.read_u16(bytes, 13)) / 65535.0 * TAU,
 		bool(action_bits & NetworkProtocol.ACTION_FIRE),
-		bool(action_bits & NetworkProtocol.ACTION_SHIELD)
+		bool(action_bits & NetworkProtocol.ACTION_SHIELD),
+		bool(action_bits & NetworkProtocol.ACTION_RELOAD)
 	)
 	return {"ok": true, "frame": frame}
 

@@ -71,6 +71,12 @@ static func _validate_movement_and_aim(context: TestContext) -> void:
 		1.0,
 		"ship-relative diagonal movement remains normalized"
 	)
+	var screen_up_as_ship_input := MovementSystem.world_to_ship_relative(Vector2.UP, PI * 0.5)
+	context.expect_approx(
+		MovementSystem.ship_relative_to_world(screen_up_as_ship_input, PI * 0.5).angle(),
+		-PI * 0.5,
+		"screen-relative movement converts through the canonical ship input without changing direction"
+	)
 	var stats := CombatStats.create_base()
 	var accelerated := MovementSystem.step_velocity(
 		Vector2.ZERO, Vector2.RIGHT, stats, 1.0 / 60.0
@@ -146,6 +152,13 @@ static func _validate_weapon(context: TestContext) -> void:
 	weapon.step(stats, 0.001)
 	context.expect_false(weapon.reloading, "reload completes at its duration")
 	context.expect_equal(weapon.ammunition, stats.magazine_size, "reload restores a full derived magazine")
+	context.expect_true(weapon.try_fire(stats, false), "weapon can fire after its automatic reload")
+	weapon.step(stats, 1.0 / stats.fire_rate)
+	context.expect_true(weapon.request_reload(stats), "manual reload starts with a partially used magazine")
+	context.expect_false(weapon.request_reload(stats), "manual reload cannot restart while already active")
+	weapon.step(stats, stats.reload_duration)
+	context.expect_equal(weapon.ammunition, stats.magazine_size, "manual reload restores the magazine")
+	context.expect_false(weapon.request_reload(stats), "manual reload ignores an already full magazine")
 
 
 static func _validate_shield(context: TestContext) -> void:

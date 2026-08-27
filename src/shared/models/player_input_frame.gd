@@ -7,6 +7,7 @@ var movement: Vector2 = Vector2.ZERO
 var aim_angle: float = 0.0
 var firing: bool = false
 var shielding: bool = false
+var manual_reload: bool = false
 
 
 func _init(
@@ -15,7 +16,8 @@ func _init(
 	movement_value: Vector2 = Vector2.ZERO,
 	aim_angle_value: float = 0.0,
 	firing_value: bool = false,
-	shielding_value: bool = false
+	shielding_value: bool = false,
+	manual_reload_value: bool = false
 ) -> void:
 	sequence = sequence_value
 	client_tick = client_tick_value
@@ -23,6 +25,7 @@ func _init(
 	aim_angle = aim_angle_value
 	firing = firing_value
 	shielding = shielding_value
+	manual_reload = manual_reload_value
 
 
 func is_valid() -> bool:
@@ -38,4 +41,3 @@ func is_valid() -> bool:
 
 func normalized_aim_angle() -> float:
 	return fposmod(aim_angle, TAU)
-

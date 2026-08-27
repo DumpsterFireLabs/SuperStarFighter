@@ -15,6 +15,15 @@ static func ship_relative_to_world(local_input: Vector2, aim_angle: float) -> Ve
 	return sanitize_input(forward * -movement.y + right * movement.x)
 
 
+static func world_to_ship_relative(world_input: Vector2, aim_angle: float) -> Vector2:
+	var movement := sanitize_input(world_input)
+	if movement.is_zero_approx():
+		return Vector2.ZERO
+	var forward := Vector2.from_angle(normalize_aim_angle(aim_angle))
+	var right := -forward.orthogonal()
+	return sanitize_input(Vector2(movement.dot(right), -movement.dot(forward)))
+
+
 static func step_velocity(
 	current_velocity: Vector2,
 	input_direction: Vector2,

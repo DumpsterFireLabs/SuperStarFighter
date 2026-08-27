@@ -2,12 +2,18 @@ class_name InputProfileManager
 extends Node
 
 signal scheme_changed(scheme: Scheme)
+signal flight_mode_changed(flight_mode: FlightMode)
 signal bindings_changed()
 signal controller_connections_changed()
 
 enum Scheme {
 	KEYBOARD_MOUSE,
 	CONTROLLER,
+}
+
+enum FlightMode {
+	NEWTONIAN,
+	RELATIVE,
 }
 
 const SETTINGS_PATH: String = "user://super_star_fighter_settings.cfg"
@@ -17,6 +23,7 @@ const CONTROLLER_SECTION: String = "input_controller"
 const DEFAULT_CONTROLLER_DEADZONE: float = 0.22
 const MIN_CONTROLLER_DEADZONE: float = 0.05
 const MAX_CONTROLLER_DEADZONE: float = 0.75
+const FLIGHT_MODE_NAMES: Array[String] = ["Newtonian", "Relative"]
 
 const MOVEMENT_ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
@@ -25,7 +32,7 @@ const AIM_ACTIONS: Array[StringName] = [
 	&"aim_up", &"aim_down", &"aim_left", &"aim_right",
 ]
 const COMBAT_ACTIONS: Array[StringName] = [
-	&"fire", &"shield", &"scoreboard", &"pause_overlay", &"diagnostics",
+	&"fire", &"shield", &"manual_reload", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 ]
 const DRAFT_ACTIONS: Array[StringName] = [
@@ -36,7 +43,7 @@ const MENU_ACTIONS: Array[StringName] = [
 ]
 const KEYBOARD_REBIND_ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
-	&"fire", &"shield", &"scoreboard", &"pause_overlay", &"diagnostics",
+	&"fire", &"shield", &"manual_reload", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 	&"draft_1", &"draft_2", &"draft_3", &"draft_4", &"draft_5",
 	&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
@@ -44,7 +51,7 @@ const KEYBOARD_REBIND_ACTIONS: Array[StringName] = [
 const CONTROLLER_REBIND_ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
 	&"aim_up", &"aim_down", &"aim_left", &"aim_right",
-	&"fire", &"shield", &"scoreboard", &"pause_overlay", &"diagnostics",
+	&"fire", &"shield", &"manual_reload", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 	&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
 ]
@@ -59,6 +66,7 @@ const ACTION_LABELS: Dictionary = {
 	&"aim_right": "Aim Right",
 	&"fire": "Fire",
 	&"shield": "Shield",
+	&"manual_reload": "Manual Reload",
 	&"scoreboard": "Hold Scoreboard",
 	&"pause_overlay": "Pilot Menu",
 	&"diagnostics": "Diagnostics",
@@ -78,6 +86,7 @@ const ACTION_LABELS: Dictionary = {
 }
 
 var active_scheme: Scheme = Scheme.KEYBOARD_MOUSE
+var flight_mode: FlightMode = FlightMode.NEWTONIAN
 var controller_deadzone: float = DEFAULT_CONTROLLER_DEADZONE
 var settings_path: String = SETTINGS_PATH
 var keyboard_bindings: Dictionary = {}
@@ -99,10 +108,12 @@ func load_settings() -> void:
 	keyboard_bindings = _default_keyboard_bindings()
 	controller_bindings = _default_controller_bindings()
 	active_scheme = Scheme.KEYBOARD_MOUSE
+	flight_mode = FlightMode.NEWTONIAN
 	controller_deadzone = DEFAULT_CONTROLLER_DEADZONE
 	var config := ConfigFile.new()
 	if config.load(settings_path) == OK:
 		active_scheme = _validated_scheme(int(config.get_value(SETTINGS_SECTION, "scheme", Scheme.KEYBOARD_MOUSE)))
+		flight_mode = _validated_flight_mode(int(config.get_value(SETTINGS_SECTION, "flight_mode", FlightMode.NEWTONIAN)))
 		controller_deadzone = clampf(
 			float(config.get_value(SETTINGS_SECTION, "controller_deadzone", DEFAULT_CONTROLLER_DEADZONE)),
 			MIN_CONTROLLER_DEADZONE,
@@ -117,6 +128,7 @@ func save_settings() -> Error:
 	var config := ConfigFile.new()
 	config.load(settings_path)
 	config.set_value(SETTINGS_SECTION, "scheme", int(active_scheme))
+	config.set_value(SETTINGS_SECTION, "flight_mode", int(flight_mode))
 	config.set_value(SETTINGS_SECTION, "controller_deadzone", controller_deadzone)
 	_save_profile(config, KEYBOARD_SECTION, keyboard_bindings, KEYBOARD_REBIND_ACTIONS)
 	_save_profile(config, CONTROLLER_SECTION, controller_bindings, CONTROLLER_REBIND_ACTIONS)
@@ -141,6 +153,16 @@ func set_controller_deadzone(value: float, save: bool = true) -> void:
 		apply_active_bindings()
 	if save:
 		save_settings()
+
+
+func set_flight_mode(value: FlightMode, save: bool = true) -> void:
+	var validated := _validated_flight_mode(int(value))
+	if flight_mode == validated:
+		return
+	flight_mode = validated
+	if save:
+		save_settings()
+	flight_mode_changed.emit(flight_mode)
 
 
 func restore_active_defaults(save: bool = true) -> void:
@@ -190,6 +212,16 @@ func movement_vector() -> Vector2:
 	return Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 
 
+func movement_input_for_aim(aim_angle: float) -> Vector2:
+	var movement := movement_vector()
+	return MovementSystem.world_to_ship_relative(movement, aim_angle) if flight_mode == FlightMode.RELATIVE else movement
+
+
+func world_movement_for_aim(aim_angle: float) -> Vector2:
+	var movement := movement_vector()
+	return movement if flight_mode == FlightMode.RELATIVE else MovementSystem.ship_relative_to_world(movement, aim_angle)
+
+
 func aim_vector() -> Vector2:
 	if active_scheme != Scheme.CONTROLLER:
 		return Vector2.ZERO
@@ -213,7 +245,17 @@ func binding_text(action: StringName) -> String:
 
 
 func action_label(action: StringName) -> String:
+	if flight_mode == FlightMode.RELATIVE:
+		match action:
+			&"move_up": return "Move Up"
+			&"move_down": return "Move Down"
+			&"move_left": return "Move Left"
+			&"move_right": return "Move Right"
 	return String(ACTION_LABELS.get(action, String(action).capitalize()))
+
+
+func flight_mode_name() -> String:
+	return FLIGHT_MODE_NAMES[int(flight_mode)]
 
 
 func accepts_rebind_event(event: InputEvent) -> bool:
@@ -274,6 +316,7 @@ func _default_keyboard_bindings() -> Dictionary:
 		&"move_right": _key_binding(KEY_D),
 		&"fire": _mouse_binding(MOUSE_BUTTON_LEFT),
 		&"shield": _mouse_binding(MOUSE_BUTTON_RIGHT),
+		&"manual_reload": _key_binding(KEY_R),
 		&"scoreboard": _key_binding(KEY_TAB),
 		&"pause_overlay": _key_binding(KEY_ESCAPE),
 		&"diagnostics": _key_binding(KEY_F3),
@@ -305,6 +348,7 @@ func _default_controller_bindings() -> Dictionary:
 		&"aim_right": _axis_binding(JOY_AXIS_RIGHT_X, 1.0),
 		&"fire": _axis_binding(JOY_AXIS_TRIGGER_RIGHT, 1.0),
 		&"shield": _axis_binding(JOY_AXIS_TRIGGER_LEFT, 1.0),
+		&"manual_reload": _button_binding(JOY_BUTTON_X),
 		&"scoreboard": _button_binding(JOY_BUTTON_BACK),
 		&"pause_overlay": _button_binding(JOY_BUTTON_START),
 		&"diagnostics": _button_binding(JOY_BUTTON_Y),
@@ -477,6 +521,10 @@ func _joy_button_name(button: JoyButton) -> String:
 
 func _validated_scheme(value: int) -> Scheme:
 	return Scheme.CONTROLLER if value == Scheme.CONTROLLER else Scheme.KEYBOARD_MOUSE
+
+
+func _validated_flight_mode(value: int) -> FlightMode:
+	return FlightMode.RELATIVE if value == FlightMode.RELATIVE else FlightMode.NEWTONIAN
 
 
 func _on_joy_connection_changed(_device: int, _connected: bool) -> void:

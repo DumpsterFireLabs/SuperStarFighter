@@ -138,7 +138,7 @@ func _physics_process(delta: float) -> void:
 	var aim_angle := local_ship.combatant.aim_angle
 	if not aim_vector.is_zero_approx():
 		aim_angle = aim_vector.angle()
-	var local_movement: Vector2 = input_profiles.movement_vector() if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var local_movement: Vector2 = input_profiles.movement_input_for_aim(aim_angle) if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var local_alive := local_ship.combatant.alive
 	if not controls_enabled or input_blocked:
 		local_movement = Vector2.ZERO
@@ -148,7 +148,8 @@ func _physics_process(delta: float) -> void:
 		local_movement,
 		aim_angle,
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("fire"),
-		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield")
+		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield"),
+		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload")
 	)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
@@ -164,8 +165,14 @@ func _physics_process(delta: float) -> void:
 		local_ship.combatant.aim_angle = aim_angle
 		local_ship.queue_redraw()
 	local_weapon.step(local_stats, delta)
+	if frame.manual_reload:
+		local_weapon.request_reload(local_stats)
 	if frame.firing and local_weapon.try_fire(local_stats, frame.shielding):
 		_spawn_predicted_projectile(local_ship, aim_angle)
+	local_ship.combatant.weapon.ammunition = local_weapon.ammunition
+	local_ship.combatant.weapon.reloading = local_weapon.reloading
+	local_ship.combatant.weapon.reload_remaining = local_weapon.reload_remaining
+	local_ship.queue_redraw()
 	_update_remote_ships()
 	_step_projectile_visuals(delta)
 	_update_camera(local_ship, delta)
@@ -443,7 +450,8 @@ func _update_diagnostics() -> void:
 		shield_bar.max_value = local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
-		combat_status = "%s diagnostics   ·   Hold %s scoreboard" % [diagnostics_hint, scoreboard_hint]
+		var reload_hint: String = input_profiles.binding_text(&"manual_reload") if input_profiles != null else "R"
+		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
 		if not local_ship.combatant.alive:
 			resources = "SHIP ELIMINATED"
 			var previous_hint: String = input_profiles.binding_text(&"spectator_previous") if input_profiles != null else "A"

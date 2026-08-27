@@ -32,8 +32,8 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.1 |
-| Protocol version | 7 |
-| Automated suite | 1,640 assertions |
+| Protocol version | 8 |
+| Automated suite | 1,666 assertions |
 | Project gate | 79 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
@@ -301,7 +301,7 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 1,640 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | 1,666 deterministic assertions | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 79 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |

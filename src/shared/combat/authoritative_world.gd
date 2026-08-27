@@ -11,6 +11,9 @@ var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 
+const SHIP_SEPARATION_SPEED: float = 120.0
+const SHIP_OVERLAP_SOLVER_PASSES: int = 2
+
 
 func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
 	if combatants.has(peer_id):
@@ -60,6 +63,8 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
+		if frame.manual_reload:
+			combatant.request_reload()
 		if frame.firing and combatant.try_fire():
 			_spawn_shot(combatant)
 	_resolve_ship_overlaps(peer_ids)
@@ -246,26 +251,36 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 
 func _resolve_ship_overlaps(peer_ids: Array[int]) -> void:
 	var minimum_distance := GameConstants.SHIP_COLLISION_RADIUS * 2.0
-	for left_index in peer_ids.size():
-		var left := combatants[peer_ids[left_index]] as CombatantState
-		if not left.alive:
-			continue
-		for right_index in range(left_index + 1, peer_ids.size()):
-			var right := combatants[peer_ids[right_index]] as CombatantState
-			if not right.alive:
+	for _pass in SHIP_OVERLAP_SOLVER_PASSES:
+		for left_index in peer_ids.size():
+			var left := combatants[peer_ids[left_index]] as CombatantState
+			if not left.alive:
 				continue
-			var difference := right.position - left.position
-			var distance := difference.length()
-			if distance >= minimum_distance:
-				continue
-			var normal := difference / distance if distance > 0.001 else Vector2.RIGHT
-			var correction := normal * (minimum_distance - distance) * 0.5
-			left.position -= correction
-			right.position += correction
-			var left_into := maxf(left.velocity.dot(normal), 0.0)
-			var right_into := minf(right.velocity.dot(normal), 0.0)
-			left.velocity -= normal * left_into
-			right.velocity -= normal * right_into
+			for right_index in range(left_index + 1, peer_ids.size()):
+				var right := combatants[peer_ids[right_index]] as CombatantState
+				if not right.alive:
+					continue
+				var difference := right.position - left.position
+				var distance := difference.length()
+				if distance >= minimum_distance:
+					continue
+				var fallback_angle := float(posmod(left.peer_id * 31 + right.peer_id * 17, 360)) * PI / 180.0
+				var normal := difference / distance if distance > 0.001 else Vector2.from_angle(fallback_angle)
+				var correction := normal * (minimum_distance - distance) * 0.5
+				left.position -= correction
+				right.position += correction
+				var left_into := maxf(left.velocity.dot(normal), 0.0)
+				var right_into := minf(right.velocity.dot(normal), 0.0)
+				left.velocity -= normal * left_into
+				right.velocity -= normal * right_into
+				left.velocity -= normal * SHIP_SEPARATION_SPEED
+				right.velocity += normal * SHIP_SEPARATION_SPEED
+				var left_safe := ArenaCollisionSystem.move_ship(left.position, left.velocity, 0.0, map_id)
+				var right_safe := ArenaCollisionSystem.move_ship(right.position, right.velocity, 0.0, map_id)
+				left.position = left_safe.position
+				left.velocity = left_safe.velocity
+				right.position = right_safe.position
+				right.velocity = right_safe.velocity
 
 
 func _remove_projectile(projectile_id: int) -> void:

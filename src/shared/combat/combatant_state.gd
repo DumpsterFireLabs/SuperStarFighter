@@ -73,6 +73,12 @@ func try_fire() -> bool:
 	return weapon.try_fire(stats, shield.active)
 
 
+func request_reload() -> bool:
+	if not alive:
+		return false
+	return weapon.request_reload(stats)
+
+
 func apply_damage(amount: float) -> bool:
 	if not alive or amount <= 0.0:
 		return false

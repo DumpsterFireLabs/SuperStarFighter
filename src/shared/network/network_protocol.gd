@@ -1,7 +1,7 @@
 class_name NetworkProtocol
 extends RefCounted
 
-const PACKET_VERSION: int = 4
+const PACKET_VERSION: int = 5
 const SERVER_PEER_ID: int = 1
 
 const CHANNEL_CONTROL: int = 0
@@ -10,7 +10,8 @@ const CHANNEL_SNAPSHOT: int = 2
 
 const ACTION_FIRE: int = 1
 const ACTION_SHIELD: int = 2
-const ACTION_MASK: int = ACTION_FIRE | ACTION_SHIELD
+const ACTION_RELOAD: int = 4
+const ACTION_MASK: int = ACTION_FIRE | ACTION_SHIELD | ACTION_RELOAD
 
 const HANDSHAKE_TIMEOUT_SECONDS: float = 10.0
 const MAX_INPUTS_PER_SECOND: int = 60

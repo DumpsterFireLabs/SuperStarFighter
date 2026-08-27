@@ -6,7 +6,7 @@ Up to 32 human and NPC pilots fight through last-ship-standing heats. Before eac
 
 ## Highlights
 
-- Ship-relative keyboard/mouse flight plus an optional twin-stick controller/joystick profile with independent analog aim.
+- Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
 - Automatic weapons, directional energy shields, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
 - 120 unlimited-stack cards across seven increasingly scarce rarity tiers.
 - 24 numeric build stats plus beam and auto-repair transformations.
@@ -40,7 +40,7 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 
 ## Controls
 
-Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
+Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, select Newtonian ship-facing or Relative screen-aligned flight, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
 Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Sixteen selectable resolutions cover common 16:9, 16:10, 3:2, 21:9, and 32:9 displays through 5120×2160, including 2880×1920 and 5120×1440 super-ultrawide.
 
@@ -63,6 +63,7 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 | Mouse | Aim ship and weapon |
 | Left mouse | Fire automatically while held |
 | Right mouse | Hold the directional shield |
+| `R` | Manually reload a partially used magazine |
 | `1`–`5` or click | Choose a draft card |
 | Hold `Tab` | Show live standings and public builds |
 | `Escape` | Open the non-pausing pilot menu |
@@ -76,6 +77,7 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 | Left stick | Forward/backward thrust and strafe |
 | Right stick | Aim ship and weapon |
 | Right / left trigger | Fire / shield |
+| X / Square | Manually reload a partially used magazine |
 | View / Back | Hold live scoreboard |
 | Menu / Start | Open the non-pausing pilot menu |
 | Left / right bumper while spectating | Cycle living pilots |
@@ -84,6 +86,8 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 | B / Circle | Back |
 
 Mapped Xbox-, PlayStation-, and similar controllers use these defaults. Flight sticks and other joysticks can bind any detected axis direction or button from the Controls tab.
+
+Newtonian is the default flight mode: movement follows the ship's heading. Relative mode keeps movement aligned to the screen, so `W` or stick-up always moves upward regardless of aim. The local ship carries its own ammo/reload readout above the model.
 
 ## Documentation
 
@@ -128,7 +132,7 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 1,640 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 1,666 automated assertions and 79 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 

@@ -39,9 +39,10 @@ These milestones are ordered by dependency. Work may be prototyped ahead, but a 
 | 6.16 — Persistent NPC Cover-Loop Breakouts | Complete | Added per-NPC/target/obstacle blocked-engagement memory, three-second opposite-side breakouts, sub-second sightline-flicker tolerance, and sustained-clear reset behavior for both cover islands and the central obstacle; 1,569 assertions, 78 project checks, and the real NPC lobby/combat flow passed. |
 | 6.17 — Multi-Shot Projectile Reconciliation | Complete | Reconciled every predicted pellet in a shared shot sequence instead of retaining collisionless extra visuals; verified Scatter Array creates three authoritative projectiles, removes the full predicted volley, and collides every pellet with arena barriers; 1,575 assertions, 78 project checks, and the real network/match flows passed. |
 | 6.18 — Card Rarity Rebalance and Visual Build Inspection | Complete | Rebalanced all seven offer-slot weights, raising the five-card Epic-or-better chance to about 50.2%; audited all 120 cards and corrected five mismatched tiers; replaced scoreboard and victory stat text boxes with rarity-styled card previews showing exact per-stack and compounded effects; 1,585 assertions, 79 project checks, and 100 production-screen captures passed. |
+| 6.19 — Full-Arena NPC Pursuit, Contact Recovery, and Flight UX | Complete | Extended every NPC profile to full-arena acquisition; added close-contact disengagement and deterministic authoritative ship separation; added an in-world ammo/reload display, authoritative remappable manual reload, and persistent Newtonian/Relative flight modes; protocol 8, 1,666 assertions, 79 project checks, real ENet/NPC flows, and 180 production captures passed. |
 | 7 — Export, Documentation, and Release Candidate | In Progress | Documentation and the verified Beta 1 Windows client package are complete; dedicated-server export, clean-machine acceptance, release-mode soak, code signing, and final release-candidate validation remain. |
 | 7.1 — Complete Documentation Suite | Complete | Rebuilt the repository README and added a full player/host manual, contributor/development guide, documentation index, architecture and network diagrams, hosting guidance, troubleshooting, card/audio authoring, and verification matrix. |
-| 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; exported a 127,507,544-byte embedded-PCK Windows x64 client with verified version metadata, rendered startup, and all six authored music tracks discovered; packaged a 57,036,318-byte friend ZIP with instructions and Godot notices; 1,640 assertions, 79 project checks, and 180 production captures passed. |
+| 7.2 — Windows Beta 1 Client Package | Complete | Pinned and displayed version 0.1.0-beta.1; added 2880×1920 as the sixteenth display mode; rebuilt a 127,516,408-byte embedded-PCK Windows x64 client with protocol 8, verified version metadata, rendered startup, and all six authored music tracks discovered; packaged a 57,045,256-byte friend ZIP with instructions and Godot notices; 1,666 assertions, 79 project checks, and 180 production captures passed. |
 | 8 — Ten-Map Expansion | In Progress | The static ten-map roster and automatic round rotation are playable; advanced per-map mechanics, optional rotation controls, full-capacity map simulations, and the rotating-map soak remain. |
 | 8.1 — Static Ten-Map Roster and Per-Round Rotation | Complete | Added ten visually distinct static topologies with 32 validated spawns each; a seeded shuffled deck changes maps only after a round is won and retains the same map through all heats and ties; authoritative collision, projectiles, overtime, NPC behavior, client reconstruction, HUD names, and protocol state are synchronized; 1,629 assertions, 79 project checks, real network/match-loop gates, and 150 production captures passed. |
 
@@ -306,7 +307,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Added `build-beta.ps1`, which runs the full project gate, exports the client, launches the exported executable through its rendered startup path, rejects runtime errors or missing packaged music, calculates SHA-256 hashes, and creates the friend ZIP.
 - Added friend-facing extraction, LAN/direct-connect, firewall/port-forwarding, unsigned-build, controls, and known-limitation guidance plus the Godot third-party license notice.
 - Corrected exported music discovery to use Godot's remap-aware resource inventory, then verified the package finds one menu track, four gameplay tracks, and one victory track.
-- Produced `SuperStarFighter-Beta1.exe` at 127,507,544 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,036,318 bytes; both are generated under ignored `builds/beta-1/`.
+- Produced `SuperStarFighter-Beta1.exe` at 127,516,408 bytes and `SuperStarFighter-Beta1-Windows-x64.zip` at 57,045,256 bytes; both are generated under ignored `builds/beta-1/`.
 
 ### Remaining Work
 
@@ -319,7 +320,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ### Verification
 
-- Beta 1 client acceptance passed 1,640 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
+- Beta 1 client acceptance passed 1,666 deterministic assertions, 79 project checks, and 180 production captures across 1280×720, 1920×1080, 2560×1080, 2880×1920, 3440×1440, and 5120×1440.
 - The exported executable passed embedded-resource creation, Windows metadata inspection, off-screen rendered startup, real Windows audio-driver startup, and packaged inventory validation for all six authored music tracks without runtime errors; the friend ZIP contains only the executable, Beta README, and third-party notice.
 
 - Produce both release artifacts from a clean checkout using only the documented bootstrap and export commands.
@@ -344,7 +345,7 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Replaced the single hard-coded arena definition with dedicated-server-safe map IDs, names, palettes, rectangle/circle geometry, shared queries, and validation for Core Arena, Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero.
 - Added exactly 32 unique spawn anchors to every map, with a 96 px obstacle/boundary clearance disk and at least 160 px center separation.
 - Added an independently seeded shuffled map deck. The authority selects once when a round's draft begins, preserves that map through countdown, every heat, tied replays, and the round result, then advances only when the next round begins.
-- Published authoritative `map_id` and `map_name` state under protocol version 7 and rebuilt client visuals/collision from that identity.
+- Published authoritative `map_id` and `map_name` state, now retained under protocol version 8 alongside manual reload, and rebuilt client visuals/collision from that identity.
 - Made ship movement, projectile barriers and ricochets, spawn selection, overtime positioning, NPC sightlines, flanking, and anti-loop behavior query the active map.
 - Added active-map names to countdown, combat HUD, and scoreboard presentation, plus distinct per-map floor, border, obstacle, and accent treatments.
 - Expanded automated coverage for all ten geometry definitions, unique topology signatures, selected-map collision, authoritative round/heat cadence, client reconstruction, and HUD identity.

@@ -26,6 +26,8 @@ KNOWN BETA LIMITATIONS
 
 CONTROLS
 
-Keyboard/mouse is the default. Controller and joystick profiles, full rebinding, display modes, resolution, and audio controls are available in Settings.
+Keyboard/mouse is the default. Controller and joystick profiles, Newtonian or screen-relative flight, full rebinding, display modes, resolution, and audio controls are available in Settings.
+
+Press R (or X / Square on a controller) to reload manually. Ammo and reload progress appear directly above your ship.
 
 Hold Tab (or View / Back on a controller) during a match to inspect standings, builds, the active map, and the currently playing gameplay track.

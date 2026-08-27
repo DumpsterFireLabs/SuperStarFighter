@@ -153,6 +153,7 @@ func _draw() -> void:
 	if local_control:
 		var marker_center := -forward * 39.0
 		draw_polyline(PackedVector2Array([marker_center - side * 9.0, marker_center + forward * 8.0, marker_center + side * 9.0]), Color("fff36a"), 4.0)
+		_draw_ammo_indicator()
 	if combatant.shield.active:
 		var half_arc := deg_to_rad(combatant.stats.shield_arc_degrees) * 0.5
 		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color("5cf6ff", 0.22), 14.0)
@@ -165,3 +166,23 @@ func _draw() -> void:
 func _draw_nameplate(color: Color) -> void:
 	var label := "◆ %s" % display_name if local_control else display_name
 	draw_string(ThemeDB.fallback_font, Vector2(-70.0, -45.0), label, HORIZONTAL_ALIGNMENT_CENTER, 140.0, 16, color)
+
+
+func _draw_ammo_indicator() -> void:
+	var weapon := combatant.weapon
+	var magazine_size := maxi(combatant.stats.magazine_size, 1)
+	var fraction := clampf(float(weapon.ammunition) / float(magazine_size), 0.0, 1.0)
+	var background := Rect2(-36.0, -78.0, 72.0, 8.0)
+	draw_rect(background, Color("071024", 0.92), true)
+	draw_rect(background, Color("fff36a", 0.75), false, 1.5)
+	if fraction > 0.0:
+		draw_rect(Rect2(background.position + Vector2(2.0, 2.0), Vector2((background.size.x - 4.0) * fraction, background.size.y - 4.0)), Color("ff9f43") if fraction <= 0.25 else Color("73f7ff"), true)
+	var text := ammo_indicator_text()
+	draw_string(ThemeDB.fallback_font, Vector2(-52.0, -83.0), text, HORIZONTAL_ALIGNMENT_CENTER, 104.0, 13, Color("fff36a") if weapon.reloading else Color("e8f5ff"))
+
+
+func ammo_indicator_text() -> String:
+	if combatant == null:
+		return ""
+	var weapon := combatant.weapon
+	return "RELOAD %.1fs" % weapon.reload_remaining if weapon.reloading else "AMMO %d/%d" % [weapon.ammunition, maxi(combatant.stats.magazine_size, 1)]

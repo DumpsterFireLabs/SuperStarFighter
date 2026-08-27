@@ -263,6 +263,7 @@ Keyboard and mouse is the first-launch default:
 | Mouse | Point ship and weapon |
 | Hold left mouse | Automatic fire |
 | Hold right mouse | Directional shield |
+| `R` | Manually reload a partially used magazine |
 | Hold `Tab` | Live standings and public builds |
 | `Escape` | Pilot menu; online combat continues |
 | `F3` | Network diagnostic overlay |
@@ -275,6 +276,7 @@ The controller/joystick profile defaults to:
 | Right stick | Point ship and weapon |
 | Hold right trigger | Automatic fire |
 | Hold left trigger | Directional shield |
+| X / Square | Manually reload a partially used magazine |
 | Hold View / Back | Live standings and public builds |
 | Menu / Start | Pilot menu; online combat continues |
 | Y / Triangle | Network diagnostic overlay |
@@ -283,7 +285,7 @@ The controller/joystick profile defaults to:
 | A / Cross | Confirm |
 | B / Circle | Back |
 
-Movement is ship-relative, not screen-relative. If the ship faces down, forward input moves down. A useful mental model is that the mouse or aim stick steers the nose while the movement controls command forward, reverse, and lateral thrusters.
+**Newtonian** is the default flight mode. Movement follows the ship's heading: if the ship faces down, forward input moves down. **Relative** mode keeps movement aligned to the screen, so `W` or stick-up always moves upward regardless of aim. Select either persistent mode under **Settings → Controls**.
 
 Diagonal input is normalized, so combining directions does not increase top speed.
 
@@ -293,7 +295,7 @@ Every listed gameplay and menu action can be rebound independently under **Setti
 
 The base weapon deals 25 damage, fires four shots per second, holds eight rounds, reloads automatically in 1.5 seconds, and launches projectiles at 900 pixels per second for 2.5 seconds.
 
-There is no manual reload. When the magazine empties, reload begins automatically. Firing is disabled during reload and while shielding.
+When the magazine empties, reload begins automatically. Press the configured manual-reload action (`R` or X / Square by default) to reload a partially used magazine. Firing is disabled during reload and while shielding.
 
 Cards can alter damage, cadence, magazine size, reload, projectile count, spread, speed, lifetime, pierces, and ricochets. Beam cards transform shots into fast, short-lived pulse beams while retaining authoritative collision and damage.
 
@@ -309,7 +311,7 @@ Shielding prevents firing and normally reduces acceleration, so timing matters: 
 
 ### 7.4 Collision and cover
 
-Ships slide against arena walls, map obstacles, and other ships. Ship collisions do no damage. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
+Ships slide against arena walls, map obstacles, and other ships. Ship collisions do no damage; deterministic separation prevents shield/fire ramming from pinning two ships together. Projectiles collide authoritatively with the selected map geometry, so cover can stop normal shots and redirect ricochet builds.
 
 Shots cannot spawn through a wall when the ship's nose is pressed against it.
 
@@ -323,7 +325,7 @@ After 90 seconds of active combat, a circular safe zone begins shrinking. The HU
 
 Overtime exists to force a conclusion. Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
 
-NPC pilots also react to the warning and shrinking radius. An NPC near or outside the boundary prioritizes an inward route over its preferred engagement distance; when cover blocks an engagement, its flank behavior continues to seek a viable firing lane rather than waiting for circle damage to decide the heat.
+NPC pilots acquire opponents across the full arena, including opposite-edge spawns. They also react to the warning and shrinking radius. An NPC near or outside the boundary prioritizes an inward route over its preferred engagement distance; when cover blocks an engagement, its flank behavior continues to seek a viable firing lane rather than waiting for circle damage to decide the heat. At collision distance it releases shield/fire and executes a separating sidestep before resuming combat.
 
 ## 8. Cards and Builds
 
@@ -390,7 +392,7 @@ The complete 120-card reference is in [section 7.3 of the specification](../spec
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 
-The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena.
+The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness.
 
 Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Builds are public after every draft.
 
@@ -436,6 +438,7 @@ Audio controls include master, music, and effects volume plus a mute toggle.
 The Controls tab provides:
 
 - An explicit **Keyboard & Mouse** or **Controller / Joystick** profile selector. Keyboard and mouse is the default until another selection is saved.
+- A persistent **Newtonian** ship-facing or **Relative** screen-aligned flight-mode selector.
 - Live connected-controller names. Bindings can also be prepared before a device is connected.
 - A controller stick-deadzone slider, defaulting to 22%.
 - One binding button for every movement, aim, combat, spectator, draft, and menu-navigation action available to the selected profile.
@@ -443,7 +446,7 @@ The Controls tab provides:
 
 To remap an action, select its binding button and press the replacement key, mouse button, controller button, or joystick axis direction. Axis capture requires a deliberate movement past 65%, which avoids binding ordinary stick drift. Capture times out after eight seconds without changing the binding.
 
-All display, audio, profile, deadzone, and binding settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
+All display, audio, flight-mode, profile, deadzone, and binding settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
 
 The game safely runs without authored audio: combat effects are synthesized, victory has a generated fallback, and absent music is skipped. Repository maintainers can add real music and sound effects without code changes by following the [audio drop-in contract](../assets/audio/README.md).
 

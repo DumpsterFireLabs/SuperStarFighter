@@ -15,6 +15,8 @@ const OBSTACLE_FLANK_CLEARANCE: float = 64.0
 const FLANK_DIRECTION_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND * 8
 const BLOCKED_LOOP_BREAKOUT_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND * 3
 const BLOCKED_LOOP_RESET_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND
+const FULL_MAP_ACQUISITION_RANGE: float = 4000.0
+const CLOSE_CONTACT_ESCAPE_DISTANCE: float = GameConstants.SHIP_COLLISION_RADIUS * 2.0 + 48.0
 const DIFFICULTY_PROFILES := {
 	Difficulty.PASSIVE: {
 		"reaction_ticks": 36, "aim_error_degrees": 24.0, "lead_seconds": 0.0,
@@ -69,7 +71,7 @@ func submit_inputs(
 			continue
 		_next_decision_ticks[peer_id] = world.server_tick + int(profile.reaction_ticks)
 		var zone_steering := overtime_steering(combatant.position, overtime_elapsed, world.map_id)
-		var target := _nearest_target(world, combatant, float(profile.awareness_range))
+		var target := _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
 		if target == null:
 			_blocked_engagements.erase(peer_id)
 			_submit_decision(
@@ -94,6 +96,15 @@ func submit_inputs(
 			Vector2(strafe, forward).limit_length(1.0),
 			aim_angle
 		)
+		var escaping_close_contact := distance < CLOSE_CONTACT_ESCAPE_DISTANCE
+		if escaping_close_contact:
+			var away := -offset.normalized()
+			if away.is_zero_approx():
+				away = Vector2.from_angle(float(posmod(peer_id * 37 + target.peer_id * 19, 360)) * PI / 180.0)
+			var sidestep := away.orthogonal()
+			if peer_id < target.peer_id:
+				sidestep = -sidestep
+			tactical_movement = (away + sidestep * 0.35).normalized() * maxf(float(profile.pursuit), 0.65)
 		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position, world.map_id)
 		var has_line_of_sight := blocking_obstacle.is_empty()
 		var breaking_blocked_loop := false
@@ -132,9 +143,9 @@ func submit_inputs(
 			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
 		var movement := _world_to_ship_input(tactical_movement, aim_angle)
 		var shield_phase := float(posmod(world.server_tick + peer_id, 180)) / 180.0
-		var shielding := distance < float(profile.shield_range) and shield_phase < float(profile.shield_duty)
+		var shielding := not escaping_close_contact and distance < float(profile.shield_range) and shield_phase < float(profile.shield_duty)
 		var fire_phase := float(posmod(world.server_tick + peer_id * 3, 120)) / 120.0
-		var firing := has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
+		var firing := not escaping_close_contact and has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding)
 
 
@@ -231,15 +242,7 @@ func _submit_decision(world: AuthoritativeWorld, peer_id: int, movement: Vector2
 
 
 static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> Vector2:
-	var movement := MovementSystem.sanitize_input(world_movement)
-	if movement.is_zero_approx():
-		return Vector2.ZERO
-	var forward := Vector2.from_angle(MovementSystem.normalize_aim_angle(aim_angle))
-	var right := -forward.orthogonal()
-	return MovementSystem.sanitize_input(Vector2(
-		movement.dot(right),
-		-movement.dot(forward)
-	))
+	return MovementSystem.world_to_ship_relative(world_movement, aim_angle)
 
 
 static func _first_blocking_obstacle(from: Vector2, to: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Dictionary:

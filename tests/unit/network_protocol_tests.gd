@@ -63,7 +63,7 @@ static func _validate_lan_discovery_protocol(context: TestContext) -> void:
 
 
 static func _validate_input_codec(context: TestContext) -> void:
-	var original := PlayerInputFrame.new(0xfffffffe, 800, Vector2(0.5, -0.75), 5.5, true, true)
+	var original := PlayerInputFrame.new(0xfffffffe, 800, Vector2(0.5, -0.75), 5.5, true, true, true)
 	var packet := InputPacketCodec.encode(original)
 	context.expect_equal(packet.size(), InputPacketCodec.PACKET_SIZE, "input codec uses a fixed packet size")
 	var decoded := InputPacketCodec.decode(packet)
@@ -75,13 +75,13 @@ static func _validate_input_codec(context: TestContext) -> void:
 		context.expect_approx(frame.movement.x, original.movement.x, "input X quantization round-trips", 0.0001)
 		context.expect_approx(frame.movement.y, original.movement.y, "input Y quantization round-trips", 0.0001)
 		context.expect_approx(angle_difference(frame.aim_angle, original.aim_angle), 0.0, "input aim quantization round-trips", 0.0001)
-		context.expect_true(frame.firing and frame.shielding, "input action bits round-trip")
+		context.expect_true(frame.firing and frame.shielding and frame.manual_reload, "input action bits round-trip")
 	context.expect_false(InputPacketCodec.decode(packet.slice(0, 12)).ok, "truncated input packet is rejected")
 	var bad_version := packet.duplicate()
 	bad_version[0] = 99
 	context.expect_false(InputPacketCodec.decode(bad_version).ok, "input packet version mismatch is rejected")
 	var bad_actions := packet.duplicate()
-	bad_actions[15] = 4
+	bad_actions[15] = 8
 	context.expect_false(InputPacketCodec.decode(bad_actions).ok, "impossible input action bits are rejected")
 	var excessive_movement := packet.duplicate()
 	excessive_movement[9] = 0xff
@@ -303,6 +303,33 @@ static func _validate_npc_lobby_and_inputs(context: TestContext) -> void:
 	var passive_input := world.latest_inputs[npc_id] as PlayerInputFrame
 	context.expect_false(passive_input.firing or passive_input.shielding, "passive NPC remains non-hostile")
 	context.expect_true(passive_input.movement.length() <= 0.26, "passive NPC movement remains deliberately gentle")
+
+	var far_world := AuthoritativeWorld.new()
+	var far_human := far_world.add_peer(200)
+	var far_npc_id := ServerLobby.NPC_PEER_ID_BASE + 10
+	var far_npc := far_world.add_peer(far_npc_id)
+	far_human.position = Vector2(3020.0, 140.0)
+	far_npc.position = Vector2(180.0, 140.0)
+	far_world.server_tick = 120
+	var far_controller := NpcPilotController.new()
+	far_controller.submit_inputs(far_world, [far_npc_id], {far_npc_id: NpcPilotController.Difficulty.PASSIVE})
+	var far_input := far_world.latest_inputs[far_npc_id] as PlayerInputFrame
+	var far_world_movement := MovementSystem.ship_relative_to_world(far_input.movement, far_input.aim_angle)
+	context.expect_true(far_world_movement.dot(Vector2.RIGHT) > 0.05, "even a passive NPC acquires and pursues a target across the full map")
+
+	var contact_world := AuthoritativeWorld.new()
+	var contact_human := contact_world.add_peer(300)
+	var contact_npc_id := ServerLobby.NPC_PEER_ID_BASE + 11
+	var contact_npc := contact_world.add_peer(contact_npc_id)
+	contact_human.position = Vector2(1000.0, 1000.0)
+	contact_npc.position = Vector2(1035.0, 1000.0)
+	contact_world.server_tick = 120
+	var contact_controller := NpcPilotController.new()
+	contact_controller.submit_inputs(contact_world, [contact_npc_id], {contact_npc_id: NpcPilotController.Difficulty.INSANE})
+	var contact_input := contact_world.latest_inputs[contact_npc_id] as PlayerInputFrame
+	var contact_escape := MovementSystem.ship_relative_to_world(contact_input.movement, contact_input.aim_angle)
+	context.expect_true(contact_escape.dot(Vector2.RIGHT) > 0.55, "NPC close-contact recovery steers decisively away from an overlapping opponent")
+	context.expect_false(contact_input.firing or contact_input.shielding, "NPC close-contact recovery releases fire and shield until separation")
 
 	var overtime_world := AuthoritativeWorld.new()
 	var endangered_npc_id := ServerLobby.NPC_PEER_ID_BASE + 20
@@ -574,9 +601,24 @@ static func _validate_authoritative_world(context: TestContext) -> void:
 		world.step(1.0 / 60.0)
 	context.expect_true(second.health < second.stats.max_health, "authoritative projectile damages another peer")
 	context.expect_equal(first.health, first.stats.max_health, "authoritative projectile preserves owner immunity")
+	context.expect_true(world.submit_input(2, PlayerInputFrame.new(4, 34, Vector2.ZERO, aim_to_second, false, false, true)), "authoritative world accepts manual reload input")
+	world.step(1.0 / 60.0)
+	context.expect_true(first.weapon.reloading, "authoritative manual reload starts before the magazine is empty")
 	var snapshot := world.snapshot_states()
 	context.expect_equal(snapshot.size(), 2, "authoritative snapshot contains every connected combatant")
 	context.expect_true(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(world.server_tick, world.acknowledged_input(2), snapshot)).ok, "authoritative world snapshot survives wire encoding")
+
+	var contact_world := AuthoritativeWorld.new()
+	var contact_left := contact_world.add_peer(40)
+	var contact_right := contact_world.add_peer(41)
+	contact_left.position = Vector2(1000.0, 1000.0)
+	contact_right.position = Vector2(1000.0, 1000.0)
+	contact_world.submit_input(40, PlayerInputFrame.new(1, 1, Vector2(0.0, -1.0), 0.0, true, true))
+	contact_world.submit_input(41, PlayerInputFrame.new(1, 1, Vector2(0.0, -1.0), PI, true, false))
+	for _tick in 30:
+		contact_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(contact_left.position.distance_to(contact_right.position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0 - 0.01, "ramming ships remain physically separated while shielding and firing")
+	context.expect_true(contact_left.velocity.length() > 1.0 or contact_right.velocity.length() > 1.0, "overlap recovery preserves separating motion instead of freezing both ships")
 
 	var blocked_world := AuthoritativeWorld.new()
 	var blocked_shooter := blocked_world.add_peer(20)

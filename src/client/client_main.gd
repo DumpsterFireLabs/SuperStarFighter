@@ -100,6 +100,7 @@ var window_mode_control: OptionButton
 var resolution_control: OptionButton
 var display_mode_note: Label
 var control_scheme_control: OptionButton
+var flight_mode_control: OptionButton
 var controller_status_label: Label
 var controller_deadzone_row: HBoxContainer
 var controller_deadzone_slider: HSlider
@@ -134,6 +135,7 @@ func _ready() -> void:
 	input_profiles = InputProfileManagerScript.new()
 	input_profiles.name = "InputProfileManager"
 	input_profiles.scheme_changed.connect(_on_control_scheme_changed)
+	input_profiles.flight_mode_changed.connect(_on_flight_mode_changed)
 	input_profiles.bindings_changed.connect(_on_control_bindings_changed)
 	input_profiles.controller_connections_changed.connect(_update_controller_status)
 	add_child(input_profiles)
@@ -869,6 +871,21 @@ func _create_controls_settings_tab() -> void:
 	control_scheme_control.select(int(input_profiles.active_scheme))
 	control_scheme_control.item_selected.connect(_on_control_scheme_selected)
 	scheme_row.add_child(control_scheme_control)
+	var flight_mode_row := HBoxContainer.new()
+	flight_mode_row.add_theme_constant_override("separation", 16)
+	tab.add_child(flight_mode_row)
+	var flight_mode_label := Label.new()
+	flight_mode_label.text = "Flight mode"
+	flight_mode_label.custom_minimum_size.x = 220.0
+	flight_mode_row.add_child(flight_mode_label)
+	flight_mode_control = OptionButton.new()
+	flight_mode_control.custom_minimum_size = Vector2(540.0, 44.0)
+	flight_mode_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	flight_mode_control.add_item("Newtonian · movement follows ship heading", InputProfileManagerScript.FlightMode.NEWTONIAN)
+	flight_mode_control.add_item("Relative · movement follows the screen", InputProfileManagerScript.FlightMode.RELATIVE)
+	flight_mode_control.select(int(input_profiles.flight_mode))
+	flight_mode_control.item_selected.connect(_on_flight_mode_selected)
+	flight_mode_row.add_child(flight_mode_control)
 	controller_status_label = Label.new()
 	controller_status_label.add_theme_color_override("font_color", Color("aebbd4"))
 	controller_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -899,7 +916,7 @@ func _create_controls_settings_tab() -> void:
 	binding_capture_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tab.add_child(binding_capture_status)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(820.0, 300.0)
+	scroll.custom_minimum_size = Vector2(820.0, 250.0)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tab.add_child(scroll)
@@ -921,6 +938,7 @@ func _refresh_input_settings_ui() -> void:
 	if control_scheme_control == null:
 		return
 	control_scheme_control.select(int(input_profiles.active_scheme))
+	flight_mode_control.select(int(input_profiles.flight_mode))
 	controller_deadzone_row.visible = input_profiles.uses_controller()
 	controller_deadzone_slider.set_value_no_signal(input_profiles.controller_deadzone)
 	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
@@ -952,6 +970,11 @@ func _rebuild_binding_rows() -> void:
 func _on_control_scheme_selected(index: int) -> void:
 	_cancel_binding_capture()
 	input_profiles.set_scheme(control_scheme_control.get_item_id(index))
+	_refresh_input_settings_ui()
+
+
+func _on_flight_mode_selected(index: int) -> void:
+	input_profiles.set_flight_mode(flight_mode_control.get_item_id(index))
 	_refresh_input_settings_ui()
 
 
@@ -1002,6 +1025,10 @@ func _on_restore_control_defaults() -> void:
 func _on_control_scheme_changed(_scheme: int) -> void:
 	_refresh_input_settings_ui()
 	_refresh_control_prompts()
+
+
+func _on_flight_mode_changed(_flight_mode: int) -> void:
+	_refresh_input_settings_ui()
 
 
 func _on_control_bindings_changed() -> void:

@@ -43,6 +43,13 @@ func try_fire(stats: CombatStats, shielding: bool) -> bool:
 	return true
 
 
+func request_reload(stats: CombatStats) -> bool:
+	if reloading or ammunition >= stats.magazine_size:
+		return false
+	_start_reload(stats)
+	return true
+
+
 func _start_reload(stats: CombatStats) -> void:
 	if reloading:
 		return
