@@ -15,6 +15,7 @@ static func run(context: TestContext) -> void:
 	_validate_objective_modes(context)
 	_validate_objective_respawns(context)
 	_validate_hill_round_rotation(context)
+	_validate_free_for_all_spawn_spread(context)
 	_validate_multi_team_spawns(context)
 	_validate_team_npc_spawn_resets(context)
 
@@ -340,6 +341,33 @@ static func _validate_multi_team_spawns(context: TestContext) -> void:
 		occupied_positions[combatant.position] = true
 	context.expect_equal(represented_teams.size(), 3, "coordinator preserves all configured teams")
 	context.expect_equal(occupied_positions.size(), 6, "multi-team heat preparation gives every participant a unique spawn anchor")
+
+
+static func _validate_free_for_all_spawn_spread(context: TestContext) -> void:
+	var coordinator := AuthoritativeMatchCoordinator.new(
+		ServerLobby.new(_fast_config()),
+		AuthoritativeWorld.new(),
+		8383
+	)
+	var clustered_anchors: Array[Vector2] = [
+		Vector2(100.0, 100.0),
+		Vector2(120.0, 100.0),
+		Vector2(140.0, 100.0),
+		Vector2(900.0, 100.0),
+		Vector2(100.0, 900.0),
+		Vector2(900.0, 900.0),
+	]
+	var assignments := coordinator._spread_spawn_assignments([1, 2, 3, 4], clustered_anchors)
+	var positions := assignments.values()
+	var minimum_separation := INF
+	for index in positions.size():
+		for other_index in range(index + 1, positions.size()):
+			minimum_separation = minf(
+				minimum_separation,
+				(positions[index] as Vector2).distance_to(positions[other_index] as Vector2)
+			)
+	context.expect_equal(assignments.size(), 4, "free-for-all spawn selection assigns every participant")
+	context.expect_true(minimum_separation >= 800.0, "free-for-all spawn selection rejects a shuffled cluster when distant anchors remain")
 
 
 static func _validate_team_npc_spawn_resets(context: TestContext) -> void:

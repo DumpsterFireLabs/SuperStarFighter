@@ -336,7 +336,7 @@ func _prepare_world_heat() -> void:
 	var spawn_assignments := (
 		_team_spawn_assignments(participant_ids, anchors)
 		if GameModeRules.is_team_mode(lobby.config.game_mode) else
-		{}
+		_spread_spawn_assignments(participant_ids, anchors)
 	)
 	for index in participant_ids.size():
 		var peer_id := participant_ids[index]
@@ -349,6 +349,30 @@ func _prepare_world_heat() -> void:
 	if lobby.config.game_mode == GameModeRules.Mode.CAPTURE_THE_FLAG:
 		_rebuild_objective_static_cache()
 	world.prepare_heat(participant_stats, spawn_assignments)
+
+
+func _spread_spawn_assignments(participant_ids: Array[int], anchors: Array[Vector2]) -> Dictionary:
+	var result: Dictionary = {}
+	var available := anchors.duplicate()
+	for peer_id in participant_ids:
+		if available.is_empty():
+			break
+		var best_index := 0
+		if not result.is_empty():
+			var best_clearance_squared := -1.0
+			for anchor_index in available.size():
+				var anchor := available[anchor_index] as Vector2
+				var clearance_squared := INF
+				for assigned_position in result.values():
+					clearance_squared = minf(
+						clearance_squared,
+						anchor.distance_squared_to(assigned_position as Vector2)
+					)
+				if clearance_squared > best_clearance_squared:
+					best_clearance_squared = clearance_squared
+					best_index = anchor_index
+		result[peer_id] = available.pop_at(best_index)
+	return result
 
 
 func _team_spawn_assignments(participant_ids: Array[int], anchors: Array[Vector2]) -> Dictionary:
