@@ -332,19 +332,21 @@ static func _validate_damage_and_repair(context: TestContext) -> void:
 
 
 static func _validate_overtime(context: TestContext) -> void:
-	context.expect_false(OvertimeSystem.is_active(89.999), "overtime is inactive before 90 seconds")
-	context.expect_true(OvertimeSystem.is_warning(85.0), "overtime warning begins five seconds early")
-	context.expect_true(OvertimeSystem.is_active(90.0), "overtime activates at 90 seconds")
+	var overtime_start := GameConstants.OVERTIME_START_SECONDS
+	var shrink_end := overtime_start + GameConstants.OVERTIME_SHRINK_SECONDS
+	context.expect_false(OvertimeSystem.is_active(overtime_start - 0.001), "overtime is inactive before its configured start")
+	context.expect_true(OvertimeSystem.is_warning(overtime_start - GameConstants.OVERTIME_WARNING_SECONDS), "overtime warning begins five seconds early")
+	context.expect_true(OvertimeSystem.is_active(overtime_start), "overtime activates at the default start time")
 	context.expect_approx(
-		OvertimeSystem.radius_at(135.0),
+		OvertimeSystem.radius_at(shrink_end),
 		GameConstants.OVERTIME_MINIMUM_RADIUS,
 		"overtime boundary reaches minimum radius after 45 seconds"
 	)
-	context.expect_approx(OvertimeSystem.damage_rate_at(90.0), 30.0, "overtime starts at base damage")
-	context.expect_approx(OvertimeSystem.damage_rate_at(145.0), 40.0, "overtime damage increases every ten seconds")
+	context.expect_approx(OvertimeSystem.damage_rate_at(overtime_start), 30.0, "overtime starts at base damage")
+	context.expect_approx(OvertimeSystem.damage_rate_at(shrink_end + 10.0), 40.0, "overtime damage increases every ten seconds")
 	context.expect_approx(OvertimeSystem.damage_rate_at(999.0), 100.0, "overtime damage is capped")
 	context.expect_approx(
-		OvertimeSystem.damage_for_position(Vector2.ZERO, 135.0, 0.5),
+		OvertimeSystem.damage_for_position(Vector2.ZERO, shrink_end, 0.5),
 		15.0,
 		"ship outside overtime radius takes continuous damage"
 	)
@@ -394,7 +396,7 @@ static func _validate_overtime_debug_toggle(context: TestContext) -> void:
 		"overtime debug control starts overtime from normal play"
 	)
 	context.expect_approx(
-		OfflineSandbox.next_overtime_toggle_time(85.0),
+		OfflineSandbox.next_overtime_toggle_time(GameConstants.OVERTIME_START_SECONDS - GameConstants.OVERTIME_WARNING_SECONDS),
 		0.0,
 		"overtime debug reset restores the full heat clock during warning"
 	)

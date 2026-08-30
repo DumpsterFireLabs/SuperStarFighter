@@ -674,7 +674,7 @@ func _create_lobby_options_popup() -> void:
 	overtime_start_control.min_value = 30.0
 	overtime_start_control.max_value = 120.0
 	overtime_start_control.step = 1.0
-	overtime_start_control.value = 90.0
+	overtime_start_control.value = GameConstants.OVERTIME_START_SECONDS
 	overtime_start_control.suffix = " sec"
 	overtime_start_control.custom_minimum_size = Vector2(150.0, 44.0)
 	overtime_start_control.value_changed.connect(_on_overtime_start_changed)

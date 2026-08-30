@@ -21,7 +21,7 @@ The workspace contains a complete vertical slice with a Windows client, headless
 - Cards stack and persist until the match ends. All players draft before round one and every subsequent round.
 - A heat ends when one ship remains. Eliminated players spectate surviving ships until the next heat. The first player to win two heats wins the round; heat scores then reset.
 - The first player to win the configured number of rounds wins the match. The lobby leader selects 1–5 round wins, defaulting to 3.
-- At the leader-configured 30–120 second mark (90 seconds by default), a circular damage boundary shrinks to the arena center over 45 seconds and deals 30 health per second through shields. If every survivor dies during the same server tick, replay the heat without awarding a point.
+- At the leader-configured 30–120 second mark (45 seconds by default), a circular damage boundary shrinks to the arena center over 45 seconds and deals 30 health per second through shields. If every survivor dies during the same server tick, replay the heat without awarding a point.
 - Disconnecting during a heat counts as elimination. Late joiners spectate until the next match; reconnect recovery is not included.
 - Use ten 3200×1800 built-in arenas with distinct authoritative obstacle topologies, visual palettes, and 32 validated spawn anchors. Shuffle a no-repeat map deck per match, keep every heat of a round on one map, and advance only after a round win.
 - Starting combat values: 100 health, 480 px/s maximum speed, 900 px/s² acceleration, 25 projectile damage, four shots/second, eight-round magazine, 1.5-second automatic or manual reload, and 900 px/s projectile speed.

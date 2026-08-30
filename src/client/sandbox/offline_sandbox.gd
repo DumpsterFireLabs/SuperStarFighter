@@ -416,9 +416,9 @@ func _cycle_overtime_debug() -> void:
 	overtime_debug_stage = (overtime_debug_stage + 1) % 4
 	match overtime_debug_stage:
 		0: heat_elapsed = 0.0
-		1: heat_elapsed = 85.0
-		2: heat_elapsed = 90.0
-		3: heat_elapsed = 135.0
+		1: heat_elapsed = GameConstants.OVERTIME_START_SECONDS - GameConstants.OVERTIME_WARNING_SECONDS
+		2: heat_elapsed = GameConstants.OVERTIME_START_SECONDS
+		3: heat_elapsed = GameConstants.OVERTIME_START_SECONDS + GameConstants.OVERTIME_SHRINK_SECONDS
 
 
 func _toggle_overtime_debug() -> void:

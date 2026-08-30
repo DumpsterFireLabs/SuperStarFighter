@@ -294,7 +294,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
 	context.expect_approx(client.powerup_interval_control.value, 20.0, "random drop interval visibly defaults to twenty seconds")
 	context.expect_false(client.powerups_permanent_button.button_pressed, "random drop permanence visibly defaults off")
-	context.expect_approx(client.overtime_start_control.value, 90.0, "overtime visibly defaults to ninety seconds")
+	context.expect_approx(client.overtime_start_control.value, 45.0, "overtime visibly defaults to forty-five seconds")
 	context.expect_equal(client.game_mode_control.item_count, 5, "lobby options expose all five selectable game modes")
 	context.expect_equal(client.game_mode_control.get_selected_id(), GameModeRules.Mode.DEATH_MATCH, "Death Match is visibly selected by default")
 	context.expect_true(client.team_count_row != null and client.team_count_control != null, "lobby options provide a configurable Team Death Match team count")

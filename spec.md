@@ -264,7 +264,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 
 ### 6.5 Overtime
 
-- At the leader-configured 30–120 second point of `ACTIVE_HEAT` (90 seconds by default), activate a centered circular safe boundary large enough to enclose the arena.
+- At the leader-configured 30–120 second point of `ACTIVE_HEAT` (45 seconds by default), activate a centered circular safe boundary large enough to enclose the arena.
 - Shrink its radius linearly to 120 pixels over 45 seconds.
 - Ships outside the current safe radius take 30 health/second, accumulated continuously and applied by the server each physics tick.
 - After the boundary reaches minimum radius, increase boundary damage by 10 health/second every 10 seconds, up to 100 health/second.

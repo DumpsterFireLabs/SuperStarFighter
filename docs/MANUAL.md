@@ -356,7 +356,7 @@ The active map appears in the countdown banner, combat HUD, and live scoreboard.
 
 ### 7.5 Overtime
 
-After the configured 30–120 second delay (90 seconds by default), a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
+After the configured 30–120 second delay (45 seconds by default), a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
 
 Overtime exists to force a conclusion. Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
 
@@ -498,7 +498,7 @@ The lab is a local sandbox for learning controls and testing card interactions w
 | `T` | Toggle target shields |
 | `B` | Toggle target firing |
 | `Y` | Reset the heat |
-| `O` | Start overtime, or reset warning/overtime to a full 90-second clock |
+| `O` | Start overtime, or reset warning/overtime to a full 45-second clock |
 | `Shift+O` | Cycle diagnostic overtime stages |
 | `F1` | Toggle laboratory help |
 
