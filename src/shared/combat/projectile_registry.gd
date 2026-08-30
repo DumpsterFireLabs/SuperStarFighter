@@ -73,6 +73,30 @@ func remove(projectile_id: int) -> bool:
 	return true
 
 
+func transfer_owner(projectile_id: int, new_owner_id: int) -> Array[int]:
+	var removed: Array[int] = []
+	var projectile := _by_id.get(projectile_id) as ProjectileState
+	if projectile == null or new_owner_id <= 0 or projectile.owner_id == new_owner_id:
+		return removed
+	var old_owner_id := projectile.owner_id
+	_remove_owner_tracking(old_owner_id, projectile_id)
+	projectile.owner_id = new_owner_id
+	_owner_counts[new_owner_id] = count_for_owner(new_owner_id) + 1
+	var owner_ids := _owner_ordered_ids.get(new_owner_id, []) as Array
+	owner_ids.append(projectile_id)
+	_owner_ordered_ids[new_owner_id] = owner_ids
+	if not _owner_heads.has(new_owner_id):
+		_owner_heads[new_owner_id] = 0
+	while count_for_owner(new_owner_id) > maximum_per_owner:
+		var oldest_owner_id := _oldest_for_owner(new_owner_id)
+		if oldest_owner_id < 0:
+			break
+		remove(oldest_owner_id)
+		removed.append(oldest_owner_id)
+	revision += 1
+	return removed
+
+
 func get_projectile(projectile_id: int) -> ProjectileState:
 	return _by_id.get(projectile_id) as ProjectileState
 
@@ -156,6 +180,20 @@ func _oldest_for_owner(owner_id: int) -> int:
 	if head < owner_ids.size():
 		return int(owner_ids[head])
 	return -1
+
+
+func _remove_owner_tracking(owner_id: int, projectile_id: int) -> void:
+	var owner_ids := _owner_ordered_ids.get(owner_id, []) as Array
+	owner_ids.erase(projectile_id)
+	var owner_count := maxi(count_for_owner(owner_id) - 1, 0)
+	if owner_count == 0:
+		_owner_counts.erase(owner_id)
+		_owner_ordered_ids.erase(owner_id)
+		_owner_heads.erase(owner_id)
+		return
+	_owner_counts[owner_id] = owner_count
+	_owner_ordered_ids[owner_id] = owner_ids
+	_owner_heads[owner_id] = 0
 
 
 func _advance_owner_head(owner_id: int) -> void:

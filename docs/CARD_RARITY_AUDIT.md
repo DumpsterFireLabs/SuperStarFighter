@@ -32,4 +32,4 @@ Tier selection happens before uniform selection within that tier, so tier popula
 
 The later shield-ram expansion adds five mechanically distinct cards, one at every tier from Rare through Unobtanium. Kinetic Prow is the minimal Rare archetype unlock. Impact Capacitor adds defensive breadth at Epic; Breach Vector pairs collision damage with the speed needed to deliver it at Legendary; Sundering Aegis materially lowers the activation threshold at Mythical; and Worldbreaker Prow combines the largest hit with capacity and repeat-impact scaling at Unobtanium. The progression reflects both immediate damage and how reliably each card enables repeated melee attacks.
 
-The 130-card catalog now contains 20 Common, 25 Uncommon, 29 Rare, 21 Epic, 16 Legendary, 11 Mythical, and 8 Unobtanium cards. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.
+The 133-card catalog now contains 20 Common, 25 Uncommon, 29 Rare, 21 Epic, 19 Legendary, 11 Mythical, and 8 Unobtanium cards. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.

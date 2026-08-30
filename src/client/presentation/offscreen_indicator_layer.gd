@@ -31,7 +31,7 @@ func _draw() -> void:
 		if peer_id == world_view.local_peer_id:
 			continue
 		var ship := world_view.ships[peer_id] as SandboxShip
-		if not ship.combatant.alive:
+		if not ship.combatant.alive or ship.combatant.is_cloaked():
 			continue
 		var screen_position := center + (ship.global_position - world_view.camera.position) * world_view.camera.zoom
 		if Rect2(Vector2.ZERO, viewport_size).grow(-36.0).has_point(screen_position):

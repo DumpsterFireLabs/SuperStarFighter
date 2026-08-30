@@ -10,7 +10,7 @@ config_version=5
 [application]
 
 config/name="Super Star Fighter"
-config/version="0.1.0-beta.6"
+config/version="0.1.0-beta.8"
 run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
 config/features=PackedStringArray("4.7")
 
@@ -28,6 +28,7 @@ window/stretch/aspect="expand"
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
 textures/default_filters/use_nearest_mipmap_filter=false
 environment/defaults/default_clear_color=Color(0.008, 0.012, 0.035, 1)
 

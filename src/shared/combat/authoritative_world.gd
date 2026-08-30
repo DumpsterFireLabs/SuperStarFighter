@@ -96,6 +96,11 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 		combatant.step(world_movement, frame.aim_angle, frame.shielding, delta)
 		if frame.special_activated:
 			combatant.activate_special()
+			if combatant.deploy_mine():
+				_spawn_mine(combatant)
+			combatant.activate_cloak()
+		else:
+			combatant.release_special_activation()
 		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
@@ -150,6 +155,13 @@ func prepare_heat(
 			combatant.health = 0.0
 			combatant.velocity = Vector2.ZERO
 			combatant.shield.active = false
+			combatant.cloak_remaining = 0.0
+
+
+func reset_match_inventories() -> void:
+	clear_projectiles()
+	for combatant_value in combatants.values():
+		(combatant_value as CombatantState).reset_match_inventory()
 
 
 func respawn_peer(peer_id: int, stats: CombatStats, spawn_position: Vector2) -> bool:
@@ -179,6 +191,7 @@ func set_spectator(peer_id: int) -> void:
 	combatant.health = 0.0
 	combatant.velocity = Vector2.ZERO
 	combatant.shield.active = false
+	combatant.cloak_remaining = 0.0
 
 
 func clear_projectiles() -> void:
@@ -186,7 +199,12 @@ func clear_projectiles() -> void:
 		_remove_projectile(projectile.projectile_id)
 
 
-func apply_overtime(heat_elapsed: float, delta: float) -> Array[int]:
+func apply_overtime(
+	heat_elapsed: float,
+	delta: float,
+	zone_center: Vector2 = GameConstants.ARENA_SIZE * 0.5,
+	minimum_radius: float = GameConstants.OVERTIME_MINIMUM_RADIUS
+) -> Array[int]:
 	var damage_events: Array[Dictionary] = []
 	for peer_id in _ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
@@ -196,7 +214,8 @@ func apply_overtime(heat_elapsed: float, delta: float) -> Array[int]:
 			combatant.position,
 			heat_elapsed,
 			delta,
-			ArenaLayout.center(map_id)
+			zone_center,
+			minimum_radius
 		)
 		if damage > 0.0:
 			damage_events.append({
@@ -225,6 +244,10 @@ func snapshot_states() -> Array[Dictionary]:
 			"alive": combatant.alive,
 			"shielding": combatant.shield.active,
 			"afterburner_active": combatant.afterburner_remaining > 0.0,
+			"mine_charges": combatant.mine_charges_remaining,
+			"mine_cooldown": combatant.mine_cooldown_remaining,
+			"cloaked": combatant.is_cloaked(),
+			"cloak_charges": combatant.cloak_charges_remaining,
 		})
 	return states
 
@@ -305,14 +328,29 @@ func _spawn_shot(combatant: CombatantState) -> void:
 		_spawned_since_batch.append(projectile)
 
 
+func _spawn_mine(combatant: CombatantState) -> void:
+	var mine := ProjectileState.create_mine(
+		_next_projectile_id,
+		combatant.peer_id,
+		combatant.position
+	)
+	_next_projectile_id = SequenceMath.increment(_next_projectile_id)
+	for removed_id in projectile_registry.add(mine):
+		_record_removed(removed_id)
+	_spawned_since_batch.append(mine)
+
+
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	var damage_events: Array[Dictionary] = []
 	var safe_delta := maxf(delta, 0.0)
+	_step_mine_proximity(peer_ids, damage_events)
 	for projectile_id in projectile_registry.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
 		var projectile := projectile_registry.get_projectile(projectile_id)
 		if projectile == null:
+			continue
+		if projectile.is_mine:
 			continue
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
@@ -345,12 +383,21 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			var obstacle_fraction := clampf(float(obstacle_hit.get("fraction", INF)), 0.0, 1.0) if obstacle_hit != null else INF
 			var ship_hit: Variant = _nearest_projectile_ship_hit(projectile, start, finish, peer_ids)
 			var ship_fraction := clampf(float(ship_hit.get("fraction", INF)), 0.0, 1.0) if ship_hit != null else INF
+			var mine_hit: Variant = _nearest_projectile_mine_hit(projectile, start, finish)
+			var mine_fraction := clampf(float(mine_hit.get("fraction", INF)), 0.0, 1.0) if mine_hit != null else INF
+			if mine_hit != null and mine_fraction <= obstacle_fraction and mine_fraction <= ship_fraction:
+				projectile.position = mine_hit.position as Vector2
+				var mine := projectile_registry.get_projectile(int(mine_hit.mine_id))
+				_remove_projectile(projectile.projectile_id)
+				if mine != null:
+					_detonate_mine(mine, peer_ids, damage_events)
+				break
 			if ship_hit != null and ship_fraction <= obstacle_fraction:
 				projectile.position = ship_hit.position as Vector2
 				travel_remaining *= maxf(1.0 - ship_fraction, 0.0)
 				if not _resolve_projectile_ship_hit(projectile, int(ship_hit.peer_id), damage_events):
 					break
-				projectile.position += direction * COLLISION_SURFACE_EPSILON
+				projectile.position += projectile.velocity.normalized() * COLLISION_SURFACE_EPSILON
 				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
 				continue
 			if obstacle_hit != null:
@@ -368,6 +415,68 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 
 	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
+
+
+func _step_mine_proximity(peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:
+	for projectile_id in projectile_registry.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var mine := projectile_registry.get_projectile(projectile_id)
+		if mine == null or not mine.is_mine:
+			continue
+		for peer_id in peer_ids:
+			var target := combatants[peer_id] as CombatantState
+			if not target.alive or peer_id == mine.owner_id or are_allies(mine.owner_id, peer_id):
+				continue
+			if target.position.distance_to(mine.position) <= GameConstants.MINE_TRIGGER_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+				_detonate_mine(mine, peer_ids, damage_events)
+				break
+
+
+func _nearest_projectile_mine_hit(projectile: ProjectileState, start: Vector2, finish: Vector2) -> Variant:
+	var nearest_mine_id := 0
+	var nearest_fraction := INF
+	for mine_id in projectile_registry.ordered_ids_view():
+		if mine_id == ProjectileRegistry.REMOVED_ID or mine_id == projectile.projectile_id:
+			continue
+		var mine := projectile_registry.get_projectile(mine_id)
+		if mine == null or not mine.is_mine:
+			continue
+		var fraction := _segment_circle_hit_fraction(
+			start,
+			finish,
+			mine.position,
+			projectile.radius + mine.radius
+		)
+		if fraction < 0.0 or fraction >= nearest_fraction:
+			continue
+		nearest_fraction = fraction
+		nearest_mine_id = mine_id
+	if nearest_mine_id == 0:
+		return null
+	return {
+		"mine_id": nearest_mine_id,
+		"fraction": nearest_fraction,
+		"position": start.lerp(finish, nearest_fraction),
+	}
+
+
+func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:
+	if mine == null or not mine.is_mine or projectile_registry.get_projectile(mine.projectile_id) == null:
+		return
+	_remove_projectile(mine.projectile_id)
+	for peer_id in peer_ids:
+		var target := combatants[peer_id] as CombatantState
+		if not target.alive or peer_id == mine.owner_id or are_allies(mine.owner_id, peer_id):
+			continue
+		if target.position.distance_to(mine.position) > GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+			continue
+		damage_events.append({
+			"projectile_id": mine.projectile_id,
+			"attacker_id": mine.owner_id,
+			"target_id": peer_id,
+			"damage": mine.damage,
+		})
 
 
 func _nearest_projectile_ship_hit(
@@ -424,6 +533,18 @@ func _resolve_projectile_ship_hit(
 				target.health + projectile.damage * target.stats.shield_damage_heal_fraction,
 				target.stats.max_health
 			)
+		if target.stats.rebound_shield_enabled and not projectile.has_rebounded:
+			var source := combatants.get(projectile.owner_id) as CombatantState
+			var source_position := source.position if source != null else projectile.position - projectile.velocity
+			var old_owner_id := projectile.owner_id
+			if projectile.rebound_toward(target.peer_id, source_position):
+				projectile.owner_id = old_owner_id
+				for removed_id in projectile_registry.transfer_owner(projectile.projectile_id, target.peer_id):
+					_record_removed(removed_id)
+				if projectile_registry.get_projectile(projectile.projectile_id) != null:
+					_record_projectile_update(projectile)
+					return true
+				return false
 		_remove_projectile(projectile.projectile_id)
 		return false
 	_apply_projectile_knockback(target, projectile, 1.0)
@@ -653,6 +774,13 @@ func _remove_projectile(projectile_id: int) -> void:
 func _record_removed(projectile_id: int) -> void:
 	if projectile_id not in _removed_since_batch:
 		_removed_since_batch.append(projectile_id)
+
+
+func _record_projectile_update(projectile: ProjectileState) -> void:
+	for pending in _spawned_since_batch:
+		if pending.projectile_id == projectile.projectile_id:
+			return
+	_spawned_since_batch.append(projectile)
 
 
 func _ordered_peer_ids() -> Array[int]:

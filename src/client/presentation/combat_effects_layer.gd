@@ -25,6 +25,14 @@ func spawn_damage(position: Vector2, direction: Vector2) -> void:
 	effects.append({"kind": &"damage", "position": position, "direction": direction, "color": Color("ff4f78"), "remaining": 0.3, "duration": 0.3})
 
 
+func spawn_mine_explosion(position: Vector2) -> void:
+	effects.append({"kind": &"mine", "position": position, "color": Color("ff9f43"), "remaining": 0.5, "duration": 0.5})
+
+
+func spawn_rebound(position: Vector2) -> void:
+	effects.append({"kind": &"rebound", "position": position, "color": Color("ff4fd8"), "remaining": 0.3, "duration": 0.3})
+
+
 func clear_effects() -> void:
 	effects.clear()
 	queue_redraw()
@@ -53,3 +61,15 @@ func _draw() -> void:
 				var side := direction.orthogonal()
 				var tip := position + direction * lerpf(36.0, 64.0, progress)
 				draw_colored_polygon(PackedVector2Array([tip, tip - direction * 18.0 + side * 10.0, tip - direction * 18.0 - side * 10.0]), Color(color, alpha))
+			&"mine":
+				draw_circle(position, lerpf(18.0, GameConstants.MINE_BLAST_RADIUS, progress), Color(color, alpha * 0.18))
+				draw_arc(position, lerpf(20.0, GameConstants.MINE_BLAST_RADIUS, progress), 0.0, TAU, 48, Color("fff36a", alpha), 6.0)
+				for ray in 12:
+					var direction := Vector2.from_angle(TAU * ray / 12.0 + progress * 0.3)
+					draw_line(position + direction * 12.0, position + direction * lerpf(36.0, GameConstants.MINE_BLAST_RADIUS, progress), Color(color, alpha), 5.0)
+			&"rebound":
+				draw_circle(position, lerpf(12.0, 46.0, progress), Color(color, alpha * 0.2))
+				draw_arc(position, lerpf(16.0, 52.0, progress), -PI * 0.7, PI * 0.7, 24, Color(color, alpha), 5.0)
+				for ray in 5:
+					var direction := Vector2.from_angle(PI + lerpf(-0.65, 0.65, ray / 4.0))
+					draw_line(position, position + direction * lerpf(14.0, 54.0, progress), Color(color, alpha), 3.0)

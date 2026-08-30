@@ -19,6 +19,12 @@ var ricochet_count: int = 0
 var beam_weapon: bool = false
 var projectile_knockback: float = 0.0
 
+var mine_capacity: int = 0
+var mine_layer_enabled: bool = false
+
+var cloak_capacity: int = 0
+var cloak_enabled: bool = false
+
 var afterburner_enabled: bool = false
 var afterburner_impulse: float = 360.0
 var afterburner_duration: float = 0.55
@@ -38,6 +44,7 @@ var shield_ram_damage: float = 0.0
 var shield_ram_min_speed: float = 180.0
 var shield_ram_cooldown: float = 0.85
 var shield_damage_heal_fraction: float = 0.0
+var rebound_shield_enabled: bool = false
 
 var auto_repair_enabled: bool = false
 var auto_repair_delay: float = 5.0
@@ -55,6 +62,9 @@ func duplicate_stats() -> CombatStats:
 	copy.auto_repair_enabled = auto_repair_enabled
 	copy.beam_weapon = beam_weapon
 	copy.afterburner_enabled = afterburner_enabled
+	copy.mine_layer_enabled = mine_layer_enabled
+	copy.cloak_enabled = cloak_enabled
+	copy.rebound_shield_enabled = rebound_shield_enabled
 	return copy
 
 
@@ -75,6 +85,8 @@ static func get_stat_property_names() -> Array[StringName]:
 		&"pierce_count",
 		&"ricochet_count",
 		&"projectile_knockback",
+		&"mine_capacity",
+		&"cloak_capacity",
 		&"afterburner_impulse",
 		&"afterburner_duration",
 		&"afterburner_cooldown",

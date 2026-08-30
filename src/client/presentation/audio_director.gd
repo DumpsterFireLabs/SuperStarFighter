@@ -15,7 +15,8 @@ const WEAPON_VARIANT_COUNT: int = 3
 const SFX_NAMES: Array[StringName] = [
 	&"fire", &"beam_fire", &"reload", &"shield_on", &"shield_block", &"shield_break",
 	&"damage", &"elimination", &"card_lock", &"countdown", &"overtime",
-	&"round_win", &"match_win", &"projectile_impact", &"ricochet",
+	&"round_win", &"match_win", &"projectile_impact", &"ricochet", &"mine_detonated",
+	&"rebound",
 ]
 
 var menu_player: AudioStreamPlayer
@@ -162,13 +163,13 @@ func play_sfx(event_name: StringName, unique_key: String = "", volume_db: float 
 	var cooldown_scope := String(event_name)
 	if event_name in [&"damage", &"shield_on", &"shield_block", &"shield_break", &"elimination", &"reload"] and not unique_key.is_empty():
 		cooldown_scope += ":" + unique_key.get_slice(":", 0)
-	var cooldown := 35 if event_name in [&"fire", &"beam_fire", &"ricochet"] else 70
+	var cooldown := 35 if event_name in [&"fire", &"beam_fire", &"ricochet", &"rebound"] else 70
 	if now - int(_last_played_msec.get(cooldown_scope, -1000)) < cooldown:
 		return
 	_last_played_msec[cooldown_scope] = now
 	if not playback_enabled:
 		return
-	var priority := 6 if event_name in [&"shield_break", &"elimination", &"match_win"] else 2
+	var priority := 6 if event_name in [&"shield_break", &"elimination", &"match_win", &"mine_detonated"] else 2
 	var player := _acquire_sfx_player(priority)
 	if player == null:
 		return
@@ -365,6 +366,7 @@ func _load_sfx() -> void:
 		&"countdown": [440.0, 660.0, 0.12], &"overtime": [190.0, 380.0, 0.35],
 		&"round_win": [520.0, 880.0, 0.34], &"match_win": [440.0, 1320.0, 0.55],
 		&"projectile_impact": [310.0, 72.0, 0.13], &"ricochet": [1180.0, 540.0, 0.10],
+		&"mine_detonated": [145.0, 42.0, 0.42], &"rebound": [1480.0, 680.0, 0.13],
 	}
 	for event_name in SFX_NAMES:
 		var override := _load_audio_override(String(event_name))

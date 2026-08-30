@@ -124,6 +124,10 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 			"alive": true,
 			"shielding": peer_id % 2 == 0,
 			"afterburner_active": peer_id == 2,
+			"mine_charges": 9 if peer_id == 2 else 0,
+			"mine_cooldown": 7.25 if peer_id == 2 else 0.0,
+			"cloaked": peer_id == 2,
+			"cloak_charges": 3 if peer_id == 2 else 0,
 		})
 	var packet := PlayerSnapshotCodec.encode(900, 44, states)
 	var decoded := PlayerSnapshotCodec.decode(packet)
@@ -137,6 +141,10 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 		context.expect_approx((first.position as Vector2).x, 20.5, "snapshot position quantization round-trips")
 		context.expect_approx((first.velocity as Vector2).y, -80.25, "snapshot velocity quantization round-trips")
 		context.expect_true(bool(first.afterburner_active), "snapshot carries the authoritative Afterburner bloom state")
+		context.expect_equal(int(first.mine_charges), 9, "snapshot carries authoritative remaining mine charges")
+		context.expect_approx(float(first.mine_cooldown), 7.25, "snapshot carries the authoritative mine cooldown")
+		context.expect_true(bool(first.cloaked), "snapshot carries the authoritative cloak state")
+		context.expect_equal(int(first.cloak_charges), 3, "snapshot carries match-long cloak charges")
 	context.expect_false(PlayerSnapshotCodec.decode(packet.slice(0, packet.size() - 1)).ok, "truncated player snapshot is rejected")
 	var oversized := PackedByteArray()
 	oversized.resize(PlayerSnapshotCodec.HEADER_SIZE)
@@ -152,7 +160,10 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	stats.beam_weapon = true
 	var projectile := ProjectileState.create(77, 4, 12, Vector2(321.25, 654.5), 0.75, stats)
 	projectile.lifetime_remaining = 1.875
+	projectile.has_rebounded = true
 	var spawned: Array[ProjectileState] = [projectile]
+	var mine := ProjectileState.create_mine(78, 4, Vector2(400.0, 500.0))
+	spawned.append(mine)
 	var packets := ProjectilePacketCodec.encode_batch_chunks(1000, 7, spawned, [10, 11])
 	context.expect_equal(packets.size(), 1, "small projectile batch fits one bounded transport message")
 	var packet := packets[0]
@@ -171,9 +182,13 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 		context.expect_equal(decoded_projectile.remaining_pierces, 2, "projectile pierce count round-trips")
 		context.expect_equal(decoded_projectile.remaining_ricochets, 1, "projectile ricochet count round-trips")
 		context.expect_true(decoded_projectile.is_beam, "projectile beam presentation flag round-trips")
+		context.expect_true(decoded_projectile.has_rebounded, "projectile rebound presentation flag round-trips")
+		var decoded_mine := decoded.spawned[1] as ProjectileState
+		context.expect_true(decoded_mine.is_mine, "mine presentation flag round-trips")
+		context.expect_approx(decoded_mine.radius, GameConstants.MINE_RADIUS, "decoded mine restores its collision radius")
 	context.expect_false(ProjectilePacketCodec.decode_batch(packet.slice(0, 8)).ok, "truncated projectile batch is rejected")
 	var bad_flags := packet.duplicate()
-	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 2
+	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 8
 	context.expect_false(ProjectilePacketCodec.decode_batch(bad_flags).ok, "unsupported projectile presentation flags are rejected")
 	var correction := ProjectilePacketCodec.encode_correction_chunks(1001, 8, spawned, true)[0]
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")
@@ -1003,6 +1018,9 @@ static func _validate_card_powerups(context: TestContext) -> void:
 		combatant.position = fast_spawn.position
 		permanent_system.step(501, world, players)
 		context.expect_equal(player.card_stack(StringName(fast_spawn.card_id)), 1, "permanent-drop option stores the pickup in the match-long inventory")
+	var powerup_cloak := world.add_peer(3)
+	CardPowerupSystemScript._apply_updated_stats(powerup_cloak, StatSystem.derive({&"cloak": 1}, catalog))
+	context.expect_equal(powerup_cloak.cloak_charges_remaining, 1, "a mid-heat Cloak! pickup immediately grants its match-long use")
 
 
 static func _validate_new_card_mechanics(context: TestContext) -> void:
@@ -1019,6 +1037,70 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	var first_cooldown := boosted.afterburner_cooldown_remaining
 	boost_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_true(boosted.afterburner_cooldown_remaining < first_cooldown, "holding the special input cannot reset the Afterburner cooldown")
+
+	var mine_stats := StatSystem.derive({&"mine_layer": 1}, catalog)
+	context.expect_true(mine_stats.mine_layer_enabled, "Star Mines enables the authoritative mine special")
+	context.expect_equal(mine_stats.mine_capacity, 10, "one Star Mines card supplies ten mine charges")
+	var mine_world := AuthoritativeWorld.new()
+	var layer := mine_world.add_peer(230, mine_stats)
+	var mine_target := mine_world.add_peer(231)
+	layer.position = Vector2(500.0, 500.0)
+	mine_target.position = Vector2(620.0, 500.0)
+	mine_world.submit_input(230, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
+	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(layer.mine_charges_remaining, 9, "placing a mine consumes exactly one of ten charges")
+	context.expect_true(layer.mine_cooldown_remaining > 9.9, "placing a mine starts the ten-second cooldown")
+	context.expect_equal(mine_world.active_projectiles().size(), 1, "Shift places one persistent authoritative mine")
+	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(mine_world.active_projectiles().size(), 1, "repeated special frames cannot bypass the mine cooldown")
+	var trigger_shot := ProjectileState.create(900, 230, 2, Vector2(480.0, 500.0), 0.0, CombatStats.create_base())
+	mine_world.projectile_registry.add(trigger_shot)
+	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(mine_world.active_projectiles().size(), 0, "a projectile hit consumes both the triggering shot and mine")
+	context.expect_approx(mine_target.health, 25.0, "a projectile-triggered mine damages enemies in its blast radius")
+	var two_stack_mines := StatSystem.derive({&"mine_layer": 2}, catalog)
+	layer.reset_for_heat(two_stack_mines, Vector2(500.0, 500.0))
+	context.expect_equal(layer.mine_charges_remaining, 19, "taking Star Mines again adds ten charges without restoring spent mines")
+	mine_world.reset_match_inventories()
+	layer.reset_for_heat(mine_stats, Vector2(500.0, 500.0))
+	context.expect_equal(layer.mine_charges_remaining, 10, "a new match restores the first Star Mines stack to ten charges")
+	var proximity_world := AuthoritativeWorld.new()
+	var proximity_layer := proximity_world.add_peer(240, mine_stats)
+	var proximity_target := proximity_world.add_peer(241)
+	proximity_layer.position = Vector2(700.0, 500.0)
+	proximity_target.position = Vector2(950.0, 500.0)
+	proximity_world.submit_input(240, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
+	proximity_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	proximity_target.position = Vector2(780.0, 500.0)
+	proximity_world.submit_input(240, PlayerInputFrame.new(2, 2))
+	proximity_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_empty(proximity_world.active_projectiles(), "an enemy entering the trigger radius detonates the mine")
+	context.expect_approx(proximity_target.health, 25.0, "proximity detonation applies mine blast damage")
+
+	var cloak_stats := StatSystem.derive({&"cloak": 1}, catalog)
+	context.expect_true(cloak_stats.cloak_enabled, "Cloak! enables the authoritative special action")
+	context.expect_equal(cloak_stats.cloak_capacity, 1, "each Cloak! card supplies one match-long use")
+	var cloak_world := AuthoritativeWorld.new()
+	var cloaked := cloak_world.add_peer(250, cloak_stats)
+	cloak_world.submit_input(250, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, true, false, false, true))
+	cloak_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(cloaked.is_cloaked(), "Shift activates five seconds of authoritative invisibility")
+	context.expect_equal(cloaked.cloak_charges_remaining, 0, "activating Cloak! consumes exactly one card charge")
+	context.expect_true(cloaked.cloak_remaining > 4.9, "Cloak! retains almost its full five-second duration after activation")
+	context.expect_equal(cloaked.weapon.ammunition, cloak_stats.magazine_size, "a firing input cannot consume ammunition while cloaked")
+	context.expect_false(cloaked.apply_damage(10.0), "nonlethal damage leaves the cloaked pilot alive")
+	context.expect_false(cloaked.is_cloaked(), "taking positive damage immediately breaks invisibility")
+	cloak_world.submit_input(250, PlayerInputFrame.new(2, 2))
+	cloak_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	cloak_world.submit_input(250, PlayerInputFrame.new(3, 3, Vector2.ZERO, 0.0, false, false, false, true))
+	cloak_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_false(cloaked.is_cloaked(), "a spent Cloak! card cannot reactivate during the match")
+	var two_cloak_stats := StatSystem.derive({&"cloak": 2}, catalog)
+	cloaked.reset_for_heat(two_cloak_stats, Vector2(400.0, 400.0))
+	context.expect_equal(cloaked.cloak_charges_remaining, 1, "drafting another Cloak! adds one use without restoring the spent card")
+	cloak_world.reset_match_inventories()
+	cloaked.reset_for_heat(cloak_stats, Vector2(400.0, 400.0))
+	context.expect_equal(cloaked.cloak_charges_remaining, 1, "a new match restores one use for each Cloak! card")
 
 	var ramming_stats := StatSystem.derive({&"ramming_shields": 1}, catalog)
 	context.expect_true(ramming_stats.shield_ram_damage >= 44.0, "Ramming Shields independently enables serious melee damage")
@@ -1049,6 +1131,32 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	shield_world._resolve_projectile_ship_hit(shield_projectile, 221, shield_damage_events)
 	context.expect_approx(shield_target.velocity.x, knockback_stats.projectile_knockback * 0.2, "shield block retains only a small fraction of projectile knockback", 0.01)
 	context.expect_approx(shield_target.health, 50.0 + shield_projectile.damage * nosferatu_stats.shield_damage_heal_fraction, "Nosferatu Shield converts a percentage of blocked damage into hull health", 0.01)
+
+	var rebound_stats := StatSystem.derive({&"rebound_shields": 1}, catalog)
+	var rebound_world := AuthoritativeWorld.new()
+	var rebound_source := rebound_world.add_peer(250)
+	var rebound_target := rebound_world.add_peer(251, rebound_stats)
+	rebound_source.position = Vector2(500.0, 400.0)
+	rebound_source.health = 10.0
+	rebound_target.position = Vector2(600.0, 400.0)
+	rebound_target.aim_angle = PI
+	rebound_target.shield.active = true
+	var reflected := ProjectileState.create(503, 250, 1, Vector2(590.0, 400.0), 0.0, CombatStats.create_base())
+	rebound_world.projectile_registry.add(reflected)
+	var rebound_damage_events: Array[Dictionary] = []
+	context.expect_true(rebound_world._resolve_projectile_ship_hit(reflected, 251, rebound_damage_events), "Rebound Shields preserve a blocked projectile")
+	context.expect_true(reflected.has_rebounded and reflected.owner_id == 251, "blocked projectile becomes the shield owner's reflected shot")
+	context.expect_approx(reflected.damage, 12.5, "authoritative rebound retains half damage")
+	context.expect_approx(reflected.lifetime_remaining, GameConstants.PROJECTILE_LIFETIME_SECONDS * 0.5, "authoritative rebound retains half remaining range")
+	context.expect_true(reflected.velocity.x < 0.0, "authoritative rebound aims at the original shooter")
+	var rebound_batch := rebound_world.drain_projectile_batch()
+	context.expect_equal((rebound_batch.spawned as Array).size(), 1, "rebound is sent immediately as an authoritative projectile update")
+	rebound_world.step(0.2)
+	var rebound_kills := rebound_world.drain_kill_events()
+	context.expect_false(rebound_source.alive, "reflected projectile can damage its original shooter")
+	context.expect_equal(rebound_kills.size(), 1, "lethal reflected projectile emits one kill")
+	if not rebound_kills.is_empty():
+		context.expect_equal(int(rebound_kills[0].killer_id), 251, "reflected kill is credited to the shield owner")
 
 	var lethal_world := AuthoritativeWorld.new()
 	lethal_world.add_peer(230)

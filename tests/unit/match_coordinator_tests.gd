@@ -220,6 +220,33 @@ static func _validate_objective_modes(context: TestContext) -> void:
 	context.expect_equal(hill_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "cumulative uncontested hill time resolves the heat at twenty seconds")
 	context.expect_equal(hill_coordinator.machine.last_heat_winner, 1, "the surviving hill controller wins the objective heat")
 
+	var overtime_fixture := _objective_fixture(GameModeRules.Mode.KING_OF_THE_HILL, 3, 6061)
+	var overtime_world := overtime_fixture.world as AuthoritativeWorld
+	var overtime_coordinator := overtime_fixture.coordinator as AuthoritativeMatchCoordinator
+	var overtime_payload := overtime_coordinator.current_state_payload()
+	var overtime_hill := (overtime_payload.objective as Dictionary).position as Vector2
+	context.expect_equal(overtime_payload.overtime_center, overtime_hill, "King of the Hill publishes the hill as the overtime center")
+	context.expect_approx(
+		float(overtime_payload.overtime_minimum_radius),
+		GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS,
+		"King of the Hill publishes the larger overtime minimum"
+	)
+	var hill_pilot := overtime_world.combatants[1] as CombatantState
+	var buffered_pilot := overtime_world.combatants[2] as CombatantState
+	var outside_pilot := overtime_world.combatants[3] as CombatantState
+	hill_pilot.position = overtime_hill
+	buffered_pilot.position = overtime_hill + Vector2(GameModeRules.OBJECTIVE_ZONE_RADIUS + 25.0, 0.0)
+	outside_pilot.position = overtime_hill + Vector2(GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS + 25.0, 0.0)
+	overtime_coordinator.overtime_start_seconds = 0.0
+	overtime_world.server_tick = (
+		overtime_coordinator.machine.state_entered_tick +
+		roundi(GameConstants.OVERTIME_SHRINK_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	)
+	overtime_coordinator.step(0.1)
+	context.expect_approx(hill_pilot.health, hill_pilot.stats.max_health, "the relocated hill center remains safe in overtime")
+	context.expect_approx(buffered_pilot.health, buffered_pilot.stats.max_health, "the larger KOTH overtime ring protects the hill buffer")
+	context.expect_true(outside_pilot.health < outside_pilot.stats.max_health, "a pilot outside the KOTH overtime ring still takes damage")
+
 	var flag_fixture := _objective_fixture(GameModeRules.Mode.CAPTURE_THE_FLAG, 2, 7070)
 	var flag_world := flag_fixture.world as AuthoritativeWorld
 	var flag_coordinator := flag_fixture.coordinator as AuthoritativeMatchCoordinator

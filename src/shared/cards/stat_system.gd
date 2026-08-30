@@ -39,6 +39,8 @@ const INTEGER_STATS: Array[StringName] = [
 	&"projectile_count",
 	&"pierce_count",
 	&"ricochet_count",
+	&"mine_capacity",
+	&"cloak_capacity",
 ]
 
 
@@ -73,6 +75,12 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 			stats.beam_weapon = true
 		elif card.special_behavior_id == &"afterburner":
 			stats.afterburner_enabled = true
+		elif card.special_behavior_id == &"mine_layer":
+			stats.mine_layer_enabled = true
+		elif card.special_behavior_id == &"cloak":
+			stats.cloak_enabled = true
+		elif card.special_behavior_id == &"rebound_shield":
+			stats.rebound_shield_enabled = true
 
 	for property_name in FLOAT_STATS:
 		var value := (float(stats.get(property_name)) + float(additive_totals[property_name])) * float(multiplier_totals[property_name])
@@ -100,7 +108,7 @@ static func validate_card(card: CardDefinition) -> PackedStringArray:
 	for property_name in card.integer_modifiers:
 		if StringName(property_name) not in INTEGER_STATS:
 			errors.append("Card %s has unsupported integer stat %s." % [card.card_id, property_name])
-	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner"]:
+	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner", &"mine_layer", &"rebound_shield", &"cloak"]:
 		errors.append("Card %s has unsupported special behavior %s." % [card.card_id, card.special_behavior_id])
 	return errors
 
@@ -128,6 +136,8 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.afterburner_acceleration_multiplier = clampf(stats.afterburner_acceleration_multiplier, 1.0, 6.0)
 	stats.pierce_count = clampi(stats.pierce_count, 0, 12)
 	stats.ricochet_count = clampi(stats.ricochet_count, 0, 12)
+	stats.mine_capacity = clampi(stats.mine_capacity, 0, 1000)
+	stats.cloak_capacity = clampi(stats.cloak_capacity, 0, 1000)
 	stats.shield_capacity = clampf(stats.shield_capacity, 5.0, 600.0)
 	stats.shield_regeneration = clampf(stats.shield_regeneration, 1.0, 400.0)
 	stats.shield_continuous_drain = clampf(stats.shield_continuous_drain, 0.25, 400.0)

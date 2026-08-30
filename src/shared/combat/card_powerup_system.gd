@@ -188,7 +188,17 @@ static func _apply_updated_stats(combatant: CombatantState, updated_stats: Comba
 	var health_gain := maxf(updated_stats.max_health - previous.max_health, 0.0)
 	var shield_gain := maxf(updated_stats.shield_capacity - previous.shield_capacity, 0.0)
 	var ammunition_gain := maxi(updated_stats.magazine_size - previous.magazine_size, 0)
+	var mine_charge_gain := maxi(updated_stats.mine_capacity - previous.mine_capacity, 0)
+	var cloak_charge_gain := maxi(updated_stats.cloak_capacity - previous.cloak_capacity, 0)
 	combatant.stats = updated_stats.duplicate_stats()
 	combatant.health = clampf(combatant.health + health_gain, 0.0, combatant.stats.max_health)
 	combatant.shield.energy = clampf(combatant.shield.energy + shield_gain, 0.0, combatant.stats.shield_capacity)
 	combatant.weapon.ammunition = clampi(combatant.weapon.ammunition + ammunition_gain, 0, combatant.stats.magazine_size)
+	combatant.mine_charges_remaining = mini(
+		combatant.mine_charges_remaining + mine_charge_gain,
+		combatant.stats.mine_capacity
+	)
+	combatant.cloak_charges_remaining = mini(
+		combatant.cloak_charges_remaining + cloak_charge_gain,
+		combatant.stats.cloak_capacity
+	)

@@ -115,7 +115,12 @@ func step(delta: float) -> void:
 					GameConstants.OVERTIME_START_SECONDS +
 					heat_elapsed - overtime_start_seconds
 				)
-				world.apply_overtime(overtime_elapsed, delta)
+				world.apply_overtime(
+					overtime_elapsed,
+					delta,
+					_overtime_center(),
+					_overtime_minimum_radius()
+				)
 			for powerup_event in powerups.step(tick, world, machine.players):
 				var payload := (powerup_event.payload as Dictionary).duplicate(true)
 				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
@@ -200,6 +205,18 @@ func npc_overtime_elapsed() -> float:
 
 func npc_objective_state() -> Dictionary:
 	return _objective_state_view()
+
+
+func _overtime_center() -> Vector2:
+	if GameModeRules.uses_hill(lobby.config.game_mode):
+		return _objective_position
+	return ArenaLayout.center(current_map_id)
+
+
+func _overtime_minimum_radius() -> float:
+	if GameModeRules.uses_hill(lobby.config.game_mode):
+		return GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
+	return GameConstants.OVERTIME_MINIMUM_RADIUS
 
 
 func is_finished() -> bool:
@@ -702,6 +719,8 @@ func _state_payload() -> Dictionary:
 		"random_powerup_interval_seconds": lobby.config.random_powerup_interval_seconds,
 		"random_powerups_permanent": lobby.config.random_powerups_permanent,
 		"objective": _objective_snapshot(),
+		"overtime_center": _overtime_center(),
+		"overtime_minimum_radius": _overtime_minimum_radius(),
 		"overtime_start_tick": machine.state_entered_tick + roundi(
 			overtime_start_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND
 		) if machine.state == MatchStateMachine.State.ACTIVE_HEAT else -1,

@@ -142,6 +142,12 @@ func _effect_rows() -> Array[Dictionary]:
 		rows.append({"name": "Special", "each": "Hull repair", "total": "ENABLED"})
 	elif card_definition.special_behavior_id == &"afterburner":
 		rows.append({"name": "Special", "each": "Forward burst", "total": "SHIFT / BINDING"})
+	elif card_definition.special_behavior_id == &"mine_layer":
+		rows.append({"name": "Special", "each": "Drop mine", "total": "SHIFT / BINDING"})
+	elif card_definition.special_behavior_id == &"cloak":
+		rows.append({"name": "Special", "each": "5s invisibility", "total": "SHIFT / BINDING"})
+	elif card_definition.special_behavior_id == &"rebound_shield":
+		rows.append({"name": "Shield Form", "each": "50% return", "total": "ENABLED"})
 	if rows.is_empty():
 		rows.append({"name": "Special", "each": "Unique behavior", "total": "ACTIVE"})
 	return rows

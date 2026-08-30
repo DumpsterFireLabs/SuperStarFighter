@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"cloak"
+display_name = "Cloak!"
+description = "Press Special to cloak for 5 seconds. Damage breaks it; cannot fire. Per stack: +1 match-long use."
+category = 0
+rarity = 4
+integer_modifiers = {"cloak_capacity": 1}
+special_behavior_id = &"cloak"

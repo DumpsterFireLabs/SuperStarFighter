@@ -11,6 +11,11 @@ var alive: bool = true
 var time_since_damage: float = 0.0
 var afterburner_remaining: float = 0.0
 var afterburner_cooldown_remaining: float = 0.0
+var mine_charges_remaining: int = 0
+var mine_cooldown_remaining: float = 0.0
+var cloak_charges_remaining: int = 0
+var cloak_remaining: float = 0.0
+var cloak_activation_latched: bool = false
 var shield: ShieldState = ShieldState.new()
 var weapon: WeaponState = WeaponState.new()
 
@@ -27,7 +32,23 @@ static func create(
 
 
 func reset_for_heat(combat_stats: CombatStats, spawn_position: Vector2) -> void:
+	var previous_mine_capacity := stats.mine_capacity
+	var previous_mine_charges := mine_charges_remaining
+	var previous_cloak_capacity := stats.cloak_capacity
+	var previous_cloak_charges := cloak_charges_remaining
 	stats = combat_stats.duplicate_stats()
+	if stats.mine_capacity > previous_mine_capacity:
+		mine_charges_remaining = mini(previous_mine_charges + stats.mine_capacity - previous_mine_capacity, stats.mine_capacity)
+	elif stats.mine_capacity < previous_mine_capacity:
+		mine_charges_remaining = mini(previous_mine_charges, stats.mine_capacity)
+	else:
+		mine_charges_remaining = mini(previous_mine_charges, stats.mine_capacity)
+	if stats.cloak_capacity > previous_cloak_capacity:
+		cloak_charges_remaining = mini(previous_cloak_charges + stats.cloak_capacity - previous_cloak_capacity, stats.cloak_capacity)
+	elif stats.cloak_capacity < previous_cloak_capacity:
+		cloak_charges_remaining = mini(previous_cloak_charges, stats.cloak_capacity)
+	else:
+		cloak_charges_remaining = mini(previous_cloak_charges, stats.cloak_capacity)
 	position = spawn_position
 	velocity = Vector2.ZERO
 	aim_angle = 0.0
@@ -36,8 +57,23 @@ func reset_for_heat(combat_stats: CombatStats, spawn_position: Vector2) -> void:
 	time_since_damage = 0.0
 	afterburner_remaining = 0.0
 	afterburner_cooldown_remaining = 0.0
+	mine_cooldown_remaining = 0.0
+	cloak_remaining = 0.0
+	cloak_activation_latched = false
 	shield.reset(stats)
 	weapon.reset(stats)
+
+
+func reset_match_inventory() -> void:
+	mine_charges_remaining = 0
+	mine_cooldown_remaining = 0.0
+	stats.mine_capacity = 0
+	stats.mine_layer_enabled = false
+	cloak_charges_remaining = 0
+	cloak_remaining = 0.0
+	cloak_activation_latched = false
+	stats.cloak_capacity = 0
+	stats.cloak_enabled = false
 
 
 func step(
@@ -54,6 +90,8 @@ func step(
 	var safe_delta := maxf(delta, 0.0)
 	afterburner_remaining = maxf(afterburner_remaining - safe_delta, 0.0)
 	afterburner_cooldown_remaining = maxf(afterburner_cooldown_remaining - safe_delta, 0.0)
+	mine_cooldown_remaining = maxf(mine_cooldown_remaining - safe_delta, 0.0)
+	cloak_remaining = maxf(cloak_remaining - safe_delta, 0.0)
 	velocity = MovementSystem.step_velocity(
 		velocity,
 		input_direction,
@@ -76,7 +114,7 @@ func step(
 
 
 func try_fire() -> bool:
-	if not alive:
+	if not alive or is_cloaked():
 		return false
 	return weapon.try_fire(stats, shield.active)
 
@@ -99,9 +137,37 @@ func activate_special() -> bool:
 	return true
 
 
+func deploy_mine() -> bool:
+	if not alive or not stats.mine_layer_enabled or mine_charges_remaining <= 0 or mine_cooldown_remaining > 0.0:
+		return false
+	mine_charges_remaining -= 1
+	mine_cooldown_remaining = GameConstants.MINE_COOLDOWN_SECONDS
+	return true
+
+
+func activate_cloak() -> bool:
+	if cloak_activation_latched:
+		return false
+	cloak_activation_latched = true
+	if not alive or not stats.cloak_enabled or cloak_charges_remaining <= 0 or is_cloaked():
+		return false
+	cloak_charges_remaining -= 1
+	cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
+	return true
+
+
+func release_special_activation() -> void:
+	cloak_activation_latched = false
+
+
+func is_cloaked() -> bool:
+	return alive and cloak_remaining > 0.0
+
+
 func apply_damage(amount: float) -> bool:
 	if not alive or amount <= 0.0:
 		return false
+	cloak_remaining = 0.0
 	time_since_damage = 0.0
 	health = clampf(health - amount, 0.0, stats.max_health)
 	if health > 0.0:
@@ -109,6 +175,7 @@ func apply_damage(amount: float) -> bool:
 	alive = false
 	velocity = Vector2.ZERO
 	shield.active = false
+	cloak_remaining = 0.0
 	return true
 
 

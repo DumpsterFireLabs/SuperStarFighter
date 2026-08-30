@@ -8,8 +8,8 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 
 - Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
 - Automatic weapons, directional energy shields, shield-ram melee builds, knockback rounds, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
-- 130 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner and Nosferatu Shield.
-- 34 numeric build stats plus beam, auto-repair, and active Afterburner transformations.
+- 133 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Nosferatu Shield, Legendary Star Mines, and Rebound Shields.
+- 36 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, and active mine-layer transformations.
 - Two to 32 total participants with individual and bulk NPC difficulty controls.
 - Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, five-second objective-mode respawns, round-rotating hills, home-base flag scoring, objective-aware NPCs, live objective HUD state, and team scoring.
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
@@ -47,15 +47,27 @@ Keyboard and mouse is the default profile. Open **Settings → Controls** to swi
 
 Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Sixteen selectable resolutions cover common 16:9, 16:10, 3:2, 21:9, and 32:9 displays through 5120×2160, including 2880×1920 and 5120×1440 super-ultrawide.
 
-## Windows Beta Build
+## Beta Builds
 
-The main menu identifies the current release as **Beta 6**, version `0.1.0-beta.6`. Build and verify the friend-ready Windows x64 client with:
+The main menu identifies the current release as **Beta 8**, version `0.1.0-beta.8`. Build and verify the friend-ready Windows x64 client first:
 
 ```powershell
 .\tools\build-beta.ps1
 ```
 
-The script runs the complete foundation gate, exports a single embedded-PCK executable, launches that executable through its normal rendered startup path, verifies that its packaged menu/gameplay/victory music inventory matches the source, and creates the versioned friend ZIP with the Beta README and Godot third-party notice. Every tester-facing rebuild must increment the displayed game/build version before export so packages remain distinguishable. Generated builds remain ignored by Git.
+Then cross-build the Linux x64 client:
+
+```powershell
+.\tools\build-linux-beta.ps1 -SkipFoundationGate
+```
+
+Finally, cross-build the universal macOS client for Apple Silicon and Intel Macs:
+
+```powershell
+.\tools\build-macos-beta.ps1 -SkipFoundationGate
+```
+
+The Windows script runs the complete foundation gate, exports a single embedded-PCK executable, launches it through its normal rendered startup path, verifies the packaged music inventory, and creates the versioned friend ZIP. The Linux script validates its embedded-PCK ELF and packaged identity. The macOS script validates the `.app` layout, metadata, embedded identity, and both `arm64` and `x86_64` Mach-O slices. Omit `-SkipFoundationGate` when building either cross-platform package independently. Every tester-facing rebuild must increment the displayed game/build version before export so packages remain distinguishable. Generated builds remain ignored by Git.
 
 ### Keyboard and mouse
 
@@ -67,6 +79,7 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 | Left mouse | Fire automatically while held |
 | Right mouse | Hold the directional shield |
 | `R` | Manually reload a partially used magazine |
+| `Shift` | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
 | `1`–`5` or click, then confirm | Choose and lock in a draft card |
 | Hold `Tab` | Show live standings and public builds |
 | `Escape` | Open the non-pausing pilot menu |
@@ -81,6 +94,7 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 | Right stick | Aim ship and weapon |
 | Right / left trigger | Fire / shield |
 | X / Square | Manually reload a partially used magazine |
+| Left Stick Click | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
 | View / Back | Hold live scoreboard |
 | Menu / Start | Open the non-pausing pilot menu |
 | Left / right bumper while spectating | Cycle living pilots |
@@ -135,13 +149,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 2,093 automated assertions and 88 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 2,568 automated assertions and 90 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
-Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 130 cards, custom ship colours, and validated 32-client server behavior.
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 133 cards, custom ship colours, and validated 32-client server behavior.
 
-The Beta 6 Windows client export and packaging path is operational, while Beta 1 through Beta 5 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
+The Beta 8 Windows x64, Linux x64, and universal macOS client export paths are operational, while Beta 1 through Beta 7 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 
 ## License and Assets
 

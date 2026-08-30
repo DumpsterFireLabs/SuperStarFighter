@@ -93,7 +93,18 @@ func submit_inputs(
 			if first_decision and reaction_ticks > 1 else
 			world.server_tick + reaction_ticks
 		)
-		var zone_steering := overtime_steering(combatant.position, overtime_elapsed, world.map_id)
+		var overtime_center := ArenaLayout.center(world.map_id)
+		var overtime_minimum_radius := GameConstants.OVERTIME_MINIMUM_RADIUS
+		if int(objective_state.get("mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL:
+			overtime_center = objective_state.get("position", overtime_center) as Vector2
+			overtime_minimum_radius = GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
+		var zone_steering := overtime_steering(
+			combatant.position,
+			overtime_elapsed,
+			world.map_id,
+			overtime_center,
+			overtime_minimum_radius
+		)
 		var objective_steering := _objective_steering(world, combatant, objective_state)
 		var target := _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
 		if target == null:
@@ -165,8 +176,12 @@ func submit_inputs(
 				) * maxf(float(profile.pursuit), float(profile.strafe))
 			)
 		if not zone_steering.is_zero_approx():
-			var boundary_radius := OvertimeSystem.radius_at(overtime_elapsed)
-			var outside_boundary := combatant.position.distance_to(ArenaLayout.center(world.map_id)) > boundary_radius
+			var boundary_radius := OvertimeSystem.radius_at(
+				overtime_elapsed,
+				overtime_center,
+				overtime_minimum_radius
+			)
+			var outside_boundary := combatant.position.distance_to(overtime_center) > boundary_radius
 			var tactical_weight := 0.08 if outside_boundary else 0.28
 			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
 		elif not objective_steering.is_zero_approx():
@@ -183,13 +198,26 @@ func submit_inputs(
 			bool(projectile_threat.get("imminent", false)) or shield_phase < float(profile.shield_duty)
 		)
 		var fire_phase := float(posmod(world.server_tick + peer_id * 3, 120)) / 120.0
-		var firing := not escaping_close_contact and has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
-		var special := (
+		var firing := not combatant.is_cloaked() and not escaping_close_contact and has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
+		var afterburner_special := (
 			combatant.stats.afterburner_enabled
 			and combatant.afterburner_cooldown_remaining <= 0.0
 			and has_line_of_sight
 			and distance > float(profile.preferred_max) * 1.35
 		)
+		var mine_special := (
+			combatant.stats.mine_layer_enabled
+			and combatant.mine_charges_remaining > 0
+			and combatant.mine_cooldown_remaining <= 0.0
+			and distance <= GameConstants.MINE_BLAST_RADIUS * 1.6
+		)
+		var cloak_special := (
+			combatant.stats.cloak_enabled
+			and combatant.cloak_charges_remaining > 0
+			and not combatant.is_cloaked()
+			and (combatant.health_fraction() <= 0.55 or distance > float(profile.preferred_max) * 1.5)
+		)
+		var special := afterburner_special or mine_special or cloak_special
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special)
 
 
@@ -323,27 +351,35 @@ func _note_clear_engagement(peer_id: int, server_tick: int) -> void:
 		_blocked_engagements.erase(peer_id)
 
 
-static func overtime_steering(position: Vector2, heat_elapsed: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Vector2:
+static func overtime_steering(
+	position: Vector2,
+	heat_elapsed: float,
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
+	zone_center: Vector2 = GameConstants.ARENA_SIZE * 0.5,
+	minimum_radius: float = GameConstants.OVERTIME_MINIMUM_RADIUS
+) -> Vector2:
 	if not OvertimeSystem.is_warning(heat_elapsed) and not OvertimeSystem.is_active(heat_elapsed):
 		return Vector2.ZERO
-	var center := ArenaLayout.center(map_id)
-	var from_center := position - center
+	var from_center := position - zone_center
 	var distance := from_center.length()
 	if distance <= 0.001:
 		return Vector2.ZERO
-	var safe_radius := OvertimeSystem.radius_at(heat_elapsed)
+	var safe_radius := OvertimeSystem.radius_at(heat_elapsed, zone_center, minimum_radius)
 	if distance <= safe_radius - OVERTIME_NAVIGATION_MARGIN:
 		return Vector2.ZERO
-	var minimum_navigable_radius := (
-		ArenaLayout.central_radius(map_id) + GameConstants.SHIP_COLLISION_RADIUS + 12.0
+	var center_obstacle_radius := (
+		ArenaLayout.central_radius(map_id)
+		if zone_center.is_equal_approx(ArenaLayout.center(map_id)) else
+		0.0
 	)
+	var minimum_navigable_radius := center_obstacle_radius + GameConstants.SHIP_COLLISION_RADIUS + 12.0
 	var desired_radius := maxf(
 		safe_radius - OVERTIME_NAVIGATION_MARGIN,
 		minimum_navigable_radius
 	)
 	if distance <= desired_radius:
 		return Vector2.ZERO
-	var desired_position := center + from_center.normalized() * desired_radius
+	var desired_position := zone_center + from_center.normalized() * desired_radius
 	var urgency := 1.0 if distance > safe_radius else clampf(
 		(distance - (safe_radius - OVERTIME_NAVIGATION_MARGIN)) /
 		OVERTIME_NAVIGATION_MARGIN,
@@ -471,7 +507,7 @@ func _nearest_target(world: AuthoritativeWorld, source: CombatantState, awarenes
 		if peer_id == source.peer_id or world.are_allies(source.peer_id, peer_id):
 			continue
 		var candidate := world.combatants[peer_id] as CombatantState
-		if not candidate.alive:
+		if not candidate.alive or candidate.is_cloaked():
 			continue
 		var distance_squared := source.position.distance_squared_to(candidate.position)
 		if distance_squared < nearest_distance_squared:

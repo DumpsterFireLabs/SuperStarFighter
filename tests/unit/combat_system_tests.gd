@@ -244,6 +244,14 @@ static func _validate_projectiles(context: TestContext) -> void:
 	context.expect_true(projectile.velocity.x < 0.0, "ricochet reflects projectile velocity")
 	context.expect_approx(projectile.velocity.length(), speed_before, "ricochet preserves projectile speed")
 	context.expect_false(projectile.ricochet(Vector2.RIGHT), "projectile expires on wall after ricochets are spent")
+	var rebound_damage := projectile.damage
+	var rebound_lifetime := projectile.lifetime_remaining
+	context.expect_true(projectile.rebound_toward(2, Vector2(-100.0, 0.0)), "projectile can rebound toward its original source")
+	context.expect_equal(projectile.owner_id, 2, "rebound transfers projectile allegiance to the shield owner")
+	context.expect_true(projectile.velocity.x < 0.0, "rebound points back toward the source")
+	context.expect_approx(projectile.damage, rebound_damage * 0.5, "rebound halves projectile damage")
+	context.expect_approx(projectile.lifetime_remaining, rebound_lifetime * 0.5, "rebound halves remaining range")
+	context.expect_false(projectile.rebound_toward(3, Vector2.RIGHT), "a projectile can rebound only once")
 	var tangent_start := ArenaLayout.center() + Vector2(-35.0, ArenaLayout.CENTRAL_RADIUS + projectile.radius - 2.0)
 	var tangent_end := tangent_start + Vector2(70.0, 0.0)
 	var tangent_hit := ArenaCollisionSystem.projectile_obstacle_sweep(
@@ -289,6 +297,15 @@ static func _validate_projectile_limits(context: TestContext) -> void:
 	registry.schedule_owner_cleanup(10)
 	context.expect_empty(registry.step_cleanup(0.499), "dead-owner projectiles remain for the grace period")
 	context.expect_equal(registry.step_cleanup(0.001), [3], "dead-owner projectiles despawn after 0.5 seconds")
+	var transfer_registry := ProjectileRegistry.new()
+	var transferred := ProjectileState.create(20, 40, 1, Vector2.ZERO, 0.0, stats)
+	transfer_registry.add(transferred)
+	transfer_registry.transfer_owner(20, 41)
+	context.expect_equal(transfer_registry.count_for_owner(40), 0, "rebound removes the shot from its original owner's budget")
+	context.expect_equal(transfer_registry.count_for_owner(41), 1, "rebound counts the shot against its new owner")
+	transfer_registry.schedule_owner_cleanup(40)
+	context.expect_empty(transfer_registry.step_cleanup(GameConstants.DEAD_OWNER_PROJECTILE_LIFETIME), "original-owner death cleanup preserves a transferred rebound")
+	context.expect_true(transfer_registry.get_projectile(20) != null, "transferred rebound remains registered after original-owner cleanup")
 
 
 static func _validate_damage_and_repair(context: TestContext) -> void:
@@ -341,6 +358,31 @@ static func _validate_overtime(context: TestContext) -> void:
 		OvertimeSystem.radius_at(shrink_end),
 		GameConstants.OVERTIME_MINIMUM_RADIUS,
 		"overtime boundary reaches minimum radius after 45 seconds"
+	)
+	var hill_center := ArenaLayout.center() + Vector2(330.0, 0.0)
+	context.expect_true(
+		OvertimeSystem.initial_radius(hill_center) > OvertimeSystem.initial_radius(),
+		"an off-center overtime ring initially covers the full arena"
+	)
+	context.expect_approx(
+		OvertimeSystem.radius_at(
+			shrink_end,
+			hill_center,
+			GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
+		),
+		GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS,
+		"King of the Hill overtime retains its larger minimum radius"
+	)
+	context.expect_approx(
+		OvertimeSystem.damage_for_position(
+			hill_center + Vector2(GameModeRules.OBJECTIVE_ZONE_RADIUS + 25.0, 0.0),
+			shrink_end,
+			1.0,
+			hill_center,
+			GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
+		),
+		0.0,
+		"the complete hill and its radial buffer remain safe at minimum size"
 	)
 	context.expect_approx(OvertimeSystem.damage_rate_at(overtime_start), 30.0, "overtime starts at base damage")
 	context.expect_approx(OvertimeSystem.damage_rate_at(shrink_end + 10.0), 40.0, "overtime damage increases every ten seconds")

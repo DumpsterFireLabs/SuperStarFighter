@@ -54,9 +54,15 @@ func _physics_process(delta: float) -> void:
 			aim_angle = aim_vector.angle()
 		var movement: Vector2 = input_profiles.world_movement_for_aim(aim_angle) if input_profiles != null else MovementSystem.ship_relative_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"), aim_angle)
 		player.simulate(movement, aim_angle, Input.is_action_pressed("shield"), delta)
-		if Input.is_action_just_pressed("special") and player.combatant.activate_special():
-			player.velocity = player.combatant.velocity
-			player.flash_afterburner(player.combatant.stats.afterburner_duration)
+		if Input.is_action_just_pressed("special"):
+			if player.combatant.activate_special():
+				player.velocity = player.combatant.velocity
+				player.flash_afterburner(player.combatant.stats.afterburner_duration)
+			if player.combatant.deploy_mine():
+				_spawn_mine(player.combatant)
+			player.combatant.activate_cloak()
+		elif not Input.is_action_pressed("special"):
+			player.combatant.release_special_activation()
 		if Input.is_action_pressed("manual_reload"):
 			player.combatant.request_reload()
 		if Input.is_action_pressed("fire") and player.combatant.try_fire():
@@ -65,7 +71,7 @@ func _physics_process(delta: float) -> void:
 		if target.combatant.alive:
 			var aim_at_player := (player.global_position - target.global_position).angle()
 			target.simulate(Vector2.ZERO, aim_at_player, targets_shielding, delta)
-			if targets_firing and target.combatant.try_fire():
+			if targets_firing and not player.combatant.is_cloaked() and target.combatant.try_fire():
 				_spawn_shot(target)
 	_simulate_projectiles(delta)
 	_apply_overtime_damage(delta)
@@ -247,12 +253,26 @@ func _spawn_shot(ship: SandboxShip) -> void:
 		})
 
 
+func _spawn_mine(combatant: CombatantState) -> void:
+	var mine := ProjectileState.create_mine(next_projectile_id, combatant.peer_id, combatant.position)
+	next_projectile_id += 1
+	projectile_registry.add(mine)
+
+
 func _simulate_projectiles(delta: float) -> void:
 	var damage_events: Array[Dictionary] = []
+	_detonate_proximity_mines(damage_events)
 	for projectile in projectile_registry.all_projectiles():
+		if projectile.is_mine:
+			continue
 		var start := projectile.position
 		if not projectile.step(delta):
 			projectile_registry.remove(projectile.projectile_id)
+			continue
+		var mine := _nearest_sandbox_mine(start, projectile.position, projectile)
+		if mine != null:
+			projectile_registry.remove(projectile.projectile_id)
+			_detonate_sandbox_mine(mine, damage_events)
 			continue
 		var query := PhysicsRayQueryParameters2D.create(start, projectile.position, 3)
 		var exclusions: Array[RID] = []
@@ -279,13 +299,31 @@ func _simulate_projectiles(delta: float) -> void:
 						target.combatant.health + projectile.damage * target.combatant.stats.shield_damage_heal_fraction,
 						target.combatant.stats.max_health
 					)
-				projectile_registry.remove(projectile.projectile_id)
+				var rebounded := false
+				if target.combatant.stats.rebound_shield_enabled and not projectile.has_rebounded:
+					var source_position := owner_ship.global_position if owner_ship != null else projectile.position - projectile.velocity
+					var old_owner_id := projectile.owner_id
+					if projectile.rebound_toward(target.combatant.peer_id, source_position):
+						projectile.owner_id = old_owner_id
+						projectile_registry.transfer_owner(projectile.projectile_id, target.combatant.peer_id)
+						rebounded = projectile_registry.get_projectile(projectile.projectile_id) != null
+				if rebounded:
+					projectile.position += projectile.velocity.normalized() * 2.0
+				else:
+					projectile_registry.remove(projectile.projectile_id)
 				presentation_event.emit(&"shield_block", {
 					"peer_id": target.combatant.peer_id,
 					"projectile_id": projectile.projectile_id,
 					"position": impact_position,
 					"listener_position": player.global_position,
 				})
+				if rebounded:
+					presentation_event.emit(&"rebound", {
+						"projectile_id": projectile.projectile_id,
+						"owner_id": projectile.owner_id,
+						"position": impact_position,
+						"listener_position": player.global_position,
+					})
 				continue
 			if projectile.can_hit(target.combatant.peer_id):
 				_apply_projectile_knockback(target.combatant, projectile, 1.0)
@@ -314,6 +352,60 @@ func _simulate_projectiles(delta: float) -> void:
 				})
 				projectile_registry.remove(projectile.projectile_id)
 	_apply_damage_events(damage_events)
+
+
+func _detonate_proximity_mines(damage_events: Array[Dictionary]) -> void:
+	for projectile in projectile_registry.all_projectiles():
+		if not projectile.is_mine:
+			continue
+		for ship_value in ships_by_id.values():
+			var ship := ship_value as SandboxShip
+			if not ship.combatant.alive or ship.combatant.peer_id == projectile.owner_id:
+				continue
+			if ship.global_position.distance_to(projectile.position) <= GameConstants.MINE_TRIGGER_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+				_detonate_sandbox_mine(projectile, damage_events)
+				break
+
+
+func _nearest_sandbox_mine(start: Vector2, finish: Vector2, projectile: ProjectileState) -> ProjectileState:
+	var nearest: ProjectileState
+	var nearest_fraction := INF
+	for candidate in projectile_registry.all_projectiles():
+		if not candidate.is_mine:
+			continue
+		var fraction := AuthoritativeWorld._segment_circle_hit_fraction(
+			start,
+			finish,
+			candidate.position,
+			candidate.radius + projectile.radius
+		)
+		if fraction >= 0.0 and fraction < nearest_fraction:
+			nearest = candidate
+			nearest_fraction = fraction
+	return nearest
+
+
+func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> void:
+	if mine == null or projectile_registry.get_projectile(mine.projectile_id) == null:
+		return
+	projectile_registry.remove(mine.projectile_id)
+	presentation_event.emit(&"mine_detonated", {
+		"projectile_id": mine.projectile_id,
+		"owner_id": mine.owner_id,
+		"position": mine.position,
+		"listener_position": player.global_position,
+	})
+	for ship_value in ships_by_id.values():
+		var ship := ship_value as SandboxShip
+		if not ship.combatant.alive or ship.combatant.peer_id == mine.owner_id:
+			continue
+		if ship.global_position.distance_to(mine.position) <= GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+			damage_events.append({
+				"projectile_id": mine.projectile_id,
+				"attacker_id": mine.owner_id,
+				"target_id": ship.combatant.peer_id,
+				"damage": mine.damage,
+			})
 
 
 func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
@@ -375,7 +467,15 @@ func _update_hud() -> void:
 		if (ship_value as SandboxShip).combatant.alive:
 			alive_count += 1
 	var sound_profile = WeaponSoundProfileScript.from_stats(derived_stats, build, catalog)
-	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
+	var mine_text := ""
+	if player.combatant.stats.mine_layer_enabled:
+		mine_text = " · Mines %d" % player.combatant.mine_charges_remaining
+		if player.combatant.mine_cooldown_remaining > 0.05:
+			mine_text += " (%.1fs)" % player.combatant.mine_cooldown_remaining
+	var cloak_text := ""
+	if player.combatant.stats.cloak_enabled:
+		cloak_text = " · Cloak %s" % ("ACTIVE" if player.combatant.is_cloaked() else str(player.combatant.cloak_charges_remaining))
+	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, cloak_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
 
 
 func _update_card_label() -> void:
@@ -393,8 +493,15 @@ func _grant_selected_card() -> void:
 
 func _apply_build() -> void:
 	var health_fraction := player.combatant.health_fraction()
+	var previous_mine_capacity := player.combatant.stats.mine_capacity
+	var previous_cloak_capacity := player.combatant.stats.cloak_capacity
 	derived_stats = StatSystem.derive(build, catalog)
 	player.combatant.stats = derived_stats.duplicate_stats()
+	if derived_stats.mine_capacity > previous_mine_capacity:
+		player.combatant.mine_charges_remaining += derived_stats.mine_capacity - previous_mine_capacity
+	if derived_stats.cloak_capacity > previous_cloak_capacity:
+		player.combatant.cloak_charges_remaining += derived_stats.cloak_capacity - previous_cloak_capacity
+	player.combatant.cloak_charges_remaining = mini(player.combatant.cloak_charges_remaining, derived_stats.cloak_capacity)
 	player.combatant.health = derived_stats.max_health * health_fraction
 	player.combatant.shield.energy = minf(player.combatant.shield.energy, derived_stats.shield_capacity)
 	player.combatant.weapon.ammunition = mini(player.combatant.weapon.ammunition, derived_stats.magazine_size)

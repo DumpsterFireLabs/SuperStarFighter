@@ -3,6 +3,7 @@ extends Node2D
 
 var overtime_visible: bool = false
 var overtime_radius: float = OvertimeSystem.initial_radius()
+var overtime_center: Vector2 = ArenaLayout.center()
 var show_spawn_anchors: bool = false
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var obstacle_root: Node2D
@@ -25,9 +26,14 @@ func set_map_id(value: StringName) -> void:
 	queue_redraw()
 
 
-func set_overtime(active: bool, radius: float) -> void:
+func set_overtime(
+	active: bool,
+	radius: float,
+	center: Vector2 = ArenaLayout.center()
+) -> void:
 	overtime_visible = active
 	overtime_radius = radius
+	overtime_center = center
 	queue_redraw()
 
 
@@ -56,9 +62,9 @@ func _draw() -> void:
 	_draw_objective()
 	if overtime_visible:
 		var pulse := 0.72 + sin(Time.get_ticks_msec() * 0.008) * 0.2
-		draw_circle(ArenaLayout.center(map_id), overtime_radius, Color(1.0, 0.2, 0.42, 0.1))
-		draw_arc(ArenaLayout.center(map_id), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse * 0.2), 22.0)
-		draw_arc(ArenaLayout.center(map_id), overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse), 8.0)
+		draw_circle(overtime_center, overtime_radius, Color(1.0, 0.2, 0.42, 0.1))
+		draw_arc(overtime_center, overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse * 0.2), 22.0)
+		draw_arc(overtime_center, overtime_radius, 0.0, TAU, 160, Color("ff315f", pulse), 8.0)
 		queue_redraw()
 	elif not objective_state.is_empty() and bool(objective_state.get("active", false)):
 		queue_redraw()

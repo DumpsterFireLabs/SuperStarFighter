@@ -134,7 +134,7 @@ func _update_thruster_color_ramp() -> void:
 
 
 func _update_thruster_particles() -> void:
-	if thruster_particles == null or combatant == null or not combatant.alive:
+	if thruster_particles == null or combatant == null or not combatant.alive or combatant.is_cloaked():
 		thruster_intensity = 0.0
 		if thruster_particles != null:
 			thruster_particles.emitting = false
@@ -148,9 +148,13 @@ func _update_thruster_particles() -> void:
 	var afterburning := afterburner_bloom_remaining > 0.0
 	thruster_particles.position = -travel_direction * 18.0
 	thruster_particles.rotation = travel_direction.angle()
-	thruster_particles.amount = 24 if afterburning else 10
-	thruster_particles.scale_amount_max = 6.2 if afterburning else 3.2
-	thruster_particles.speed_scale = (2.0 if afterburning else lerpf(0.7, 1.35, thruster_intensity))
+	thruster_particles.amount = 36 if afterburning else 10
+	thruster_particles.spread = 24.0 if afterburning else 16.0
+	thruster_particles.initial_velocity_min = 110.0 if afterburning else 42.0
+	thruster_particles.initial_velocity_max = 230.0 if afterburning else 92.0
+	thruster_particles.scale_amount_min = 1.8 if afterburning else 1.4
+	thruster_particles.scale_amount_max = 4.8 if afterburning else 3.2
+	thruster_particles.speed_scale = (2.15 if afterburning else lerpf(0.7, 1.35, thruster_intensity))
 	thruster_particles.emitting = true
 
 
@@ -164,6 +168,21 @@ func _draw() -> void:
 		draw_line(Vector2(-15.0, 15.0), Vector2(15.0, -15.0), Color("ff315f"), 5.0)
 		_draw_nameplate(Color("ff7994"))
 		return
+	if combatant.is_cloaked():
+		if not local_control:
+			return
+		var cloak_forward := Vector2.from_angle(combatant.aim_angle)
+		var cloak_side := cloak_forward.orthogonal()
+		var cloak_points := PackedVector2Array([
+			cloak_forward * 29.0,
+			-cloak_forward * 19.0 + cloak_side * 17.0,
+			-cloak_forward * 11.0,
+			-cloak_forward * 19.0 - cloak_side * 17.0,
+		])
+		draw_colored_polygon(cloak_points, Color(ship_color, 0.06))
+		draw_polyline(cloak_points + PackedVector2Array([cloak_points[0]]), Color("73f7ff", 0.34), 2.0)
+		draw_string(ThemeDB.fallback_font, Vector2(-52.0, -45.0), "CLOAKED", HORIZONTAL_ALIGNMENT_CENTER, 104.0, 14, Color("73f7ff", 0.62))
+		return
 	var forward := Vector2.from_angle(combatant.aim_angle)
 	var side := forward.orthogonal()
 	var points := PackedVector2Array([forward * 29.0, -forward * 19.0 + side * 17.0, -forward * 11.0, -forward * 19.0 - side * 17.0])
@@ -171,9 +190,6 @@ func _draw() -> void:
 	draw_colored_polygon(points, Color(ship_color.darkened(0.45), 0.82))
 	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 else ship_color, 6.0 if local_control else 4.0)
 	draw_circle(Vector2.ZERO, 6.0, Color("ffffff"))
-	var exhaust_origin := -forward * 19.0
-	var afterburner_bloom := 30.0 if afterburner_bloom_remaining > 0.0 else 0.0
-	draw_line(exhaust_origin + side * 7.0, exhaust_origin - forward * (12.0 + combatant.velocity.length() * 0.015 + afterburner_bloom), Color.WHITE if afterburner_bloom > 0.0 else Color(ship_color, 0.7), 8.0 if afterburner_bloom > 0.0 else 4.0)
 	for mark in identity_pattern + 1:
 		var offset := (float(mark) - identity_pattern * 0.5) * 8.0
 		draw_line(-forward * 8.0 + side * offset, -forward * 16.0 + side * offset, Color.WHITE, 2.5)

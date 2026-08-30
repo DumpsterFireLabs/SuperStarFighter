@@ -1768,7 +1768,7 @@ func _create_splash_screen() -> void:
 	splash_canvas.add_child(splash_screen)
 	var studio_backdrop := ColorRect.new()
 	studio_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	studio_backdrop.color = Color("102f30")
+	studio_backdrop.color = Color("1d3a3a")
 	splash_screen.add_child(studio_backdrop)
 	splash_neon_backdrop = NeonBackdrop.new()
 	splash_neon_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -2626,9 +2626,13 @@ func _update_pointer_visibility() -> void:
 			gameplay_cursor.position = get_viewport().get_mouse_position()
 	if DisplayServer.get_name() == "headless":
 		return
-	var desired_mode := Input.MOUSE_MODE_HIDDEN if gameplay_pointer_active else Input.MOUSE_MODE_VISIBLE
+	var desired_mode := _pointer_mode_for_gameplay(gameplay_pointer_active)
 	if Input.mouse_mode != desired_mode:
 		Input.mouse_mode = desired_mode
+
+
+func _pointer_mode_for_gameplay(gameplay_pointer_active: bool) -> int:
+	return Input.MOUSE_MODE_CONFINED_HIDDEN if gameplay_pointer_active else Input.MOUSE_MODE_VISIBLE
 
 
 func _show_draft_offer(payload: Dictionary) -> void:
@@ -3248,6 +3252,12 @@ func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: Stri
 		stat_lines.append("Special  Automatic hull repair")
 	elif card.special_behavior_id == &"afterburner":
 		stat_lines.append("Special  Forward burst on Special binding")
+	elif card.special_behavior_id == &"mine_layer":
+		stat_lines.append("Special  Drop an explosive mine on Special binding")
+	elif card.special_behavior_id == &"cloak":
+		stat_lines.append("Special  Become invisible for 5 seconds on Special binding")
+	elif card.special_behavior_id == &"rebound_shield":
+		stat_lines.append("Shield Form  Rebound projectiles at 50% damage and remaining range")
 	if stat_lines.is_empty():
 		stat_lines.append("Special behavior described above")
 	lines.append_array(stat_lines)

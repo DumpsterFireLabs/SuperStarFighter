@@ -104,7 +104,13 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_true(ship.thruster_particles.emitting and ship.thruster_intensity > 0.0, "ship movement activates speed-responsive thruster particles")
 	ship.flash_afterburner(0.5)
 	ship._process(1.0 / 60.0)
-	context.expect_true(ship.thruster_particles.amount > 10 and ship.thruster_particles.speed_scale >= 2.0, "Afterburner produces a visibly larger exhaust bloom")
+	context.expect_true(
+		ship.thruster_particles.amount > 10
+		and ship.thruster_particles.speed_scale >= 2.0
+		and ship.thruster_particles.initial_velocity_max > 200.0
+		and ship.thruster_particles.spread > 16.0,
+		"Afterburner produces a fast, visibly larger particle plume"
+	)
 	ship.set_ship_color(Color("ff4ea3"))
 	context.expect_equal(ship.ship_color.to_html(false), "ff4ea3", "an existing ship accepts a newer authoritative lobby colour")
 	context.expect_approx(ship.thruster_particles.color_ramp.colors[1].b, Color("ff4ea3").lightened(0.18).b, "ship colour refresh also updates its thruster presentation")
@@ -136,7 +142,8 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	effects.spawn_impact(Vector2.ONE)
 	effects.spawn_damage(Vector2.ONE, Vector2.RIGHT)
 	effects.spawn_elimination(Vector2.ONE, Color.WHITE)
-	context.expect_equal(effects.effects.size(), 3, "impact, damage direction, and elimination effects coexist")
+	effects.spawn_rebound(Vector2.ONE)
+	context.expect_equal(effects.effects.size(), 4, "impact, damage direction, elimination, and rebound effects coexist")
 	effects.clear_effects()
 	context.expect_empty(effects.effects, "presentation effects clear between heats")
 	effects.free()
@@ -275,15 +282,27 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	corrected_projectile.remaining_ricochets = 0
 	corrected_projectile.remaining_pierces = 1
 	corrected_projectile.lifetime_remaining = 0.4
+	corrected_projectile.owner_id = 3
+	corrected_projectile.has_rebounded = true
 	view._on_projectile_correction({"spawned": [corrected_projectile]})
 	var synchronized_projectile := view.authoritative_projectiles.get_projectile(400)
 	context.expect_true(
 		synchronized_projectile.velocity.y > 0.0
 		and synchronized_projectile.remaining_ricochets == 0
 		and synchronized_projectile.remaining_pierces == 1
+		and synchronized_projectile.owner_id == 3
+		and synchronized_projectile.has_rebounded
 		and is_equal_approx(synchronized_projectile.lifetime_remaining, 0.4),
-		"projectile correction synchronizes rebound direction and every remaining traversal budget"
+		"projectile correction synchronizes rebound ownership, presentation, direction, and traversal budget"
 	)
+	context.expect_true(&"rebound" in feedback_events, "first reflected correction emits distinct rebound feedback")
+	var unseen_rebound := ProjectileState.create(401, 4, 13, Vector2(560.0, 510.0), PI, correction_stats)
+	unseen_rebound.has_rebounded = true
+	var weapon_events_before_rebound := feedback_events.count(&"weapon_fire")
+	var rebound_events_before_delta := feedback_events.count(&"rebound")
+	view._on_projectile_batch({"spawned": [unseen_rebound], "removed": []})
+	context.expect_equal(feedback_events.count(&"rebound"), rebound_events_before_delta + 1, "a rebound delta remains visible when the original spawn packet was lost")
+	context.expect_equal(feedback_events.count(&"weapon_fire"), weapon_events_before_rebound, "a rebound update is not misreported as a fresh weapon shot")
 	local_ship.free()
 	view.camera.free()
 	view.free()
@@ -299,7 +318,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")
 	context.expect_equal(client.connection_primary_button.theme_type_variation, &"PrimaryButton", "primary connection action uses the shared semantic action language")
 	context.expect_equal(client.lobby_options_button.theme_type_variation, &"SecondaryButton", "secondary lobby action uses the shared semantic action language")
-	context.expect_equal(client.version_label.text, "BETA 6  ·  VERSION 0.1.0-beta.6", "main screen displays the canonical Beta 6 version")
+	context.expect_equal(client.version_label.text, "BETA 8  ·  VERSION 0.1.0-beta.8", "main screen displays the canonical Beta 8 version")
+	context.expect_equal(client._pointer_mode_for_gameplay(true), Input.MOUSE_MODE_CONFINED_HIDDEN, "active gameplay confines the hidden mouse pointer to the game window")
+	context.expect_equal(client._pointer_mode_for_gameplay(false), Input.MOUSE_MODE_VISIBLE, "interactive screens release and reveal the mouse pointer")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
 	var discovered_servers: Array[Dictionary] = [
@@ -529,6 +550,17 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"OBJECTIVE_UPDATED", 2, {"objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(800.0, 600.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 7.5}, "target_seconds": 20.0}})
 	context.expect_equal(int(client.network_world.arena.objective_state.controller_id), 2, "live objective updates reach the arena presentation")
 	context.expect_true(client._objective_status_text().contains("7.5/20s"), "combat HUD reports live hill-control progress")
+	var overtime_hill := Vector2(800.0, 600.0)
+	client.network_world.match_payload["overtime_center"] = overtime_hill
+	client.network_world.match_payload["overtime_minimum_radius"] = GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
+	client.network_world.match_payload["overtime_start_tick"] = 0
+	client.network_world.controls_enabled = true
+	client.network_world.latest_server_tick = roundi(
+		GameConstants.OVERTIME_SHRINK_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND
+	)
+	client.network_world._update_overtime_presentation()
+	context.expect_equal(client.network_world.arena.overtime_center, overtime_hill, "client overtime rendering follows the authoritative hill center")
+	context.expect_approx(client.network_world.arena.overtime_radius, GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS, "client renders the larger minimum KOTH overtime radius")
 	client.latest_match_payload["game_mode"] = GameModeRules.Mode.KING_OF_THE_HILL
 	client.latest_match_payload["participant_peer_ids"] = [2, 3]
 	client.latest_match_payload["scores"] = {2: {"heat_wins": 0, "round_wins": 0, "kills": 0}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 0}}

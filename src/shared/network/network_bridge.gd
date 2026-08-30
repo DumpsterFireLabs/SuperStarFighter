@@ -935,6 +935,7 @@ func _start_match_coordinator(leader_id: int) -> void:
 	var configured_seed := int(_configuration.get("test_match_seed", 0))
 	var seed_value := configured_seed if configured_seed > 0 else int(Time.get_unix_time_from_system())
 	var overtime_start := 2.0 if bool(_configuration.get("test_fast_match", false)) else lobby.config.overtime_start_seconds
+	world.reset_match_inventories()
 	match_coordinator = AuthoritativeMatchCoordinator.new(lobby, world, seed_value, overtime_start)
 	_logged_overtime_key = ""
 	if not match_coordinator.start(world.server_tick):

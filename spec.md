@@ -149,7 +149,7 @@ State transitions are reliable server events containing the new state, server ti
 - The selected lobby mode defines the heat winner:
   - **Death Match:** the final surviving pilot wins the heat.
   - **Team Death Match:** the final team among the configured two through eight teams with at least one living pilot wins the heat; team heat and round scores are mirrored on every teammate.
-  - **King of the Hill:** a single uncontested living pilot scores time while inside the authoritative hill and wins the heat after accumulating 20 seconds. Leaving or contesting the hill pauses progress without erasing earned time. The hill moves to a distinct legal location after each round. Random temporary arena powerups default on for this mode.
+  - **King of the Hill:** a single uncontested living pilot scores time while inside the authoritative hill and wins the heat after accumulating 20 seconds. Leaving or contesting the hill pauses progress without erasing earned time. The hill moves to a distinct legal location after each round. Its overtime ring is centered on the current hill and retains a 350 px minimum diameter around the 250 px control point. Random temporary arena powerups default on for this mode.
   - **Capture the Flag:** the first pilot to collect the neutral center flag and carry it back to that pilot's marked launch base wins the heat.
   - **Team Capture the Flag:** the first team to collect the neutral center flag and carry it to that team's base wins the heat.
 - King of the Hill and both Capture the Flag variants respawn eliminated pilots authoritatively after a five-second countdown. Objective-mode deaths do not resolve or tie a heat.
@@ -320,6 +320,7 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 | Projectile count | 1 | 6 |
 | Pierce count | 0 | 12 |
 | Ricochet count | 0 | 12 |
+| Mine capacity | 0 | 1000 |
 
 ### 7.2 Rarity and Offer Weighting
 
@@ -327,7 +328,7 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 
 ### 7.3 Catalog
 
-The launch catalog contains 130 unlimited-stack cards: 39 ship, 45 shield, and 46 weapon cards. The weapon-heavy split gives each firing model more combinatorial space, while multiple shield cards enable distinct melee and defensive-healing builds. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
+The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 47 weapon cards. The weapon-heavy split gives each firing model more combinatorial space, while multiple shield cards enable distinct melee, defensive-healing, and projectile-rebound builds. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
 
 | ID | Card | Category | Rarity | Effect per stack |
 | --- | --- | --- | --- | --- |
@@ -457,10 +458,13 @@ The launch catalog contains 130 unlimited-stack cards: 39 ship, 45 shield, and 4
 | `sundering_aegis` | Sundering Aegis | Shield | Mythical | +66 shield-ram damage; ×0.70 minimum ram speed |
 | `worldbreaker_prow` | Worldbreaker Prow | Shield | Unobtanium | +90 shield-ram damage; ×1.25 shield capacity; ×0.55 ram cooldown |
 | `afterburner` | Afterburner | Ship | Rare | Enable the Special-input forward burst; ×0.88 cooldown |
+| `cloak` | Cloak! | Ship | Legendary | Special cloaks for 5 seconds; damage breaks it; cannot fire; +1 match-long use per stack |
 | `ramming_shields` | Ramming Shields | Shield | Epic | +44 shield-ram damage; ×0.70 ram trigger speed; ×1.12 shielded acceleration |
 | `concussion_rounds` | Concussion Rounds | Weapon | Rare | +180 projectile knockback; shields retain 20% |
 | `repulsor_payload` | Repulsor Payload | Weapon | Epic | +320 projectile knockback; ×0.90 projectile speed; shields retain 20% |
 | `nosferatu_shield` | Nosferatu Shield | Shield | Legendary | Heal hull for 25% of blocked projectile damage |
+| `rebound_shields` | Rebound Shields | Shield | Legendary | Blocked projectiles return toward their source at 50% damage and 50% remaining range; one rebound maximum |
+| `mine_layer` | Star Mines | Weapon | Legendary | Special drops a 75-damage proximity mine; +10 match-long charges per stack; 10-second placement cooldown |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
@@ -468,7 +472,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `15` and a maximum of 32 client peers in addition to the server. Version 15 isolates player snapshots, projectile deltas, projectile corrections, and objective snapshots on independent unreliable-ordered ENet channels so variable-sized projectile traffic cannot supersede player movement updates; it retains version 14's authoritative mid-heat objective respawn and flag-capture state.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `17` and a maximum of 32 client peers in addition to the server. Version 17 carries authoritative rebound ownership plus cloak activity and remaining match-long charges while retaining the isolated player-snapshot, projectile-delta, projectile-correction, and objective streams introduced earlier.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile corrections are sent at 5 Hz; replaceable objective snapshots are sent at 4 Hz.
 - Use six logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player snapshots, unreliable ordered projectile deltas, unreliable ordered projectile corrections, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -558,7 +562,7 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 
 - Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles. Each living moving ship emits a small, bounded color-matched thruster trail opposite its travel direction; emission intensity follows speed and stops on elimination.
 - Replace the system arrow over keyboard/mouse gameplay with a high-contrast crosshair centered on the aim point. Hide the stale mouse pointer during controller-controlled combat and restore it whenever an interactive menu is visible.
-- Give every participant a stable server-serialized colour: the human's custom lobby choice or a Random high-contrast palette entry, with NPCs using that palette. Add name, outline pattern, and local-player marker so identity never depends on colour alone. In-world health and shield displays use each participant's own derived card stats, never the local player's maxima; a full authoritative resource therefore always renders full at heat start. While Afterburner is active, enlarge and brighten the bounded exhaust bloom without obscuring the ship.
+- Give every participant a stable server-serialized colour: the human's custom lobby choice or a Random high-contrast palette entry, with NPCs using that palette. Add name, outline pattern, and local-player marker so identity never depends on colour alone. In-world health and shield displays use each participant's own derived card stats, never the local player's maxima; a full authoritative resource therefore always renders full at heat start. While Afterburner is active, enlarge and brighten the bounded exhaust bloom without obscuring the ship. While Cloak! is active, show only a faint outline to its local pilot and hide the ship, nameplate, shield, and exhaust from opponents.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.

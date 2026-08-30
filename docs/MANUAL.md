@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The main screen displays **BETA 6 · VERSION 0.1.0-beta.6** so players can confirm they are using the same build before joining one another.
+The main screen displays **BETA 8 · VERSION 0.1.0-beta.8** so players can confirm they are using the same build before joining one another.
 
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
@@ -269,7 +269,7 @@ Complete the selected mode's heat objective. A solo winner gains one heat win; i
 
 If every remaining ship dies during the same authoritative tick, the heat is a tie: nobody receives a heat win and the heat is replayed after the result screen.
 
-The HUD names the current mode and reports hill control time or flag ownership. The arena draws the active hill, neutral flag, extraction zone, or coloured team bases. Overtime continues to apply in every mode, so objective play still converges if pilots try to stall.
+The HUD names the current mode and reports hill control time or flag ownership. The arena draws the active hill, neutral flag, extraction zone, or coloured team bases. Overtime continues to apply in every mode, so objective play still converges if pilots try to stall. In King of the Hill, the overtime ring follows the hill and stops shrinking at a 350 px diameter, leaving a visible buffer around the 250 px control point.
 
 ### Round and match results
 
@@ -293,6 +293,7 @@ Keyboard and mouse is the first-launch default:
 | Hold left mouse | Automatic fire |
 | Hold right mouse | Directional shield |
 | `R` | Manually reload a partially used magazine |
+| `Shift` | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
 | Hold `Tab` | Live standings and public builds |
 | `Escape` | Pilot menu; online combat continues |
 | `F3` | Network diagnostic overlay |
@@ -306,6 +307,7 @@ The controller/joystick profile defaults to:
 | Hold right trigger | Automatic fire |
 | Hold left trigger | Directional shield |
 | X / Square | Manually reload a partially used magazine |
+| Left Stick Click | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
 | Hold View / Back | Live standings and public builds |
 | Menu / Start | Pilot menu; online combat continues |
 | Y / Triangle | Network diagnostic overlay |
@@ -330,6 +332,10 @@ Cards can alter damage, cadence, magazine size, reload, projectile count, spread
 
 Afterburner is an active Ship card. Press the configured Special action (`Shift` or Left Stick Click by default) for a short forward speed and acceleration burst. It has an authoritative cooldown, works for human and NPC pilots, and produces a larger exhaust bloom while active.
 
+Star Mines is an active Legendary Weapon card using the same Special action. Each stack supplies ten additional mines for the match. A mine can be placed immediately and then at most once every ten seconds; an enemy entering its small trigger radius, direct contact, or any projectile hit detonates its 75-damage blast. The HUD shows authoritative remaining charges and cooldown. Mines disappear when their owner is eliminated or the heat ends.
+
+Cloak! is an active Legendary Ship card using the Special action. Each stack supplies one use for the entire match. Activation makes the ship invisible for five seconds and prevents it from firing; any positive hull damage ends invisibility immediately. The local pilot sees a faint outline, opponents see no ship, nameplate, shield, or exhaust, and NPC pilots cannot acquire a cloaked target. The HUD shows authoritative remaining uses and active state.
+
 ### 7.3 Directional shields
 
 The base shield covers a 120-degree arc centered on the ship's aim. It starts with 100 energy, drains 20 energy per second while held, and spends 25 energy for each blocked projectile or successful shield ram.
@@ -343,6 +349,8 @@ Shielding prevents firing and normally reduces acceleration, so timing matters: 
 Ordinary collisions remain harmless. A melee card enables shield ramming: strike an enemy while your shield is active and relative impact speed meets the card-derived threshold. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Ramming Shields is the direct serious-damage option and lowers its practical trigger speed by 30%; Kinetic Prow, Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow provide further damage, durability, speed access, and faster repeat impacts.
 
 Nosferatu Shield restores hull equal to a percentage of the incoming projectile damage whenever the shield successfully blocks that hit. Healing is capped at the pilot's card-modified maximum hull.
+
+Rebound Shields is a Legendary Shield card. A projectile blocked by its active shield turns toward the original shooter, changes ownership to the defending pilot, and continues with half its damage and half its remaining range. A projectile can rebound only once; a later shield block absorbs it normally. Reflected kills are credited to the defending pilot, and reflected shots follow that pilot's team-damage rules.
 
 ### 7.4 Collision and cover
 
@@ -368,7 +376,7 @@ NPC pilots acquire opponents across the full arena, including opposite-edge spaw
 
 - **Ship** cards modify hull, speed, acceleration, braking, shielded movement, and repair behavior.
 - **Shield** cards modify shield economy, coverage, recovery, mobility, and shield-ram melee damage.
-- **Weapon** cards modify firing, ammunition, damage, projectile behavior, and beam transformations.
+- **Weapon** cards modify firing, ammunition, damage, projectile behavior, beam transformations, and deployable mines.
 
 Category is a navigation hint, not an isolation rule. Some cards deliberately touch another system to create hybrid builds.
 
@@ -425,11 +433,11 @@ Cards do not always contain a downside. Higher rarity means scarcity, not a guar
 - Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
 - Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
 
-The complete 130-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+The complete 133-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 
-The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, and ammunition without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
+The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, ammunition, and—when owned—mine charges/cooldown without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
 
 Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
 

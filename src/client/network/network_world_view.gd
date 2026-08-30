@@ -57,6 +57,10 @@ var camera_shake_intensity: float = 0.0
 var diagnostics_visible: bool = false
 var special_activation_sends_remaining: int = 0
 var local_special_cooldown_remaining: float = 0.0
+var local_mine_charges_remaining: int = 0
+var local_mine_cooldown_remaining: float = 0.0
+var local_cloak_charges_remaining: int = 0
+var local_cloak_remaining: float = 0.0
 var _nearest_incoming_cache: ProjectileState
 var _nearest_incoming_revision: int = -1
 var _incoming_refresh_accumulator: float = 0.0
@@ -132,6 +136,10 @@ func reset_session() -> void:
 	camera_shake_intensity = 0.0
 	special_activation_sends_remaining = 0
 	local_special_cooldown_remaining = 0.0
+	local_mine_charges_remaining = 0
+	local_mine_cooldown_remaining = 0.0
+	local_cloak_charges_remaining = 0
+	local_cloak_remaining = 0.0
 	_nearest_incoming_cache = null
 	_nearest_incoming_revision = -1
 	_incoming_refresh_accumulator = 0.0
@@ -176,6 +184,8 @@ func _physics_process(delta: float) -> void:
 	_advance_input_clock()
 	input_send_accumulator += delta
 	local_special_cooldown_remaining = maxf(local_special_cooldown_remaining - maxf(delta, 0.0), 0.0)
+	local_mine_cooldown_remaining = maxf(local_mine_cooldown_remaining - maxf(delta, 0.0), 0.0)
+	local_cloak_remaining = maxf(local_cloak_remaining - maxf(delta, 0.0), 0.0)
 	var local_ship := ships[local_peer_id] as SandboxShip
 	var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else _unshaken_mouse_world_position() - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
@@ -185,17 +195,28 @@ func _physics_process(delta: float) -> void:
 	var local_alive := local_ship.combatant.alive
 	if not controls_enabled or input_blocked:
 		local_movement = Vector2.ZERO
+	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
+	var mine_ready := local_stats.mine_layer_enabled and local_mine_charges_remaining > 0 and local_mine_cooldown_remaining <= 0.0
+	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0
 	var special_just_pressed := (
 		controls_enabled
 		and not input_blocked
 		and local_alive
-		and local_stats.afterburner_enabled
-		and local_special_cooldown_remaining <= 0.0
+		and (afterburner_ready or mine_ready or cloak_ready)
 		and Input.is_action_just_pressed("special")
 	)
 	if special_just_pressed:
 		special_activation_sends_remaining = 3
-		local_special_cooldown_remaining = local_stats.afterburner_cooldown
+		if afterburner_ready:
+			local_special_cooldown_remaining = local_stats.afterburner_cooldown
+		if mine_ready:
+			local_mine_charges_remaining -= 1
+			local_mine_cooldown_remaining = GameConstants.MINE_COOLDOWN_SECONDS
+		if cloak_ready:
+			local_cloak_charges_remaining -= 1
+			local_cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
+			local_ship.combatant.cloak_remaining = local_cloak_remaining
+			local_ship.queue_redraw()
 	elif not controls_enabled or input_blocked or not local_alive:
 		special_activation_sends_remaining = 0
 	var frame := PlayerInputFrame.new(
@@ -203,7 +224,7 @@ func _physics_process(delta: float) -> void:
 		client_tick,
 		local_movement,
 		aim_angle,
-		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("fire"),
+		controls_enabled and not input_blocked and local_alive and local_cloak_remaining <= 0.0 and Input.is_action_pressed("fire"),
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield"),
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
 		special_activation_sends_remaining > 0
@@ -215,7 +236,7 @@ func _physics_process(delta: float) -> void:
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and controls_enabled:
 		prediction.predict(frame, local_stats, delta, arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID)
-		if special_just_pressed and local_stats.afterburner_enabled:
+		if special_just_pressed and afterburner_ready:
 			prediction.predicted_velocity = (
 				prediction.predicted_velocity + Vector2.from_angle(aim_angle) * local_stats.afterburner_impulse
 			).limit_length(local_stats.max_speed * local_stats.afterburner_speed_multiplier)
@@ -397,8 +418,19 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 	var emitted_shots: Dictionary = {}
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
-		_reconcile_predicted_projectile(projectile)
-		authoritative_projectiles.add(projectile)
+		if not projectile.is_mine:
+			_reconcile_predicted_projectile(projectile)
+		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
+		if existing == null:
+			authoritative_projectiles.add(projectile)
+			if projectile.has_rebounded:
+				_emit_rebound_feedback(projectile)
+		else:
+			var newly_rebounded := _synchronize_projectile(existing, projectile)
+			if newly_rebounded:
+				_emit_rebound_feedback(projectile)
+		if projectile.is_mine or existing != null or projectile.has_rebounded:
+			continue
 		var shot_key := "%d:%d" % [projectile.owner_id, projectile.shot_sequence]
 		if not emitted_shots.has(shot_key):
 			emitted_shots[shot_key] = true
@@ -406,9 +438,12 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 	for projectile_id in decoded.removed:
 		var projectile := authoritative_projectiles.get_projectile(int(projectile_id))
 		if projectile != null and effects_layer != null:
-			effects_layer.spawn_impact(projectile.position)
+			if projectile.is_mine:
+				effects_layer.spawn_mine_explosion(projectile.position)
+			else:
+				effects_layer.spawn_impact(projectile.position)
 		if projectile != null:
-			presentation_event.emit(&"projectile_impact", {
+			presentation_event.emit(&"mine_detonated" if projectile.is_mine else &"projectile_impact", {
 				"projectile_id": projectile.projectile_id,
 				"owner_id": projectile.owner_id,
 				"position": projectile.position,
@@ -425,19 +460,18 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 		# A correction can be the first authoritative evidence of a shot when its
 		# unreliable delta was lost. Promote it immediately instead of rendering
 		# the authoritative and predicted copies together until the timeout.
-		_reconcile_predicted_projectile(projectile)
+		if not projectile.is_mine:
+			_reconcile_predicted_projectile(projectile)
 		authoritative_ids[projectile.projectile_id] = true
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
 			authoritative_projectiles.add(projectile)
+			if projectile.has_rebounded:
+				_emit_rebound_feedback(projectile)
 		else:
-			existing.position = projectile.position
-			existing.velocity = projectile.velocity
-			existing.damage = projectile.damage
-			existing.remaining_pierces = projectile.remaining_pierces
-			existing.remaining_ricochets = projectile.remaining_ricochets
-			existing.lifetime_remaining = projectile.lifetime_remaining
-			existing.is_beam = projectile.is_beam
+			var newly_rebounded := _synchronize_projectile(existing, projectile)
+			if newly_rebounded:
+				_emit_rebound_feedback(projectile)
 	if bool(decoded.get("complete_snapshot", true)):
 		for projectile in authoritative_projectiles.all_projectiles():
 			if projectile.projectile_id > 0 and not authoritative_ids.has(projectile.projectile_id):
@@ -473,6 +507,15 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	ship.combatant.shield.energy = state.shield
 	ship.combatant.shield.active = state.shielding
 	ship.combatant.afterburner_remaining = 0.1 if bool(state.get("afterburner_active", false)) else 0.0
+	ship.combatant.mine_charges_remaining = int(state.get("mine_charges", 0))
+	ship.combatant.mine_cooldown_remaining = float(state.get("mine_cooldown", 0.0))
+	ship.combatant.cloak_remaining = maxf(ship.combatant.cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
+	ship.combatant.cloak_charges_remaining = int(state.get("cloak_charges", 0))
+	if ship.combatant.peer_id == local_peer_id:
+		local_mine_charges_remaining = ship.combatant.mine_charges_remaining
+		local_mine_cooldown_remaining = ship.combatant.mine_cooldown_remaining
+		local_cloak_charges_remaining = ship.combatant.cloak_charges_remaining
+		local_cloak_remaining = maxf(local_cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
 	if bool(state.get("afterburner_active", false)):
 		ship.flash_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
@@ -613,6 +656,8 @@ func _step_projectile_visuals(delta: float) -> void:
 		var projectile := authoritative_projectiles.get_projectile(projectile_id)
 		if projectile == null:
 			continue
+		if projectile.is_mine:
+			continue
 		var safe_delta := maxf(delta, 0.0)
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
@@ -663,6 +708,34 @@ func _step_projectile_visuals(delta: float) -> void:
 	if projectile_layer != null:
 		projectile_layer.visible_world_rect = _visible_world_rect()
 		projectile_layer.queue_redraw()
+
+
+func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileState) -> bool:
+	var newly_rebounded := incoming.has_rebounded and not existing.has_rebounded
+	existing.owner_id = incoming.owner_id
+	existing.position = incoming.position
+	existing.velocity = incoming.velocity
+	existing.damage = incoming.damage
+	existing.remaining_pierces = incoming.remaining_pierces
+	existing.remaining_ricochets = incoming.remaining_ricochets
+	existing.lifetime_remaining = incoming.lifetime_remaining
+	existing.is_beam = incoming.is_beam
+	existing.is_mine = incoming.is_mine
+	existing.has_rebounded = incoming.has_rebounded
+	existing.radius = incoming.radius
+	return newly_rebounded
+
+
+func _emit_rebound_feedback(projectile: ProjectileState) -> void:
+	if effects_layer != null:
+		effects_layer.spawn_rebound(projectile.position)
+	presentation_event.emit(&"rebound", {
+		"projectile_id": projectile.projectile_id,
+		"owner_id": projectile.owner_id,
+		"position": projectile.position,
+		"listener_position": _audio_listener_position(),
+		"server_tick": latest_server_tick,
+	})
 
 
 func _separate_local_visual_from_remote(local_ship: SandboxShip) -> void:
@@ -799,11 +872,25 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 		shield_bar.max_value = local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_stats.max_health, local_ship.combatant.shield.energy, local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_stats.magazine_size]
+		if local_stats.mine_layer_enabled:
+			var mine_status := "%d" % local_mine_charges_remaining
+			if local_mine_cooldown_remaining > 0.05:
+				mine_status += " (%.1fs)" % local_mine_cooldown_remaining
+			resources += "   MINES %s" % mine_status
+		if local_stats.cloak_enabled:
+			var cloak_status := "ACTIVE" if local_cloak_remaining > 0.0 else "%d" % local_cloak_charges_remaining
+			resources += "   CLOAK %s" % cloak_status
 		var reload_hint: String = input_profiles.binding_text(&"manual_reload") if input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
 		if local_stats.afterburner_enabled:
 			var special_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
 			combat_status += "   ·   %s Afterburner" % special_hint
+		if local_stats.mine_layer_enabled:
+			var mine_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
+			combat_status += "   ·   %s Star Mine" % mine_hint
+		if local_stats.cloak_enabled:
+			var cloak_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
+			combat_status += "   ·   %s Cloak" % cloak_hint
 		if not local_ship.combatant.alive:
 			# Elimination can leave authoritative shield energy above zero (for
 			# example, damage that bypasses shields). Do not present that stale
@@ -857,7 +944,8 @@ func _living_spectator_targets() -> Array[int]:
 	var result: Array[int] = []
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
-		if peer_id != local_peer_id and (ships[peer_id] as SandboxShip).combatant.alive:
+		var ship := ships[peer_id] as SandboxShip
+		if peer_id != local_peer_id and ship.combatant.alive and not ship.combatant.is_cloaked():
 			result.append(peer_id)
 	result.sort()
 	return result
@@ -984,11 +1072,13 @@ func _update_overtime_presentation() -> void:
 		return
 	var overtime_tick := int(match_payload.get("overtime_start_tick", -1))
 	var active := controls_enabled and overtime_tick >= 0 and latest_server_tick >= overtime_tick
-	var radius := OvertimeSystem.initial_radius()
+	var center := match_payload.get("overtime_center", ArenaLayout.center(arena.map_id)) as Vector2
+	var minimum_radius := float(match_payload.get("overtime_minimum_radius", GameConstants.OVERTIME_MINIMUM_RADIUS))
+	var radius := OvertimeSystem.initial_radius(center)
 	if active:
 		var elapsed := GameConstants.OVERTIME_START_SECONDS + float(latest_server_tick - overtime_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND
-		radius = OvertimeSystem.radius_at(elapsed)
-	arena.set_overtime(active, radius)
+		radius = OvertimeSystem.radius_at(elapsed, center, minimum_radius)
+	arena.set_overtime(active, radius, center)
 
 
 func _update_camera_shake(delta: float) -> void:

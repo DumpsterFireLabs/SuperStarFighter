@@ -31,10 +31,10 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.6 |
-| Protocol version | 15 |
-| Automated suite | 2,118 assertions |
-| Project gate | 88 checks |
+| Game version | 0.1.0-beta.8 |
+| Protocol version | 17 |
+| Automated suite | 2,568 assertions |
+| Project gate | 90 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -191,7 +191,7 @@ Cards are data resources in `data/cards/`. `CardDefinition` supports:
 - Additive float modifiers.
 - Multiplicative modifiers.
 - Integer modifiers.
-- Optional `auto_repair`, `beam_weapon`, or active `afterburner` special behavior.
+- Optional `auto_repair`, `beam_weapon`, `afterburner`, `mine_layer`, `rebound_shield`, or `cloak` special behavior.
 
 Example:
 
@@ -319,7 +319,7 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 2,018 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | 2,568 deterministic assertions | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 88 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
@@ -408,7 +408,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. The Beta 6 Windows client preset, repeatable package script, embedded-PCK executable, exported-client launch smoke, friend README, and Godot notice are implemented. Beta 1 through Beta 5 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing, and final release-candidate artifact checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 8 has Windows x64, Linux x64, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives static ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Beta 1 through Beta 7 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing/notarization, and final release-candidate artifact checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
