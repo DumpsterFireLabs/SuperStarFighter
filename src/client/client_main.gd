@@ -1685,14 +1685,22 @@ func _create_credits_overlay() -> void:
 	kicker.add_theme_color_override("font_color", Color("ffb45f"))
 	content.add_child(kicker)
 	var title := Label.new()
-	title.text = "CREDITS"
+	title.text = "THANKS FOR PLAYING!"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color("fff1bf"))
 	content.add_child(title)
+	var thank_you := Label.new()
+	thank_you.text = "To everyone who stepped into the arena—thank you for giving our little game a shot.\nWe hope you had as much fun playing it as we did making it!"
+	thank_you.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	thank_you.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	thank_you.custom_minimum_size = Vector2(650.0, 0.0)
+	thank_you.add_theme_font_size_override("font_size", 18)
+	thank_you.add_theme_color_override("font_color", Color("f4fbff"))
+	content.add_child(thank_you)
 	_add_credit_block(content, "CREATED BY", "Graphite")
 	_add_credit_block(content, "TESTERS", "Champ")
-	_add_credit_block(content, "HONOURABLE MENTION", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L")
+	_add_credit_block(content, "HONOURABLE MENTIONS", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink")
 	_add_credit_block(content, "SPECIAL THANKS", "ChatGPT")
 	var back_center := CenterContainer.new()
 	content.add_child(back_center)
@@ -1717,6 +1725,8 @@ func _add_credit_block(parent: VBoxContainer, role: String, names: String) -> vo
 	var names_label := Label.new()
 	names_label.text = names
 	names_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	names_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	names_label.custom_minimum_size = Vector2(650.0, 0.0)
 	names_label.add_theme_font_size_override("font_size", 24)
 	names_label.add_theme_color_override("font_color", Color("f4fbff"))
 	block.add_child(names_label)
