@@ -285,6 +285,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(reserved_host_error, ERR_INVALID_PARAMETER, "gameplay server cannot consume the fixed LAN discovery port")
 	client._stop_hosted_server()
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
+	context.expect_true(client.lobby_settings_button != null and client.lobby_settings_button.pressed.is_connected(client._show_settings.bind(false)), "waiting lobby Settings button opens the shared player settings screen")
 	context.expect_true(client.direct_connect_button != null and client.direct_connect_button.pressed.is_connected(client._connect_online), "Direct Connect button is wired to its connection action")
 	context.expect_true(client.host_join_button != null and client.host_join_button.pressed.is_connected(client._host_online), "Host & Join button is wired to its hosting action")
 	context.expect_true(client.lobby_disconnect_button != null and client.lobby_disconnect_button.pressed.is_connected(client._disconnect_online), "waiting lobby Disconnect button is wired to the shared disconnect action")
@@ -408,6 +409,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.connection_screen.visible and not client.connection_form_panel.visible, "waiting lobby uses the centered menu backdrop instead of the connect form")
 	context.expect_false(client.network_world.visible, "arena remains hidden while players wait in the lobby")
 	context.expect_equal(client.network_world.local_peer_id, 2, "hidden lobby preserves the connected renderer's local identity")
+	client.lobby_settings_button.pressed.emit()
+	context.expect_true(client.settings_panel.visible and client.settings_return_to_lobby, "lobby players can open their saved display, audio, and control settings")
+	client._hide_settings()
+	context.expect_true(client.lobby_panel.visible and not client.settings_panel.visible and not client.settings_return_to_lobby, "Back from player settings restores the waiting lobby")
 	context.expect_equal(client.lobby_roster.get_child(1).get_child_count(), 5, "leader receives colour identity and an eject control for another human")
 	context.expect_true(client.powerups_button.button_pressed and not client.powerups_button.disabled, "lobby leader sees and can edit the authoritative powerup option")
 	var local_color_swatch := client.lobby_roster.get_child(0).get_node("ShipColor") as Button

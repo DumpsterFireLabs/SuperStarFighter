@@ -145,6 +145,7 @@ var preferred_ship_color: Color = Color("42e8ff")
 var pending_ship_color: Color = Color("42e8ff")
 var random_ship_color: bool = true
 var settings_return_to_pause: bool = false
+var settings_return_to_lobby: bool = false
 var credits_panel: Control
 var credits_button: Button
 var splash_screen: Control
@@ -167,6 +168,7 @@ var last_state_name: String = "LOBBY"
 var connection_primary_button: Button
 var direct_connect_button: Button
 var host_join_button: Button
+var lobby_settings_button: Button
 var pause_resume_button: Button
 var lobby_disconnect_button: Button
 var pause_disconnect_button: Button
@@ -569,13 +571,26 @@ func _create_lobby_panel() -> void:
 	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(bridge.send_start_match)
 	content.add_child(start_button)
+	var lobby_actions := HBoxContainer.new()
+	lobby_actions.add_theme_constant_override("separation", 12)
+	content.add_child(lobby_actions)
+	lobby_settings_button = Button.new()
+	lobby_settings_button.name = "LobbySettingsButton"
+	lobby_settings_button.text = "Settings"
+	lobby_settings_button.theme_type_variation = &"SecondaryButton"
+	lobby_settings_button.custom_minimum_size.y = 54.0
+	lobby_settings_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lobby_settings_button.tooltip_text = "Configure your display, audio, and controls without leaving the lobby."
+	lobby_settings_button.pressed.connect(_show_settings.bind(false))
+	lobby_actions.add_child(lobby_settings_button)
 	lobby_disconnect_button = Button.new()
 	lobby_disconnect_button.name = "LobbyDisconnectButton"
 	lobby_disconnect_button.text = "Disconnect"
 	lobby_disconnect_button.theme_type_variation = &"DangerButton"
 	lobby_disconnect_button.custom_minimum_size.y = 54.0
+	lobby_disconnect_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lobby_disconnect_button.pressed.connect(_disconnect_online)
-	content.add_child(lobby_disconnect_button)
+	lobby_actions.add_child(lobby_disconnect_button)
 
 
 func _create_lobby_options_popup() -> void:
@@ -1578,6 +1593,7 @@ func _save_appearance_settings() -> void:
 
 func _show_settings(return_to_pause: bool) -> void:
 	settings_return_to_pause = return_to_pause
+	settings_return_to_lobby = not return_to_pause and lobby_panel != null and lobby_panel.visible
 	if pause_overlay != null:
 		pause_overlay.visible = false
 	settings_panel.visible = true
@@ -1597,11 +1613,15 @@ func _hide_settings() -> void:
 		pause_overlay.visible = true
 		network_world.input_blocked = true
 		pause_resume_button.grab_focus()
+	elif settings_return_to_lobby and lobby_panel != null and lobby_panel.visible:
+		network_world.input_blocked = false
+		lobby_settings_button.grab_focus()
 	else:
 		network_world.input_blocked = false
 		if connection_screen.visible and connection_primary_button != null:
 			connection_primary_button.grab_focus()
 	settings_return_to_pause = false
+	settings_return_to_lobby = false
 
 
 func _create_credits_overlay() -> void:
