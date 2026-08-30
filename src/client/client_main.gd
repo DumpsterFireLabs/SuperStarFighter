@@ -2815,7 +2815,7 @@ func _update_match_presentation() -> void:
 		if (bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id) or bridge.local_peer_id in bye_peer_ids:
 			if not draft_bye_label.visible or not draft_panel.visible:
 				_show_draft_bye(deadline)
-			draft_title.text = "ROUND WINNER BYE · OTHERS DRAFTING · %.1fs" % seconds_left
+			draft_title.text = "ROUND WINNER BUY · OTHERS DRAFTING · %.1fs" % seconds_left
 		elif not draft_bye_label.visible:
 			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · PICK, THEN CONFIRM" % seconds_left
 
