@@ -537,7 +537,12 @@ func _resolve_projectile_ship_hit(
 			var source := combatants.get(projectile.owner_id) as CombatantState
 			var source_position := source.position if source != null else projectile.position - projectile.velocity
 			var old_owner_id := projectile.owner_id
-			if projectile.rebound_toward(target.peer_id, source_position):
+			if projectile.rebound_toward(
+				target.peer_id,
+				source_position,
+				target.stats.rebound_damage_factor,
+				target.stats.rebound_range_factor
+			):
 				projectile.owner_id = old_owner_id
 				for removed_id in projectile_registry.transfer_owner(projectile.projectile_id, target.peer_id):
 					_record_removed(removed_id)

@@ -86,7 +86,12 @@ func ricochet(collision_normal: Vector2) -> bool:
 	return true
 
 
-func rebound_toward(new_owner_id: int, source_position: Vector2) -> bool:
+func rebound_toward(
+	new_owner_id: int,
+	source_position: Vector2,
+	damage_factor: float = 0.5,
+	range_factor: float = 0.5
+) -> bool:
 	if has_rebounded or is_mine or new_owner_id <= 0 or velocity.is_zero_approx():
 		return false
 	var return_direction := source_position - position
@@ -94,7 +99,7 @@ func rebound_toward(new_owner_id: int, source_position: Vector2) -> bool:
 		return_direction = -velocity
 	velocity = return_direction.normalized() * velocity.length()
 	owner_id = new_owner_id
-	damage *= 0.5
-	lifetime_remaining *= 0.5
+	damage *= clampf(damage_factor, 0.0, 1.0)
+	lifetime_remaining *= clampf(range_factor, 0.0, 1.0)
 	has_rebounded = true
 	return true

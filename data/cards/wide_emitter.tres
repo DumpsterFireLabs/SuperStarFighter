@@ -6,8 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"wide_emitter"
 display_name = "Wide Emitter"
-description = "Per stack: +20° shield arc; +15% shield drain."
+description = "Per stack: +40° shield arc; +15% shield drain."
 category = 1
 rarity = 1
-additive_modifiers = {"shield_arc_degrees": 20.0}
+additive_modifiers = {"shield_arc_degrees": 40.0}
 multiplicative_modifiers = {"shield_continuous_drain": 1.15}

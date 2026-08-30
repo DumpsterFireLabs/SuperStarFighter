@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"cascade_barrier"
 display_name = "Cascade Barrier"
-description = "Per stack: -50% shield block cost; +20% shield capacity."
+description = "Per stack: -30% shield block cost; +20% shield capacity."
 category = 1
 rarity = 3
-multiplicative_modifiers = {"shield_block_cost": 0.5, "shield_capacity": 1.2}
+multiplicative_modifiers = {"shield_block_cost": 0.7, "shield_capacity": 1.2}

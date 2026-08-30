@@ -30,6 +30,8 @@ const FLOAT_STATS: Array[StringName] = [
 	&"shield_ram_min_speed",
 	&"shield_ram_cooldown",
 	&"shield_damage_heal_fraction",
+	&"rebound_damage_factor",
+	&"rebound_range_factor",
 	&"auto_repair_delay",
 	&"auto_repair_rate",
 ]
@@ -150,5 +152,7 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.shield_ram_min_speed = clampf(stats.shield_ram_min_speed, 40.0, 1200.0)
 	stats.shield_ram_cooldown = clampf(stats.shield_ram_cooldown, 0.15, 4.0)
 	stats.shield_damage_heal_fraction = clampf(stats.shield_damage_heal_fraction, 0.0, 1.0)
+	stats.rebound_damage_factor = clampf(stats.rebound_damage_factor, 0.1, 1.0)
+	stats.rebound_range_factor = clampf(stats.rebound_range_factor, 0.1, 1.0)
 	stats.auto_repair_delay = clampf(stats.auto_repair_delay, 0.1, 20.0)
 	stats.auto_repair_rate = clampf(stats.auto_repair_rate, 0.1, 400.0)

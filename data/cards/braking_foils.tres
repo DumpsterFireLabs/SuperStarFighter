@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"braking_foils"
 display_name = "Braking Foils"
-description = "Per stack: +30% braking; -4% maximum speed."
+description = "Per stack: +50% braking; -4% maximum speed."
 category = 0
 rarity = 1
-multiplicative_modifiers = {"drag": 1.3, "max_speed": 0.96}
+multiplicative_modifiers = {"drag": 1.5, "max_speed": 0.96}

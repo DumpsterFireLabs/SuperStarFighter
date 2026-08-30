@@ -315,6 +315,8 @@ Cards are not required to include a downside. Pure upgrades, tradeoffs, and tran
 | Minimum shield-ram speed | 40 px/s | 1200 px/s |
 | Shield-ram cooldown | 0.15 s | 4 s |
 | Shield-hit healing fraction | 0 | 1 |
+| Rebound damage factor | 0.1 | 1 |
+| Rebound range factor | 0.1 | 1 |
 | Auto-repair delay | 0.1 s | 20 s |
 | Auto-repair rate | 0.1 | 400 health/s |
 | Projectile count | 1 | 6 |
@@ -334,18 +336,18 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | --- | --- | --- | --- | --- |
 | `reinforced_hull` | Reinforced Hull | Ship | Common | +25 maximum health; ×0.92 maximum speed |
 | `overcharged_thrusters` | Overcharged Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.15 acceleration |
-| `vector_jets` | Vector Jets | Ship | Common | ×1.20 acceleration; ×1.25 drag |
-| `auto_repair` | Auto-Repair | Ship | Rare | After 5 seconds without damage, repair 8 health/s until damaged or full |
+| `vector_jets` | Vector Jets | Ship | Uncommon | ×1.20 acceleration; ×1.25 drag |
+| `auto_repair` | Auto-Repair | Ship | Rare | Enable auto-repair; ×1.25 repair rate after 5 seconds without damage |
 | `kinetic_plating` | Kinetic Plating | Ship | Common | +15 maximum health; ×1.05 drag |
 | `phase_thrusters` | Phase Thrusters | Ship | Uncommon | ×1.18 acceleration; ×0.90 shield block cost |
 | `glass_reactor` | Glass Reactor | Ship | Rare | ×1.18 maximum speed; ×1.22 acceleration; ×0.85 maximum health |
 | `emergency_bulkheads` | Emergency Bulkheads | Ship | Rare | +45 maximum health; ×0.80 auto-repair delay |
 | `inertial_dampers` | Inertial Dampers | Ship | Uncommon | ×1.35 drag; ×1.05 shielded acceleration |
-| `nanite_reservoir` | Nanite Reservoir | Ship | Legendary | Enable auto-repair; +35 maximum health; ×0.90 maximum speed |
+| `nanite_reservoir` | Nanite Reservoir | Ship | Epic | Enable auto-repair; +35 maximum health; ×0.90 maximum speed |
 | `capacitor_bank` | Capacitor Bank | Shield | Uncommon | +30 capacity; ×1.10 regeneration |
 | `quick_charge` | Quick Charge | Shield | Uncommon | ×1.22 regeneration; ×0.95 shield block cost |
-| `wide_emitter` | Wide Emitter | Shield | Uncommon | +20° arc; ×1.15 continuous drain |
-| `efficient_field` | Efficient Field | Shield | Common | ×0.80 continuous drain |
+| `wide_emitter` | Wide Emitter | Shield | Uncommon | +40° arc; ×1.15 continuous drain |
+| `efficient_field` | Efficient Field | Shield | Common | ×0.85 continuous drain |
 | `flux_reservoir` | Flux Reservoir | Shield | Common | +20 capacity |
 | `mirror_field` | Mirror Field | Shield | Rare | +10° arc; ×1.25 regeneration |
 | `fortress_emitter` | Fortress Emitter | Shield | Epic | +60 capacity; ×1.20 drain; ×0.90 maximum speed |
@@ -356,7 +358,7 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `rapid_cycling` | Rapid Cycling | Weapon | Uncommon | ×1.30 fire rate |
 | `rail_accelerant` | Rail Accelerant | Weapon | Rare | ×1.35 projectile speed; ×1.10 damage |
 | `extended_magazine` | Extended Magazine | Weapon | Common | +4 magazine |
-| `quick_loader` | Quick Loader | Weapon | Uncommon | ×0.75 reload duration; −2 magazine |
+| `quick_loader` | Quick Loader | Weapon | Uncommon | ×0.75 reload duration; −1 magazine |
 | `twin_shot` | Twin Shot | Weapon | Epic | +1 projectile; +10° total spread; ×0.70 damage |
 | `piercing_rounds` | Piercing Rounds | Weapon | Rare | +1 pierce; ×1.08 damage |
 | `ricochet_rounds` | Ricochet Rounds | Weapon | Rare | +1 ricochet; ×1.08 projectile speed |
@@ -372,14 +374,14 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `plasma_thrusters` | Plasma Thrusters | Ship | Uncommon | ×1.12 maximum speed; ×1.18 shielded acceleration |
 | `gyroscopic_core` | Gyroscopic Core | Ship | Rare | ×1.25 drag; ×1.08 maximum speed |
 | `phoenix_chassis` | Phoenix Chassis | Ship | Epic | ×1.30 maximum hull; ×1.08 maximum speed |
-| `starheart_reactor` | Starheart Reactor | Ship | Legendary | ×1.35 hull; ×1.35 acceleration; ×1.18 speed |
+| `starheart_reactor` | Starheart Reactor | Ship | Mythical | ×1.35 hull; ×1.35 acceleration; ×1.18 speed |
 | `event_horizon_drive` | Event Horizon Drive | Ship | Mythical | ×1.60 speed; ×1.60 acceleration; ×1.50 shielded acceleration |
 | `quantum_reconstruction` | Quantum Reconstruction | Ship | Legendary | Enable auto-repair; ×1.50 maximum hull |
 | `impossible_engine` | Impossible Engine | Ship | Unobtanium | ×2.00 speed; ×2.00 acceleration; ×1.50 drag |
 | `reserve_cell` | Reserve Cell | Shield | Common | +15 shield capacity; ×0.92 regeneration delay |
 | `regenerative_coils` | Regenerative Coils | Shield | Uncommon | ×1.18 shield regeneration; ×0.88 recovery threshold |
 | `focused_deflector` | Focused Deflector | Shield | Rare | ×1.25 capacity; ×0.82 drain; ×0.82 arc |
-| `shield_siphon` | Shield Siphon | Shield | Rare | ×0.65 drain; ×1.20 regeneration |
+| `shield_siphon` | Shield Siphon | Shield | Rare | ×0.75 drain; ×1.20 regeneration |
 | `aegis_matrix` | Aegis Matrix | Shield | Epic | ×1.35 capacity; ×1.25 regeneration |
 | `solar_barrier` | Solar Barrier | Shield | Legendary | ×1.50 capacity; ×1.50 regeneration; ×0.70 drain |
 | `chronal_shield` | Chronal Shield | Shield | Mythical | ×0.30 regeneration delay; ×1.75 regeneration |
@@ -387,17 +389,17 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `hollow_points` | Hollow Points | Weapon | Common | ×1.08 projectile damage |
 | `cycling_servo` | Cycling Servo | Weapon | Uncommon | ×1.12 fire rate; ×0.92 reload duration |
 | `accelerator_coil` | Accelerator Coil | Weapon | Rare | ×1.25 projectile speed; ×1.12 lifetime |
-| `trident_array` | Trident Array | Weapon | Epic | +2 projectiles; +1 pierce; +14° spread; ×0.78 damage |
+| `trident_array` | Trident Array | Weapon | Epic | +2 projectiles; +1 pierce; +14° spread; ×0.65 damage |
 | `sunbeam_core` | Sunbeam Core | Weapon | Mythical | Enable beams; ×1.45 damage; ×1.15 fire rate; +1 pierce |
 | `causality_cannon` | Causality Cannon | Weapon | Mythical | ×2.00 damage; ×1.50 projectile speed; +2 pierces |
-| `singularity_lance` | Singularity Lance | Weapon | Unobtanium | Enable beams; ×1.75 damage; +3 pierces; +1 ricochet |
+| `singularity_lance` | Singularity Lance | Weapon | Unobtanium | Enable beams; ×3.00 damage; +6 pierces; +3 ricochets |
 | `reality_shredder` | Reality Shredder | Weapon | Unobtanium | Enable beams; ×2.50 damage; ×1.60 fire rate; +2 projectiles; +4 pierces; +2 ricochets |
 | `lightweight_frame` | Lightweight Frame | Ship | Common | ×1.08 maximum speed; ×0.95 maximum hull |
 | `vectored_nozzles` | Vectored Nozzles | Ship | Common | ×1.12 acceleration; ×1.08 shielded acceleration |
 | `combat_gyros` | Combat Gyros | Ship | Common | ×1.18 drag |
 | `scar_tissue` | Scar Tissue | Ship | Common | +12 maximum hull; ×1.08 auto-repair rate |
 | `sprint_reactor` | Sprint Reactor | Ship | Uncommon | ×1.15 maximum speed; ×0.90 drag |
-| `braking_foils` | Braking Foils | Ship | Uncommon | ×1.30 drag; ×0.96 maximum speed |
+| `braking_foils` | Braking Foils | Ship | Uncommon | ×1.50 drag; ×0.96 maximum speed |
 | `shielded_drive` | Shielded Drive | Ship | Uncommon | ×1.20 shielded acceleration; ×0.92 shield drain |
 | `damage_control` | Damage Control | Ship | Uncommon | ×0.85 auto-repair delay; activates after repair technology is owned |
 | `adaptive_chassis` | Adaptive Chassis | Ship | Rare | ×1.15 maximum hull; ×1.10 acceleration |
@@ -425,18 +427,18 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `duelist_aegis` | Duelist Aegis | Shield | Rare | ×0.70 arc; ×0.65 block cost |
 | `mobile_bulwark` | Mobile Bulwark | Shield | Rare | ×1.35 shielded acceleration; ×1.15 continuous drain |
 | `vacuum_insulation` | Vacuum Insulation | Shield | Epic | ×0.55 continuous drain; ×0.85 regeneration |
-| `cascade_barrier` | Cascade Barrier | Shield | Epic | ×0.50 block cost; ×1.20 capacity |
+| `cascade_barrier` | Cascade Barrier | Shield | Epic | ×0.70 block cost; ×1.20 capacity |
 | `second_wind` | Second Wind | Shield | Epic | ×0.40 recovery threshold; ×0.80 regeneration delay; ×1.25 capacity |
 | `stellar_aegis` | Stellar Aegis | Shield | Legendary | ×1.60 capacity; ×1.25 arc; ×0.75 block cost |
-| `perpetual_field` | Perpetual Field | Shield | Legendary | ×0.40 continuous drain; ×1.30 capacity |
+| `perpetual_field` | Perpetual Field | Shield | Mythical | ×0.40 continuous drain; ×1.30 capacity |
 | `inviolable_front` | Inviolable Front | Shield | Mythical | ×0.55 arc; ×2.00 capacity; ×0.35 block cost |
-| `instant_recovery` | Instant Recovery | Shield | Mythical | ×0.20 regeneration delay; ×0.25 recovery threshold; ×2.00 regeneration |
+| `instant_recovery` | Instant Recovery | Shield | Unobtanium | ×0.20 regeneration delay; ×0.25 recovery threshold; ×2.00 regeneration |
 | `absolute_barrier` | Absolute Barrier | Shield | Unobtanium | ×2.50 capacity; ×3.00 arc; ×0.35 drain; ×0.25 block cost; ×0.20 recovery threshold |
 | `long_fuse_rounds` | Long-Fuse Rounds | Weapon | Common | ×1.20 projectile lifetime; ×0.95 projectile speed |
 | `short_fuse_payload` | Short-Fuse Payload | Weapon | Common | ×0.75 projectile lifetime; ×1.15 damage |
 | `tight_bore` | Tight Bore | Weapon | Common | −4° projectile spread |
-| `drum_spring` | Drum Spring | Weapon | Common | +2 magazine; ×1.05 reload duration |
-| `hot_load` | Hot Load | Weapon | Uncommon | ×1.15 fire rate; −1 magazine |
+| `drum_spring` | Drum Spring | Weapon | Common | +2 magazine; ×1.05 fire rate |
+| `hot_load` | Hot Load | Weapon | Uncommon | ×1.45 fire rate; −1 magazine |
 | `rangefinder` | Rangefinder | Weapon | Uncommon | ×1.25 projectile lifetime; ×1.10 speed; ×0.95 fire rate |
 | `impact_lens` | Impact Lens | Weapon | Uncommon | ×1.12 damage; ×0.95 projectile speed |
 | `bank_shot` | Bank Shot | Weapon | Uncommon | +1 ricochet; ×1.15 lifetime; ×0.90 damage |
@@ -463,7 +465,7 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `concussion_rounds` | Concussion Rounds | Weapon | Rare | +180 projectile knockback; shields retain 20% |
 | `repulsor_payload` | Repulsor Payload | Weapon | Epic | +320 projectile knockback; ×0.90 projectile speed; shields retain 20% |
 | `nosferatu_shield` | Nosferatu Shield | Shield | Legendary | Heal hull for 25% of blocked projectile damage |
-| `rebound_shields` | Rebound Shields | Shield | Legendary | Blocked projectiles return toward their source at 50% damage and 50% remaining range; one rebound maximum |
+| `rebound_shields` | Rebound Shields | Shield | Legendary | Rebound blocked shots; each stack ×1.25 return damage/range, starting at 50%; one rebound maximum |
 | `mine_layer` | Star Mines | Weapon | Legendary | Special drops a 75-damage proximity mine; +10 match-long charges per stack; 10-second placement cooldown |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.

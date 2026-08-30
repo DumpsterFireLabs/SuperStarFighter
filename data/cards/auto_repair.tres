@@ -6,7 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"auto_repair"
 display_name = "Auto-Repair"
-description = "Unlock auto-repair: after 5 seconds without damage, restore 8 hull per second."
+description = "Unlock auto-repair. Per stack: +25% repair rate after 5 seconds without damage."
 category = 0
 rarity = 2
+multiplicative_modifiers = {"auto_repair_rate": 1.25}
 special_behavior_id = &"auto_repair"

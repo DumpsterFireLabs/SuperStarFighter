@@ -6,7 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"rebound_shields"
 display_name = "Rebound Shields"
-description = "Blocked projectiles rebound toward their source with 50% damage and 50% remaining range."
+description = "Rebound blocked shots. Per stack: +25% return damage and range, starting at 50%."
 category = 1
 rarity = 4
+multiplicative_modifiers = {"rebound_damage_factor": 1.25, "rebound_range_factor": 1.25}
 special_behavior_id = &"rebound_shield"

@@ -6,9 +6,9 @@
 script = ExtResource("1_card")
 card_id = &"trident_array"
 display_name = "Trident Array"
-description = "Per stack: +2 projectiles; +1 pierce; +14° spread; -22% projectile damage."
+description = "Per stack: +2 projectiles; +1 pierce; +14° spread; -35% projectile damage."
 category = 2
 rarity = 3
 additive_modifiers = {"projectile_spread_degrees": 14.0}
-multiplicative_modifiers = {"projectile_damage": 0.78}
+multiplicative_modifiers = {"projectile_damage": 0.65}
 integer_modifiers = {"projectile_count": 2, "pierce_count": 1}

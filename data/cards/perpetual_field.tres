@@ -8,5 +8,5 @@ card_id = &"perpetual_field"
 display_name = "Perpetual Field"
 description = "Per stack: -60% shield drain; +30% shield capacity."
 category = 1
-rarity = 4
+rarity = 5
 multiplicative_modifiers = {"shield_continuous_drain": 0.4, "shield_capacity": 1.3}

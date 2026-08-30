@@ -8,5 +8,5 @@ card_id = &"starheart_reactor"
 display_name = "Starheart Reactor"
 description = "Per stack: +35% maximum hull; +35% acceleration; +18% maximum speed."
 category = 0
-rarity = 4
+rarity = 5
 multiplicative_modifiers = {"max_health": 1.35, "acceleration": 1.35, "max_speed": 1.18}

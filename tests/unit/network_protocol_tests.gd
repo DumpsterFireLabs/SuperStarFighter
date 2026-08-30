@@ -1157,6 +1157,20 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	context.expect_equal(rebound_kills.size(), 1, "lethal reflected projectile emits one kill")
 	if not rebound_kills.is_empty():
 		context.expect_equal(int(rebound_kills[0].killer_id), 251, "reflected kill is credited to the shield owner")
+	var stacked_rebound_stats := StatSystem.derive({&"rebound_shields": 2}, catalog)
+	var stacked_rebound_world := AuthoritativeWorld.new()
+	var stacked_rebound_source := stacked_rebound_world.add_peer(252)
+	var stacked_rebound_target := stacked_rebound_world.add_peer(253, stacked_rebound_stats)
+	stacked_rebound_source.position = Vector2(500.0, 400.0)
+	stacked_rebound_target.position = Vector2(600.0, 400.0)
+	stacked_rebound_target.aim_angle = PI
+	stacked_rebound_target.shield.active = true
+	var stacked_reflection := ProjectileState.create(504, 252, 1, Vector2(590.0, 400.0), 0.0, CombatStats.create_base())
+	stacked_rebound_world.projectile_registry.add(stacked_reflection)
+	var stacked_rebound_events: Array[Dictionary] = []
+	context.expect_true(stacked_rebound_world._resolve_projectile_ship_hit(stacked_reflection, 253, stacked_rebound_events), "stacked Rebound Shields preserve the reflected projectile")
+	context.expect_approx(stacked_reflection.damage, 25.0 * 0.625, "a second Rebound Shields stack raises reflected damage")
+	context.expect_approx(stacked_reflection.lifetime_remaining, GameConstants.PROJECTILE_LIFETIME_SECONDS * 0.625, "a second Rebound Shields stack raises reflected range")
 
 	var lethal_world := AuthoritativeWorld.new()
 	lethal_world.add_peer(230)

@@ -8,5 +8,5 @@ card_id = &"instant_recovery"
 display_name = "Instant Recovery"
 description = "Per stack: -80% regeneration delay; -75% recovery threshold; +100% shield regeneration."
 category = 1
-rarity = 5
+rarity = 6
 multiplicative_modifiers = {"shield_regeneration_delay": 0.2, "shield_depletion_threshold": 0.25, "shield_regeneration": 2.0}

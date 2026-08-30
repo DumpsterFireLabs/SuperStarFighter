@@ -9,7 +9,7 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 - Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
 - Automatic weapons, directional energy shields, shield-ram melee builds, knockback rounds, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
 - 133 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Nosferatu Shield, Legendary Star Mines, and Rebound Shields.
-- 36 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, and active mine-layer transformations.
+- 38 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, rebound shields, and active mine-layer transformations.
 - Two to 32 total participants with individual and bulk NPC difficulty controls.
 - Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, five-second objective-mode respawns, round-rotating hills, home-base flag scoring, objective-aware NPCs, live objective HUD state, and team scoring.
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.

@@ -6,9 +6,9 @@
 script = ExtResource("1_card")
 card_id = &"singularity_lance"
 display_name = "Singularity Lance"
-description = "Unlock beam weapons. Per stack: +75% damage; +3 pierces; +1 ricochet."
+description = "Unlock beam weapons. Per stack: +200% damage; +6 pierces; +3 ricochets."
 category = 2
 rarity = 6
-multiplicative_modifiers = {"projectile_damage": 1.75}
-integer_modifiers = {"pierce_count": 3, "ricochet_count": 1}
+multiplicative_modifiers = {"projectile_damage": 3.0}
+integer_modifiers = {"pierce_count": 6, "ricochet_count": 3}
 special_behavior_id = &"beam_weapon"

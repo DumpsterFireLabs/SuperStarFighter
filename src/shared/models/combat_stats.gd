@@ -45,6 +45,8 @@ var shield_ram_min_speed: float = 180.0
 var shield_ram_cooldown: float = 0.85
 var shield_damage_heal_fraction: float = 0.0
 var rebound_shield_enabled: bool = false
+var rebound_damage_factor: float = 0.4
+var rebound_range_factor: float = 0.4
 
 var auto_repair_enabled: bool = false
 var auto_repair_delay: float = 5.0
@@ -104,6 +106,8 @@ static func get_stat_property_names() -> Array[StringName]:
 		&"shield_ram_min_speed",
 		&"shield_ram_cooldown",
 		&"shield_damage_heal_fraction",
+		&"rebound_damage_factor",
+		&"rebound_range_factor",
 		&"auto_repair_delay",
 		&"auto_repair_rate",
 	]

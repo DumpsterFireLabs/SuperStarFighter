@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"shield_siphon"
 display_name = "Shield Siphon"
-description = "Per stack: -35% shield drain; +20% shield regeneration."
+description = "Per stack: -25% shield drain; +20% shield regeneration."
 category = 1
 rarity = 2
-multiplicative_modifiers = {"shield_continuous_drain": 0.65, "shield_regeneration": 1.2}
+multiplicative_modifiers = {"shield_continuous_drain": 0.75, "shield_regeneration": 1.2}

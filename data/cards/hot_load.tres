@@ -6,8 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"hot_load"
 display_name = "Hot Load"
-description = "Per stack: +15% fire rate; -1 magazine capacity."
+description = "Per stack: +45% fire rate; -1 magazine capacity."
 category = 2
 rarity = 1
-multiplicative_modifiers = {"fire_rate": 1.15}
+multiplicative_modifiers = {"fire_rate": 1.45}
 integer_modifiers = {"magazine_size": -1.0}

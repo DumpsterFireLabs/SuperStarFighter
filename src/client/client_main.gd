@@ -3257,7 +3257,7 @@ func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: Stri
 	elif card.special_behavior_id == &"cloak":
 		stat_lines.append("Special  Become invisible for 5 seconds on Special binding")
 	elif card.special_behavior_id == &"rebound_shield":
-		stat_lines.append("Shield Form  Rebound projectiles at 50% damage and remaining range")
+		stat_lines.append("Shield Form  Rebound projectiles with stack-scaled damage and range")
 	if stat_lines.is_empty():
 		stat_lines.append("Special behavior described above")
 	lines.append_array(stat_lines)
