@@ -1630,7 +1630,7 @@ func _create_credits_overlay() -> void:
 	content.add_child(title)
 	_add_credit_block(content, "CREATED BY", "Graphite")
 	_add_credit_block(content, "TESTERS", "Champ")
-	_add_credit_block(content, "HONOURABLE MENTION", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu")
+	_add_credit_block(content, "HONOURABLE MENTION", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave")
 	_add_credit_block(content, "SPECIAL THANKS", "ChatGPT")
 	var back_center := CenterContainer.new()
 	content.add_child(back_center)
