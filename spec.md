@@ -341,7 +341,7 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `glass_reactor` | Glass Reactor | Ship | Rare | ×1.18 maximum speed; ×1.22 acceleration; ×0.85 maximum health |
 | `emergency_bulkheads` | Emergency Bulkheads | Ship | Rare | +45 maximum health; ×0.80 auto-repair delay |
 | `inertial_dampers` | Inertial Dampers | Ship | Uncommon | ×1.35 drag; ×1.05 shielded acceleration |
-| `nanite_reservoir` | Nanite Reservoir | Ship | Epic | Enable auto-repair; +35 maximum health |
+| `nanite_reservoir` | Nanite Reservoir | Ship | Legendary | Enable auto-repair; +35 maximum health; ×0.90 maximum speed |
 | `capacitor_bank` | Capacitor Bank | Shield | Uncommon | +30 capacity; ×1.10 regeneration |
 | `quick_charge` | Quick Charge | Shield | Uncommon | ×1.22 regeneration; ×0.95 shield block cost |
 | `wide_emitter` | Wide Emitter | Shield | Uncommon | +20° arc; ×1.15 continuous drain |

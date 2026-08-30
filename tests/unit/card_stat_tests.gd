@@ -143,6 +143,7 @@ static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalo
 		&"ricochet_rounds": CardDefinition.Rarity.RARE,
 		&"mobile_bulwark": CardDefinition.Rarity.RARE,
 		&"quantum_reconstruction": CardDefinition.Rarity.LEGENDARY,
+		&"nanite_reservoir": CardDefinition.Rarity.LEGENDARY,
 		&"rebound_shields": CardDefinition.Rarity.LEGENDARY,
 		&"cloak": CardDefinition.Rarity.LEGENDARY,
 	}
@@ -198,6 +199,7 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 	_expect_build(context, catalog, &"overcharged_thrusters", 1, {"max_health": 100.0, "max_speed": 537.6, "acceleration": 1035.0})
 	_expect_build(context, catalog, &"vector_jets", 1, {"acceleration": 1080.0, "drag": 875.0})
 	_expect_build(context, catalog, &"auto_repair", 1, {"auto_repair_enabled": true, "auto_repair_delay": 5.0, "auto_repair_rate": 8.0})
+	_expect_build(context, catalog, &"nanite_reservoir", 1, {"auto_repair_enabled": true, "max_health": 135.0, "max_speed": 432.0})
 	_expect_build(context, catalog, &"capacitor_bank", 1, {"shield_capacity": 130.0, "shield_regeneration": 33.0})
 	_expect_build(context, catalog, &"quick_charge", 1, {"shield_capacity": 100.0, "shield_regeneration": 36.6, "shield_block_cost": 23.75})
 	_expect_build(context, catalog, &"wide_emitter", 1, {"shield_arc_degrees": 140.0, "shield_continuous_drain": 23.0})
