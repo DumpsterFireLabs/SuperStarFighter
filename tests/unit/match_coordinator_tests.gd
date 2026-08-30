@@ -33,6 +33,9 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 12345)
 	context.expect_true(coordinator.start(world.server_tick), "coordinator starts authoritative match")
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.DRAFT, "match begins in draft")
+	var match_players := coordinator.current_state_payload().players as Array
+	context.expect_equal(match_players.size(), 3, "match state carries every participant's immutable presentation identity")
+	context.expect_true((match_players[0] as Dictionary).has("ship_pattern"), "match state carries ship patterns into gameplay independently of lobby updates")
 	var offers := coordinator.drain_private_offers()
 	context.expect_equal(offers.size(), 3, "draft creates one private offer per participant")
 	for offer_value in offers:
@@ -56,6 +59,7 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 	coordinator.add_late_spectator(late_result.player)
 	context.expect_false((coordinator.machine.players[5] as PlayerMatchState).participant, "mid-match late peer remains spectator")
 	context.expect_false((world.combatants[5] as CombatantState).alive, "late spectator has no authoritative ship authority")
+	context.expect_equal((coordinator.machine.players[5] as PlayerMatchState).ship_pattern, (late_result.player as PlayerMatchState).ship_pattern, "late spectator retains lobby appearance identity in match state")
 	context.expect_equal(
 		coordinator.current_state_payload().get("state_name"),
 		"ACTIVE_HEAT",

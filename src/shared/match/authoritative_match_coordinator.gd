@@ -156,6 +156,8 @@ func select_card(peer_id: int, offer_token: String, card_id: StringName) -> int:
 func add_late_spectator(player: PlayerMatchState) -> void:
 	var added := machine.add_player(player.peer_id, player.display_name, player.join_sequence)
 	added.is_npc = player.is_npc
+	added.ship_color = player.ship_color
+	added.ship_pattern = player.ship_pattern
 	added.participant = false
 	added.spectator = true
 	world.set_spectator(player.peer_id)
@@ -714,6 +716,7 @@ func _state_payload() -> Dictionary:
 		"alive_peer_ids": machine.alive_participant_ids(),
 		"respawn_deadlines": _respawn_deadlines.duplicate(true),
 		"participant_peer_ids": machine.participant_ids(),
+		"players": _public_players(),
 		"builds": _public_builds(),
 		"powerups": powerups.snapshot() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else [],
 		"random_spawn_powerups": lobby.config.random_spawn_powerups,
@@ -726,6 +729,22 @@ func _state_payload() -> Dictionary:
 			overtime_start_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND
 		) if machine.state == MatchStateMachine.State.ACTIVE_HEAT else -1,
 	}
+
+
+func _public_players() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var peer_ids := machine.players.keys()
+	peer_ids.sort()
+	for peer_value in peer_ids:
+		var player := machine.players[peer_value] as PlayerMatchState
+		if player.connected:
+			result.append({
+				"peer_id": player.peer_id,
+				"display_name": player.display_name,
+				"ship_color": player.ship_color,
+				"ship_pattern": player.ship_pattern,
+			})
+	return result
 
 
 func _public_builds() -> Dictionary:

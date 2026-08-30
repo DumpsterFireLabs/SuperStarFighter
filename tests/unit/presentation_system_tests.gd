@@ -4,6 +4,7 @@ extends RefCounted
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
 
 static func run(context: TestContext, tree_parent: Node) -> void:
 	_validate_audio_pipeline(context, tree_parent)
@@ -135,6 +136,8 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_approx(ship.thruster_particles.color_ramp.colors[1].b, Color("ff4ea3").lightened(0.18).b, "ship colour refresh also updates its thruster presentation")
 	ship.set_ship_pattern(ShipAppearanceScript.CHECKERBOARD)
 	context.expect_equal(ship.ship_pattern, ShipAppearanceScript.CHECKERBOARD, "an existing ship accepts a newer authoritative hull pattern")
+	for pattern in ShipAppearanceScript.PATTERNS:
+		context.expect_true(ShipPatternGeometryScript.all_vertices_fit_hull(pattern), "%s pattern geometry is clipped to the gameplay hull" % ShipAppearanceScript.display_name(pattern))
 	ship.flash_damage()
 	ship.flash_shield_block()
 	context.expect_true(ship.damage_flash_remaining > 0.0, "damage has a distinct ship flash")
@@ -157,6 +160,10 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	identity_view._ensure_ship(8, {"position": Vector2.ZERO})
 	context.expect_equal(guest_ship.ship_color.to_html(false), "ff4ea3", "the next snapshot applies a later reliable lobby colour to an existing guest ship")
 	context.expect_equal(guest_ship.ship_pattern, ShipAppearanceScript.ZEBRA, "the next snapshot applies a later reliable lobby pattern to an existing guest ship")
+	identity_view.apply_match_state({"state_name": "ACTIVE_HEAT", "builds": {}, "players": [{"peer_id": 8, "display_name": "Match Guest", "ship_color": "62ff9b", "ship_pattern": "chevron"}]})
+	context.expect_equal(guest_ship.ship_pattern, ShipAppearanceScript.CHEVRON, "authoritative match identity applies the selected pattern without waiting for another lobby update")
+	context.expect_equal(guest_ship.ship_color.to_html(false), "62ff9b", "authoritative match identity supersedes stale lobby appearance data")
+	context.expect_equal(guest_ship.display_name, "Match Guest", "authoritative match identity updates the in-world nameplate")
 	identity_view.free()
 	bridge.free()
 

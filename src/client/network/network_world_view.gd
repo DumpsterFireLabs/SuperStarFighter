@@ -340,7 +340,10 @@ func apply_match_state(payload: Dictionary) -> void:
 	var state_name := String(payload.get("state_name", ""))
 	controls_enabled = state_name == "ACTIVE_HEAT"
 	for ship_value in ships.values():
-		(ship_value as SandboxShip).visible = state_name != "DRAFT"
+		var ship := ship_value as SandboxShip
+		ship.visible = state_name != "DRAFT"
+		ship.display_name = _display_name(ship.combatant.peer_id)
+		ship.set_ship_appearance(_player_color(ship.combatant.peer_id), _player_pattern(ship.combatant.peer_id))
 	if hud_panel != null:
 		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
 	apply_builds(payload.get("builds", {}) as Dictionary)
@@ -1108,28 +1111,37 @@ func _unshaken_mouse_world_position() -> Vector2:
 
 
 func _player_color(peer_id: int) -> Color:
-	for player_value in bridge.latest_lobby_state.get("players", []):
-		var player := player_value as Dictionary
-		if int(player.get("peer_id", 0)) == peer_id:
-			return Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
+	var player := _player_identity(peer_id)
+	if not player.is_empty():
+		return Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
 	return Color("42e8ff")
 
 
 func _player_pattern(peer_id: int) -> StringName:
-	for player_value in bridge.latest_lobby_state.get("players", []):
-		var player := player_value as Dictionary
-		if int(player.get("peer_id", 0)) == peer_id:
-			var pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
-			return pattern if not pattern.is_empty() else ShipAppearanceScript.SOLID
+	var player := _player_identity(peer_id)
+	if not player.is_empty():
+		var pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
+		return pattern if not pattern.is_empty() else ShipAppearanceScript.SOLID
 	return ShipAppearanceScript.SOLID
 
 
 func _display_name(peer_id: int) -> String:
-	for player_value in bridge.latest_lobby_state.get("players", []):
-		var player := player_value as Dictionary
-		if int(player.get("peer_id", 0)) == peer_id:
-			return String(player.get("display_name", "Pilot %d" % peer_id))
+	var player := _player_identity(peer_id)
+	if not player.is_empty():
+		return String(player.get("display_name", "Pilot %d" % peer_id))
 	return "Pilot %d" % peer_id
+
+
+func _player_identity(peer_id: int) -> Dictionary:
+	var identity_sources: Array = [match_payload.get("players", [])]
+	if bridge != null:
+		identity_sources.append(bridge.latest_lobby_state.get("players", []))
+	for players_value in identity_sources:
+		for player_value in players_value as Array:
+			var player := player_value as Dictionary
+			if int(player.get("peer_id", 0)) == peer_id:
+				return player
+	return {}
 
 
 func _make_resource_bar(color: Color) -> ProgressBar:

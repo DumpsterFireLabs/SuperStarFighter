@@ -2,6 +2,7 @@ class_name SandboxShip
 extends CharacterBody2D
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
 
 var combatant: CombatantState
 var ship_color: Color = Color("42e8ff")
@@ -226,49 +227,22 @@ func _draw() -> void:
 
 func _draw_cosmetic_pattern(forward: Vector2, side: Vector2) -> void:
 	var accent := Color(ship_color.lightened(0.52), 0.92)
-	match ship_pattern:
-		ShipAppearanceScript.ZEBRA:
-			for stripe in [
-				[Vector2(-16.0, -13.0), Vector2(-7.0, 11.0)],
-				[Vector2(-4.0, -12.0), Vector2(3.0, 9.0)],
-				[Vector2(8.0, -8.0), Vector2(14.0, 6.0)],
-			]:
-				draw_line(_ship_local(stripe[0], forward, side), _ship_local(stripe[1], forward, side), accent, 3.5, true)
-		ShipAppearanceScript.LEOPARD:
-			for spot in [Vector2(-12.0, -8.0), Vector2(-11.0, 9.0), Vector2(1.0, -7.0), Vector2(5.0, 8.0), Vector2(17.0, 0.0)]:
-				var center := _ship_local(spot, forward, side)
-				draw_circle(center, 3.4, accent)
-				draw_circle(center, 1.4, Color(ship_color.darkened(0.6), 0.96))
-		ShipAppearanceScript.CHECKERBOARD:
-			for column in 4:
-				for row in 3:
-					if (column + row) % 2 == 0:
-						var center := Vector2(-10.5 + column * 7.0, -7.0 + row * 7.0)
-						_draw_pattern_tile(center, 5.8, forward, side, accent)
-		ShipAppearanceScript.RACING:
-			draw_line(_ship_local(Vector2(-14.0, -4.0), forward, side), _ship_local(Vector2(22.0, -4.0), forward, side), accent, 2.7, true)
-			draw_line(_ship_local(Vector2(-14.0, 4.0), forward, side), _ship_local(Vector2(22.0, 4.0), forward, side), accent, 2.7, true)
-		ShipAppearanceScript.CHEVRON:
-			for x in [-4.0, 8.0, 18.0]:
-				draw_polyline(PackedVector2Array([
-					_ship_local(Vector2(x - 5.0, -7.0), forward, side),
-					_ship_local(Vector2(x + 3.0, 0.0), forward, side),
-					_ship_local(Vector2(x - 5.0, 7.0), forward, side),
-				]), accent, 2.5, true)
+	var pattern_shapes := ShipPatternGeometryScript.shapes(ship_pattern)
+	_draw_pattern_polygons(pattern_shapes.accent, forward, side, accent)
+	_draw_pattern_polygons(pattern_shapes.detail, forward, side, Color(ship_color.darkened(0.6), 0.96))
 
 
 func _ship_local(point: Vector2, forward: Vector2, side: Vector2) -> Vector2:
 	return forward * point.x + side * point.y
 
 
-func _draw_pattern_tile(center: Vector2, tile_size: float, forward: Vector2, side: Vector2, color: Color) -> void:
-	var half_size := tile_size * 0.5
-	draw_colored_polygon(PackedVector2Array([
-		_ship_local(center + Vector2(-half_size, -half_size), forward, side),
-		_ship_local(center + Vector2(half_size, -half_size), forward, side),
-		_ship_local(center + Vector2(half_size, half_size), forward, side),
-		_ship_local(center + Vector2(-half_size, half_size), forward, side),
-	]), color)
+func _draw_pattern_polygons(polygons: Array, forward: Vector2, side: Vector2, color: Color) -> void:
+	for polygon_value in polygons:
+		var polygon := polygon_value as PackedVector2Array
+		var transformed := PackedVector2Array()
+		for point in polygon:
+			transformed.append(_ship_local(point, forward, side))
+		draw_colored_polygon(transformed, color)
 
 
 func _draw_nameplate(color: Color) -> void:
