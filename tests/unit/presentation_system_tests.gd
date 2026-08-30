@@ -105,6 +105,9 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	ship.flash_afterburner(0.5)
 	ship._process(1.0 / 60.0)
 	context.expect_true(ship.thruster_particles.amount > 10 and ship.thruster_particles.speed_scale >= 2.0, "Afterburner produces a visibly larger exhaust bloom")
+	ship.set_ship_color(Color("ff4ea3"))
+	context.expect_equal(ship.ship_color.to_html(false), "ff4ea3", "an existing ship accepts a newer authoritative lobby colour")
+	context.expect_approx(ship.thruster_particles.color_ramp.colors[1].b, Color("ff4ea3").lightened(0.18).b, "ship colour refresh also updates its thruster presentation")
 	ship.flash_damage()
 	ship.flash_shield_block()
 	context.expect_true(ship.damage_flash_remaining > 0.0, "damage has a distinct ship flash")
@@ -117,6 +120,17 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_true(ship.elimination_pulse_remaining > 0.0, "elimination has a distinct pulse")
 	context.expect_false(ship.thruster_particles.emitting, "eliminated ships stop emitting thruster particles")
 	ship.free()
+	var bridge := NetworkBridge.new()
+	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "42e8ff"}]}
+	var identity_view := NetworkWorldView.new()
+	identity_view.bridge = bridge
+	var guest_ship := identity_view._ensure_ship(8, {"position": Vector2.ZERO})
+	context.expect_equal(guest_ship.ship_color.to_html(false), "42e8ff", "guest ship can spawn from the lobby state available with its first snapshot")
+	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "ff4ea3"}]}
+	identity_view._ensure_ship(8, {"position": Vector2.ZERO})
+	context.expect_equal(guest_ship.ship_color.to_html(false), "ff4ea3", "the next snapshot applies a later reliable lobby colour to an existing guest ship")
+	identity_view.free()
+	bridge.free()
 
 	var effects := CombatEffectsLayer.new()
 	effects.spawn_impact(Vector2.ONE)

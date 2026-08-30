@@ -420,6 +420,11 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 	if ships.has(peer_id):
 		var existing := ships[peer_id] as SandboxShip
 		existing.display_name = _display_name(peer_id)
+		# Lobby state and snapshots use independent ENet channels. A guest can
+		# receive the first snapshot before the final reliable lobby update, so
+		# refresh identity data instead of freezing whatever was available when
+		# the presentation node happened to be created.
+		existing.set_ship_color(_player_color(peer_id))
 		return existing
 	var ship := SandboxShip.new()
 	var color := _player_color(peer_id)

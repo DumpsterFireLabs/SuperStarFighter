@@ -16,7 +16,7 @@ var afterburner_bloom_remaining: float = 0.0
 
 func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Color, is_local: bool = false, pilot_name: String = "") -> void:
 	combatant = CombatantState.create(peer_id, stats, spawn_position)
-	ship_color = color
+	ship_color = Color(color.r, color.g, color.b, 1.0)
 	local_control = is_local
 	display_name = pilot_name if not pilot_name.is_empty() else "Pilot %d" % peer_id
 	identity_pattern = posmod(peer_id, 3)
@@ -31,6 +31,15 @@ func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Col
 	collision.shape = circle
 	add_child(collision)
 	_create_thruster_particles()
+	queue_redraw()
+
+
+func set_ship_color(color: Color) -> void:
+	var opaque_color := Color(color.r, color.g, color.b, 1.0)
+	if ship_color.is_equal_approx(opaque_color):
+		return
+	ship_color = opaque_color
+	_update_thruster_color_ramp()
 	queue_redraw()
 
 
@@ -105,6 +114,15 @@ func _create_thruster_particles() -> void:
 	thruster_particles.initial_velocity_max = 92.0
 	thruster_particles.scale_amount_min = 1.4
 	thruster_particles.scale_amount_max = 3.2
+	_update_thruster_color_ramp()
+	thruster_particles.z_index = -1
+	thruster_particles.emitting = false
+	add_child(thruster_particles)
+
+
+func _update_thruster_color_ramp() -> void:
+	if thruster_particles == null:
+		return
 	var color_fade := Gradient.new()
 	color_fade.offsets = PackedFloat32Array([0.0, 0.3, 1.0])
 	color_fade.colors = PackedColorArray([
@@ -113,9 +131,6 @@ func _create_thruster_particles() -> void:
 		Color(ship_color, 0.0),
 	])
 	thruster_particles.color_ramp = color_fade
-	thruster_particles.z_index = -1
-	thruster_particles.emitting = false
-	add_child(thruster_particles)
 
 
 func _update_thruster_particles() -> void:
