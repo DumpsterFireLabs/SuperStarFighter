@@ -190,6 +190,7 @@ var f2_return_confirmation: ConfirmationDialog
 var _application_has_focus: bool = true
 var _disconnect_in_progress: bool = false
 var _pending_password_host: String = ""
+var _pending_password_port: int = 0
 var _pending_password_value: String = ""
 var _pending_remember_password: bool = false
 
@@ -463,11 +464,12 @@ func _create_direct_join_tab(configuration: Dictionary) -> void:
 	direct_password_field.secret = true
 	direct_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
 	remember_password_button = CheckButton.new()
-	remember_password_button.text = "Remember password for this IP"
-	remember_password_button.tooltip_text = "Saved locally after the server accepts the connection."
+	remember_password_button.text = "Remember password for this server"
+	remember_password_button.tooltip_text = "Saved only in this client's local settings after this server accepts the connection."
 	tab.add_child(remember_password_button)
 	host_field.text_changed.connect(_on_direct_host_changed)
-	_apply_remembered_password(host_field.text)
+	port_field.text_changed.connect(_on_direct_port_changed)
+	_apply_remembered_password(host_field.text, int(port_field.text))
 	var connect_center := CenterContainer.new()
 	tab.add_child(connect_center)
 	direct_connect_button = Button.new()
@@ -1709,19 +1711,23 @@ func _save_appearance_settings() -> void:
 
 
 func _on_direct_host_changed(address: String) -> void:
-	_apply_remembered_password(address)
+	_apply_remembered_password(address, _remembered_password_port())
 
 
-func _apply_remembered_password(address: String) -> void:
+func _on_direct_port_changed(_port_text: String) -> void:
+	_apply_remembered_password(host_field.text, _remembered_password_port())
+
+
+func _apply_remembered_password(address: String, port: int) -> void:
 	if direct_password_field == null or remember_password_button == null:
 		return
-	var remembered := _remembered_password_for_host(address)
+	var remembered := _remembered_password_for_endpoint(address, port)
 	direct_password_field.text = remembered
 	remember_password_button.button_pressed = not remembered.is_empty()
 
 
-func _remembered_password_for_host(address: String) -> String:
-	var key := _password_settings_key(address)
+func _remembered_password_for_endpoint(address: String, port: int) -> String:
+	var key := _password_settings_key(address, port)
 	if key.is_empty():
 		return ""
 	var config := ConfigFile.new()
@@ -1732,7 +1738,7 @@ func _remembered_password_for_host(address: String) -> String:
 
 
 func _commit_pending_password_preference() -> void:
-	var key := _password_settings_key(_pending_password_host)
+	var key := _password_settings_key(_pending_password_host, _pending_password_port)
 	if key.is_empty():
 		return
 	var config := ConfigFile.new()
@@ -1743,17 +1749,24 @@ func _commit_pending_password_preference() -> void:
 		config.erase_section_key("lobby_passwords", key)
 	config.save(AudioDirector.SETTINGS_PATH)
 	_pending_password_host = ""
+	_pending_password_port = 0
 	_pending_password_value = ""
 	_pending_remember_password = false
 
 
-static func _password_settings_key(address: String) -> String:
+static func _password_settings_key(address: String, port: int) -> String:
 	var normalized := address.strip_edges().to_lower()
 	if normalized.begins_with("[") and normalized.ends_with("]"):
 		normalized = normalized.substr(1, normalized.length() - 2)
-	if normalized.is_empty():
+	if normalized.is_empty() or port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
 		return ""
-	return normalized.sha256_text()
+	return ("%s:%d" % [normalized, port]).sha256_text()
+
+
+func _remembered_password_port() -> int:
+	if port_field == null or not port_field.text.strip_edges().is_valid_int():
+		return 0
+	return int(port_field.text.strip_edges())
 
 
 func _show_settings(return_to_pause: bool) -> void:
@@ -2136,6 +2149,7 @@ func _connect_online() -> void:
 	offline_sandbox.set_sandbox_active(false)
 	network_world.set_network_active(false)
 	_pending_password_host = address
+	_pending_password_port = port
 	_pending_password_value = lobby_password
 	_pending_remember_password = remember_password_button.button_pressed
 	connection_status.text = "Authenticating with %s:%d…" % [address, port]
@@ -2178,6 +2192,7 @@ func _host_online() -> void:
 	network_world.set_network_active(false)
 	connection_status.text = "Hosting %s on UDP %d and joining locally…" % [server_name, port]
 	_pending_password_host = ""
+	_pending_password_port = 0
 	_pending_password_value = ""
 	_pending_remember_password = false
 	error = bridge.start_client("127.0.0.1", port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
@@ -2258,7 +2273,10 @@ func _rebuild_lan_server_list() -> void:
 
 func _add_lan_server_row(server: Dictionary) -> void:
 	var compatible := int(server.get("protocol_version", 0)) == GameConstants.PROTOCOL_VERSION
-	var remembered_password := _remembered_password_for_host(String(server.get("address", "")))
+	var remembered_password := _remembered_password_for_endpoint(
+		String(server.get("address", "")),
+		int(server.get("game_port", 0))
+	)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size.y = 62.0
 	panel.set_meta("address", String(server.get("address", "")))
@@ -2298,7 +2316,7 @@ func _add_lan_server_row(server: Dictionary) -> void:
 func _join_lan_server(address: String, port: int) -> void:
 	host_field.text = address
 	port_field.text = str(port)
-	_apply_remembered_password(address)
+	_apply_remembered_password(address, port)
 	if direct_password_field.text.is_empty():
 		connection_tabs.current_tab = 1
 		connection_status.text = "Enter the password for %s, then connect." % address
@@ -2342,6 +2360,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
 	_pending_password_host = ""
+	_pending_password_port = 0
 	_pending_password_value = ""
 	_pending_remember_password = false
 	_stop_hosted_server()

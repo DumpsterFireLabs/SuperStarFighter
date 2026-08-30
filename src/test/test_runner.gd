@@ -26,7 +26,7 @@ func _ready() -> void:
 func _run_foundation_tests() -> void:
 	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.8", "game version is pinned to Beta 8")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 19, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 20, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")
@@ -83,6 +83,21 @@ func _run_foundation_tests() -> void:
 	_context.expect_equal(server_config.get("host"), "localhost", "custom network host parses")
 	_context.expect_equal(server_config.get("server_name"), "Foundation Arena", "custom LAN server name parses")
 	_context.expect_equal(server_config.get("lobby_password"), "test-lobby", "required lobby password parses")
+	var prior_environment_password := OS.get_environment(CommandLineConfig.LOBBY_PASSWORD_ENVIRONMENT_VARIABLE)
+	OS.set_environment(CommandLineConfig.LOBBY_PASSWORD_ENVIRONMENT_VARIABLE, "environment-lobby")
+	var environment_config := CommandLineConfig.parse(PackedStringArray(["--server"]))
+	_context.expect_true(environment_config.ok, "server accepts a lobby password from the protected process environment")
+	_context.expect_equal(environment_config.get("lobby_password"), "environment-lobby", "environment lobby password reaches server configuration")
+	OS.set_environment(CommandLineConfig.LOBBY_PASSWORD_ENVIRONMENT_VARIABLE, prior_environment_password)
+	var prior_admin_password := OS.get_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE)
+	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, "operator-secret")
+	var admin_config := CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--port=7123", "--admin-port=7124"]))
+	_context.expect_true(admin_config.ok, "dedicated server accepts a distinct protected admin credential")
+	_context.expect_equal(admin_config.get("admin_port"), 7124, "loopback admin port parses")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--port=7123", "--admin-port=7123"])).ok, "admin and gameplay ports cannot collide")
+	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, "lobby-secret")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--admin-port=7124"])).ok, "admin and lobby credentials must differ")
+	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, prior_admin_password)
 	var match_test_config := CommandLineConfig.parse(PackedStringArray([
 		"--server",
 		"--test-fast-match",

@@ -345,10 +345,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client._pointer_mode_for_gameplay(false), Input.MOUSE_MODE_VISIBLE, "interactive screens release and reveal the mouse pointer")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
 	context.expect_true(client.direct_password_field != null and client.direct_password_field.secret, "direct connect requires a masked lobby-password field")
-	context.expect_true(client.remember_password_button != null, "direct connect offers remembered passwords by host address")
+	context.expect_true(client.remember_password_button != null, "direct connect offers client-local remembered passwords by server endpoint")
 	context.expect_true(client.host_password_field != null and client.host_password_field.secret, "hosts must set a masked lobby password")
-	context.expect_equal(client._password_settings_key(" EXAMPLE.COM "), client._password_settings_key("example.com"), "remembered-password keys normalize host casing and whitespace")
-	context.expect_equal(client._password_settings_key("[2001:db8::1]"), client._password_settings_key("2001:db8::1"), "remembered-password keys normalize bracketed IPv6 addresses")
+	context.expect_equal(client._password_settings_key(" EXAMPLE.COM ", 7000), client._password_settings_key("example.com", 7000), "remembered-password keys normalize host casing and whitespace")
+	context.expect_equal(client._password_settings_key("[2001:db8::1]", 7000), client._password_settings_key("2001:db8::1", 7000), "remembered-password keys normalize bracketed IPv6 addresses")
+	context.expect_false(client._password_settings_key("example.com", 7000) == client._password_settings_key("example.com", 7001), "remembered passwords are isolated by gameplay port")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
 	var discovered_servers: Array[Dictionary] = [
 		{"server_name": "Local Test Arena", "address": "192.168.1.50", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 2, "npc_count": 1, "player_limit": 8, "match_active": false, "ping_ms": 4},

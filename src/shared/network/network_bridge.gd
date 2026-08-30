@@ -2,6 +2,7 @@ class_name NetworkBridge
 extends Node
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const AuthenticationAttemptLimiterScript = preload("res://src/shared/network/authentication_attempt_limiter.gd")
 
 const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
 
@@ -38,6 +39,10 @@ var _pending_handshakes := HandshakeRegistry.new()
 var _pending_disconnects: Dictionary = {}
 var _rate_limiter := InputRateLimiter.new()
 var _control_rate_limiter := RequestRateLimiter.new()
+var _authentication_attempt_limiter := AuthenticationAttemptLimiterScript.new()
+var _peer_auth_sources: Dictionary = {}
+var _blocked_sources: Dictionary = {}
+var _ban_file_path: String = ""
 var _malformed_control_strikes: Dictionary = {}
 var _client_name: String = "Pilot"
 var _client_protocol_version: int = GameConstants.PROTOCOL_VERSION
@@ -68,6 +73,11 @@ func start_server(configuration: Dictionary) -> Error:
 		role = Role.NONE
 		return ERR_INVALID_PARAMETER
 	_configuration = configuration.duplicate(true)
+	_configuration.erase("admin_password")
+	_configuration.erase("admin_password_file")
+	_configuration.erase("lobby_password_file")
+	_ban_file_path = String(configuration.get("ban_file", "user://server-bans.json"))
+	_load_blocked_sources()
 	var match_config := MatchConfig.new()
 	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
 	if match_config.port == LanDiscoveryProtocol.DISCOVERY_PORT:
@@ -89,7 +99,11 @@ func start_server(configuration: Dictionary) -> Error:
 	_logged_overtime_key = ""
 	_discovery_instance_id = "%x-%x" % [Time.get_ticks_msec(), get_instance_id()]
 	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_server(match_config.port, match_config.max_players + 1, NetworkProtocol.CHANNEL_COUNT)
+	var error := _enet_peer.create_server(
+		match_config.port,
+		match_config.max_players + NetworkProtocol.AUTH_RESERVED_PEERS,
+		NetworkProtocol.CHANNEL_COUNT
+	)
 	if error != OK:
 		last_error = "Could not bind UDP port %d (error %d)." % [match_config.port, error]
 		_log("error", "server_bind_failed", {"port": match_config.port, "error": error})
@@ -172,6 +186,10 @@ func stop() -> void:
 	_pending_disconnects.clear()
 	_rate_limiter.clear()
 	_control_rate_limiter.clear()
+	_authentication_attempt_limiter.clear()
+	_peer_auth_sources.clear()
+	_blocked_sources.clear()
+	_ban_file_path = ""
 	_malformed_control_strikes.clear()
 	_projectile_message_sequence = 0
 	_projectile_correction_cursor = 0
@@ -389,22 +407,35 @@ func _physics_process(delta: float) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func client_hello(protocol_version: int, display_name: String, lobby_password: String) -> void:
+func client_hello(protocol_version: int, display_name: String, password_proof: String) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _pending_handshakes.has(sender_id):
 		_reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
 		return
+	if display_name.length() > NetworkProtocol.MAX_LOG_STRING_LENGTH or not NetworkProtocol.is_valid_auth_proof(password_proof):
+		_reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return
+	var challenge := _pending_handshakes.challenge_for(sender_id)
+	var expected_proof := NetworkProtocol.lobby_password_proof(
+		challenge,
+		String(_configuration.get("lobby_password", ""))
+	)
 	var rejection := ConnectionAdmission.validate_hello(
 		protocol_version,
 		display_name,
 		lobby.players.size() if lobby.match_active else lobby.human_count(),
 		lobby.player_limit,
-		lobby_password,
-		String(_configuration.get("lobby_password", ""))
+		password_proof,
+		expected_proof
 	)
 	if not rejection.is_empty():
+		if rejection == NetworkProtocol.REJECT_INVALID_PASSWORD:
+			_authentication_attempt_limiter.register_failure(
+				String(_peer_auth_sources.get(sender_id, "peer:%d" % sender_id)),
+				_now_seconds()
+			)
 		_reject_connection(sender_id, rejection)
 		return
 	var result := lobby.admit(sender_id, display_name)
@@ -859,11 +890,28 @@ func projectile_correction(packet: PackedByteArray) -> void:
 
 
 func _on_server_peer_connected(peer_id: int) -> void:
-	_pending_handshakes.begin(peer_id, _now_seconds())
+	var source := _peer_auth_source(peer_id)
+	_peer_auth_sources[peer_id] = source
+	if _blocked_sources.has(_normalized_source(source)):
+		_pending_handshakes.begin(peer_id, _now_seconds())
+		_reject_connection(peer_id, NetworkProtocol.REJECT_BLOCKED)
+		return
+	if _pending_auth_count_for_source(source, peer_id) >= NetworkProtocol.AUTH_MAX_PENDING_PER_SOURCE:
+		_pending_handshakes.begin(peer_id, _now_seconds())
+		_reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
+		return
+	if _authentication_attempt_limiter.is_blocked(source, _now_seconds()):
+		_pending_handshakes.begin(peer_id, _now_seconds())
+		_reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
+		return
+	var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
+	_pending_handshakes.begin(peer_id, _now_seconds(), challenge)
+	authentication_challenge.rpc_id(peer_id, challenge)
 
 
 func _on_server_peer_disconnected(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
+	_peer_auth_sources.erase(peer_id)
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
 	_control_rate_limiter.remove_peer(peer_id)
@@ -884,8 +932,252 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 		_log("info", "peer_left", {"peer_id": peer_id})
 
 
+func _peer_auth_source(peer_id: int) -> String:
+	if _enet_peer == null:
+		return "peer:%d" % peer_id
+	var packet_peer := _enet_peer.get_peer(peer_id)
+	if packet_peer == null:
+		return "peer:%d" % peer_id
+	var address := packet_peer.get_remote_address()
+	return address if not address.is_empty() else "peer:%d" % peer_id
+
+
+func _pending_auth_count_for_source(source: String, excluded_peer_id: int) -> int:
+	var normalized := _normalized_source(source)
+	var count := 0
+	for peer_value in _peer_auth_sources.keys():
+		var peer_id := int(peer_value)
+		if peer_id != excluded_peer_id and _pending_handshakes.has(peer_id) and _normalized_source(String(_peer_auth_sources[peer_id])) == normalized:
+			count += 1
+	return count
+
+
+func operator_status() -> Dictionary:
+	var players: Array[Dictionary] = []
+	var blocked_sources: Array = _blocked_sources.keys()
+	blocked_sources.sort()
+	if lobby != null:
+		for peer_id in lobby.human_peer_ids():
+			var player := lobby.players[peer_id] as PlayerMatchState
+			players.append({
+				"peer_id": peer_id,
+				"display_name": player.display_name,
+				"source": String(_peer_auth_sources.get(peer_id, "")),
+				"ready": player.lobby_ready,
+				"spectator": player.spectator,
+			})
+	return {
+		"ok": role == Role.SERVER,
+		"server_name": String(_configuration.get("server_name", "")),
+		"port": int(_configuration.get("port", 0)),
+		"auto_start": bool(_configuration.get("auto_start", false)),
+		"match_active": lobby.match_active if lobby != null else false,
+		"blocked_source_count": _blocked_sources.size(),
+		"blocked_sources": blocked_sources,
+		"players": players,
+		"lobby": lobby.serialize() if lobby != null else {},
+	}
+
+
+func operator_kick(peer_id: int, block_source: bool = false) -> Dictionary:
+	if role != Role.SERVER or lobby == null:
+		return {"ok": false, "error": "The server is not running."}
+	var player := lobby.players.get(peer_id) as PlayerMatchState
+	if player == null or player.is_npc:
+		return {"ok": false, "error": "That human player is not connected."}
+	var source := String(_peer_auth_sources.get(peer_id, ""))
+	if block_source:
+		var block_result := operator_block_source(source)
+		if not block_result.ok:
+			return block_result
+	var reason := NetworkProtocol.REJECT_BLOCKED if block_source else NetworkProtocol.REJECT_KICKED
+	connection_rejected.rpc_id(peer_id, reason, NetworkProtocol.rejection_message(reason))
+	_pending_disconnects[peer_id] = _now_seconds() + 0.1
+	_log("warning", "operator_peer_removed", {
+		"peer_id": peer_id,
+		"display_name": player.display_name,
+		"source": source,
+		"blocked": block_source,
+	})
+	return {"ok": true, "peer_id": peer_id, "source": source, "blocked": block_source}
+
+
+func operator_block_source(source: String) -> Dictionary:
+	var normalized := _normalized_source(source)
+	if not _is_valid_block_source(normalized):
+		return {"ok": false, "error": "A bounded source address is required."}
+	_blocked_sources[normalized] = true
+	var save_error := _save_blocked_sources()
+	if not save_error.is_empty():
+		_blocked_sources.erase(normalized)
+		return {"ok": false, "error": save_error}
+	return {"ok": true, "source": normalized}
+
+
+func operator_unblock_source(source: String) -> Dictionary:
+	var normalized := _normalized_source(source)
+	if not _blocked_sources.erase(normalized):
+		return {"ok": false, "error": "That source is not blocked."}
+	var save_error := _save_blocked_sources()
+	if not save_error.is_empty():
+		_blocked_sources[normalized] = true
+		return {"ok": false, "error": save_error}
+	return {"ok": true, "source": normalized}
+
+
+func operator_set_lobby_password(password: String) -> Dictionary:
+	if not NetworkProtocol.is_valid_lobby_password(password):
+		return {"ok": false, "error": "Lobby password must contain 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH}
+	_configuration.lobby_password = password
+	_log("info", "operator_setting_changed", {"setting": "lobby_password"})
+	return {"ok": true, "setting": "lobby_password"}
+
+
+func operator_set_setting(setting: String, value: Variant) -> Dictionary:
+	if role != Role.SERVER or lobby == null:
+		return {"ok": false, "error": "The server is not running."}
+	var result: Dictionary
+	match setting:
+		"rounds_to_win":
+			if not _is_integer_setting_value(value):
+				return _invalid_operator_setting_type(setting, "an integer")
+			result = lobby.request_rounds_to_win(ServerLobby.OPERATOR_AUTHORITY_ID, int(value))
+		"player_limit":
+			if not _is_integer_setting_value(value):
+				return _invalid_operator_setting_type(setting, "an integer")
+			result = lobby.request_player_limit(ServerLobby.OPERATOR_AUTHORITY_ID, int(value))
+		"npcs_enabled":
+			if not value is bool:
+				return _invalid_operator_setting_type(setting, "true or false")
+			result = lobby.request_npcs_enabled(ServerLobby.OPERATOR_AUTHORITY_ID, bool(value))
+		"npc_difficulty":
+			if not _is_integer_setting_value(value):
+				return _invalid_operator_setting_type(setting, "an integer")
+			result = lobby.request_all_npc_difficulty(ServerLobby.OPERATOR_AUTHORITY_ID, int(value))
+		"game_mode":
+			if not _is_integer_setting_value(value):
+				return _invalid_operator_setting_type(setting, "an integer")
+			result = lobby.request_game_mode(ServerLobby.OPERATOR_AUTHORITY_ID, int(value))
+		"team_count":
+			if not _is_integer_setting_value(value):
+				return _invalid_operator_setting_type(setting, "an integer")
+			result = lobby.request_team_count(ServerLobby.OPERATOR_AUTHORITY_ID, int(value))
+		"random_spawn_powerups":
+			if not value is bool:
+				return _invalid_operator_setting_type(setting, "true or false")
+			result = lobby.request_random_spawn_powerups(ServerLobby.OPERATOR_AUTHORITY_ID, bool(value))
+		"random_powerup_interval":
+			if not value is float and not value is int:
+				return _invalid_operator_setting_type(setting, "a number")
+			result = lobby.request_random_powerup_interval(ServerLobby.OPERATOR_AUTHORITY_ID, float(value))
+		"random_powerups_permanent":
+			if not value is bool:
+				return _invalid_operator_setting_type(setting, "true or false")
+			result = lobby.request_random_powerups_permanent(ServerLobby.OPERATOR_AUTHORITY_ID, bool(value))
+		"overtime_start":
+			if not value is float and not value is int:
+				return _invalid_operator_setting_type(setting, "a number")
+			result = lobby.request_overtime_start(ServerLobby.OPERATOR_AUTHORITY_ID, float(value))
+		"server_name":
+			if not value is String:
+				return _invalid_operator_setting_type(setting, "text")
+			var server_name := String(value).strip_edges()
+			if not LanDiscoveryProtocol.is_valid_server_name(server_name):
+				return {"ok": false, "error": "Server name is outside the supported range."}
+			_configuration.server_name = server_name
+			result = {"ok": true, "changed": true}
+		"auto_start":
+			if not value is bool:
+				return _invalid_operator_setting_type(setting, "true or false")
+			_configuration.auto_start = bool(value)
+			result = {"ok": true, "changed": true}
+		_:
+			return {"ok": false, "error": "Unknown or restart-only setting: %s" % setting}
+	if not result.ok:
+		return result
+	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
+	_activate_added_npcs(result)
+	_broadcast_lobby_state()
+	_log("info", "operator_setting_changed", {"setting": setting, "value": value})
+	return {"ok": true, "setting": setting, "value": value}
+
+
+static func _is_integer_setting_value(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and is_equal_approx(value, roundf(value)))
+
+
+static func _invalid_operator_setting_type(setting: String, expected: String) -> Dictionary:
+	return {"ok": false, "error": "%s requires %s." % [setting, expected]}
+
+
+func _load_blocked_sources() -> void:
+	_blocked_sources.clear()
+	if _ban_file_path.is_empty() or not FileAccess.file_exists(_ban_file_path):
+		return
+	var file := FileAccess.open(_ban_file_path, FileAccess.READ)
+	if file == null:
+		_log("warning", "ban_file_read_failed", {"path": _ban_file_path})
+		return
+	if file.get_length() > NetworkProtocol.MAX_BAN_FILE_BYTES:
+		_log("warning", "ban_file_too_large", {"path": _ban_file_path})
+		return
+	var decoded: Variant = JSON.parse_string(file.get_as_text())
+	if not decoded is Array:
+		_log("warning", "ban_file_invalid", {"path": _ban_file_path})
+		return
+	for value in decoded:
+		if _blocked_sources.size() >= NetworkProtocol.MAX_BLOCKED_SOURCES:
+			break
+		var source := _normalized_source(String(value))
+		if _is_valid_block_source(source):
+			_blocked_sources[source] = true
+
+
+func _save_blocked_sources() -> String:
+	if _ban_file_path.is_empty():
+		return "No ban-file path is configured."
+	var file := FileAccess.open(_ban_file_path, FileAccess.WRITE)
+	if file == null:
+		return "Could not write the ban file."
+	var sources: Array = _blocked_sources.keys()
+	sources.sort()
+	file.store_string(JSON.stringify(sources, "  "))
+	return ""
+
+
+static func _normalized_source(source: String) -> String:
+	var normalized := source.strip_edges().to_lower()
+	if normalized.begins_with("[") and normalized.ends_with("]"):
+		normalized = normalized.substr(1, normalized.length() - 2)
+	return normalized
+
+
+static func _is_valid_block_source(source: String) -> bool:
+	if source.is_empty() or source.length() > 64:
+		return false
+	for character in source:
+		if character not in "0123456789abcdef.:":
+			return false
+	return true
+
+
 func _on_client_transport_connected() -> void:
-	client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, _client_protocol_version, _client_name, _client_password)
+	# The server supplies a fresh challenge before the client sends credentials.
+	pass
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func authentication_challenge(challenge: String) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	if not NetworkProtocol.is_valid_auth_challenge(challenge):
+		last_error = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		stop()
+		client_rejected.emit(NetworkProtocol.REJECT_MALFORMED_TRAFFIC, last_error)
+		return
+	var proof := NetworkProtocol.lobby_password_proof(challenge, _client_password)
+	client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, _client_protocol_version, _client_name, proof)
+	_client_password = ""
 
 
 func _on_client_connection_failed() -> void:

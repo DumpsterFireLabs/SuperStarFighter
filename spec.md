@@ -70,7 +70,11 @@ The same project supplies client, server, tests, and protocol test-client entry 
 | `--server` | Server | Off | Starts authoritative headless server mode. |
 | `--port=<1024-65535>` | Server/client | `7000` | Selects the ENet UDP port. |
 | `--server-name=<name>` | Server | `Super Star Fighter Server` | Sets the bounded display name advertised to LAN browsers. |
-| `--password=<password>` | Server/bot client | Required | Supplies the 1–64 printable-character lobby password without logging or advertising it. |
+| `--password=<password>` | Server/bot client | Required fallback | Supplies the 1–64 printable-character lobby password; intended for tests because process arguments may be observable. |
+| `--password-file=<path>` / `SSF_LOBBY_PASSWORD` | Server/bot client | Preferred | Reads the lobby password from a protected one-line file or process environment. |
+| `--admin-port=<1024-65535>` | Server | Disabled | Enables the authenticated TCP admin service on loopback only; must differ from gameplay and discovery ports. |
+| `--admin-password-file=<path>` / `SSF_ADMIN_PASSWORD` | Server admin | Required when enabled | Supplies a distinct 1–64 printable-character admin secret without a process argument. |
+| `--ban-file=<path>` | Server | User-data file | Selects the persistent blocked-source JSON file. |
 | `--max-players=<2-32>` | Server | `32` | Limits admitted clients. |
 | `--rounds-to-win=<1-5>` | Server | `3` | Sets the lobby's initial round target; the lobby leader may change it. |
 | `--auto-start` | Tests only | Off | Starts when at least two test clients are ready. |
@@ -475,7 +479,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `19` and a maximum of 32 client peers in addition to the server. Version 19 adds password-gated lobby admission while retaining authoritative ship-pattern selection, rebound ownership, cloak activity, remaining match-long charges, and the isolated player-snapshot, projectile-delta, projectile-correction, and objective streams introduced earlier.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `20` and a maximum of 32 admitted client peers plus eight bounded pre-admission slots. Version 20 replaces raw-password admission with fresh challenge-response proofs and adds source-scoped authentication cooldowns while retaining authoritative ship-pattern selection and the isolated gameplay streams introduced earlier.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile corrections are sent at 5 Hz; replaceable objective snapshots are sent at 4 Hz.
 - Use six logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player snapshots, unreliable ordered projectile deltas, unreliable ordered projectile corrections, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -493,7 +497,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 Client-to-server messages:
 
-- `client_hello(protocol_version, display_name, lobby_password)` — reliable, required within 10 seconds of ENet connection; admission occurs only after the password matches.
+- `client_hello(protocol_version, display_name, password_proof)` — reliable, required within 10 seconds of ENet connection and only after the server's fresh challenge; the raw lobby password is never sent by this RPC.
 - `request_lobby_config(rounds_to_win)` — reliable, lobby leader only.
 - `request_player_limit(total_participants)` — reliable, lobby leader and lobby state only; bounded by 2, server capacity, and 32.
 - `request_npcs_enabled(enabled)` — reliable, lobby leader and lobby state only.
@@ -517,6 +521,7 @@ Client-to-server messages:
 
 Server-to-client messages:
 
+- `authentication_challenge(challenge)` — reliable, fresh 32-byte random lower-hex challenge sent before admission; a proof is scoped to this one connection and cannot be replayed with a later challenge.
 - `server_welcome(peer_id, lobby_state)` — reliable handshake acceptance.
 - `connection_rejected(reason_code, display_message)` — reliable rejection followed by disconnect.
 - `lobby_state(revision, leader_id, config, players)` — reliable full lobby state.
@@ -546,15 +551,15 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 - Reject non-finite numbers, movement magnitudes above tolerance, impossible action bits, stale offer tokens, invalid card IDs, out-of-state requests, unauthorized lobby actions, and version mismatches.
 - Accept at most 20 reliable control requests per peer per second, bound offer tokens and card IDs to 64 characters before interning or lookup, and disconnect only the sender after sustained excessive control traffic.
 - Clamp accepted movement after validation. Do not clamp malformed or non-finite messages into validity.
-- Rejection reason codes are `SERVER_FULL`, `VERSION_MISMATCH`, `INVALID_NAME`, `HANDSHAKE_TIMEOUT`, `MALFORMED_TRAFFIC`, `SERVER_CLOSED`, and `EJECTED`.
+- Rejection reason codes are `SERVER_FULL`, `VERSION_MISMATCH`, `INVALID_NAME`, `INVALID_PASSWORD`, `AUTH_RATE_LIMITED`, `HANDSHAKE_TIMEOUT`, `MALFORMED_TRAFFIC`, `SERVER_CLOSED`, `EJECTED`, `KICKED`, and `BLOCKED`.
 - Clients display a human-readable error and return to the connection screen after rejection or network loss.
-- The vertical slice provides authority and validation but no identity authentication, encryption, ban service, or denial-of-service protection.
+- At most two simultaneous pending handshakes are permitted per source. Eight failed password proofs from one source within 60 seconds impose a 60-second source cooldown. The dedicated server holds its supplied lobby/admin secrets only for the running process and never writes or remembers them; password files remain operator-owned read-only startup inputs. The server provides persistent source-address blocks and a separately authenticated loopback-only admin service intended for SSH tunneling. It does not provide account identity, end-to-end gameplay encryption, a password-authenticated key exchange, or full denial-of-service protection; operators must use strong distinct secrets and host firewall controls.
 
 ## 9. User Experience
 
 ### 9.1 Screens
 
-1. **Connection:** A centered menu over the non-gameplay neon backdrop with three tabs: a refreshable LAN-server list with server name, endpoint, lock state, occupancy, lobby/match state, ping, compatibility, and Join action; Direct Connect with address defaulting to `127.0.0.1`, gameplay port defaulting to `7000`, a masked password, and opt-in remember-by-address behavior; and Host Game with bounded server name, gameplay port, required masked password, and Host & Join. Save a guest password only after successful admission and never overwrite a remembered value after a failed guess. Display name is shared across all connection paths. Keep Quit, settings access, and inline connection/hosting errors available. The arena and its map are not rendered before a match begins.
+1. **Connection:** A centered menu over the non-gameplay neon backdrop with three tabs: a refreshable LAN-server list with server name, endpoint, lock state, occupancy, lobby/match state, ping, compatibility, and Join action; Direct Connect with address defaulting to `127.0.0.1`, gameplay port defaulting to `7000`, a masked password, and opt-in remember-by-endpoint behavior; and Host Game with bounded server name, gameplay port, required masked password, and Host & Join. Save a guest password only after successful admission, key it by normalized host plus gameplay port, and never overwrite a remembered value after a failed guess. Display name is shared across all connection paths. Keep Quit, settings access, and inline connection/hosting errors available. The arena and its map are not rendered before a match begins.
 2. **Lobby:** A centered pre-match menu on the same non-gameplay backdrop with a scrollable human/NPC player list, player appearance swatches, team labels when applicable, leader and ready markers, a local ready toggle, leader-only eject controls, individual and bulk NPC difficulty dropdowns, round target, total-player limit, NPC-fill toggle, context-aware Start Match button, connection status, and a Match Options panel for the five-mode selector and description, random-powerup enablement/interval/permanence, and overtime timing. Each human's own roster swatch opens their persistent hull-pattern and Random/custom HSV colour selector with a live ship preview and explicit Apply action; appearance selection is not a separate lobby option. The arena, internal spawn anchors, and inactive ship markers remain hidden through the initial draft.
 3. **Draft:** Five or fewer card panels with name, category, exact effects, current/new stack count, selection state, and synchronized timer. Put rarity and tier drop chance in smaller print at the bottom; use the rarity color for the card background and border. Hovering a choice uses the same rarity-styled graphical card preview as scoreboard and victory build inspection, showing the projected post-pick stack effects rather than a generic text tooltip. Support clicking, keys 1–5, and focused controller navigation with confirm. A previous-round winner instead sees a clear no-card draft-bye message.
 4. **Combat HUD:** A compact upper-left panel no larger than 430×148 at the 1920×1080 virtual canvas integrates mode, objective state/progress, match state, round/heat, synchronized timer, alive count, overtime warning, health, shield, ammunition/reload, and active-profile shortcuts. The arena renders the hill or flag and valid extraction/base zones. A compact local ammo bar and `AMMO`/`RELOAD` readout also stays directly above the player ship. The former top-center match banner is not visible during gameplay. Holding the configured scoreboard action displays a centered live scoreboard with ranked structured rows, teams, heat/round scores, match-total kills, public builds, and a highlighted local-player row; releasing it immediately closes the scoreboard while the match continues behind it.

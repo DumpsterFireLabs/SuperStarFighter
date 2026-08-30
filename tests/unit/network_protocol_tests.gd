@@ -2,6 +2,7 @@ class_name NetworkProtocolTests
 extends RefCounted
 
 const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
+const AuthenticationAttemptLimiterScript = preload("res://src/shared/network/authentication_attempt_limiter.gd")
 const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 
@@ -261,6 +262,13 @@ static func _validate_rate_limiting(context: TestContext) -> void:
 	context.expect_equal(control.register(4, 1.0), RequestRateLimiter.Decision.DISCONNECT, "sustained excessive control requests disconnect only their sender")
 	control.remove_peer(4)
 	context.expect_equal(control.register(4, 2.0), RequestRateLimiter.Decision.ACCEPT, "removed peer has no stale limiter state")
+	var authentication := AuthenticationAttemptLimiterScript.new(3, 10.0, 30.0)
+	context.expect_false(authentication.register_failure("203.0.113.5", 0.0), "first incorrect password does not block a source")
+	context.expect_false(authentication.register_failure("203.0.113.5", 1.0), "second incorrect password remains retryable")
+	context.expect_true(authentication.register_failure("203.0.113.5", 2.0), "repeated incorrect passwords block their source")
+	context.expect_true(authentication.is_blocked("203.0.113.5", 20.0), "authentication cooldown survives reconnects")
+	context.expect_false(authentication.is_blocked("203.0.113.6", 20.0), "authentication cooldown is isolated by source")
+	context.expect_false(authentication.is_blocked("203.0.113.5", 32.0), "authentication cooldown expires deterministically")
 
 
 static func _validate_observability_bounds(context: TestContext) -> void:
@@ -288,6 +296,15 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_true(NetworkProtocol.is_valid_lobby_password("friends only"), "printable lobby passwords are accepted")
 	context.expect_false(NetworkProtocol.is_valid_lobby_password(""), "empty lobby passwords are rejected")
 	context.expect_false(NetworkProtocol.is_valid_lobby_password("bad\npassword"), "control characters are rejected in lobby passwords")
+	var authentication_challenge := "ab".repeat(NetworkProtocol.AUTH_CHALLENGE_BYTES)
+	var password_proof := NetworkProtocol.lobby_password_proof(authentication_challenge, "friends only")
+	var admin_proof := NetworkProtocol.admin_password_proof(authentication_challenge, "friends only")
+	context.expect_true(NetworkProtocol.is_valid_auth_challenge(authentication_challenge), "authentication challenge uses the bounded wire format")
+	context.expect_true(NetworkProtocol.is_valid_auth_proof(password_proof), "lobby password produces a bounded proof")
+	context.expect_false("friends only" in password_proof, "authentication proof never contains the lobby password")
+	context.expect_false(password_proof == NetworkProtocol.lobby_password_proof("cd".repeat(NetworkProtocol.AUTH_CHALLENGE_BYTES), "friends only"), "fresh challenges prevent proof replay")
+	context.expect_false(password_proof == admin_proof, "lobby credentials cannot be replayed against the admin control plane")
+	context.expect_true(NetworkProtocol.is_valid_auth_proof(admin_proof), "admin challenge response uses the bounded proof format")
 	context.expect_true(lobby.admit(2, " Nova ").ok, "first peer is admitted with trimmed name")
 	context.expect_equal(lobby.leader_id, 2, "first admitted peer becomes leader")
 	context.expect_true(lobby.admit(3, "Nova").ok, "duplicate base name is admitted")
@@ -368,6 +385,8 @@ static func _validate_team_assignment_authority(context: TestContext) -> void:
 	var config := MatchConfig.new()
 	config.max_players = 4
 	var lobby := ServerLobby.new(config)
+	context.expect_true(lobby.request_rounds_to_win(ServerLobby.OPERATOR_AUTHORITY_ID, 4).ok, "server operator can configure an empty dedicated lobby")
+	context.expect_equal(lobby.config.rounds_to_win, 4, "operator configuration reaches authoritative lobby state")
 	context.expect_true(lobby.admit(10, "Host").ok, "team authority fixture admits its host")
 	context.expect_true(lobby.admit(11, "Guest").ok, "team authority fixture admits a second human")
 	context.expect_true(lobby.request_player_limit(10, 4).ok, "team authority fixture reserves four participant seats")
@@ -1231,34 +1250,38 @@ static func _validate_connection_admission(context: TestContext) -> void:
 		NetworkProtocol.REJECT_VERSION_MISMATCH,
 		"version-mismatched hello receives exact rejection code"
 	)
+	var challenge := "12".repeat(NetworkProtocol.AUTH_CHALLENGE_BYTES)
+	var correct_proof := NetworkProtocol.lobby_password_proof(challenge, "correct")
+	var wrong_proof := NetworkProtocol.lobby_password_proof(challenge, "wrong")
 	context.expect_equal(
-		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 32, 32),
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 32, 32, correct_proof, correct_proof),
 		NetworkProtocol.REJECT_SERVER_FULL,
 		"full server hello receives exact rejection code"
 	)
 	context.expect_equal(
-		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "bad\nname", 0, 32),
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "bad\nname", 0, 32, correct_proof, correct_proof),
 		NetworkProtocol.REJECT_INVALID_NAME,
 		"invalid-name hello receives exact rejection code"
 	)
 	context.expect_equal(
-		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32),
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, correct_proof, correct_proof),
 		&"",
 		"valid hello passes admission validation"
 	)
 	context.expect_equal(
-		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, "wrong", "correct"),
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, wrong_proof, correct_proof),
 		NetworkProtocol.REJECT_INVALID_PASSWORD,
 		"incorrect lobby password is rejected before admission"
 	)
 	context.expect_equal(
-		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, "correct", "correct"),
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, correct_proof, correct_proof),
 		&"",
 		"matching lobby password passes admission"
 	)
 	var handshakes := HandshakeRegistry.new()
-	handshakes.begin(9, 100.0)
+	handshakes.begin(9, 100.0, challenge)
 	context.expect_true(handshakes.has(9), "new transport peer enters pending handshake registry")
+	context.expect_equal(handshakes.challenge_for(9), challenge, "pending handshake retains its one-use authentication challenge")
 	context.expect_empty(handshakes.expired(109.999), "handshake remains pending before ten-second deadline")
 	context.expect_equal(handshakes.expired(110.0), [9], "handshake expires at ten-second deadline")
 	context.expect_true(handshakes.complete(9), "completed handshake is removed")

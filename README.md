@@ -39,7 +39,7 @@ In the game:
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 
-Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address, gameplay port, and lobby password. Guests may remember an accepted password locally for that host address.
+Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address, gameplay port, and lobby password. Guests may remember an accepted password locally for that exact host-and-port endpoint.
 
 ## Controls
 
@@ -123,8 +123,10 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 Start a headless authoritative server with:
 
 ```powershell
-.\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -Password "friends-only" -MaxPlayers 32 -RoundsToWin 3
+.\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -AdminPort 7001 -MaxPlayers 32 -RoundsToWin 3
 ```
+
+The launcher prompts securely for the lobby password and, when administration is enabled, a distinct admin password. A dedicated server never remembers or writes either password. For unattended service startup, `-PasswordFile` and `-AdminPasswordFile` are read-only startup sources supplied by the operator; keep them ACL-protected and outside the repository. The admin listener binds only to `127.0.0.1`; reach it remotely through an SSH tunnel, then use `tools/admin.ps1` for status, player lists, kicks, persistent address blocks, live lobby settings, password rotation, and graceful shutdown.
 
 Super Star Fighter uses ENet over UDP. LAN discovery uses UDP `7359`; gameplay uses the selected UDP port, `7000` by default. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting currently requires direct IP/hostname access and manual router/firewall configuration; UPnP traversal is not implemented.
 

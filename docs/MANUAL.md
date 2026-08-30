@@ -134,10 +134,10 @@ Use **Direct Connect** when you know the server address:
 1. Enter a hostname or IPv4/IPv6 address in **Server host or IP**.
 2. Enter the server's gameplay UDP port.
 3. Enter the lobby password.
-4. Optionally enable **Remember password for this IP**. The password is saved locally only after the server accepts it; a failed guess is never saved.
+4. Optionally enable **Remember password for this server**. The password is saved only in this client's local settings after the server accepts it; a failed guess is never saved.
 5. Select **Connect to Server**.
 
-Remembered passwords are keyed by host address rather than port. They are stored in the game's local settings file, so leave the option off on a shared computer.
+Remembered passwords are keyed by normalized host address and gameplay port, preventing one service at an address from receiving another service's saved credential. They are stored in the game's local settings file, so leave the option off on a shared computer.
 
 For the same computer, use `127.0.0.1`. For another computer on the LAN, use that computer's private address, such as `192.168.1.50`. For an internet server, use its public hostname or public IP.
 
@@ -149,10 +149,12 @@ From the repository root:
 .\tools\start-server.ps1 `
     -Port 7000 `
     -ServerName "Friday Fight Night" `
-    -Password "friends-only" `
+    -AdminPort 7001 `
     -MaxPlayers 32 `
     -RoundsToWin 3
 ```
+
+The launcher securely prompts for a lobby password and a distinct admin password. It never puts either prompted secret in the process command line, and the dedicated server never saves or remembers them. For unattended startup, put each secret on one line in a separately ACL-protected file outside the repository and pass `-PasswordFile` and `-AdminPasswordFile`; these are read-only operator inputs, not server-managed remembered-password files. `SSF_LOBBY_PASSWORD` and `SSF_ADMIN_PASSWORD` are also accepted as process-environment alternatives; avoid machine-wide environment variables on shared hosts.
 
 Parameters:
 
@@ -160,13 +162,36 @@ Parameters:
 | --- | ---: | ---: | --- |
 | `Port` | 1024–65535 | 7000 | ENet gameplay UDP port |
 | `ServerName` | 1–40 printable characters | Super Star Fighter Server | LAN browser name |
-| `Password` | 1–64 printable characters | Required | Lobby admission password |
+| `PasswordFile` | Readable one-line file | Prompt | Lobby password source for unattended startup |
+| `AdminPort` | 0 or 1024–65535 | 0 | Loopback-only TCP admin listener; 0 disables it |
+| `AdminPasswordFile` | Readable one-line file | Prompt when admin is enabled | Distinct admin credential source |
+| `BanFile` | Writable file path | Godot user-data `server-bans.json` | Persistent blocked-address list |
 | `MaxPlayers` | 2–32 | 32 | Maximum server/lobby participant capacity |
 | `RoundsToWin` | 1–5 | 3 | Initial lobby round target |
 
 The dedicated process runs headlessly and prints bounded JSON-line events and metrics to standard output. Stop it with `Ctrl+C` when the session is over.
 
-### 4.5 Internet hosting and firewalls
+### 4.5 Dedicated-server administration
+
+The admin listener accepts connections only on `127.0.0.1`. Do not expose it through a public TCP proxy. For a remote server, tunnel it with SSH (for example, local port `7001` to server loopback port `7001`) and run the commands locally:
+
+```powershell
+.\tools\admin.ps1 -Port 7001 -Command status
+.\tools\admin.ps1 -Port 7001 -Command kick -PeerId 4
+.\tools\admin.ps1 -Port 7001 -Command ban -PeerId 7
+.\tools\admin.ps1 -Port 7001 -Command unblock -Source 203.0.113.8
+.\tools\admin.ps1 -Port 7001 -Command set -Setting rounds_to_win -Value 5
+.\tools\admin.ps1 -Port 7001 -Command set-password
+.\tools\admin.ps1 -Port 7001 -Command shutdown
+```
+
+The tool prompts securely for the admin password unless `-AdminPasswordFile` or the process-scoped `SSF_ADMIN_PASSWORD` variable is present. `status` and `players` include peer IDs and source addresses for moderation. `ban` immediately removes the selected peer and persists its current source address; `kick` removes it without blocking reconnection. Address blocks are useful but are not account bans: shared NATs can affect multiple players and a player can change addresses.
+
+The `set` command supports `rounds_to_win`, `player_limit`, `npcs_enabled`, `npc_difficulty` (0–4), `game_mode` (0–4), `team_count`, `random_spawn_powerups`, `random_powerup_interval`, `random_powerups_permanent`, `overtime_start`, `server_name`, and `auto_start`. Match-rule changes are rejected during an active match and clear ready states when accepted. Gameplay/admin ports and physical server capacity are restart-only because their sockets and allocation are created at startup. Admin activity is written to the server's JSON-line audit output without passwords or proofs.
+
+Runtime setting and password changes apply to the current server process only. The server does not persist a rotated password. Before restarting, mirror intended long-term values in the launch arguments and update the operator-owned protected lobby-password source. Address blocks are the exception: they are saved immediately to the configured ban file.
+
+### 4.6 Internet hosting and firewalls
 
 Super Star Fighter uses ENet over UDP, not TCP.
 

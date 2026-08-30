@@ -2,6 +2,8 @@ class_name ServerLobby
 extends RefCounted
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const MAX_DISPLAY_NAME_LENGTH: int = 16
+const OPERATOR_AUTHORITY_ID: int = -2_147_483_648
 
 var config: MatchConfig
 var players: Dictionary = {}
@@ -76,10 +78,9 @@ func remove(peer_id: int) -> PlayerMatchState:
 
 
 func request_rounds_to_win(sender_id: int, value: int) -> Dictionary:
-	if sender_id != leader_id:
-		return {"ok": false, "error": "Only the lobby leader may change match settings."}
-	if match_active:
-		return {"ok": false, "error": "Match settings cannot change during a match."}
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
 	if value < GameConstants.MIN_ROUNDS_TO_WIN or value > GameConstants.MAX_ROUNDS_TO_WIN:
 		return {"ok": false, "error": "Rounds to win is outside the supported range."}
 	if config.rounds_to_win == value:
@@ -495,7 +496,7 @@ func serialize() -> Dictionary:
 
 
 static func is_valid_display_name(name_value: String) -> bool:
-	if name_value.length() < 1 or name_value.length() > 16:
+	if name_value.length() < 1 or name_value.length() > MAX_DISPLAY_NAME_LENGTH:
 		return false
 	for index in name_value.length():
 		var codepoint := name_value.unicode_at(index)
@@ -553,7 +554,7 @@ func _ensure_roster_cache() -> void:
 
 
 func _settings_authority_error(sender_id: int) -> String:
-	if sender_id != leader_id:
+	if sender_id != leader_id and sender_id != OPERATOR_AUTHORITY_ID:
 		return "Only the lobby leader may change match settings."
 	if match_active:
 		return "Match settings cannot change during a match."

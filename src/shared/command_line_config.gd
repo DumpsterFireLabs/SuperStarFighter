@@ -1,6 +1,9 @@
 class_name CommandLineConfig
 extends RefCounted
 
+const LOBBY_PASSWORD_ENVIRONMENT_VARIABLE: String = "SSF_LOBBY_PASSWORD"
+const ADMIN_PASSWORD_ENVIRONMENT_VARIABLE: String = "SSF_ADMIN_PASSWORD"
+
 
 static func parse(arguments: PackedStringArray, dedicated_server_feature: bool = false) -> Dictionary:
 	var result := {
@@ -12,6 +15,11 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"host": "127.0.0.1",
 		"server_name": "Super Star Fighter Server",
 		"lobby_password": "",
+		"lobby_password_file": "",
+		"admin_port": 0,
+		"admin_password": "",
+		"admin_password_file": "",
+		"ban_file": "user://server-bans.json",
 		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"auto_start": false,
@@ -68,6 +76,11 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if not NetworkProtocol.is_valid_lobby_password(parsed_password):
 				return _error("--password requires 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH)
 			result.lobby_password = parsed_password
+		elif argument.begins_with("--password-file="):
+			var password_file := argument.trim_prefix("--password-file=").strip_edges()
+			if password_file.is_empty():
+				return _error("--password-file requires a readable file path.")
+			result.lobby_password_file = password_file
 		elif argument.begins_with("--max-players="):
 			var parsed_players := _parse_bounded_integer(
 				argument.trim_prefix("--max-players="),
@@ -78,6 +91,26 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if not parsed_players.ok:
 				return parsed_players
 			result.max_players = parsed_players.value
+		elif argument.begins_with("--admin-port="):
+			var parsed_admin_port := _parse_bounded_integer(
+				argument.trim_prefix("--admin-port="),
+				GameConstants.MIN_PORT,
+				GameConstants.MAX_PORT,
+				"--admin-port"
+			)
+			if not parsed_admin_port.ok:
+				return parsed_admin_port
+			result.admin_port = parsed_admin_port.value
+		elif argument.begins_with("--admin-password-file="):
+			var admin_password_file := argument.trim_prefix("--admin-password-file=").strip_edges()
+			if admin_password_file.is_empty():
+				return _error("--admin-password-file requires a readable file path.")
+			result.admin_password_file = admin_password_file
+		elif argument.begins_with("--ban-file="):
+			var ban_file := argument.trim_prefix("--ban-file=").strip_edges()
+			if ban_file.is_empty():
+				return _error("--ban-file requires a file path.")
+			result.ban_file = ban_file
 		elif argument.begins_with("--rounds-to-win="):
 			var parsed_rounds := _parse_bounded_integer(
 				argument.trim_prefix("--rounds-to-win="),
@@ -164,8 +197,32 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("Choose only one startup mode: --server, --run-tests, or --bot-client.")
 	if explicit_modes.size() == 1:
 		result.mode = explicit_modes[0]
+	if String(result.lobby_password).is_empty() and not String(result.lobby_password_file).is_empty():
+		var loaded_password := _read_password_file(String(result.lobby_password_file))
+		if not loaded_password.ok:
+			return loaded_password
+		result.lobby_password = loaded_password.value
+	if String(result.lobby_password).is_empty():
+		result.lobby_password = OS.get_environment(LOBBY_PASSWORD_ENVIRONMENT_VARIABLE)
+	if String(result.admin_password).is_empty() and not String(result.admin_password_file).is_empty():
+		var loaded_admin_password := _read_secret_file(String(result.admin_password_file), "--admin-password-file")
+		if not loaded_admin_password.ok:
+			return loaded_admin_password
+		result.admin_password = loaded_admin_password.value
+	if String(result.admin_password).is_empty():
+		result.admin_password = OS.get_environment(ADMIN_PASSWORD_ENVIRONMENT_VARIABLE)
+	if not String(result.lobby_password).is_empty() and not NetworkProtocol.is_valid_lobby_password(String(result.lobby_password)):
+		return _error("The lobby password requires 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH)
 	if result.mode in ["server", "bot_client"] and String(result.lobby_password).is_empty():
-		return _error("--password is required when hosting or joining a network lobby.")
+		return _error("Set --password, --password-file, or %s when hosting or joining a network lobby." % LOBBY_PASSWORD_ENVIRONMENT_VARIABLE)
+	if int(result.admin_port) > 0 and result.mode != "server":
+		return _error("--admin-port is only valid with --server.")
+	if int(result.admin_port) > 0 and int(result.admin_port) in [int(result.port), LanDiscoveryProtocol.DISCOVERY_PORT]:
+		return _error("--admin-port must differ from the gameplay and LAN discovery ports.")
+	if int(result.admin_port) > 0 and not NetworkProtocol.is_valid_lobby_password(String(result.admin_password)):
+		return _error("Set --admin-password-file or %s to 1–%d printable characters when remote administration is enabled." % [ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH])
+	if int(result.admin_port) > 0 and String(result.admin_password) == String(result.lobby_password):
+		return _error("The admin password must differ from the lobby password.")
 	if result.auto_start and result.mode != "server":
 		return _error("--auto-start is only valid with --server.")
 	if result.force_test_failure and result.mode != "tests":
@@ -191,6 +248,22 @@ static func _parse_bounded_integer(value_text: String, minimum: int, maximum: in
 	var value := int(value_text)
 	if value < minimum or value > maximum:
 		return _error("%s must be from %d through %d." % [option, minimum, maximum])
+	return {"ok": true, "value": value}
+
+
+static func _read_password_file(path: String) -> Dictionary:
+	return _read_secret_file(path, "--password-file")
+
+
+static func _read_secret_file(path: String, option: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return _error("%s could not read the requested file." % option)
+	var value := file.get_as_text()
+	while value.ends_with("\n") or value.ends_with("\r"):
+		value = value.left(value.length() - 1)
+	if not NetworkProtocol.is_valid_lobby_password(value):
+		return _error("%s must contain 1–%d printable characters on one line." % [option, NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH])
 	return {"ok": true, "value": value}
 
 

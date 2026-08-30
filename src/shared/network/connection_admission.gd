@@ -7,8 +7,8 @@ static func validate_hello(
 	display_name: String,
 	current_players: int,
 	maximum_players: int,
-	supplied_password: String = "",
-	expected_password: String = ""
+	supplied_proof: String = "",
+	expected_proof: String = ""
 ) -> StringName:
 	if protocol_version != GameConstants.PROTOCOL_VERSION:
 		return NetworkProtocol.REJECT_VERSION_MISMATCH
@@ -16,6 +16,8 @@ static func validate_hello(
 		return NetworkProtocol.REJECT_INVALID_NAME
 	if current_players >= maximum_players:
 		return NetworkProtocol.REJECT_SERVER_FULL
-	if supplied_password != expected_password:
+	if not NetworkProtocol.is_valid_auth_proof(supplied_proof):
+		return NetworkProtocol.REJECT_INVALID_PASSWORD
+	if not NetworkProtocol.constant_time_string_equal(supplied_proof, expected_proof):
 		return NetworkProtocol.REJECT_INVALID_PASSWORD
 	return &""

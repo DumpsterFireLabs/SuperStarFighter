@@ -25,6 +25,21 @@ const TRAFFIC_STRIKES_BEFORE_DISCONNECT: int = 3
 const MAX_OFFER_TOKEN_LENGTH: int = 64
 const MAX_CARD_ID_LENGTH: int = 64
 const MAX_LOBBY_PASSWORD_LENGTH: int = 64
+const AUTH_CHALLENGE_BYTES: int = 32
+const AUTH_CHALLENGE_HEX_LENGTH: int = AUTH_CHALLENGE_BYTES * 2
+const AUTH_PROOF_HEX_LENGTH: int = 64
+const AUTH_RESERVED_PEERS: int = 8
+const AUTH_MAX_PENDING_PER_SOURCE: int = 2
+const AUTH_FAILURE_LIMIT: int = 8
+const AUTH_FAILURE_WINDOW_SECONDS: float = 60.0
+const AUTH_COOLDOWN_SECONDS: float = 60.0
+const AUTH_MAX_TRACKED_SOURCES: int = 4096
+const ADMIN_MAX_MESSAGE_BYTES: int = 4096
+const ADMIN_MAX_CLIENTS: int = 4
+const ADMIN_MAX_REQUESTS_PER_SECOND: int = 20
+const ADMIN_AUTH_TIMEOUT_SECONDS: float = 10.0
+const MAX_BLOCKED_SOURCES: int = 4096
+const MAX_BAN_FILE_BYTES: int = 262144
 const MAX_LOG_STRING_LENGTH: int = 128
 const MAX_LOG_COLLECTION_LENGTH: int = 16
 const MAX_SNAPSHOT_PLAYERS: int = GameConstants.MAX_PLAYERS
@@ -39,6 +54,9 @@ const REJECT_HANDSHAKE_TIMEOUT: StringName = &"HANDSHAKE_TIMEOUT"
 const REJECT_MALFORMED_TRAFFIC: StringName = &"MALFORMED_TRAFFIC"
 const REJECT_SERVER_CLOSED: StringName = &"SERVER_CLOSED"
 const REJECT_EJECTED: StringName = &"EJECTED"
+const REJECT_AUTH_RATE_LIMITED: StringName = &"AUTH_RATE_LIMITED"
+const REJECT_KICKED: StringName = &"KICKED"
+const REJECT_BLOCKED: StringName = &"BLOCKED"
 
 
 static func rejection_message(reason: StringName) -> String:
@@ -59,6 +77,12 @@ static func rejection_message(reason: StringName) -> String:
 			return "The server closed the connection."
 		REJECT_EJECTED:
 			return "You were removed from the lobby by its leader."
+		REJECT_AUTH_RATE_LIMITED:
+			return "Too many unsuccessful password attempts. Try again in one minute."
+		REJECT_KICKED:
+			return "A server operator removed you from the server."
+		REJECT_BLOCKED:
+			return "This connection is blocked by the server operator."
 		_:
 			return "The server rejected the connection."
 
@@ -69,5 +93,46 @@ static func is_valid_lobby_password(password: String) -> bool:
 	for index in password.length():
 		var codepoint := password.unicode_at(index)
 		if codepoint < 32 or (codepoint >= 127 and codepoint <= 159):
+			return false
+	return true
+
+
+static func is_valid_auth_challenge(challenge: String) -> bool:
+	return _is_lower_hex(challenge, AUTH_CHALLENGE_HEX_LENGTH)
+
+
+static func is_valid_auth_proof(proof: String) -> bool:
+	return _is_lower_hex(proof, AUTH_PROOF_HEX_LENGTH)
+
+
+static func lobby_password_proof(challenge: String, password: String) -> String:
+	if not is_valid_auth_challenge(challenge) or not is_valid_lobby_password(password):
+		return ""
+	return ("ssf-lobby-auth-v1\u001f%s\u001f%s" % [challenge, password]).sha256_text()
+
+
+static func admin_password_proof(challenge: String, password: String) -> String:
+	if not is_valid_auth_challenge(challenge) or not is_valid_lobby_password(password):
+		return ""
+	return ("ssf-admin-auth-v1\u001f%s\u001f%s" % [challenge, password]).sha256_text()
+
+
+static func constant_time_string_equal(left: String, right: String) -> bool:
+	var left_bytes := left.to_utf8_buffer()
+	var right_bytes := right.to_utf8_buffer()
+	var difference := left_bytes.size() ^ right_bytes.size()
+	var comparison_size := maxi(left_bytes.size(), right_bytes.size())
+	for index in comparison_size:
+		var left_value := left_bytes[index] if index < left_bytes.size() else 0
+		var right_value := right_bytes[index] if index < right_bytes.size() else 0
+		difference |= left_value ^ right_value
+	return difference == 0
+
+
+static func _is_lower_hex(value: String, expected_length: int) -> bool:
+	if value.length() != expected_length:
+		return false
+	for character in value:
+		if character not in "0123456789abcdef":
 			return false
 	return true
