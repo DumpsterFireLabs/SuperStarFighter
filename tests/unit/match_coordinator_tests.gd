@@ -6,6 +6,7 @@ const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_sy
 
 static func run(context: TestContext) -> void:
 	_validate_complete_match_and_rematch(context)
+	_validate_match_extension(context)
 	_validate_last_survivor_resolution(context)
 	_validate_round_winner_draft_bye(context)
 	_validate_npc_draft(context)
@@ -105,6 +106,34 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 	for player_value in second.machine.players.values():
 		var player := player_value as PlayerMatchState
 		context.expect_equal(player.card_stacks.size(), 1, "draft timeout auto-selects for second match")
+
+
+static func _validate_match_extension(context: TestContext) -> void:
+	var config := _fast_config()
+	var lobby := ServerLobby.new(config)
+	var world := AuthoritativeWorld.new()
+	for peer_id in [20, 21]:
+		lobby.admit(peer_id, "Pilot%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(20)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 2026)
+	coordinator.start(world.server_tick)
+	coordinator.drain_private_offers()
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	_finish_heat(world, coordinator, 20)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	_finish_heat(world, coordinator, 20)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.MATCH_RESULT)
+	var retained_build := (coordinator.machine.players[21] as PlayerMatchState).card_stacks.duplicate(true)
+	context.expect_true(coordinator.extend_match(), "coordinator accepts an extension from final results")
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.ROUND_RESULT, "coordinator broadcasts a resumed round intermission")
+	context.expect_equal(coordinator.current_state_payload().rounds_to_win, 6, "extension payload publishes the raised target")
+	context.expect_equal((coordinator.machine.players[21] as PlayerMatchState).card_stacks, retained_build, "coordinator preserves drafted builds across extension")
+	_advance_until_state(world, coordinator, MatchStateMachine.State.DRAFT)
+	context.expect_equal(coordinator.current_state_payload().draft_bye_peer_id, 20, "decisive-round winner keeps the normal next-draft bye after extension")
+	context.expect_true(coordinator.draft.get_offer(20).skipped, "extended draft skips the prior round winner")
+	context.expect_equal(coordinator.drain_private_offers().size(), 1, "only the non-winner receives a new card offer after extension")
 
 
 static func _validate_forfeit(context: TestContext) -> void:

@@ -115,8 +115,10 @@ var results_panel: PanelContainer
 var results_label: Label
 var results_winner_label: Label
 var results_standings_container: VBoxContainer
+var results_extend_button: Button
 var results_return_button: Button
 var _results_rows_dirty: bool = true
+var _extend_match_requested: bool = false
 var _return_to_lobby_requested: bool = false
 var win_overlay: Control
 var pause_overlay: PanelContainer
@@ -1048,15 +1050,23 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	results_standings_container.add_theme_constant_override("separation", 7)
 	results_standings_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	results_scroll.add_child(results_standings_container)
-	var results_action_center := CenterContainer.new()
-	results_content.add_child(results_action_center)
+	var results_actions := HBoxContainer.new()
+	results_actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	results_actions.add_theme_constant_override("separation", 16)
+	results_content.add_child(results_actions)
+	results_extend_button = Button.new()
+	results_extend_button.text = "PLAY 5 MORE ROUNDS"
+	results_extend_button.theme_type_variation = &"PrimaryButton"
+	results_extend_button.custom_minimum_size = Vector2(300.0, 52.0)
+	results_extend_button.add_theme_font_size_override("font_size", 19)
+	results_extend_button.pressed.connect(_on_results_extend_pressed)
+	results_actions.add_child(results_extend_button)
 	results_return_button = Button.new()
 	results_return_button.text = "EXIT TO LOBBY"
-	results_return_button.theme_type_variation = &"PrimaryButton"
-	results_return_button.custom_minimum_size = Vector2(340.0, 52.0)
+	results_return_button.custom_minimum_size = Vector2(300.0, 52.0)
 	results_return_button.add_theme_font_size_override("font_size", 19)
 	results_return_button.pressed.connect(_on_results_return_pressed)
-	results_action_center.add_child(results_return_button)
+	results_actions.add_child(results_return_button)
 
 
 func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
@@ -2450,6 +2460,7 @@ func _on_eject_pressed(peer_id: int) -> void:
 
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
 	if event_type == &"REQUEST_REJECTED":
+		_extend_match_requested = false
 		_return_to_lobby_requested = false
 		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
 		if draft_panel.visible and not active_offer_token.is_empty():
@@ -2982,7 +2993,16 @@ func _update_results_screen() -> void:
 	var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 	results_winner_label.text = "★  %s  ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(winner_id).to_upper())
 	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
-	results_return_button.disabled = not is_leader or _return_to_lobby_requested
+	var action_requested := _extend_match_requested or _return_to_lobby_requested
+	var can_extend := bool(latest_match_payload.get("can_extend_match", true))
+	results_extend_button.disabled = not is_leader or not can_extend or action_requested
+	results_return_button.disabled = not is_leader or action_requested
+	if _extend_match_requested:
+		results_extend_button.text = "EXTENDING MATCH…"
+		results_extend_button.tooltip_text = "Waiting for server confirmation."
+	else:
+		results_extend_button.text = "PLAY 5 MORE ROUNDS"
+		results_extend_button.tooltip_text = "Continue this match to a target five round wins higher while keeping every player's cards."
 	if _return_to_lobby_requested:
 		results_return_button.text = "RETURNING EVERYONE TO LOBBY…"
 		results_return_button.tooltip_text = "Waiting for server confirmation."
@@ -3002,6 +3022,14 @@ func _update_results_screen() -> void:
 	for index in peer_ids.size():
 		var peer_team := _player_team(peer_ids[index])
 		_add_result_row(index + 1, peer_ids[index], peer_team == winner_team if winner_team > 0 else peer_ids[index] == winner_id)
+
+
+func _on_results_extend_pressed() -> void:
+	if results_extend_button.disabled:
+		return
+	_extend_match_requested = true
+	_update_results_screen()
+	bridge.send_extend_match()
 
 
 func _on_results_return_pressed() -> void:
@@ -3212,6 +3240,7 @@ func _result_card_chip_focus_style(rarity_color: Color) -> StyleBoxFlat:
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
 	last_state_name = state_name
 	if state_name == "LOBBY":
+		_extend_match_requested = false
 		_return_to_lobby_requested = false
 		audio_director.set_context(&"lobby")
 		_set_win_screen_visible(false)
@@ -3226,6 +3255,7 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	elif state_name == "ROUND_RESULT":
 		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
 	elif state_name == "MATCH_RESULT":
+		_extend_match_requested = false
 		_return_to_lobby_requested = false
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
 

@@ -213,6 +213,13 @@ func return_to_lobby() -> bool:
 	return true
 
 
+func extend_match() -> bool:
+	if _finished or not machine.extend_match(GameConstants.MATCH_EXTENSION_ROUNDS, world.server_tick):
+		return false
+	_capture_transitions()
+	return true
+
+
 func drain_events() -> Array[Dictionary]:
 	var result := _events.duplicate(true)
 	_events.clear()
@@ -657,6 +664,8 @@ func _state_payload() -> Dictionary:
 		"draft_bye_peer_id": _next_draft_bye_peer_id if machine.state == MatchStateMachine.State.DRAFT and machine.round_number > 1 and not GameModeRules.is_team_mode(lobby.config.game_mode) else 0,
 		"draft_bye_peer_ids": _next_draft_bye_peer_ids.duplicate(),
 		"match_winner": machine.match_winner,
+		"rounds_to_win": machine.config.rounds_to_win,
+		"can_extend_match": machine.can_extend_match(),
 		"tied_heat": machine.tied_heat,
 		"scores": machine.score_snapshot(),
 		"alive_peer_ids": machine.alive_participant_ids(),

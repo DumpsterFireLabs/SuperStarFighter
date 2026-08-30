@@ -7,6 +7,7 @@ static func run(context: TestContext) -> void:
 	_validate_multiplayer_round_beyond_three_heats(context)
 	_validate_tied_heat_replay(context)
 	_validate_match_victory_and_lobby_reset(context)
+	_validate_match_extension(context)
 	_validate_forfeit_and_late_spectator(context)
 	_validate_empty_session_return(context)
 	_validate_team_death_match_scoring(context)
@@ -104,6 +105,27 @@ static func _validate_match_victory_and_lobby_reset(context: TestContext) -> voi
 	context.expect_empty((machine.players[1] as PlayerMatchState).card_stacks, "lobby reset clears card build")
 
 
+static func _validate_match_extension(context: TestContext) -> void:
+	var machine := _create_started_machine(2, 1)
+	(machine.players[1] as PlayerMatchState).card_stacks[&"heavy_rounds"] = 2
+	var active_tick := _complete_draft_and_enter_heat(machine, 0)
+	machine.finish_heat(1, active_tick)
+	active_tick = _advance_heat_result_to_active(machine)
+	machine.finish_heat(1, active_tick)
+	machine.advance_time(machine.state_deadline_tick)
+	context.expect_true(machine.can_extend_match(), "completed match with two competitors can be extended")
+	context.expect_false(machine.extend_match(0, machine.state_entered_tick), "match extension requires a positive number of rounds")
+	context.expect_true(machine.extend_match(GameConstants.MATCH_EXTENSION_ROUNDS, machine.state_entered_tick + 1), "completed match accepts a five-round extension")
+	context.expect_equal(machine.state, MatchStateMachine.State.ROUND_RESULT, "extension resumes through the completed round intermission")
+	context.expect_equal(machine.config.rounds_to_win, 6, "extension raises the active round-win target by five")
+	context.expect_equal(machine.match_winner, 0, "extension clears the concluded winner while play resumes")
+	context.expect_equal(machine.scores.get_score(1).round_wins, 1, "extension retains the current round scores")
+	context.expect_equal((machine.players[1] as PlayerMatchState).card_stack(&"heavy_rounds"), 2, "extension retains every drawn card stack")
+	machine.advance_time(machine.state_deadline_tick)
+	context.expect_equal(machine.state, MatchStateMachine.State.DRAFT, "extended match proceeds to the next draft")
+	context.expect_equal(machine.round_number, 2, "extended match continues with the next round number")
+
+
 static func _validate_forfeit_and_late_spectator(context: TestContext) -> void:
 	var machine := _create_started_machine(2, 3)
 	_complete_draft_and_enter_heat(machine, 0)
@@ -114,6 +136,7 @@ static func _validate_forfeit_and_late_spectator(context: TestContext) -> void:
 	context.expect_equal(machine.state, MatchStateMachine.State.MATCH_RESULT, "sole remaining participant wins by forfeit")
 	context.expect_equal(machine.match_winner, 1, "forfeit records the connected participant as winner")
 	context.expect_equal(machine.scores.get_score(1).round_wins, 3, "forfeit score reaches configured match target")
+	context.expect_false(machine.can_extend_match(), "forfeit result cannot resume without two competitors")
 	context.expect_true(machine.return_to_lobby(201), "forfeit results accept the explicit lobby return")
 	context.expect_equal(machine.state, MatchStateMachine.State.LOBBY, "forfeit result returns to lobby on request")
 	context.expect_true((machine.players[3] as PlayerMatchState).participant, "late spectator is promoted in the next lobby")

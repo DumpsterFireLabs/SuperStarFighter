@@ -284,6 +284,24 @@ func return_to_lobby(at_tick: int) -> bool:
 	return true
 
 
+func can_extend_match() -> bool:
+	if state != State.MATCH_RESULT or participant_ids().size() < GameConstants.MIN_PLAYERS:
+		return false
+	return not GameModeRules.is_team_mode(config.game_mode) or _participant_team_ids().size() >= 2
+
+
+func extend_match(additional_rounds: int, at_tick: int) -> bool:
+	if additional_rounds <= 0 or not can_extend_match():
+		return false
+	config.rounds_to_win += additional_rounds
+	match_winner = 0
+	match_winner_team = 0
+	_pending_match_winner = 0
+	_pending_match_winner_team = 0
+	_transition(State.ROUND_RESULT, at_tick)
+	return true
+
+
 func _resolve_heat(winner_peer_id: int, at_tick: int) -> void:
 	last_heat_winner = winner_peer_id
 	last_heat_winner_team = 0

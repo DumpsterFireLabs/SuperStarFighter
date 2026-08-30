@@ -593,7 +593,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._input(controller_scoreboard)
 	context.expect_false(client.scoreboard_panel.visible, "releasing the configured controller button closes the scoreboard")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
-	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1, "kills": 7}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2}
+	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1, "kills": 7}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2, "rounds_to_win": 1, "can_extend_match": true}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()
 	context.expect_true(client.win_overlay.visible and client.results_panel.visible, "match result opens the dedicated final standings screen")
@@ -619,6 +619,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_approx(preview_style.border_color.r, client.card_catalog.get_card(&"heavy_rounds").rarity_color().r, "visual card preview border reflects card rarity")
 	card_preview.free()
 	context.expect_true(client.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
+	context.expect_false(client.results_extend_button.disabled, "lobby leader receives an actionable five-more-rounds button")
+	context.expect_equal(client.results_extend_button.text, "PLAY 5 MORE ROUNDS", "results screen clearly labels the match extension action")
 	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
 	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")
 	context.expect_false(client.lobby_panel.visible, "lobby menu remains hidden throughout the game loop")

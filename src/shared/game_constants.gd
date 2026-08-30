@@ -18,6 +18,7 @@ const MAX_PLAYERS: int = 32
 const DEFAULT_ROUNDS_TO_WIN: int = 3
 const MIN_ROUNDS_TO_WIN: int = 1
 const MAX_ROUNDS_TO_WIN: int = 5
+const MATCH_EXTENSION_ROUNDS: int = 5
 
 const PHYSICS_TICKS_PER_SECOND: int = 60
 const INPUT_SEND_RATE: int = 30
