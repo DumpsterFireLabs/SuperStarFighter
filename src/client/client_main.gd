@@ -317,11 +317,13 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"scoreboard") and not (event is InputEventKey and event.echo):
-		_set_scoreboard_open(true)
-		get_viewport().set_input_as_handled()
+		if _scoreboard_available():
+			_set_scoreboard_open(true)
+			get_viewport().set_input_as_handled()
 	elif event.is_action_released(&"scoreboard"):
-		_set_scoreboard_open(false)
-		get_viewport().set_input_as_handled()
+		if scoreboard_open:
+			_set_scoreboard_open(false)
+			get_viewport().set_input_as_handled()
 
 
 func _is_start_input(event: InputEvent) -> bool:

@@ -354,6 +354,14 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.direct_password_field != null and client.direct_password_field.secret, "direct connect requires a masked lobby-password field")
 	context.expect_true(client.remember_password_button != null, "direct connect offers client-local remembered passwords by server endpoint")
 	context.expect_true(client.host_password_field != null and client.host_password_field.secret, "hosts must set a masked lobby password")
+	client.connection_tabs.current_tab = 1
+	context.expect_equal(client.host_field.find_next_valid_focus(), client.port_field, "Tab advances from the direct-connect host field to its port field")
+	context.expect_equal(client.port_field.find_next_valid_focus(), client.direct_password_field, "Tab advances from the direct-connect port field to its password field")
+	context.expect_equal(client.direct_password_field.find_prev_valid_focus(), client.port_field, "Shift+Tab returns from the direct-connect password field to its port field")
+	client.connection_tabs.current_tab = 2
+	context.expect_equal(client.server_name_field.find_next_valid_focus(), client.host_port_field, "Tab advances from the hosted server name to its port field")
+	context.expect_equal(client.host_port_field.find_next_valid_focus(), client.host_password_field, "Tab advances from the hosted server port to its password field")
+	client.connection_tabs.current_tab = 0
 	context.expect_equal(client._password_settings_key(" EXAMPLE.COM ", 7000), client._password_settings_key("example.com", 7000), "remembered-password keys normalize host casing and whitespace")
 	context.expect_equal(client._password_settings_key("[2001:db8::1]", 7000), client._password_settings_key("2001:db8::1", 7000), "remembered-password keys normalize bracketed IPv6 addresses")
 	context.expect_false(client._password_settings_key("example.com", 7000) == client._password_settings_key("example.com", 7001), "remembered passwords are isolated by gameplay port")
