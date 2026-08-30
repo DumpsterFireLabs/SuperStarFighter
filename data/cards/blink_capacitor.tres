@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"blink_capacitor"
 display_name = "Blink Capacitor"
-description = "Shield regeneration ×1.80 and shielded acceleration ×1.15 per stack."
+description = "Per stack: +80% shield regeneration; +15% acceleration while shielding."
 category = 1
 rarity = 4
 multiplicative_modifiers = {"shield_regeneration": 1.8, "shield_acceleration_factor": 1.15}

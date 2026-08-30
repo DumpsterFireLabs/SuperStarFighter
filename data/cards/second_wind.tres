@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"second_wind"
 display_name = "Second Wind"
-description = "Shield recovery threshold ×0.40, regeneration delay ×0.80 and capacity ×1.25 per stack."
+description = "Per stack: -60% recovery threshold; -20% regeneration delay; +25% shield capacity."
 category = 1
 rarity = 3
 multiplicative_modifiers = {"shield_depletion_threshold": 0.4, "shield_regeneration_delay": 0.8, "shield_capacity": 1.25}

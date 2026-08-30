@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"afterburner"
 display_name = "Afterburner"
-description = "Press your Special binding (Shift by default) for a short forward burst. Each stack reduces cooldown by 12%."
+description = "Unlock Afterburner: press Special (Shift by default) to dash forward. Per stack: -12% cooldown."
 category = 0
 rarity = 2
 multiplicative_modifiers = {"afterburner_cooldown": 0.88}

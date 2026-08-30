@@ -26,6 +26,9 @@ const RANDOM_SHIP_COLORS: Array[String] = [
 
 func _init(match_config: MatchConfig = null) -> void:
 	config = match_config.duplicate_config() if match_config != null else MatchConfig.new()
+	if config.game_mode == GameModeRules.Mode.KING_OF_THE_HILL:
+		config.random_spawn_powerups = true
+		config.random_powerups_permanent = false
 	server_capacity = config.max_players
 	player_limit = config.max_players
 
@@ -182,6 +185,9 @@ func request_game_mode(sender_id: int, mode: int) -> Dictionary:
 	if config.game_mode == mode:
 		return {"ok": true, "changed": false}
 	config.game_mode = mode
+	if mode == GameModeRules.Mode.KING_OF_THE_HILL:
+		config.random_spawn_powerups = true
+		config.random_powerups_permanent = false
 	if mode == GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG:
 		config.team_count = GameModeRules.DEFAULT_TEAM_COUNT
 	_reset_invalid_team_selections()

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"laser_repeater"
 display_name = "Laser Repeater"
-description = "Adds beam tech; fire rate ×1.28 and damage ×0.86 per stack."
+description = "Unlock beam weapons. Per stack: +28% fire rate; -14% projectile damage."
 category = 2
 rarity = 3
 multiplicative_modifiers = {"fire_rate": 1.28, "projectile_damage": 0.86}

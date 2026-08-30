@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"fortress_emitter"
 display_name = "Fortress Emitter"
-description = "+60 shield capacity, but drain ×1.20 and maximum speed ×0.90 per stack."
+description = "Per stack: +60 shield capacity; +20% shield drain; -10% maximum speed."
 category = 1
 rarity = 3
 additive_modifiers = {"shield_capacity": 60.0}

@@ -19,9 +19,9 @@ const MODE_NAMES: Array[String] = [
 const MODE_DESCRIPTIONS: Array[String] = [
 	"Free-for-all combat. The last surviving pilot wins the heat.",
 	"Two to eight configured teams fight with friendly fire disabled. Eliminate every opposing team to win the heat.",
-	"Hold the central control point uncontested for 20 seconds without dying.",
-	"Take the neutral flag from the middle of the arena to the marked extraction zone.",
-	"Two balanced teams contest a neutral center flag and carry it into their own team base.",
+	"Accumulate 20 seconds alone in the moving control point. Contested time pauses scoring; eliminated pilots respawn after 5 seconds.",
+	"Take the neutral flag from the middle of the arena back to your marked launch base. Eliminated pilots respawn after 5 seconds.",
+	"Two balanced teams contest a neutral center flag and carry it into their own team base. Eliminated pilots respawn after 5 seconds.",
 ]
 const MIN_TEAM_COUNT: int = 2
 const MAX_TEAM_COUNT: int = 8
@@ -50,6 +50,7 @@ const HILL_HOLD_SECONDS: float = 20.0
 const OBJECTIVE_ZONE_RADIUS: float = 125.0
 const FLAG_PICKUP_RADIUS: float = 42.0
 const FLAG_RESET_SECONDS: float = 8.0
+const OBJECTIVE_RESPAWN_SECONDS: float = 5.0
 
 
 static func is_valid_mode(mode: int) -> bool:
@@ -92,6 +93,10 @@ static func uses_objective(mode: int) -> bool:
 	return uses_hill(mode) or uses_flag(mode)
 
 
+static func uses_respawns(mode: int) -> bool:
+	return uses_objective(mode)
+
+
 static func team_name(team_id: int) -> String:
 	return String(TEAM_NAMES.get(team_id, "NO TEAM"))
 
@@ -100,8 +105,16 @@ static func team_color(team_id: int) -> Color:
 	return TEAM_COLORS.get(team_id, Color("aebbd4")) as Color
 
 
-static func objective_spawn(map_id: StringName) -> Vector2:
-	return _nearest_clear_zone(ArenaLayout.center(map_id), map_id)
+static func objective_spawn(map_id: StringName, round_number: int = 0) -> Vector2:
+	var center := ArenaLayout.center(map_id)
+	if round_number <= 0:
+		return _nearest_clear_zone(center, map_id)
+	# Hills rotate through distinct sectors each round instead of always occupying
+	# the arena center. The map-aware clearance search keeps every variant legal.
+	var sector := posmod(round_number - 1, 8)
+	var radius := 330.0 + float(posmod(round_number - 1, 2)) * 110.0
+	var desired := center + Vector2.from_angle(TAU * float(sector) / 8.0) * radius
+	return _nearest_clear_zone(desired, map_id)
 
 
 static func capture_zone(mode: int, team_id: int, map_id: StringName) -> Vector2:

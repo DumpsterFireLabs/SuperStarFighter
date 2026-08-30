@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"inviolable_front"
 display_name = "Inviolable Front"
-description = "Shield arc ×0.55, capacity ×2.00 and block cost ×0.35 per stack."
+description = "Per stack: -45% shield arc; +100% shield capacity; -65% shield block cost."
 category = 1
 rarity = 5
 multiplicative_modifiers = {"shield_arc_degrees": 0.55, "shield_capacity": 2.0, "shield_block_cost": 0.35}

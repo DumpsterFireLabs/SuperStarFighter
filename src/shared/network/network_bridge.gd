@@ -136,7 +136,12 @@ func start_client(
 
 
 func stop() -> void:
-	if role == Role.SERVER and _enet_peer != null:
+	# Mark teardown before closing ENet. Closing a live client can synchronously emit
+	# server_disconnected; that callback must see NONE instead of recursively
+	# entering the UI's disconnect path while this cleanup is still in progress.
+	var stopped_role := role
+	role = Role.NONE
+	if stopped_role == Role.SERVER and _enet_peer != null:
 		_log("info", "server_shutdown", {
 			"connected_peers": lobby.human_count() if lobby != null else 0,
 			"participant_records": lobby.players.size() if lobby != null else 0,
@@ -163,9 +168,9 @@ func stop() -> void:
 	_projectile_correction_send_count = 0
 	_projectile_correction_assembler.clear()
 	local_peer_id = 0
+	latest_lobby_state.clear()
 	match_coordinator = null
 	npc_controller.clear()
-	role = Role.NONE
 
 
 func _lan_discovery_payload() -> Dictionary:

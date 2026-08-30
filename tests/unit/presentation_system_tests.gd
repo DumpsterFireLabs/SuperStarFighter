@@ -15,6 +15,13 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	tree_parent.add_child(audio)
 	context.expect_equal(audio.sfx_streams.size(), AudioDirector.SFX_NAMES.size(), "audio director provides every required combat cue")
 	context.expect_equal(audio.synthesized_placeholder_count(), AudioDirector.SFX_NAMES.size(), "missing authored SFX receive synthesized placeholders")
+	context.expect_equal(audio.sfx_players.size(), AudioDirector.SFX_PLAYER_COUNT, "combat audio reserves the expanded priority-aware polyphony pool")
+	var sfx_bus_index := AudioServer.get_bus_index(AudioDirector.SFX_BUS)
+	var has_sfx_limiter := false
+	for effect_index in AudioServer.get_bus_effect_count(sfx_bus_index):
+		if AudioServer.get_bus_effect(sfx_bus_index, effect_index) is AudioEffectLimiter:
+			has_sfx_limiter = true
+	context.expect_true(has_sfx_limiter, "effects bus limits extreme overlapping weapon transients")
 	context.expect_true(FileAccess.file_exists("res://assets/audio/README.md"), "audio drop-in contract is documented beside the asset paths")
 	if FileAccess.file_exists("res://assets/audio/music/main_menu.mp3.wav"):
 		context.expect_true(audio.menu_player.stream != null, "authored menu music with a compound filename is discovered")
@@ -35,6 +42,35 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	audio.play_sfx(&"card_lock", "same-card")
 	audio.play_sfx(&"card_lock", "same-card")
 	context.expect_equal(audio._played_keys.size(), 1, "repeated reliable events cannot replay the same sound")
+	var catalog := CardCatalog.create_default()
+	var base_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(CombatStats.create_base(), {}, catalog)
+	var automatic_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"rapid_cycling": 1}, catalog), {&"rapid_cycling": 1}, catalog)
+	var heavy_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"siege_cannon": 1}, catalog), {&"siege_cannon": 1}, catalog)
+	var rail_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"rail_accelerant": 1}, catalog), {&"rail_accelerant": 1}, catalog)
+	var scatter_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"scatter_array": 1}, catalog), {&"scatter_array": 1}, catalog)
+	var pulse_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"beam_emitter": 1}, catalog), {&"beam_emitter": 1}, catalog)
+	var repeater_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"laser_repeater": 1}, catalog), {&"laser_repeater": 1}, catalog)
+	var lance_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"singularity_lance": 1}, catalog), {&"singularity_lance": 1}, catalog)
+	var extreme_profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(StatSystem.derive({&"reality_shredder": 1}, catalog), {&"reality_shredder": 1}, catalog)
+	context.expect_equal(base_profile.family, WeaponSoundProfile.FAMILY_STANDARD, "base weapon receives the standard kinetic sound family")
+	context.expect_equal(base_profile.power_tier, 0, "unmodified base weapon starts at the restrained sound tier")
+	context.expect_equal(automatic_profile.family, WeaponSoundProfile.FAMILY_AUTOMATIC, "rapid-fire build receives the automatic sound family")
+	context.expect_equal(heavy_profile.family, WeaponSoundProfile.FAMILY_HEAVY, "Siege Cannon receives the heavy sound family")
+	context.expect_equal(rail_profile.family, WeaponSoundProfile.FAMILY_RAIL, "Rail Accelerant receives the rail sound family")
+	context.expect_equal(scatter_profile.family, WeaponSoundProfile.FAMILY_SCATTER, "multi-projectile build receives one broad scatter-volley sound family")
+	context.expect_equal(pulse_profile.family, WeaponSoundProfile.FAMILY_BEAM_PULSE, "Beam Emitter transforms the firing identity into a pulse beam")
+	context.expect_equal(repeater_profile.family, WeaponSoundProfile.FAMILY_BEAM_REPEATER, "Laser Repeater receives a distinct rapid beam identity")
+	context.expect_equal(lance_profile.family, WeaponSoundProfile.FAMILY_BEAM_LANCE, "Singularity Lance receives the substantive beam-lance identity")
+	context.expect_equal(extreme_profile.power_tier, 3, "Reality Shredder reaches the extreme substantive sound tier")
+	var automatic_stream := audio._weapon_stream(automatic_profile, 0)
+	var heavy_stream := audio._weapon_stream(heavy_profile, 0)
+	context.expect_true(automatic_stream != heavy_stream, "weapon families cache distinct generated sound streams")
+	context.expect_true(heavy_stream.get_length() > automatic_stream.get_length(), "heavy cannon body lasts longer than an automatic transient")
+	var played_before_weapons := audio._played_keys.size()
+	audio.play_weapon_shot(base_profile, 1, 10, Vector2.ZERO, Vector2.ZERO, true)
+	audio.play_weapon_shot(base_profile, 1, 10, Vector2.ZERO, Vector2.ZERO, true)
+	audio.play_weapon_shot(base_profile, 2, 10, Vector2.ZERO, Vector2.ZERO, false)
+	context.expect_equal(audio._played_keys.size(), played_before_weapons + 2, "weapon deduplication removes prediction echoes without suppressing another pilot's simultaneous shot")
 	audio.set_context(&"menu")
 	context.expect_equal(audio.current_context, &"menu", "menu music context selects the authored stream")
 	audio.set_context(&"gameplay")
@@ -109,7 +145,11 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view.trigger_camera_shake(5.0, 0.2)
 	context.expect_true(view.camera_shake_remaining > 0.0, "local damage can trigger restrained presentation-only camera shake")
 	var feedback_events: Array[StringName] = []
-	view.presentation_event.connect(func(event_name: StringName, _payload: Dictionary) -> void: feedback_events.append(event_name))
+	var feedback_payloads: Array[Dictionary] = []
+	view.presentation_event.connect(func(event_name: StringName, payload: Dictionary) -> void:
+		feedback_events.append(event_name)
+		feedback_payloads.append(payload)
+	)
 	view.latest_server_tick = 20
 	view._handle_snapshot_feedback(1, {"health": 100.0, "shield": 100.0, "shielding": true, "alive": true, "ammunition": 2, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
 	view.latest_server_tick = 21
@@ -139,6 +179,8 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view.local_stats = StatSystem.derive({&"scatter_array": 1}, CardCatalog.create_default())
 	view.local_weapon.shot_sequence = 9
 	view._spawn_predicted_projectile(local_ship, 0.0)
+	context.expect_equal(feedback_events.back(), &"weapon_fire", "predicted local fire emits the profile-driven weapon event")
+	context.expect_equal((feedback_payloads.back().profile as WeaponSoundProfile).family, WeaponSoundProfile.FAMILY_SCATTER, "predicted volley carries its derived scatter sound profile")
 	context.expect_equal(
 		view.authoritative_projectiles.size(),
 		view.local_stats.projectile_count,
@@ -154,7 +196,9 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 			0.0,
 			view.local_stats
 		))
+	var weapon_events_before_batch := feedback_events.count(&"weapon_fire")
 	view._on_projectile_batch({"spawned": authoritative_scatter, "removed": []})
+	context.expect_equal(feedback_events.count(&"weapon_fire"), weapon_events_before_batch + 1, "authoritative multi-projectile volley emits one deduplicatable sound event")
 	context.expect_equal(
 		view.authoritative_projectiles.size(),
 		authoritative_scatter.size(),
@@ -220,7 +264,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")
 	context.expect_equal(client.connection_primary_button.theme_type_variation, &"PrimaryButton", "primary connection action uses the shared semantic action language")
 	context.expect_equal(client.lobby_options_button.theme_type_variation, &"SecondaryButton", "secondary lobby action uses the shared semantic action language")
-	context.expect_equal(client.version_label.text, "BETA 3  ·  VERSION 0.1.0-beta.3", "main screen displays the canonical Beta 3 version")
+	context.expect_equal(client.version_label.text, "BETA 6  ·  VERSION 0.1.0-beta.6", "main screen displays the canonical Beta 6 version")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
 	var discovered_servers: Array[Dictionary] = [
@@ -241,6 +285,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(reserved_host_error, ERR_INVALID_PARAMETER, "gameplay server cannot consume the fixed LAN discovery port")
 	client._stop_hosted_server()
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
+	context.expect_true(client.direct_connect_button != null and client.direct_connect_button.pressed.is_connected(client._connect_online), "Direct Connect button is wired to its connection action")
+	context.expect_true(client.host_join_button != null and client.host_join_button.pressed.is_connected(client._host_online), "Host & Join button is wired to its hosting action")
+	context.expect_true(client.lobby_disconnect_button != null and client.lobby_disconnect_button.pressed.is_connected(client._disconnect_online), "waiting lobby Disconnect button is wired to the shared disconnect action")
+	context.expect_true(client.pause_disconnect_button != null and client.pause_disconnect_button.pressed.is_connected(client._return_from_pause), "pause-menu Disconnect button is wired to the shared menu-return action")
 	context.expect_true(client.lobby_options_popup != null and client.powerups_button != null, "lobby exposes a dedicated match options menu")
 	context.expect_equal(client.lobby_options_button.text, "MATCH OPTIONS", "ship colour is no longer presented as a separate lobby option")
 	context.expect_false(client.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
@@ -268,6 +316,18 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_winner_label != null and client.results_standings_container != null, "victory screen uses a structured champion and standings composition")
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
 	context.expect_true(client.settings_panel != null, "shared display and audio settings screen exists")
+	context.expect_true(client.credits_panel != null and client.credits_button != null, "main menu exposes the dedicated credits screen")
+	context.expect_true(client.credits_button.pressed.is_connected(client._show_credits), "Credits button is wired to the credits screen")
+	var credits_text := ""
+	for credit_label in client.credits_panel.find_children("*", "Label", true, false):
+		credits_text += (credit_label as Label).text + "\n"
+	context.expect_true(
+		"Graphite" in credits_text and "Champ" in credits_text and "Equip" in credits_text
+		and "jbohack" in credits_text and "KingRat" in credits_text and "DoomGuy" in credits_text
+		and "Adam" in credits_text and "WhackyJacky" in credits_text and "Hipu" in credits_text
+		and "ChatGPT" in credits_text,
+		"credits screen includes every requested contributor"
+	)
 	context.expect_true(client.input_profiles != null, "production client owns a persistent input profile manager")
 	context.expect_true(client.gameplay_cursor != null and client.gameplay_cursor.texture != null, "production client renders the combat crosshair inside the game framebuffer")
 	context.expect_true(client.gameplay_cursor_canvas.layer > client.connection_canvas.layer, "software crosshair renders above the combat world and HUD")
@@ -276,6 +336,14 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.offline_sandbox.set_sandbox_active(true)
 	client._update_pointer_visibility()
 	context.expect_true(client.gameplay_cursor.visible, "keyboard and mouse gameplay displays the software crosshair")
+	client._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	context.expect_false(client._application_has_focus, "focus loss releases gameplay pointer ownership")
+	context.expect_false(client.gameplay_cursor.visible, "focus loss immediately hides the in-game crosshair")
+	client._update_pointer_visibility()
+	context.expect_false(client.gameplay_cursor.visible, "unfocused frame updates cannot recapture the gameplay pointer")
+	client._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	client._update_pointer_visibility()
+	context.expect_true(client._application_has_focus and client.gameplay_cursor.visible, "focus return restores the active gameplay pointer mode")
 	client.pause_overlay.visible = true
 	client._update_pointer_visibility()
 	context.expect_false(client.gameplay_cursor.visible, "interactive menus replace the combat crosshair with the system pointer")
@@ -307,12 +375,18 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.resolution_control.disabled, "windowed mode restores explicit resolution selection")
 	context.expect_equal(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand", "ultrawide windows reveal space without nonuniform stretching")
 	context.expect_true(client.splash_screen != null, "animated splash screen exists")
+	context.expect_equal(client.splash_screen.find_child("StudioQuote", true, false).text, "“Now with 1000% more slop!”", "studio splash includes the requested quote")
+	context.expect_approx(client.STUDIO_SPLASH_AUTO_ADVANCE_SECONDS, 4.0, "studio splash declares a four-second automatic advance")
 	context.expect_approx(client.SPLASH_AUTO_ADVANCE_SECONDS, 10.0, "splash declares a ten-second automatic advance")
 	var start_event := InputEventKey.new()
 	start_event.keycode = KEY_ENTER
 	start_event.pressed = true
 	client._input(start_event)
-	context.expect_true(client.splash_dismissed, "any key advances the splash immediately")
+	context.expect_equal(client.splash_stage, 1, "first input advances from the studio splash to the game splash")
+	client._finish_studio_splash()
+	client._finish_game_splash_intro()
+	client._input(start_event)
+	context.expect_true(client.splash_dismissed, "second input advances from the game splash to the main menu")
 	var controller_start := InputEventJoypadButton.new()
 	controller_start.button_index = JOY_BUTTON_A
 	controller_start.pressed = true
@@ -414,6 +488,19 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"OBJECTIVE_UPDATED", 2, {"objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(800.0, 600.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 7.5}, "target_seconds": 20.0}})
 	context.expect_equal(int(client.network_world.arena.objective_state.controller_id), 2, "live objective updates reach the arena presentation")
 	context.expect_true(client._objective_status_text().contains("7.5/20s"), "combat HUD reports live hill-control progress")
+	client.latest_match_payload["game_mode"] = GameModeRules.Mode.KING_OF_THE_HILL
+	client.latest_match_payload["participant_peer_ids"] = [2, 3]
+	client.latest_match_payload["scores"] = {2: {"heat_wins": 0, "round_wins": 0, "kills": 0}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 0}}
+	client.latest_match_payload["objective"] = {"mode": GameModeRules.Mode.KING_OF_THE_HILL, "controller_id": 0, "progress": {2: 7.5, 3: 3.0}, "target_seconds": 20.0}
+	context.expect_true(client._objective_status_text().contains("LEADER") and client._objective_status_text().contains("7.5/20s"), "contested hill HUD preserves and identifies the leading cumulative score")
+	client._set_scoreboard_open(true)
+	var hill_time := client.scoreboard_rows_container.get_child(0).find_child("HillTime", true, false) as Label
+	context.expect_true(client.scoreboard_hill_heading.visible and hill_time != null, "King of the Hill scoreboard exposes a dedicated live hill-time column")
+	context.expect_equal(hill_time.text, "7.5s", "King of the Hill scoreboard displays cumulative control time")
+	client._set_scoreboard_open(false)
+	client.latest_match_payload["respawn_deadlines"] = {2: 302}
+	client.network_world.latest_server_tick = 2
+	context.expect_equal(client._objective_status_text(), "RESPAWN 5.0s", "combat HUD shows the local five-second objective respawn countdown")
 	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 120, "deadline_tick": 300, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
 	client.network_world.latest_server_tick = 180
 	client.network_world.apply_match_state(client.latest_match_payload)
@@ -454,6 +541,19 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("ROUND 2 / HEAT 3"), "compact upper-left HUD carries match state and clearly labeled round details")
 	context.expect_equal(client.network_world.arena.map_id, &"riftline", "client rebuilds the arena from the authoritative map ID")
 	context.expect_true(client.network_world.match_status_label.text.contains("RIFTLINE"), "combat HUD identifies the active round map")
+	var local_ship := client.network_world.ships[2] as SandboxShip
+	local_ship.combatant.alive = false
+	local_ship.combatant.health = 0.0
+	local_ship.combatant.shield.energy = 64.0
+	client.network_world._update_spectator_target()
+	client.network_world._update_diagnostics()
+	context.expect_equal(client.network_world.shield_bar.value, 0.0, "eliminated spectator HUD clears shield energy that remained at death")
+	context.expect_equal(client.network_world.resources_label.text, "SHIP ELIMINATED", "eliminated spectator HUD replaces resource totals with the elimination state")
+	local_ship.combatant.alive = true
+	local_ship.combatant.health = 100.0
+	local_ship.combatant.shield.energy = 100.0
+	client.network_world._update_spectator_target()
+	client.network_world._update_diagnostics()
 	var tab_event := InputEventKey.new()
 	tab_event.keycode = KEY_TAB
 	tab_event.physical_keycode = KEY_TAB
@@ -545,5 +645,16 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._hide_pause_overlay()
 	client._on_rejected(&"SERVER_FULL", "The server is full.")
 	context.expect_true(client.connection_screen.visible and client.connection_status.text.contains("try again"), "connection rejection returns to a usable recovery screen")
+	var disconnect_host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Disconnect Test Arena"})
+	context.expect_equal(disconnect_host_error, OK, "host-disconnect acceptance path starts an embedded authority")
+	client.bridge.role = NetworkBridge.Role.CLIENT
+	client.bridge.latest_lobby_state = {"revision": 500, "match_active": false}
+	client.connection_form_panel.visible = false
+	client.lobby_panel.visible = true
+	client.lobby_disconnect_button.pressed.emit()
+	context.expect_true(client.connection_form_panel.visible and not client.lobby_panel.visible, "waiting-lobby Disconnect immediately returns to the connection menu")
+	context.expect_equal(client.bridge.role, NetworkBridge.Role.NONE, "waiting-lobby Disconnect fully stops the client transport")
+	context.expect_true(client._hosted_server_root == null and client._hosted_server_bridge == null, "waiting-lobby Disconnect stops and releases the embedded host")
+	context.expect_empty(client.bridge.latest_lobby_state, "disconnect clears stale lobby revisions before a later reconnect")
 	tree_parent.remove_child(client)
 	client.free()

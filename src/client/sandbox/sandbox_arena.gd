@@ -79,15 +79,18 @@ func _draw_objective() -> void:
 		draw_string(ThemeDB.fallback_font, position + Vector2(-54.0, 8.0), "THE HILL", HORIZONTAL_ALIGNMENT_CENTER, 108.0, 22, color)
 	elif GameModeRules.uses_flag(mode):
 		var zones := objective_state.get("capture_zones", {}) as Dictionary
-		var zone_ids := [1, 2] if GameModeRules.is_team_mode(mode) else [0]
-		for team_id in zone_ids:
-			var position := zones.get(team_id, zones.get(str(team_id), Vector2.ZERO)) as Vector2
+		var zone_ids := zones.keys()
+		zone_ids.sort()
+		for zone_value in zone_ids:
+			var zone_id := int(zone_value)
+			var position := zones.get(zone_value, Vector2.ZERO) as Vector2
 			if position.is_zero_approx():
 				continue
-			var color := GameModeRules.team_color(team_id) if team_id > 0 else Color("fff36a")
+			var color := GameModeRules.team_color(zone_id) if GameModeRules.is_team_mode(mode) else Color("fff36a")
 			draw_circle(position, radius, Color(color, 0.09))
 			draw_arc(position, radius, 0.0, TAU, 96, Color(color, pulse), 7.0)
-			draw_string(ThemeDB.fallback_font, position + Vector2(-62.0, 8.0), GameModeRules.team_name(team_id) if team_id > 0 else "EXTRACTION", HORIZONTAL_ALIGNMENT_CENTER, 124.0, 20, color)
+			var zone_label := GameModeRules.team_name(zone_id) if GameModeRules.is_team_mode(mode) else "PILOT BASE"
+			draw_string(ThemeDB.fallback_font, position + Vector2(-62.0, 8.0), zone_label, HORIZONTAL_ALIGNMENT_CENTER, 124.0, 20, color)
 		var flag_position := objective_state.get("flag_position", objective_state.get("position", ArenaLayout.center(map_id))) as Vector2
 		var flag_points := PackedVector2Array([
 			flag_position + Vector2(0.0, -25.0),

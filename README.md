@@ -11,7 +11,7 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 - 130 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner and Nosferatu Shield.
 - 34 numeric build stats plus beam, auto-repair, and active Afterburner transformations.
 - Two to 32 total participants with individual and bulk NPC difficulty controls.
-- Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, objective-aware NPCs, live objective HUD state, and team scoring.
+- Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, five-second objective-mode respawns, round-rotating hills, home-base flag scoring, objective-aware NPCs, live objective HUD state, and team scoring.
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
 - Persistent Random or colour-wheel ship appearance selection with non-colour identity patterns.
 - One-click local hosting, LAN server discovery, and direct-IP joining.
@@ -49,7 +49,7 @@ Display settings support persistent Windowed, Borderless Fullscreen, and Exclusi
 
 ## Windows Beta Build
 
-The main menu identifies the current release as **Beta 3**, version `0.1.0-beta.3`. Build and verify the friend-ready Windows x64 client with:
+The main menu identifies the current release as **Beta 6**, version `0.1.0-beta.6`. Build and verify the friend-ready Windows x64 client with:
 
 ```powershell
 .\tools\build-beta.ps1
@@ -135,13 +135,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 2,018 automated assertions and 86 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 2,093 automated assertions and 88 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 130 cards, custom ship colours, and validated 32-client server behavior.
 
-The Beta 3 Windows client export and packaging path is operational, while the prior Beta 1 and Beta 2 packages remain archived separately. The next tester-facing export must advance to Beta 4 because current lobby and replication work uses protocol 13. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
+The Beta 6 Windows client export and packaging path is operational, while Beta 1 through Beta 5 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, manual map selection/voting, and non-Windows exports are not part of the current slice.
 
 ## License and Assets
 

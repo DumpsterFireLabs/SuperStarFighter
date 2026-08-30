@@ -5,6 +5,8 @@ const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd"
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
+const DUMPSTER_FIRE_LABS_TEXTURE: Texture2D = preload("res://assets/ui/dumpster_fire_labs.png")
+const STUDIO_SPLASH_AUTO_ADVANCE_SECONDS: float = 4.0
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
@@ -104,6 +106,7 @@ var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var scoreboard_context_label: Label
 var scoreboard_media_label: Label
+var scoreboard_hill_heading: Label
 var scoreboard_rows_container: VBoxContainer
 var scoreboard_hint_label: Label
 var scoreboard_open: bool = false
@@ -140,7 +143,15 @@ var preferred_ship_color: Color = Color("42e8ff")
 var pending_ship_color: Color = Color("42e8ff")
 var random_ship_color: bool = true
 var settings_return_to_pause: bool = false
+var credits_panel: Control
+var credits_button: Button
 var splash_screen: Control
+var studio_splash: Control
+var game_splash: Control
+var splash_neon_backdrop: Control
+var splash_auto_timer: Timer
+var splash_stage: int = 0
+var splash_transitioning: bool = false
 var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
 var active_offer_token: String = ""
@@ -152,7 +163,13 @@ var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = "LOBBY"
 var connection_primary_button: Button
+var direct_connect_button: Button
+var host_join_button: Button
 var pause_resume_button: Button
+var lobby_disconnect_button: Button
+var pause_disconnect_button: Button
+var _application_has_focus: bool = true
+var _disconnect_in_progress: bool = false
 
 
 func _ready() -> void:
@@ -178,6 +195,7 @@ func _ready() -> void:
 	audio_director = AudioDirector.new()
 	audio_director.name = "AudioDirector"
 	add_child(audio_director)
+	offline_sandbox.presentation_event.connect(_on_world_presentation_event)
 	_load_video_settings()
 	_load_appearance_settings()
 	network_world = NetworkWorldView.new()
@@ -196,21 +214,40 @@ func _ready() -> void:
 	_create_match_ui()
 	_create_pause_overlay()
 	_create_settings_overlay()
+	_create_credits_overlay()
 	_create_gameplay_cursor()
 	_create_splash_screen()
 	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=enet" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_application_has_focus = false
+		if gameplay_cursor != null:
+			gameplay_cursor.visible = false
+		if DisplayServer.get_name() != "headless":
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_application_has_focus = true
+		call_deferred("_update_pointer_visibility")
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
-		if settings_panel != null and settings_panel.visible:
+		if credits_panel != null and credits_panel.visible:
+			_hide_credits()
+		elif settings_panel != null and settings_panel.visible:
 			_hide_settings()
 		else:
 			_toggle_pause_overlay()
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"ui_cancel") and not (event is InputEventKey and event.echo):
+		if credits_panel != null and credits_panel.visible:
+			_hide_credits()
+			get_viewport().set_input_as_handled()
+			return
 		if ship_color_popup != null and ship_color_popup.visible:
 			_hide_ship_color()
 			get_viewport().set_input_as_handled()
@@ -332,6 +369,13 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	settings_button.custom_minimum_size.y = 54.0
 	settings_button.pressed.connect(_show_settings.bind(false))
 	buttons.add_child(settings_button)
+	credits_button = Button.new()
+	credits_button.name = "CreditsButton"
+	credits_button.text = "Credits"
+	credits_button.theme_type_variation = &"QuietButton"
+	credits_button.custom_minimum_size.y = 54.0
+	credits_button.pressed.connect(_show_credits)
+	buttons.add_child(credits_button)
 	var quit_button := Button.new()
 	quit_button.text = "Quit"
 	quit_button.theme_type_variation = &"DangerButton"
@@ -388,12 +432,13 @@ func _create_direct_join_tab(configuration: Dictionary) -> void:
 	port_field = _add_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
 	var connect_center := CenterContainer.new()
 	tab.add_child(connect_center)
-	var connect_button := Button.new()
-	connect_button.text = "CONNECT TO SERVER"
-	connect_button.theme_type_variation = &"PrimaryButton"
-	connect_button.custom_minimum_size = Vector2(280.0, 48.0)
-	connect_button.pressed.connect(_connect_online)
-	connect_center.add_child(connect_button)
+	direct_connect_button = Button.new()
+	direct_connect_button.name = "DirectConnectButton"
+	direct_connect_button.text = "CONNECT TO SERVER"
+	direct_connect_button.theme_type_variation = &"PrimaryButton"
+	direct_connect_button.custom_minimum_size = Vector2(280.0, 48.0)
+	direct_connect_button.pressed.connect(_connect_online)
+	connect_center.add_child(direct_connect_button)
 
 
 func _create_host_tab(configuration: Dictionary) -> void:
@@ -406,12 +451,13 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	host_port_field = _add_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
 	var host_center := CenterContainer.new()
 	tab.add_child(host_center)
-	var host_button := Button.new()
-	host_button.text = "HOST & JOIN"
-	host_button.theme_type_variation = &"PrimaryButton"
-	host_button.custom_minimum_size = Vector2(280.0, 48.0)
-	host_button.pressed.connect(_host_online)
-	host_center.add_child(host_button)
+	host_join_button = Button.new()
+	host_join_button.name = "HostJoinButton"
+	host_join_button.text = "HOST & JOIN"
+	host_join_button.theme_type_variation = &"PrimaryButton"
+	host_join_button.custom_minimum_size = Vector2(280.0, 48.0)
+	host_join_button.pressed.connect(_host_online)
+	host_center.add_child(host_join_button)
 
 
 func _create_modal_blocker(blocker_name: String) -> ColorRect:
@@ -521,12 +567,13 @@ func _create_lobby_panel() -> void:
 	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(bridge.send_start_match)
 	content.add_child(start_button)
-	var disconnect_button := Button.new()
-	disconnect_button.text = "Disconnect"
-	disconnect_button.theme_type_variation = &"DangerButton"
-	disconnect_button.custom_minimum_size.y = 54.0
-	disconnect_button.pressed.connect(_disconnect_online)
-	content.add_child(disconnect_button)
+	lobby_disconnect_button = Button.new()
+	lobby_disconnect_button.name = "LobbyDisconnectButton"
+	lobby_disconnect_button.text = "Disconnect"
+	lobby_disconnect_button.theme_type_variation = &"DangerButton"
+	lobby_disconnect_button.custom_minimum_size.y = 54.0
+	lobby_disconnect_button.pressed.connect(_disconnect_online)
+	content.add_child(lobby_disconnect_button)
 
 
 func _create_lobby_options_popup() -> void:
@@ -590,7 +637,7 @@ func _create_lobby_options_popup() -> void:
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Random spawn powerups"
 	powerups_button.theme_type_variation = &"SettingToggle"
-	powerups_button.tooltip_text = "Off by default. A server-owned Rare-or-better card appears during active combat at the interval configured beside this toggle."
+	powerups_button.tooltip_text = "King of the Hill enables temporary drops by default. When enabled, a server-owned Rare-or-better card appears during active combat at the configured interval."
 	powerups_button.custom_minimum_size.y = 48.0
 	powerups_button.toggled.connect(_on_powerups_toggled)
 	var powerup_row := HBoxContainer.new()
@@ -909,6 +956,8 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	_add_results_column_heading(scoreboard_heading, "HEATS", 90.0)
 	_add_results_column_heading(scoreboard_heading, "ROUNDS", 100.0)
 	_add_results_column_heading(scoreboard_heading, "KILLS", 80.0)
+	scoreboard_hill_heading = _add_results_column_heading(scoreboard_heading, "HILL TIME", 100.0)
+	scoreboard_hill_heading.visible = false
 	_add_results_column_heading(scoreboard_heading, "CURRENT BUILD", 0.0, true)
 	var scoreboard_scroll := ScrollContainer.new()
 	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 400.0)
@@ -1057,12 +1106,13 @@ func _create_pause_overlay() -> void:
 	settings_button.custom_minimum_size.y = 58.0
 	settings_button.pressed.connect(_show_settings.bind(true))
 	content.add_child(settings_button)
-	var disconnect_button := Button.new()
-	disconnect_button.text = "Disconnect / Return to Menu"
-	disconnect_button.theme_type_variation = &"DangerButton"
-	disconnect_button.custom_minimum_size.y = 58.0
-	disconnect_button.pressed.connect(_return_from_pause)
-	content.add_child(disconnect_button)
+	pause_disconnect_button = Button.new()
+	pause_disconnect_button.name = "PauseDisconnectButton"
+	pause_disconnect_button.text = "Disconnect / Return to Menu"
+	pause_disconnect_button.theme_type_variation = &"DangerButton"
+	pause_disconnect_button.custom_minimum_size.y = 58.0
+	pause_disconnect_button.pressed.connect(_return_from_pause)
+	content.add_child(pause_disconnect_button)
 	var quit_button := Button.new()
 	quit_button.text = "Quit Game"
 	quit_button.theme_type_variation = &"DangerButton"
@@ -1544,6 +1594,85 @@ func _hide_settings() -> void:
 	settings_return_to_pause = false
 
 
+func _create_credits_overlay() -> void:
+	credits_panel = Control.new()
+	credits_panel.name = "CreditsScreen"
+	credits_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	credits_panel.visible = false
+	connection_canvas.add_child(credits_panel)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color("02040d", 0.92)
+	credits_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	credits_panel.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(720.0, 610.0)
+	panel.theme = interface_theme
+	panel.add_theme_stylebox_override("panel", _panel_style(Color("ff8a3d"), 0.98))
+	center.add_child(panel)
+	var content := VBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 12)
+	panel.add_child(content)
+	var kicker := Label.new()
+	kicker.text = "✦  DUMPSTER FIRE LABS PRESENTS  ✦"
+	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kicker.add_theme_font_size_override("font_size", 17)
+	kicker.add_theme_color_override("font_color", Color("ffb45f"))
+	content.add_child(kicker)
+	var title := Label.new()
+	title.text = "CREDITS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 44)
+	title.add_theme_color_override("font_color", Color("fff1bf"))
+	content.add_child(title)
+	_add_credit_block(content, "CREATED BY", "Graphite")
+	_add_credit_block(content, "TESTERS", "Champ")
+	_add_credit_block(content, "HONOURABLE MENTION", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu")
+	_add_credit_block(content, "SPECIAL THANKS", "ChatGPT")
+	var back_center := CenterContainer.new()
+	content.add_child(back_center)
+	var back_button := Button.new()
+	back_button.text = "BACK TO MAIN MENU"
+	back_button.theme_type_variation = &"PrimaryButton"
+	back_button.custom_minimum_size = Vector2(300.0, 52.0)
+	back_button.pressed.connect(_hide_credits)
+	back_center.add_child(back_button)
+
+
+func _add_credit_block(parent: VBoxContainer, role: String, names: String) -> void:
+	var block := VBoxContainer.new()
+	block.add_theme_constant_override("separation", 2)
+	parent.add_child(block)
+	var role_label := Label.new()
+	role_label.text = role
+	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	role_label.add_theme_font_size_override("font_size", 15)
+	role_label.add_theme_color_override("font_color", Color("73f7ff"))
+	block.add_child(role_label)
+	var names_label := Label.new()
+	names_label.text = names
+	names_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	names_label.add_theme_font_size_override("font_size", 24)
+	names_label.add_theme_color_override("font_color", Color("f4fbff"))
+	block.add_child(names_label)
+
+
+func _show_credits() -> void:
+	credits_panel.visible = true
+	for child in credits_panel.find_children("*", "Button", true, false):
+		(child as Button).grab_focus()
+		break
+
+
+func _hide_credits() -> void:
+	credits_panel.visible = false
+	if connection_screen.visible and credits_button != null:
+		credits_button.grab_focus()
+
+
 func _create_gameplay_cursor() -> void:
 	gameplay_cursor_canvas = CanvasLayer.new()
 	gameplay_cursor_canvas.name = "GameplayCursor"
@@ -1565,12 +1694,51 @@ func _create_splash_screen() -> void:
 	splash_screen = Control.new()
 	splash_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	splash_canvas.add_child(splash_screen)
-	var backdrop := NeonBackdrop.new()
-	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	splash_screen.add_child(backdrop)
+	var studio_backdrop := ColorRect.new()
+	studio_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	studio_backdrop.color = Color("102f30")
+	splash_screen.add_child(studio_backdrop)
+	splash_neon_backdrop = NeonBackdrop.new()
+	splash_neon_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_neon_backdrop.visible = false
+	splash_screen.add_child(splash_neon_backdrop)
+	studio_splash = Control.new()
+	studio_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_screen.add_child(studio_splash)
+	var studio_center := CenterContainer.new()
+	studio_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	studio_splash.add_child(studio_center)
+	var studio_content := VBoxContainer.new()
+	studio_content.alignment = BoxContainer.ALIGNMENT_CENTER
+	studio_content.add_theme_constant_override("separation", 12)
+	studio_center.add_child(studio_content)
+	var studio_logo := TextureRect.new()
+	studio_logo.name = "DumpsterFireLabsLogo"
+	studio_logo.texture = DUMPSTER_FIRE_LABS_TEXTURE
+	studio_logo.custom_minimum_size = Vector2(470.0, 470.0)
+	studio_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	studio_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	studio_content.add_child(studio_logo)
+	var quote := Label.new()
+	quote.name = "StudioQuote"
+	quote.text = "“Now with 1000% more slop!”"
+	quote.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	quote.add_theme_font_size_override("font_size", 30)
+	quote.add_theme_color_override("font_color", Color("ffe7a8"))
+	studio_content.add_child(quote)
+	var studio_skip := Label.new()
+	studio_skip.text = "PRESS ANY INPUT TO CONTINUE"
+	studio_skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	studio_skip.add_theme_font_size_override("font_size", 16)
+	studio_skip.add_theme_color_override("font_color", Color("7ee0bd"))
+	studio_content.add_child(studio_skip)
+	game_splash = Control.new()
+	game_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	game_splash.visible = false
+	splash_screen.add_child(game_splash)
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	splash_screen.add_child(center)
+	game_splash.add_child(center)
 	var content := VBoxContainer.new()
 	content.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(content)
@@ -1595,14 +1763,18 @@ func _create_splash_screen() -> void:
 	skip.add_theme_font_size_override("font_size", 18)
 	skip.add_theme_color_override("font_color", Color("73f7ff"))
 	content.add_child(skip)
-	content.modulate = Color(1, 1, 1, 0)
-	content.scale = Vector2(0.82, 0.82)
-	content.pivot_offset = Vector2(260.0, 220.0)
+	studio_content.modulate = Color(1, 1, 1, 0)
+	studio_content.scale = Vector2(0.88, 0.88)
+	studio_content.pivot_offset = Vector2(235.0, 270.0)
 	var intro := create_tween().set_parallel(true)
 	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	intro.tween_property(content, "modulate", Color.WHITE, 0.8)
-	intro.tween_property(content, "scale", Vector2.ONE, 1.05)
-	get_tree().create_timer(SPLASH_AUTO_ADVANCE_SECONDS).timeout.connect(_on_splash_auto_advance)
+	intro.tween_property(studio_content, "modulate", Color.WHITE, 0.8)
+	intro.tween_property(studio_content, "scale", Vector2.ONE, 1.05)
+	splash_auto_timer = Timer.new()
+	splash_auto_timer.one_shot = true
+	splash_auto_timer.timeout.connect(_on_splash_auto_advance)
+	splash_screen.add_child(splash_auto_timer)
+	splash_auto_timer.start(STUDIO_SPLASH_AUTO_ADVANCE_SECONDS)
 
 
 func _on_splash_auto_advance() -> void:
@@ -1610,16 +1782,55 @@ func _on_splash_auto_advance() -> void:
 
 
 func _dismiss_splash(immediate: bool = false) -> void:
-	if splash_dismissed or splash_screen == null:
+	if splash_dismissed or splash_screen == null or splash_transitioning:
 		return
-	splash_dismissed = true
 	if immediate:
+		splash_dismissed = true
+		if splash_auto_timer != null:
+			splash_auto_timer.stop()
 		splash_screen.visible = false
 		_focus_connection_menu()
 		return
+	if splash_stage == 0:
+		_transition_to_game_splash()
+		return
+	splash_dismissed = true
+	if splash_auto_timer != null:
+		splash_auto_timer.stop()
 	var fade := create_tween()
 	fade.tween_property(splash_screen, "modulate", Color(1, 1, 1, 0), 0.35)
 	fade.finished.connect(_finish_splash_dismissal)
+
+
+func _transition_to_game_splash() -> void:
+	splash_stage = 1
+	splash_transitioning = true
+	if splash_auto_timer != null:
+		splash_auto_timer.stop()
+	var fade_out := create_tween()
+	fade_out.tween_property(studio_splash, "modulate", Color(1, 1, 1, 0), 0.3)
+	fade_out.finished.connect(_finish_studio_splash)
+
+
+func _finish_studio_splash() -> void:
+	if splash_dismissed:
+		return
+	studio_splash.visible = false
+	splash_neon_backdrop.visible = true
+	game_splash.visible = true
+	game_splash.modulate = Color(1, 1, 1, 0)
+	var intro := create_tween().set_parallel(true)
+	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	intro.tween_property(game_splash, "modulate", Color.WHITE, 0.6)
+	intro.finished.connect(_finish_game_splash_intro)
+
+
+func _finish_game_splash_intro() -> void:
+	if splash_dismissed:
+		return
+	splash_transitioning = false
+	if splash_auto_timer != null:
+		splash_auto_timer.start(SPLASH_AUTO_ADVANCE_SECONDS)
 
 
 func _finish_splash_dismissal() -> void:
@@ -1656,9 +1867,7 @@ func _hide_pause_overlay() -> void:
 
 func _return_from_pause() -> void:
 	_hide_pause_overlay()
-	bridge.stop()
-	_stop_hosted_server()
-	_show_connection_screen("Returned to the main menu.")
+	_disconnect_online("Returned to the main menu.")
 
 
 func _connect_online() -> void:
@@ -1839,15 +2048,18 @@ func _play_offline() -> void:
 	results_panel.visible = false
 	pause_overlay.visible = false
 	settings_panel.visible = false
+	credits_panel.visible = false
 	win_overlay.visible = false
 	offline_sandbox.set_sandbox_active(true)
 	audio_director.set_context(&"gameplay")
 
 
-func _disconnect_online() -> void:
-	bridge.stop()
-	_stop_hosted_server()
-	_show_connection_screen("Disconnected. Ready to reconnect.")
+func _disconnect_online(message: String = "Disconnected. Ready to reconnect.") -> void:
+	if _disconnect_in_progress:
+		return
+	_disconnect_in_progress = true
+	_show_connection_screen(message)
+	_disconnect_in_progress = false
 
 
 func _show_connection_screen(message: String, is_error: bool = false) -> void:
@@ -1874,6 +2086,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	results_panel.visible = false
 	pause_overlay.visible = false
 	settings_panel.visible = false
+	credits_panel.visible = false
 	win_overlay.visible = false
 	network_world.input_blocked = false
 	connection_status.text = message
@@ -2166,7 +2379,12 @@ func _restore_modal_focus(preferred: Control, fallback: Control) -> void:
 
 
 func _restore_lobby_after_modal() -> void:
-	if lobby_panel != null and connection_screen.visible and not bool(bridge.latest_lobby_state.get("match_active", false)):
+	if (
+		lobby_panel != null
+		and (bridge.role == NetworkBridge.Role.CLIENT or bridge.local_peer_id != 0)
+		and connection_screen.visible
+		and not bool(bridge.latest_lobby_state.get("match_active", false))
+	):
 		lobby_panel.show()
 
 
@@ -2270,12 +2488,17 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		for peer_value in payload.get("peer_ids", []):
 			alive_peer_ids.erase(int(peer_value))
 		latest_match_payload["alive_peer_ids"] = alive_peer_ids
+		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
 		if payload.has("scores"):
 			latest_match_payload["scores"] = (payload.scores as Dictionary).duplicate(true)
 			_scoreboard_rows_dirty = true
 			_results_rows_dirty = true
+	elif event_type == &"PLAYER_RESPAWNED":
+		latest_match_payload["alive_peer_ids"] = (payload.get("alive_peer_ids", []) as Array).duplicate()
+		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
 	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
 		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
+		_scoreboard_rows_dirty = true
 		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)
@@ -2308,8 +2531,14 @@ func _process(delta: float) -> void:
 func _update_pointer_visibility() -> void:
 	if input_profiles == null:
 		return
+	if not _application_has_focus:
+		if gameplay_cursor != null:
+			gameplay_cursor.visible = false
+		if DisplayServer.get_name() != "headless" and Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_screen.visible or settings_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible
+	var interactive_overlay := connection_screen.visible or settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	if gameplay_cursor != null:
 		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller()
@@ -2528,9 +2757,9 @@ func _mode_objective_prompt() -> String:
 		GameModeRules.Mode.TEAM_DEATH_MATCH:
 			return "eliminate the enemy team"
 		GameModeRules.Mode.KING_OF_THE_HILL:
-			return "hold the central point"
+			return "hold the control point"
 		GameModeRules.Mode.CAPTURE_THE_FLAG:
-			return "carry the flag to extraction"
+			return "carry the flag back to your base"
 		GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG:
 			return "carry the flag to your team base"
 		_:
@@ -2538,15 +2767,32 @@ func _mode_objective_prompt() -> String:
 
 
 func _objective_status_text() -> String:
+	var respawn_status := _local_respawn_status_text()
+	if not respawn_status.is_empty():
+		return respawn_status
 	var objective := latest_match_payload.get("objective", {}) as Dictionary
 	if objective.is_empty():
 		return ""
 	var mode := int(objective.get("mode", GameModeRules.Mode.DEATH_MATCH))
 	if mode == GameModeRules.Mode.KING_OF_THE_HILL:
+		var progress := objective.get("progress", {}) as Dictionary
 		var controller_id := int(objective.get("controller_id", 0))
 		if controller_id == 0:
+			var leader_id := 0
+			var leader_seconds := 0.0
+			for peer_value in progress.keys():
+				var peer_id := int(peer_value)
+				var seconds := float(progress[peer_value])
+				if seconds > leader_seconds:
+					leader_id = peer_id
+					leader_seconds = seconds
+			if leader_id != 0:
+				return "HILL CONTESTED · LEADER %s %.1f/%.0fs" % [
+					_player_name(leader_id).to_upper(),
+					leader_seconds,
+					float(objective.get("target_seconds", GameModeRules.HILL_HOLD_SECONDS)),
+				]
 			return "HILL CONTESTED"
-		var progress := objective.get("progress", {}) as Dictionary
 		var held := float(progress.get(controller_id, progress.get(str(controller_id), 0.0)))
 		return "HILL %s %.1f/%.0fs" % [_player_name(controller_id).to_upper(), held, float(objective.get("target_seconds", GameModeRules.HILL_HOLD_SECONDS))]
 	if GameModeRules.uses_flag(mode):
@@ -2557,6 +2803,20 @@ func _objective_status_text() -> String:
 		var spawn_position := objective.get("position", flag_position) as Vector2
 		return "FLAG DROPPED" if flag_position.distance_to(spawn_position) > 1.0 else "FLAG AT CENTER"
 	return ""
+
+
+func _local_respawn_status_text() -> String:
+	if bridge == null or bridge.local_peer_id == 0:
+		return ""
+	var deadlines := latest_match_payload.get("respawn_deadlines", {}) as Dictionary
+	var deadline := int(deadlines.get(bridge.local_peer_id, deadlines.get(str(bridge.local_peer_id), -1)))
+	if deadline < 0:
+		return ""
+	var seconds := maxf(
+		float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND,
+		0.0
+	)
+	return "RESPAWN %.1fs" % seconds
 
 
 func _draft_category_color(category: int) -> Color:
@@ -2633,6 +2893,7 @@ func _update_scoreboard() -> void:
 		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 		track_name.to_upper(),
 	]
+	scoreboard_hill_heading.visible = int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL
 	if not _scoreboard_rows_dirty:
 		return
 	_scoreboard_rows_dirty = false
@@ -2699,7 +2960,21 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kills_label.add_theme_color_override("font_color", Color("fff36a"))
 	row.add_child(kills_label)
+	if int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL:
+		var hill_label := Label.new()
+		hill_label.name = "HillTime"
+		hill_label.text = "%.1fs" % _hill_score(peer_id)
+		hill_label.custom_minimum_size.x = 100.0
+		hill_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hill_label.add_theme_color_override("font_color", Color("ffb45f"))
+		row.add_child(hill_label)
 	_add_result_build(row, peer_id, "ScoreboardBuildCards")
+
+
+func _hill_score(peer_id: int) -> float:
+	var objective := latest_match_payload.get("objective", {}) as Dictionary
+	var progress := objective.get("progress", {}) as Dictionary
+	return float(progress.get(peer_id, progress.get(str(peer_id), 0.0)))
 
 
 func _update_results_screen() -> void:
@@ -2887,7 +3162,7 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	_add_result_build(row, peer_id)
 
 
-func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> void:
+func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> Label:
 	var label := Label.new()
 	label.text = text_value
 	label.custom_minimum_size.x = width
@@ -2896,6 +3171,7 @@ func _add_results_column_heading(parent: HBoxContainer, text_value: String, widt
 	if expand:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(label)
+	return label
 
 
 func _results_row_style(accent: Color, winner: bool) -> StyleBoxFlat:
@@ -2944,6 +3220,7 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	if previous_state == "LOBBY" and state_name == "DRAFT":
 		audio_director.reset_match_deduplication()
 	if state_name == "COUNTDOWN":
+		audio_director.reset_match_deduplication()
 		last_countdown_second = -1
 		overtime_announced = false
 	elif state_name == "ROUND_RESULT":
@@ -2982,8 +3259,28 @@ func _update_timed_audio() -> void:
 
 
 func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -> void:
-	var unique_key := "%s:%s" % [payload.get("owner_id", 0), payload.get("shot_sequence", 0)] if event_name in [&"fire", &"beam_fire"] else "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", 0)]
-	audio_director.play_sfx(event_name, unique_key)
+	if event_name == &"weapon_fire":
+		audio_director.play_weapon_shot(
+			payload.get("profile"),
+			int(payload.get("owner_id", 0)),
+			int(payload.get("shot_sequence", 0)),
+			payload.get("position", Vector2.ZERO) as Vector2,
+			payload.get("listener_position", Vector2.ZERO) as Vector2,
+			bool(payload.get("local", false))
+		)
+		return
+	var unique_key := ""
+	if event_name in [&"projectile_impact", &"ricochet"]:
+		unique_key = "%s:%s" % [payload.get("projectile_id", 0), payload.get("ricochets_remaining", -1)]
+	else:
+		unique_key = "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", payload.get("projectile_id", 0))]
+	var volume_db := 0.0
+	if payload.has("position") and payload.has("listener_position"):
+		volume_db = audio_director.world_sfx_volume_db(
+			payload.get("position", Vector2.ZERO) as Vector2,
+			payload.get("listener_position", Vector2.ZERO) as Vector2
+		)
+	audio_director.play_sfx(event_name, unique_key, volume_db)
 
 
 func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:

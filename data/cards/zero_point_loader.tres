@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"zero_point_loader"
 display_name = "Zero-Point Loader"
-description = "Reload duration ×0.50 and +4 magazine capacity per stack."
+description = "Per stack: -50% reload time; +4 magazine capacity."
 category = 2
 rarity = 4
 multiplicative_modifiers = {"reload_duration": 0.5}

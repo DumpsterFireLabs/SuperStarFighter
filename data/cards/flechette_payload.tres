@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"flechette_payload"
 display_name = "Flechette Payload"
-description = "+1 pierce and fire rate ×1.12, but damage ×0.85 per stack."
+description = "Per stack: +1 pierce; +12% fire rate; -15% projectile damage."
 category = 2
 rarity = 2
 multiplicative_modifiers = {"fire_rate": 1.12, "projectile_damage": 0.85}

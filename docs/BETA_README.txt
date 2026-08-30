@@ -1,25 +1,25 @@
-SUPER STAR FIGHTER — BETA 3
-Version 0.1.0-beta.3
+SUPER STAR FIGHTER — BETA 6
+Version 0.1.0-beta.6
 
 QUICK START
 
 1. Extract the entire ZIP to a writable folder.
-2. Run SuperStarFighter-Beta3.exe.
+2. Run SuperStarFighter-Beta6.exe.
 3. One player chooses Host Game, selects a gameplay UDP port, and chooses Host & Join.
 4. Friends on the same local network join from LAN Servers.
 5. Internet players use Direct Connect with the host's public IP address and gameplay port.
 
 INTERNET HOSTING
 
-The host must allow the executable through Windows Firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 3.
+The host must allow the executable through Windows Firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 6.
 
-BETA 3 HIGHLIGHTS
+BETA 6 HIGHLIGHTS
 
-- Lobby leaders can set every NPC difficulty at once and configure random-drop timing, persistence, and overtime.
-- Match-total kills now appear on the live scoreboard and final standings.
-- Afterburner adds a remappable Special action with a short speed burst and larger exhaust bloom.
-- Ramming Shields, Concussion Rounds, Repulsor Payload, and Nosferatu Shield expand collision, knockback, and defensive builds.
-- Ten maps rotate between rounds while every heat in a round remains on the same map.
+- Team-game NPCs now reset cleanly to their assigned spawns at the beginning of every heat.
+- King of the Hill control time is cumulative within a heat; contested or empty time pauses scoring, and live hill time appears on the scoreboard.
+- A Dumpster Fire Labs splash screen now precedes the Super Star Fighter splash screen.
+- The main menu now includes credits for the creator, testers, honourable mentions, and special thanks.
+- Weapon audio, menu/gameplay/victory music, and all previously delivered objective-mode fixes remain included.
 
 WINDOWS WARNING
 

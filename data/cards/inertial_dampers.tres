@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"inertial_dampers"
 display_name = "Inertial Dampers"
-description = "Flight damping ×1.35 and shielded acceleration ×1.05 per stack."
+description = "Per stack: +35% braking; +5% acceleration while shielding."
 category = 0
 rarity = 1
 multiplicative_modifiers = {"drag": 1.35, "shield_acceleration_factor": 1.05}

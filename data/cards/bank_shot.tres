@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"bank_shot"
 display_name = "Bank Shot"
-description = "+1 ricochet, lifetime ×1.15 and damage ×0.90 per stack."
+description = "Per stack: +1 ricochet; +15% projectile lifetime; -10% projectile damage."
 category = 2
 rarity = 1
 multiplicative_modifiers = {"projectile_lifetime": 1.15, "projectile_damage": 0.9}

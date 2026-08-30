@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"sustained_barrage"
 display_name = "Sustained Barrage"
-description = "+6 magazine capacity and fire rate ×1.18, but reload duration ×1.25 per stack."
+description = "Per stack: +6 magazine capacity; +18% fire rate; +25% reload time."
 category = 2
 rarity = 2
 multiplicative_modifiers = {"fire_rate": 1.18, "reload_duration": 1.25}

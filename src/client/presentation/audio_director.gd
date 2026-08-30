@@ -1,6 +1,8 @@
 class_name AudioDirector
 extends Node
 
+const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
+
 const MUSIC_DIRECTORY: String = "res://assets/audio/music"
 const GAMEPLAY_MUSIC_DIRECTORY: String = "res://assets/audio/music/gameplay"
 const SFX_DIRECTORY: String = "res://assets/audio/sfx"
@@ -8,10 +10,12 @@ const SETTINGS_PATH: String = "user://super_star_fighter_settings.cfg"
 const MUSIC_BUS: StringName = &"Music"
 const SFX_BUS: StringName = &"SFX"
 const MENU_CROSSFADE_SECONDS: float = 3.0
+const SFX_PLAYER_COUNT: int = 24
+const WEAPON_VARIANT_COUNT: int = 3
 const SFX_NAMES: Array[StringName] = [
 	&"fire", &"beam_fire", &"reload", &"shield_on", &"shield_block", &"shield_break",
 	&"damage", &"elimination", &"card_lock", &"countdown", &"overtime",
-	&"round_win", &"match_win",
+	&"round_win", &"match_win", &"projectile_impact", &"ricochet",
 ]
 
 var menu_player: AudioStreamPlayer
@@ -20,6 +24,8 @@ var gameplay_player: AudioStreamPlayer
 var win_player: AudioStreamPlayer
 var sfx_players: Array[AudioStreamPlayer] = []
 var sfx_streams: Dictionary = {}
+var sfx_generated: Dictionary = {}
+var weapon_stream_cache: Dictionary = {}
 var gameplay_tracks: Array[AudioStream] = []
 var gameplay_track_paths: Array[String] = []
 var loaded_music_paths: Dictionary = {}
@@ -49,7 +55,7 @@ func _ready() -> void:
 	gameplay_player = _make_player("GameplayMusic", MUSIC_BUS)
 	win_player = _make_player("WinMusic", MUSIC_BUS)
 	gameplay_player.finished.connect(_play_next_gameplay_track)
-	for index in 12:
+	for index in SFX_PLAYER_COUNT:
 		sfx_players.append(_make_player("Sfx%02d" % index, SFX_BUS))
 	_load_sfx()
 	_load_music()
@@ -70,6 +76,8 @@ func _exit_tree() -> void:
 	gameplay_tracks.clear()
 	gameplay_track_paths.clear()
 	sfx_streams.clear()
+	sfx_generated.clear()
+	weapon_stream_cache.clear()
 
 
 func set_context(context: StringName) -> void:
@@ -140,7 +148,7 @@ func set_muted(enabled: bool, save: bool = true) -> void:
 		_save_settings()
 
 
-func play_sfx(event_name: StringName, unique_key: String = "") -> void:
+func play_sfx(event_name: StringName, unique_key: String = "", volume_db: float = 0.0) -> void:
 	if not SFX_NAMES.has(event_name) or not sfx_streams.has(event_name):
 		return
 	if not unique_key.is_empty():
@@ -151,18 +159,61 @@ func play_sfx(event_name: StringName, unique_key: String = "") -> void:
 		if _played_keys.size() > 512:
 			_played_keys.erase(_played_keys.keys()[0])
 	var now := Time.get_ticks_msec()
-	var cooldown := 35 if event_name in [&"fire", &"beam_fire"] else 70
-	if now - int(_last_played_msec.get(event_name, -1000)) < cooldown:
+	var cooldown_scope := String(event_name)
+	if event_name in [&"damage", &"shield_on", &"shield_block", &"shield_break", &"elimination", &"reload"] and not unique_key.is_empty():
+		cooldown_scope += ":" + unique_key.get_slice(":", 0)
+	var cooldown := 35 if event_name in [&"fire", &"beam_fire", &"ricochet"] else 70
+	if now - int(_last_played_msec.get(cooldown_scope, -1000)) < cooldown:
 		return
-	_last_played_msec[event_name] = now
+	_last_played_msec[cooldown_scope] = now
 	if not playback_enabled:
 		return
-	for player in sfx_players:
-		if not player.playing:
-			player.stream = sfx_streams[event_name]
-			player.pitch_scale = randf_range(0.97, 1.03)
-			player.play()
-			return
+	var priority := 6 if event_name in [&"shield_break", &"elimination", &"match_win"] else 2
+	var player := _acquire_sfx_player(priority)
+	if player == null:
+		return
+	_play_on_player(player, sfx_streams[event_name], randf_range(0.97, 1.03), volume_db, priority)
+
+
+func world_sfx_volume_db(source_position: Vector2, listener_position: Vector2) -> float:
+	var distance_mix := clampf((source_position.distance_to(listener_position) - 120.0) / 1850.0, 0.0, 1.0)
+	return lerpf(-1.5, -18.0, distance_mix)
+
+
+func play_weapon_shot(
+	profile,
+	owner_id: int,
+	shot_sequence: int,
+	source_position: Vector2,
+	listener_position: Vector2,
+	is_local: bool
+) -> void:
+	if profile == null:
+		return
+	var full_key := "weapon:%d:%d" % [owner_id, shot_sequence]
+	if _played_keys.has(full_key):
+		return
+	_played_keys[full_key] = true
+	_trim_played_keys()
+	var now := Time.get_ticks_msec()
+	var cooldown_key := "weapon:%d:%s" % [owner_id, profile.family]
+	var shots_per_second: float = maxf(WeaponSoundProfileScript.BASE_FIRE_RATE * profile.fire_rate_ratio, 0.25)
+	var cooldown := clampi(roundi(450.0 / shots_per_second), 16, 70)
+	if now - int(_last_played_msec.get(cooldown_key, -1000)) < cooldown:
+		return
+	_last_played_msec[cooldown_key] = now
+	if not playback_enabled:
+		return
+	var priority := 5 if is_local else 1 + mini(profile.power_tier, 2)
+	var player := _acquire_sfx_player(priority)
+	if player == null:
+		return
+	var variant := posmod(owner_id * 31 + shot_sequence * 17, WEAPON_VARIANT_COUNT)
+	var stream := _weapon_stream(profile, variant)
+	var pitch_offsets: Array[float] = [-0.018, 0.0, 0.015]
+	var pitch: float = 1.0 - profile.power_amount * 0.035 - profile.modification_amount * 0.018 + pitch_offsets[variant]
+	var volume_db: float = 0.5 + profile.power_amount * 0.8 if is_local else _remote_weapon_volume_db(source_position.distance_to(listener_position), profile.power_tier)
+	_play_on_player(player, stream, pitch, volume_db, priority)
 
 
 func reset_match_deduplication() -> void:
@@ -173,7 +224,7 @@ func reset_match_deduplication() -> void:
 func synthesized_placeholder_count() -> int:
 	var count := 0
 	for event_name in SFX_NAMES:
-		if sfx_streams.get(event_name) is AudioStreamWAV:
+		if bool(sfx_generated.get(event_name, false)):
 			count += 1
 	return count
 
@@ -205,14 +256,104 @@ func _ensure_audio_buses() -> void:
 			continue
 		AudioServer.add_bus()
 		AudioServer.set_bus_name(AudioServer.bus_count - 1, bus_name)
+	var sfx_bus_index := AudioServer.get_bus_index(SFX_BUS)
+	var has_limiter := false
+	for effect_index in AudioServer.get_bus_effect_count(sfx_bus_index):
+		if AudioServer.get_bus_effect(sfx_bus_index, effect_index) is AudioEffectLimiter:
+			has_limiter = true
+			break
+	if not has_limiter:
+		AudioServer.add_bus_effect(sfx_bus_index, AudioEffectLimiter.new())
 
 
 func _make_player(node_name: String, bus_name: StringName) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
 	player.name = node_name
 	player.bus = bus_name
+	player.set_meta("sfx_priority", 0)
+	player.set_meta("sfx_started_msec", 0)
 	add_child(player)
 	return player
+
+
+func _acquire_sfx_player(priority: int) -> AudioStreamPlayer:
+	for player in sfx_players:
+		if not player.playing:
+			return player
+	var candidate: AudioStreamPlayer
+	var candidate_priority := 999
+	var candidate_started := 9223372036854775807
+	for player in sfx_players:
+		var player_priority := int(player.get_meta("sfx_priority", 0))
+		var player_started := int(player.get_meta("sfx_started_msec", 0))
+		if player_priority > priority:
+			continue
+		if player_priority < candidate_priority or (player_priority == candidate_priority and player_started < candidate_started):
+			candidate = player
+			candidate_priority = player_priority
+			candidate_started = player_started
+	if candidate != null:
+		candidate.stop()
+	return candidate
+
+
+func _play_on_player(
+	player: AudioStreamPlayer,
+	stream: AudioStream,
+	pitch: float,
+	volume_db: float,
+	priority: int
+) -> void:
+	if player == null or stream == null:
+		return
+	player.stream = stream
+	player.pitch_scale = clampf(pitch, 0.72, 1.35)
+	player.volume_db = clampf(volume_db, -24.0, 2.0)
+	player.set_meta("sfx_priority", priority)
+	player.set_meta("sfx_started_msec", Time.get_ticks_msec())
+	player.play()
+
+
+func _remote_weapon_volume_db(distance: float, power_tier: int) -> float:
+	var distance_mix := clampf((distance - 140.0) / 1900.0, 0.0, 1.0)
+	return lerpf(-2.5, -17.0, distance_mix) + mini(power_tier, 3) * 0.45
+
+
+func _trim_played_keys() -> void:
+	while _played_keys.size() > 512:
+		_played_keys.erase(_played_keys.keys()[0])
+
+
+func _weapon_stream(profile, variant: int) -> AudioStream:
+	var key := "%s:v%d" % [profile.cache_key(), variant]
+	if weapon_stream_cache.has(key):
+		return weapon_stream_cache[key] as AudioStream
+	var override := _load_weapon_override(profile, variant)
+	if override != null:
+		weapon_stream_cache[key] = override
+		return override
+	var legacy_event := &"beam_fire" if profile.beam_weapon else &"fire"
+	if not bool(sfx_generated.get(legacy_event, true)):
+		var legacy_stream := sfx_streams.get(legacy_event) as AudioStream
+		weapon_stream_cache[key] = legacy_stream
+		return legacy_stream
+	var generated := _synthesize_weapon(profile, variant)
+	weapon_stream_cache[key] = generated
+	return generated
+
+
+func _load_weapon_override(profile, variant: int) -> AudioStream:
+	var tier_names: Array[String] = ["base", "modified", "powerful", "extreme"]
+	var stems: Array[String] = [
+		"weapon_%s_%s_%02d" % [profile.family, tier_names[profile.power_tier], variant + 1],
+		"weapon_%s_%02d" % [profile.family, variant + 1],
+		"weapon_%s" % profile.family,
+	]
+	for stem in stems:
+		var stream := _load_audio_override(stem)
+		if stream != null:
+			return stream
+	return null
 
 
 func _load_sfx() -> void:
@@ -223,14 +364,17 @@ func _load_sfx() -> void:
 		&"elimination": [360.0, 45.0, 0.42], &"card_lock": [620.0, 1240.0, 0.19],
 		&"countdown": [440.0, 660.0, 0.12], &"overtime": [190.0, 380.0, 0.35],
 		&"round_win": [520.0, 880.0, 0.34], &"match_win": [440.0, 1320.0, 0.55],
+		&"projectile_impact": [310.0, 72.0, 0.13], &"ricochet": [1180.0, 540.0, 0.10],
 	}
 	for event_name in SFX_NAMES:
 		var override := _load_audio_override(String(event_name))
 		if override != null:
 			sfx_streams[event_name] = override
+			sfx_generated[event_name] = false
 			continue
 		var spec := tone_specs[event_name] as Array
 		sfx_streams[event_name] = _synthesize_tone(float(spec[0]), float(spec[1]), float(spec[2]))
+		sfx_generated[event_name] = true
 
 
 func _load_audio_override(base_name: String) -> AudioStream:
@@ -399,6 +543,110 @@ func _save_settings() -> void:
 	config.set_value("audio", "sfx", sfx_volume_percent)
 	config.set_value("audio", "muted", muted)
 	config.save(SETTINGS_PATH)
+
+
+func _synthesize_weapon(profile, variant: int) -> AudioStreamWAV:
+	var mix_rate := 22050
+	var tier: int = profile.power_tier
+	var duration: float = 0.10 + tier * 0.012
+	match profile.family:
+		WeaponSoundProfileScript.FAMILY_AUTOMATIC:
+			duration = 0.064 + tier * 0.008
+		WeaponSoundProfileScript.FAMILY_HEAVY:
+			duration = 0.17 + tier * 0.026
+		WeaponSoundProfileScript.FAMILY_RAIL:
+			duration = 0.115 + tier * 0.014
+		WeaponSoundProfileScript.FAMILY_SCATTER:
+			duration = 0.135 + tier * 0.018
+		WeaponSoundProfileScript.FAMILY_BEAM_PULSE:
+			duration = 0.14 + tier * 0.015
+		WeaponSoundProfileScript.FAMILY_BEAM_REPEATER:
+			duration = 0.078 + tier * 0.009
+		WeaponSoundProfileScript.FAMILY_BEAM_LANCE:
+			duration = 0.21 + tier * 0.028
+	var sample_count := maxi(roundi(duration * mix_rate), 1)
+	var samples := PackedFloat32Array()
+	samples.resize(sample_count)
+	var seed := absi(hash("%s:%d" % [profile.cache_key(), variant])) + 1
+	var noise_state := seed % 2147483647
+	var primary_phase := 0.0
+	var secondary_phase := 0.0
+	var sub_phase := 0.0
+	var peak := 0.001
+	for index in sample_count:
+		var progress := float(index) / float(sample_count)
+		noise_state = int(posmod(noise_state * 1103515245 + 12345, 2147483647))
+		var noise := float(noise_state) / 1073741823.5 - 1.0
+		var start_hz := 820.0
+		var end_hz := 115.0
+		if profile.family == WeaponSoundProfileScript.FAMILY_AUTOMATIC:
+			start_hz = 1040.0
+			end_hz = 190.0
+		elif profile.family == WeaponSoundProfileScript.FAMILY_HEAVY:
+			start_hz = 310.0
+			end_hz = 62.0
+		elif profile.family == WeaponSoundProfileScript.FAMILY_RAIL:
+			start_hz = 2450.0
+			end_hz = 260.0
+		elif profile.family == WeaponSoundProfileScript.FAMILY_SCATTER:
+			start_hz = 640.0
+			end_hz = 82.0
+		elif profile.family == WeaponSoundProfileScript.FAMILY_BEAM_PULSE:
+			start_hz = 1720.0
+			end_hz = 340.0
+		elif profile.family == WeaponSoundProfileScript.FAMILY_BEAM_REPEATER:
+			start_hz = 2260.0
+			end_hz = 510.0
+		elif profile.family == WeaponSoundProfileScript.FAMILY_BEAM_LANCE:
+			start_hz = 1380.0
+			end_hz = 185.0
+		var variant_pitch := 1.0 + (variant - 1) * 0.035
+		var primary_hz := lerpf(start_hz, end_hz, pow(progress, 0.72)) * variant_pitch
+		var secondary_hz: float = primary_hz * (1.48 + profile.modification_amount * 0.18)
+		var sub_hz := lerpf(105.0 - tier * 8.0, 48.0, progress)
+		primary_phase += TAU * primary_hz / mix_rate
+		secondary_phase += TAU * secondary_hz / mix_rate
+		sub_phase += TAU * sub_hz / mix_rate
+		var attack := minf(progress / (0.025 if profile.family == WeaponSoundProfileScript.FAMILY_BEAM_LANCE else 0.012), 1.0)
+		var envelope := attack * pow(1.0 - progress, 1.45 if profile.beam_weapon else 1.9)
+		var transient := noise * exp(-progress * (23.0 if profile.family == WeaponSoundProfileScript.FAMILY_SCATTER else 34.0))
+		var body: float = sin(primary_phase) * 0.62 + sin(secondary_phase) * (0.10 + profile.modification_amount * 0.08)
+		if profile.family == WeaponSoundProfileScript.FAMILY_AUTOMATIC:
+			body = sin(primary_phase) * 0.50 + transient * 0.44
+		elif profile.family == WeaponSoundProfileScript.FAMILY_HEAVY:
+			body = sin(primary_phase) * 0.48 + sin(sub_phase) * (0.34 + tier * 0.035) + transient * 0.32
+		elif profile.family == WeaponSoundProfileScript.FAMILY_RAIL:
+			body = sin(primary_phase) * 0.50 + sin(secondary_phase) * 0.21 + transient * 0.38
+		elif profile.family == WeaponSoundProfileScript.FAMILY_SCATTER:
+			body = sin(primary_phase) * 0.38 + sin(secondary_phase * 0.73) * 0.18 + transient * (0.40 + minf(profile.projectile_count, 6) * 0.025)
+		elif profile.family == WeaponSoundProfileScript.FAMILY_BEAM_PULSE:
+			body = sin(primary_phase) * 0.52 + sin(secondary_phase) * 0.23 + sin(primary_phase * 3.0) * 0.10
+		elif profile.family == WeaponSoundProfileScript.FAMILY_BEAM_REPEATER:
+			body = sin(primary_phase) * 0.45 + sin(secondary_phase) * 0.26 + transient * 0.18
+		elif profile.family == WeaponSoundProfileScript.FAMILY_BEAM_LANCE:
+			body = sin(primary_phase) * 0.44 + sin(secondary_phase) * 0.20 + sin(sub_phase) * (0.20 + tier * 0.035) + noise * exp(-progress * 9.0) * 0.10
+		var modifier_layer := 0.0
+		if profile.pierce_count > 0:
+			modifier_layer += sin(TAU * (2650.0 + variant * 110.0) * float(index) / mix_rate) * exp(-progress * 16.0) * minf(profile.pierce_count, 2) * 0.065
+		if profile.ricochet_count > 0:
+			modifier_layer += sin(TAU * (690.0 + profile.ricochet_count * 55.0) * float(index) / mix_rate) * sqrt(progress) * (1.0 - progress) * 0.18
+		if profile.knockback_ratio > 0.05:
+			modifier_layer += sin(TAU * 54.0 * float(index) / mix_rate) * pow(1.0 - progress, 2.2) * minf(profile.knockback_ratio, 1.8) * 0.16
+		var tier_body := sin(sub_phase) * float(tier) * 0.045 * pow(1.0 - progress, 1.35)
+		var sample: float = body * envelope + transient * 0.18 + modifier_layer + tier_body
+		samples[index] = sample
+		peak = maxf(peak, absf(sample))
+	var bytes := PackedByteArray()
+	bytes.resize(sample_count * 2)
+	var gain := 24500.0 / peak
+	for index in sample_count:
+		bytes.encode_s16(index * 2, clampi(roundi(samples[index] * gain), -32768, 32767))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = mix_rate
+	stream.stereo = false
+	stream.data = bytes
+	return stream
 
 
 func _synthesize_tone(start_hz: float, end_hz: float, duration: float) -> AudioStreamWAV:

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"impact_lens"
 display_name = "Impact Lens"
-description = "Projectile damage ×1.12 but speed ×0.95 per stack."
+description = "Per stack: +12% projectile damage; -5% projectile speed."
 category = 2
 rarity = 1
 multiplicative_modifiers = {"projectile_damage": 1.12, "projectile_speed": 0.95}

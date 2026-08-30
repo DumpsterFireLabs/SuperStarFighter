@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"focused_deflector"
 display_name = "Focused Deflector"
-description = "Capacity ×1.25 and drain ×0.82, but shield arc narrows ×0.82."
+description = "Per stack: +25% shield capacity; -18% shield drain; -18% shield arc."
 category = 1
 rarity = 2
 multiplicative_modifiers = {"shield_capacity": 1.25, "shield_continuous_drain": 0.82, "shield_arc_degrees": 0.82}

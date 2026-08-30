@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"micro_barrage"
 display_name = "Micro Barrage"
-description = "+2 projectiles and +14° spread; speed ×0.80 and damage ×0.72 per stack."
+description = "Per stack: +2 projectiles; +14° spread; -20% projectile speed; -28% projectile damage."
 category = 2
 rarity = 3
 additive_modifiers = {"projectile_spread_degrees": 14.0}

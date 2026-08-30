@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"hollow_points"
 display_name = "Hollow Points"
-description = "Projectile damage ×1.08 per stack."
+description = "Per stack: +8% projectile damage."
 category = 2
 rarity = 0
 multiplicative_modifiers = {"projectile_damage": 1.08}

@@ -37,6 +37,13 @@ func _capture_sequence() -> void:
 	await process_frame
 	await process_frame
 	await _capture(client, "splash")
+	client.splash_auto_timer.stop()
+	client.splash_stage = 1
+	client.studio_splash.visible = false
+	client.splash_neon_backdrop.visible = true
+	client.game_splash.visible = true
+	client.game_splash.modulate = Color.WHITE
+	await _capture(client, "game_splash")
 	client._dismiss_splash(true)
 	var local_servers: Array[Dictionary] = [
 		{"server_name": "Graphite's Arena", "address": "192.168.1.42", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 3, "npc_count": 5, "player_limit": 12, "match_active": false, "ping_ms": 3},
@@ -44,6 +51,9 @@ func _capture_sequence() -> void:
 	]
 	client._on_lan_servers_updated(local_servers)
 	await _capture(client, "menu")
+	client._show_credits()
+	await _capture(client, "credits")
+	client._hide_credits()
 	client.connection_tabs.current_tab = 2
 	await _capture(client, "host_menu")
 	client.connection_tabs.current_tab = 0

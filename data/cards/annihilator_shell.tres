@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"annihilator_shell"
 display_name = "Annihilator Shell"
-description = "Projectile damage ×1.80, lifetime ×0.70 and +1 pierce per stack."
+description = "Per stack: +80% projectile damage; +1 pierce; -30% projectile lifetime."
 category = 2
 rarity = 4
 multiplicative_modifiers = {"projectile_damage": 1.8, "projectile_lifetime": 0.7}

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"kinetic_prow"
 display_name = "Kinetic Prow"
-description = "Shield-first impacts above 180 speed deal +22 ram damage per stack. Impact speed scales the hit."
+description = "Shield-first impacts above 180 speed deal ram damage. Per stack: +22 damage."
 category = 1
 rarity = 2
 additive_modifiers = {"shield_ram_damage": 22.0}

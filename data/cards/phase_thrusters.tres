@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"phase_thrusters"
 display_name = "Phase Thrusters"
-description = "Acceleration ×1.18 and shield block cost ×0.90 per stack."
+description = "Per stack: +18% acceleration; -10% shield block cost."
 category = 0
 rarity = 1
 multiplicative_modifiers = {"acceleration": 1.18, "shield_block_cost": 0.9}

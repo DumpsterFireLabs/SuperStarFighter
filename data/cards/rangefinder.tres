@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"rangefinder"
 display_name = "Rangefinder"
-description = "Projectile lifetime ×1.25 and speed ×1.10, but fire rate ×0.95 per stack."
+description = "Per stack: +25% projectile lifetime; +10% speed; -5% fire rate."
 category = 2
 rarity = 1
 multiplicative_modifiers = {"projectile_lifetime": 1.25, "projectile_speed": 1.1, "fire_rate": 0.95}

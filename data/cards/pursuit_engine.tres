@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"pursuit_engine"
 display_name = "Pursuit Engine"
-description = "Maximum speed ×1.20 and acceleration ×1.08, but shield capacity ×0.90 per stack."
+description = "Per stack: +20% maximum speed; +8% acceleration; -10% shield capacity."
 category = 0
 rarity = 2
 multiplicative_modifiers = {"max_speed": 1.2, "acceleration": 1.08, "shield_capacity": 0.9}

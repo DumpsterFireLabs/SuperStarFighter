@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"vacuum_insulation"
 display_name = "Vacuum Insulation"
-description = "Continuous shield drain ×0.55, but regeneration ×0.85 per stack."
+description = "Per stack: -45% shield drain; -15% shield regeneration."
 category = 1
 rarity = 3
 multiplicative_modifiers = {"shield_continuous_drain": 0.55, "shield_regeneration": 0.85}

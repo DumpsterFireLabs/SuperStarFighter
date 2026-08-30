@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"repulsor_payload"
 display_name = "Repulsor Payload"
-description = "Projectile hits add +320 knockback while projectile speed is multiplied by 0.90 per stack. Shields retain only 20% of the push."
+description = "Per stack: +320 knockback; -10% projectile speed. Shields absorb 80% of the push."
 category = 2
 rarity = 3
 additive_modifiers = {"projectile_knockback": 320.0}

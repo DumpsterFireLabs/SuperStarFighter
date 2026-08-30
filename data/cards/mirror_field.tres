@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"mirror_field"
 display_name = "Mirror Field"
-description = "+10° shield arc and shield regeneration ×1.25 per stack."
+description = "Per stack: +10° shield arc; +25% shield regeneration."
 category = 1
 rarity = 2
 additive_modifiers = {"shield_arc_degrees": 10.0}

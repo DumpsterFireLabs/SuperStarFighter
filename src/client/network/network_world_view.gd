@@ -4,6 +4,7 @@ extends Node2D
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
+const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const PROJECTILE_COLLISION_ITERATIONS: int = 16
 const COLLISION_SURFACE_EPSILON: float = 0.35
 const LOCAL_CONTACT_ESCAPE_SPEED: float = 180.0
@@ -249,10 +250,13 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		var peer_id := int(state.peer_id)
 		present_ids[peer_id] = true
 		var ship := _ensure_ship(peer_id, state)
+		var revived := bool(state.alive) and not ship.combatant.alive
 		ship.visible = String(match_payload.get("state_name", "")) != "DRAFT"
 		_handle_snapshot_feedback(peer_id, state, ship)
 		_apply_snapshot_resources(ship, state)
 		if peer_id == local_peer_id:
+			if revived:
+				prediction_initialized = false
 			if not prediction_initialized:
 				prediction.predicted_position = state.position
 				prediction.predicted_velocity = state.velocity
@@ -291,6 +295,9 @@ func apply_match_state(payload: Dictionary) -> void:
 	if String(payload.get("state_name", "")) == "COUNTDOWN":
 		local_weapon.reset(local_stats)
 		prediction_initialized = false
+		# Spawn changes are authoritative teleports. Discard interpolation from
+		# the previous heat so remote humans and NPCs snap to their new starts.
+		interpolation.clear()
 		presentation_states.clear()
 		if effects_layer != null:
 			effects_layer.clear_effects()
@@ -358,6 +365,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_projectile_batch(decoded: Dictionary) -> void:
+	var emitted_shots: Dictionary = {}
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
 		if projectile.owner_id == local_peer_id and predicted_projectile_ids.has(projectile.shot_sequence):
@@ -367,11 +375,22 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			predicted_projectile_ids.erase(projectile.shot_sequence)
 			predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
 		authoritative_projectiles.add(projectile)
-		presentation_event.emit(&"beam_fire" if projectile.is_beam else &"fire", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id, "shot_sequence": projectile.shot_sequence})
+		var shot_key := "%d:%d" % [projectile.owner_id, projectile.shot_sequence]
+		if not emitted_shots.has(shot_key):
+			emitted_shots[shot_key] = true
+			_emit_weapon_shot(projectile.owner_id, projectile.shot_sequence, projectile.position, projectile)
 	for projectile_id in decoded.removed:
 		var projectile := authoritative_projectiles.get_projectile(int(projectile_id))
 		if projectile != null and effects_layer != null:
 			effects_layer.spawn_impact(projectile.position)
+		if projectile != null:
+			presentation_event.emit(&"projectile_impact", {
+				"projectile_id": projectile.projectile_id,
+				"owner_id": projectile.owner_id,
+				"position": projectile.position,
+				"listener_position": _audio_listener_position(),
+				"server_tick": latest_server_tick,
+			})
 		authoritative_projectiles.remove(int(projectile_id))
 
 
@@ -436,6 +455,41 @@ func _stats_for_peer(peer_id: int, builds: Dictionary = {}) -> CombatStats:
 	return StatSystem.derive(build, card_catalog)
 
 
+func _build_for_peer(peer_id: int) -> Dictionary:
+	var builds := match_payload.get("builds", {}) as Dictionary
+	return builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary
+
+
+func _emit_weapon_shot(
+	owner_id: int,
+	shot_sequence: int,
+	position: Vector2,
+	projectile: ProjectileState = null
+) -> void:
+	var stats := local_stats.duplicate_stats() if owner_id == local_peer_id else _stats_for_peer(owner_id).duplicate_stats()
+	if projectile != null:
+		stats.projectile_damage = projectile.damage
+		stats.projectile_speed = projectile.velocity.length()
+		stats.pierce_count = projectile.remaining_pierces
+		stats.ricochet_count = projectile.remaining_ricochets
+		stats.beam_weapon = projectile.is_beam
+	var profile = WeaponSoundProfileScript.from_stats(stats, _build_for_peer(owner_id), card_catalog)
+	presentation_event.emit(&"weapon_fire", {
+		"profile": profile,
+		"owner_id": owner_id,
+		"shot_sequence": shot_sequence,
+		"position": position,
+		"listener_position": _audio_listener_position(),
+		"local": owner_id == local_peer_id,
+	})
+
+
+func _audio_listener_position() -> Vector2:
+	if ships.has(local_peer_id):
+		return (ships[local_peer_id] as SandboxShip).global_position
+	return camera.position if camera != null else Vector2.ZERO
+
+
 func _update_remote_ships() -> void:
 	var now := _now_seconds()
 	for peer_value in ships.keys():
@@ -462,7 +516,7 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 		next_predicted_id -= 1
 	predicted_projectile_ids[local_weapon.shot_sequence] = predicted_ids
 	predicted_tracker.add(local_peer_id, local_weapon.shot_sequence, _now_seconds())
-	presentation_event.emit(&"beam_fire" if local_stats.beam_weapon else &"fire", {"owner_id": local_peer_id, "shot_sequence": local_weapon.shot_sequence})
+	_emit_weapon_shot(local_peer_id, local_weapon.shot_sequence, muzzle)
 
 
 func _step_projectile_visuals(delta: float) -> void:
@@ -500,9 +554,23 @@ func _step_projectile_visuals(delta: float) -> void:
 			travel_remaining *= maxf(1.0 - collision_fraction, 0.0)
 			var obstacle_normal := obstacle_hit.normal as Vector2
 			if projectile.ricochet(obstacle_normal):
+				presentation_event.emit(&"ricochet", {
+					"projectile_id": projectile.projectile_id,
+					"owner_id": projectile.owner_id,
+					"ricochets_remaining": projectile.remaining_ricochets,
+					"position": projectile.position,
+					"listener_position": _audio_listener_position(),
+				})
 				projectile.position += obstacle_normal * COLLISION_SURFACE_EPSILON
 				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
 				continue
+			presentation_event.emit(&"projectile_impact", {
+				"projectile_id": projectile.projectile_id,
+				"owner_id": projectile.owner_id,
+				"position": projectile.position,
+				"listener_position": _audio_listener_position(),
+				"server_tick": latest_server_tick,
+			})
 			authoritative_projectiles.remove(projectile.projectile_id)
 			break
 	if projectile_layer != null:
@@ -650,6 +718,10 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			var special_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
 			combat_status += "   ·   %s Afterburner" % special_hint
 		if not local_ship.combatant.alive:
+			# Elimination can leave authoritative shield energy above zero (for
+			# example, damage that bypasses shields). Do not present that stale
+			# resource as an available shield while spectating.
+			shield_bar.value = 0.0
 			resources = "SHIP ELIMINATED"
 			var previous_hint: String = input_profiles.binding_text(&"spectator_previous") if input_profiles != null else "A"
 			var next_hint: String = input_profiles.binding_text(&"spectator_next") if input_profiles != null else "D"

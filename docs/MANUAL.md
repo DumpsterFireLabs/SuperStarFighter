@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The main screen displays **BETA 3 · VERSION 0.1.0-beta.3** so players can confirm they are using the same build before joining one another.
+The main screen displays **BETA 6 · VERSION 0.1.0-beta.6** so players can confirm they are using the same build before joining one another.
 
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
@@ -213,7 +213,7 @@ Changing a match option clears human readiness. Changing your own ship colour cl
 
 ### Random Spawn Powerups
 
-When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 5–90 seconds of active combat (20 seconds by default). Fly over its glowing rarity-coloured marker to collect it. The card is added immediately and its stats take effect without waiting for another draft. By default the stack expires when the heat ends; the leader may instead make arena drops permanent until the match ends. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
+When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 5–90 seconds of active combat (20 seconds by default). King of the Hill enables temporary powerups by default; the other modes start with them off. Fly over a glowing rarity-coloured marker to collect it. The card is added immediately and its stats take effect without waiting for another draft. By default the stack expires when the heat ends; the leader may instead make arena drops permanent until the match ends. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
 
 ### Game modes
 
@@ -221,13 +221,13 @@ When the leader enables this optional rule, one Rare-or-better card appears at a
 | --- | --- |
 | Death Match | Be the final surviving pilot. |
 | Team Death Match | Be the final team with at least one living pilot; the host may configure two through eight teams. |
-| King of the Hill | Hold the marked point alone and uncontested for 20 uninterrupted seconds. Leaving or sharing the point resets progress. |
-| Capture the Flag | Collect the neutral center flag and carry it to the neutral extraction zone. |
+| King of the Hill | Accumulate 20 seconds alone in the marked point. Leaving or sharing the point pauses scoring without erasing earned time; the hill moves after each round. |
+| Capture the Flag | Collect the neutral center flag and carry it back to your marked launch base. |
 | Team Capture the Flag | Collect the neutral center flag and carry it to your team's coloured base. |
 
 Every participant row in a team-mode lobby has a team dropdown. **Auto** balances that participant onto the least-populated available team; a specific choice locks them to that team. The host may assign anyone, each human may assign themselves, and any human may assign an NPC. A non-host cannot alter another human's selection. Team Death Match supports two through eight named/coloured teams; Team Capture the Flag stays fixed to **Cyan Team** and **Magenta Team** because each map has two bases. The roster, live standings, and results identify each pilot's team. Friendly projectile, beam, and shield-ram damage is disabled; ships still separate physically so teammates cannot occupy the same space. NPCs do not target or dodge allies and will pursue the active objective.
 
-Flags drop where their carrier dies and can be recovered. An untouched dropped flag returns to the center after eight seconds. King of the Hill and both flag modes deliberately do not award a heat merely because only one pilot remains—the survivor must finish the objective. A simultaneous all-pilot elimination is still a tie.
+Flags drop where their carrier dies and can be recovered. An untouched dropped flag returns to the center after eight seconds. King of the Hill and both flag modes respawn eliminated pilots after a five-second countdown, so combat deaths never decide or tie an objective heat; the objective must be completed.
 
 ### NPC fill
 
@@ -397,7 +397,7 @@ For every derived numeric stat:
 3. Integer additions such as extra projectiles, pierces, and ricochets are applied.
 4. Broad technical guardrails prevent broken network encoding, physics, or entity budgets.
 
-Acquisition order does not change the result. `×1.20` taken three times means `1.20³`, not a one-time 60% flat bonus.
+Acquisition order does not change the result. A card showing `+20%` per stack compounds its multiplier: three stacks apply `1.20³`, not a one-time 60% flat bonus.
 
 Auto-repair and beam cards enable behaviors. Other cards can improve repair delay/rate before repair is enabled, creating deliberate setup-and-payoff combinations.
 

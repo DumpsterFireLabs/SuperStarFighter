@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"solar_barrier"
 display_name = "Solar Barrier"
-description = "Capacity ×1.50, regeneration ×1.50 and drain ×0.70 per stack."
+description = "Per stack: +50% shield capacity; +50% regeneration; -30% shield drain."
 category = 1
 rarity = 4
 multiplicative_modifiers = {"shield_capacity": 1.5, "shield_regeneration": 1.5, "shield_continuous_drain": 0.7}

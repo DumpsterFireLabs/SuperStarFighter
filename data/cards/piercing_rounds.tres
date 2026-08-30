@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"piercing_rounds"
 display_name = "Piercing Rounds"
-description = "+1 projectile pierce and projectile damage is multiplied by 1.08."
+description = "Per stack: +1 pierce; +8% projectile damage."
 category = 2
 rarity = 2
 multiplicative_modifiers = {"projectile_damage": 1.08}

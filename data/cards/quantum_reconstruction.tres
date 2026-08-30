@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"quantum_reconstruction"
 display_name = "Quantum Reconstruction"
-description = "Enables auto-repair and multiplies maximum hull by 1.50."
+description = "Unlock auto-repair. Per stack: +50% maximum hull."
 category = 0
 rarity = 4
 multiplicative_modifiers = {"max_health": 1.5}

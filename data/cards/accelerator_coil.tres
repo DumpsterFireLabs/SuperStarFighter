@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"accelerator_coil"
 display_name = "Accelerator Coil"
-description = "Projectile speed ×1.25 and lifetime ×1.12 per stack."
+description = "Per stack: +25% projectile speed; +12% projectile lifetime."
 category = 2
 rarity = 2
 multiplicative_modifiers = {"projectile_speed": 1.25, "projectile_lifetime": 1.12}

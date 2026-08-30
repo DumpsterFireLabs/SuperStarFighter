@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"kinetic_converter"
 display_name = "Kinetic Converter"
-description = "Shield block cost ×0.78, but capacity ×0.90 per stack."
+description = "Per stack: -22% shield block cost; -10% shield capacity."
 category = 1
 rarity = 1
 multiplicative_modifiers = {"shield_block_cost": 0.78, "shield_capacity": 0.9}

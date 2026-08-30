@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"sprint_reactor"
 display_name = "Sprint Reactor"
-description = "Maximum speed ×1.15, but braking drag ×0.90 per stack."
+description = "Per stack: +15% maximum speed; -10% braking."
 category = 0
 rarity = 1
 multiplicative_modifiers = {"max_speed": 1.15, "drag": 0.9}

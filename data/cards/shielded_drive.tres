@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"shielded_drive"
 display_name = "Shielded Drive"
-description = "Shielded acceleration ×1.20 and continuous shield drain ×0.92 per stack."
+description = "Per stack: +20% acceleration while shielding; -8% shield drain."
 category = 0
 rarity = 1
 multiplicative_modifiers = {"shield_acceleration_factor": 1.2, "shield_continuous_drain": 0.92}

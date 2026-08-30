@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"gyroscopic_core"
 display_name = "Gyroscopic Core"
-description = "Flight damping ×1.25 and maximum speed ×1.08 per stack."
+description = "Per stack: +25% braking; +8% maximum speed."
 category = 0
 rarity = 2
 multiplicative_modifiers = {"drag": 1.25, "max_speed": 1.08}

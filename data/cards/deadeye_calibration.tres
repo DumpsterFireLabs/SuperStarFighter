@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"deadeye_calibration"
 display_name = "Deadeye Calibration"
-description = "Projectile spread −10°, damage ×1.20 and fire rate ×0.90 per stack."
+description = "Per stack: -10° spread; +20% projectile damage; -10% fire rate."
 category = 2
 rarity = 2
 additive_modifiers = {"projectile_spread_degrees": -10.0}

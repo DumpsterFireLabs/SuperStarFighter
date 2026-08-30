@@ -59,3 +59,7 @@ func sample(peer_id: int, now_seconds: float) -> Dictionary:
 
 func remove_peer(peer_id: int) -> void:
 	_samples.erase(peer_id)
+
+
+func clear() -> void:
+	_samples.clear()

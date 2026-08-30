@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"resilient_grid"
 display_name = "Resilient Grid"
-description = "Shield recovery threshold ×0.65 and capacity ×1.10 per stack."
+description = "Per stack: -35% shield recovery threshold; +10% shield capacity."
 category = 1
 rarity = 2
 multiplicative_modifiers = {"shield_depletion_threshold": 0.65, "shield_capacity": 1.1}

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"chain_ricochet"
 display_name = "Chain Ricochet"
-description = "+2 ricochets and +1 pierce, but damage ×0.85 per stack."
+description = "Per stack: +2 ricochets; +1 pierce; -15% projectile damage."
 category = 2
 rarity = 3
 multiplicative_modifiers = {"projectile_damage": 0.85}

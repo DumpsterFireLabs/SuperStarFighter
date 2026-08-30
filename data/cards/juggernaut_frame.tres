@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"juggernaut_frame"
 display_name = "Juggernaut Frame"
-description = "Maximum hull ×1.35 and braking drag ×1.20, but acceleration ×0.85 per stack."
+description = "Per stack: +35% maximum hull; +20% braking; -15% acceleration."
 category = 0
 rarity = 2
 multiplicative_modifiers = {"max_health": 1.35, "drag": 1.2, "acceleration": 0.85}

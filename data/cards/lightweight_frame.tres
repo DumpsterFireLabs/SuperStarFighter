@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"lightweight_frame"
 display_name = "Lightweight Frame"
-description = "Maximum speed ×1.08, but maximum hull ×0.95 per stack."
+description = "Per stack: +8% maximum speed; -5% maximum hull."
 category = 0
 rarity = 0
 multiplicative_modifiers = {"max_speed": 1.08, "max_health": 0.95}

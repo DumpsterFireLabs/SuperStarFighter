@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"immortal_lattice"
 display_name = "Immortal Lattice"
-description = "Unlock auto-repair; maximum hull ×1.25, repair rate ×1.80 and shield capacity ×1.30 per stack."
+description = "Unlock auto-repair. Per stack: +25% maximum hull; +80% repair rate; +30% shield capacity."
 category = 0
 rarity = 4
 multiplicative_modifiers = {"max_health": 1.25, "auto_repair_rate": 1.8, "shield_capacity": 1.3}

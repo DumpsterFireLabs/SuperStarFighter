@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"short_fuse_payload"
 display_name = "Short-Fuse Payload"
-description = "Projectile lifetime ×0.75 and damage ×1.15 per stack."
+description = "Per stack: -25% projectile lifetime; +15% damage."
 category = 2
 rarity = 0
 multiplicative_modifiers = {"projectile_lifetime": 0.75, "projectile_damage": 1.15}

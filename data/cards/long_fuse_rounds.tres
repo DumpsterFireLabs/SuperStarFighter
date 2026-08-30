@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"long_fuse_rounds"
 display_name = "Long-Fuse Rounds"
-description = "Projectile lifetime ×1.20 and speed ×0.95 per stack."
+description = "Per stack: +20% projectile lifetime; -5% projectile speed."
 category = 2
 rarity = 0
 multiplicative_modifiers = {"projectile_lifetime": 1.2, "projectile_speed": 0.95}

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"infinite_refraction"
 display_name = "Infinite Refraction"
-description = "Shield arc ×3.00, capacity ×2.00 and regeneration ×2.00."
+description = "Per stack: +200% shield arc; +100% shield capacity; +100% shield regeneration."
 category = 1
 rarity = 6
 multiplicative_modifiers = {"shield_arc_degrees": 3.0, "shield_capacity": 2.0, "shield_regeneration": 2.0}

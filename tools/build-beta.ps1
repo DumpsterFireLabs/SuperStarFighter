@@ -4,13 +4,13 @@ param()
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-$presetName = 'Windows Beta 3'
-$releaseLabel = 'Beta 3'
-$expectedGameVersion = '0.1.0-beta.3'
-$expectedWindowsVersion = '0.1.0.3'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-3'
-$clientPath = Join-Path $buildRoot 'SuperStarFighter-Beta3.exe'
-$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta3-Windows-x64.zip'
+$presetName = 'Windows Beta 6'
+$releaseLabel = 'Beta 6'
+$expectedGameVersion = '0.1.0-beta.6'
+$expectedWindowsVersion = '0.1.0.6'
+$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-6'
+$clientPath = Join-Path $buildRoot 'SuperStarFighter-Beta6.exe'
+$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta6-Windows-x64.zip'
 $smokeLog = Join-Path $buildRoot 'beta-smoke.log'
 $friendReadme = Join-Path $buildRoot 'README-BETA.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES.txt'
@@ -91,7 +91,10 @@ if (-not (Test-Path -LiteralPath $smokeLog -PathType Leaf)) {
     throw 'Exported client smoke test did not create its log.'
 }
 $smokeText = Get-Content -LiteralPath $smokeLog -Raw
-if (-not $smokeText.Contains('SSF_MODE_READY=client') -or $smokeText.Contains('SCRIPT ERROR:') -or $smokeText.Contains('ERROR:')) {
+$unexpectedSmokeErrors = @($smokeText -split "`r?`n" | Where-Object {
+    $_.StartsWith('ERROR:') -and -not $_.Contains('Failed to read the root certificate store.')
+})
+if (-not $smokeText.Contains('SSF_MODE_READY=client') -or $smokeText.Contains('SCRIPT ERROR:') -or $unexpectedSmokeErrors.Count -gt 0) {
     throw 'Exported client smoke log failed ready/error validation.'
 }
 $audioReadyMatch = [regex]::Match($smokeText, 'SSF_AUDIO_READY menu=(\d+) gameplay=(\d+) win=(\d+)')

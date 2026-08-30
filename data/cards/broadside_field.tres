@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"broadside_field"
 display_name = "Broadside Field"
-description = "Shield arc ×1.18, but continuous drain ×1.08 per stack."
+description = "Per stack: +18% shield arc; +8% shield drain."
 category = 1
 rarity = 1
 multiplicative_modifiers = {"shield_arc_degrees": 1.18, "shield_continuous_drain": 1.08}

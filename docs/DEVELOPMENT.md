@@ -31,10 +31,10 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.3 |
-| Protocol version | 13 |
-| Automated suite | 2,018 assertions |
-| Project gate | 86 checks |
+| Game version | 0.1.0-beta.6 |
+| Protocol version | 14 |
+| Automated suite | 2,118 assertions |
+| Project gate | 88 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -153,7 +153,7 @@ LOBBY
 
 State deadlines use server ticks. UI countdowns derive from server time and must not create independent gameplay timers.
 
-`GameModeRules` is the shared mode registry. Death Match remains the default. Team Death Match supports two through eight configured teams; Team Capture the Flag remains fixed to two. `ServerLobby` balances Auto seats around authoritative explicit assignments, enforces host/self/NPC permissions, and requires every team to be populated. The coordinator copies those assignments into the combat world and places each team in a distinct spawn sector at match start. King of the Hill requires one uncontested pilot for 20 uninterrupted seconds. Both flag modes use a neutral center flag, authoritative carrier/drop/reset state, and either a neutral extraction zone or team-coloured bases. NPC objective steering consumes only coordinator-owned snapshots and still yields to overtime safety.
+`GameModeRules` is the shared mode registry. Death Match remains the default. Team Death Match supports two through eight configured teams; Team Capture the Flag remains fixed to two. `ServerLobby` balances Auto seats around authoritative explicit assignments, enforces host/self/NPC permissions, and requires every team to be populated. The coordinator copies those assignments into the combat world and places each team in a distinct spawn sector at match start. King of the Hill awards cumulative uncontested control time toward a 20-second heat target, pauses scoring while the hill is empty or contested, rotates the hill each round, and enables temporary powerups by default. Both flag modes use a neutral center flag plus authoritative carrier/drop/reset state and require a return to the carrier's pilot or team base. All objective modes queue server-owned five-second respawns, published as deadlines so clients display the same countdown. NPC objective steering consumes only coordinator-owned snapshots and still yields to overtime safety.
 
 ## 5. Authority and Protocol Rules
 
@@ -202,7 +202,7 @@ Example:
 script = ExtResource("1_card")
 card_id = &"rangefinder"
 display_name = "Rangefinder"
-description = "Projectile lifetime ×1.25 and speed ×1.10, but fire rate ×0.95 per stack."
+description = "Per stack: +25% projectile lifetime; +10% speed; -5% fire rate."
 category = 2
 rarity = 1
 multiplicative_modifiers = {"projectile_lifetime": 1.25, "projectile_speed": 1.1, "fire_rate": 0.95}
@@ -234,7 +234,7 @@ Use `integer_modifiers` only for `magazine_size`, `projectile_count`, `pierce_co
 
 1. Create the `.tres` resource under `data/cards/`.
 2. Add its path to `CardCatalog.DEFAULT_CARD_PATHS`.
-3. Write a description that exactly matches its per-stack behavior.
+3. Write a concise description that exactly matches its behavior. Start stackable effects with `Per stack:`, express multipliers as signed percentages, separate effects with semicolons, and state unlocks or requirements first.
 4. Update the catalog in `spec.md`.
 5. Add targeted derived-stat assertions where the card introduces a new interaction.
 6. Run `run-tests.ps1`.
@@ -406,7 +406,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. The Beta 3 Windows client preset, repeatable package script, embedded-PCK executable, exported-client launch smoke, friend README, and Godot notice are implemented. The prior Beta 1 and Beta 2 packages remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing, and final release-candidate artifact checks remain.
+The source-playable vertical slice and hardening milestone are complete. The Beta 6 Windows client preset, repeatable package script, embedded-PCK executable, exported-client launch smoke, friend README, and Godot notice are implemented. Beta 1 through Beta 5 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing, and final release-candidate artifact checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 

@@ -12,7 +12,10 @@ static func run(context: TestContext) -> void:
 	_validate_forfeit(context)
 	_validate_powerup_match_integration(context)
 	_validate_objective_modes(context)
+	_validate_objective_respawns(context)
+	_validate_hill_round_rotation(context)
 	_validate_multi_team_spawns(context)
+	_validate_team_npc_spawn_resets(context)
 
 
 static func _validate_complete_match_and_rematch(context: TestContext) -> void:
@@ -172,8 +175,18 @@ static func _validate_objective_modes(context: TestContext) -> void:
 	var hill_position := (hill_coordinator.current_state_payload().objective as Dictionary).position as Vector2
 	(hill_world.combatants[1] as CombatantState).position = hill_position
 	(hill_world.combatants[2] as CombatantState).position = hill_position + Vector2(GameModeRules.OBJECTIVE_ZONE_RADIUS + 200.0, 0.0)
-	_advance(hill_world, hill_coordinator, ceili(GameModeRules.HILL_HOLD_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND) + 1)
-	context.expect_equal(hill_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "uncontested hill control for twenty seconds resolves the heat")
+	_advance(hill_world, hill_coordinator, 5 * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	(hill_world.combatants[1] as CombatantState).position = hill_position + Vector2(GameModeRules.OBJECTIVE_ZONE_RADIUS + 300.0, 0.0)
+	_advance(hill_world, hill_coordinator, 1)
+	var paused_hill_progress := float(((hill_coordinator.current_state_payload().objective as Dictionary).progress as Dictionary).get(1, 0.0))
+	context.expect_true(paused_hill_progress >= 4.9, "leaving the hill pauses rather than erases earned control time")
+	(hill_world.combatants[1] as CombatantState).position = hill_position
+	_advance(
+		hill_world,
+		hill_coordinator,
+		ceili((GameModeRules.HILL_HOLD_SECONDS - paused_hill_progress) * GameConstants.PHYSICS_TICKS_PER_SECOND) + 1
+	)
+	context.expect_equal(hill_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "cumulative uncontested hill time resolves the heat at twenty seconds")
 	context.expect_equal(hill_coordinator.machine.last_heat_winner, 1, "the surviving hill controller wins the objective heat")
 
 	var flag_fixture := _objective_fixture(GameModeRules.Mode.CAPTURE_THE_FLAG, 2, 7070)
@@ -185,9 +198,13 @@ static func _validate_objective_modes(context: TestContext) -> void:
 	context.expect_equal(int((flag_coordinator.current_state_payload().objective as Dictionary).flag_carrier_id), 1, "touching the neutral flag assigns its carrier authoritatively")
 	flag_objective = flag_coordinator.current_state_payload().objective as Dictionary
 	var neutral_zones := flag_objective.capture_zones as Dictionary
-	(flag_world.combatants[1] as CombatantState).position = neutral_zones[0] as Vector2
+	context.expect_true(neutral_zones.has(1) and neutral_zones.has(2), "solo flag mode publishes a separate return base for every pilot")
+	(flag_world.combatants[1] as CombatantState).position = neutral_zones[2] as Vector2
 	_advance(flag_world, flag_coordinator, 1)
-	context.expect_equal(flag_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "solo capture the flag resolves at the neutral extraction zone")
+	context.expect_equal(flag_coordinator.state(), MatchStateMachine.State.ACTIVE_HEAT, "a flag carrier cannot score at another pilot's base")
+	(flag_world.combatants[1] as CombatantState).position = neutral_zones[1] as Vector2
+	_advance(flag_world, flag_coordinator, 1)
+	context.expect_equal(flag_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "solo capture the flag resolves only at the carrier's launch base")
 	context.expect_equal(flag_coordinator.machine.last_heat_winner, 1, "the neutral flag carrier wins the capture heat")
 
 	var team_flag_fixture := _objective_fixture(GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, 4, 8081)
@@ -198,10 +215,60 @@ static func _validate_objective_modes(context: TestContext) -> void:
 	_advance(team_flag_world, team_flag_coordinator, 1)
 	team_flag_objective = team_flag_coordinator.current_state_payload().objective as Dictionary
 	var team_zones := team_flag_objective.capture_zones as Dictionary
+	(team_flag_world.combatants[1] as CombatantState).position = team_zones[2] as Vector2
+	_advance(team_flag_world, team_flag_coordinator, 1)
+	context.expect_equal(team_flag_coordinator.state(), MatchStateMachine.State.ACTIVE_HEAT, "team flag carrier cannot score at the opposing team's base")
 	(team_flag_world.combatants[1] as CombatantState).position = team_zones[1] as Vector2
 	_advance(team_flag_world, team_flag_coordinator, 1)
 	context.expect_equal(team_flag_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "team flag capture resolves when the carrier reaches its own base")
 	context.expect_equal(team_flag_coordinator.machine.last_heat_winner_team, 1, "team capture credits the carrier's full team")
+
+
+static func _validate_objective_respawns(context: TestContext) -> void:
+	for mode in [GameModeRules.Mode.KING_OF_THE_HILL, GameModeRules.Mode.CAPTURE_THE_FLAG, GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG]:
+		var player_count := 4 if mode == GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG else 2
+		var fixture := _objective_fixture(mode, player_count, 9000 + mode)
+		var world := fixture.world as AuthoritativeWorld
+		var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+		var victim := world.combatants[1] as CombatantState
+		victim.health = 0.0
+		victim.alive = false
+		_advance(world, coordinator, 1)
+		context.expect_equal(coordinator.state(), MatchStateMachine.State.ACTIVE_HEAT, "%s deaths do not resolve the objective heat" % GameModeRules.mode_name(mode))
+		context.expect_false((coordinator.machine.players[1] as PlayerMatchState).alive, "%s victim waits in the authoritative respawn queue" % GameModeRules.mode_name(mode))
+		var deadlines := coordinator.current_state_payload().respawn_deadlines as Dictionary
+		var deadline := int(deadlines.get(1, -1))
+		context.expect_equal(deadline - world.server_tick, roundi(GameModeRules.OBJECTIVE_RESPAWN_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND), "%s respawn timer is exactly five seconds" % GameModeRules.mode_name(mode))
+		_advance(world, coordinator, maxi(deadline - world.server_tick - 1, 0))
+		context.expect_false(victim.alive, "%s victim remains eliminated before the five-second deadline" % GameModeRules.mode_name(mode))
+		_advance(world, coordinator, 1)
+		context.expect_true(victim.alive and (coordinator.machine.players[1] as PlayerMatchState).alive, "%s victim respawns when the five-second timer expires" % GameModeRules.mode_name(mode))
+
+
+static func _validate_hill_round_rotation(context: TestContext) -> void:
+	var config := _fast_config()
+	config.game_mode = GameModeRules.Mode.KING_OF_THE_HILL
+	config.rounds_to_win = 2
+	var lobby := ServerLobby.new(config)
+	var world := AuthoritativeWorld.new()
+	for peer_id in [1, 2]:
+		lobby.admit(peer_id, "HillRound%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(1)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 9191)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	var first_hill := (coordinator.current_state_payload().objective as Dictionary).position as Vector2
+	coordinator.machine.finish_heat(1, world.server_tick)
+	coordinator._capture_transitions()
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	coordinator.machine.finish_heat(1, world.server_tick)
+	coordinator._capture_transitions()
+	_advance_until_state(world, coordinator, MatchStateMachine.State.DRAFT)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	var second_hill := (coordinator.current_state_payload().objective as Dictionary).position as Vector2
+	context.expect_true(first_hill.distance_to(second_hill) > GameModeRules.OBJECTIVE_ZONE_RADIUS, "King of the Hill moves its control point to a distinct location for the next round")
 
 
 static func _objective_fixture(mode: int, player_count: int, seed: int) -> Dictionary:
@@ -244,6 +311,58 @@ static func _validate_multi_team_spawns(context: TestContext) -> void:
 		occupied_positions[combatant.position] = true
 	context.expect_equal(represented_teams.size(), 3, "coordinator preserves all configured teams")
 	context.expect_equal(occupied_positions.size(), 6, "multi-team heat preparation gives every participant a unique spawn anchor")
+
+
+static func _validate_team_npc_spawn_resets(context: TestContext) -> void:
+	var config := _fast_config()
+	config.max_players = 6
+	config.rounds_to_win = 2
+	var lobby := ServerLobby.new(config)
+	lobby.admit(10, "NpcTeamHost")
+	lobby.request_player_limit(10, 6)
+	lobby.request_npcs_enabled(10, true)
+	lobby.request_game_mode(10, GameModeRules.Mode.TEAM_DEATH_MATCH)
+	lobby.request_team_count(10, 3)
+	_ready_all(lobby)
+	context.expect_true(lobby.request_start(10).ok, "team NPC reset fixture passes lobby validation")
+	var world := AuthoritativeWorld.new()
+	for player_value in lobby.players.values():
+		var peer_id := (player_value as PlayerMatchState).peer_id
+		var combatant := world.add_peer(peer_id)
+		combatant.position = Vector2(900.0 + peer_id, 700.0)
+		world.latest_inputs[peer_id] = PlayerInputFrame.new(
+			int(world.acknowledged_inputs.get(peer_id, 0)),
+			world.server_tick,
+			Vector2.ONE.normalized(),
+			0.0,
+			true,
+			true
+		)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 8282)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	var npc_ids := lobby.npc_peer_ids()
+	context.expect_equal(npc_ids.size(), 5, "team spawn reset fixture contains five server-owned NPCs")
+	for npc_id in npc_ids:
+		var npc := world.combatants[npc_id] as CombatantState
+		var expected_spawn := coordinator._spawn_assignments_cache[npc_id] as Vector2
+		context.expect_equal(npc.position, expected_spawn, "NPC %d starts the team game at its assigned spawn" % npc_id)
+		context.expect_true((world.latest_inputs[npc_id] as PlayerInputFrame).movement.is_zero_approx(), "NPC %d starts the team game with neutral movement" % npc_id)
+	var moved_npc_id := npc_ids[0]
+	(world.combatants[moved_npc_id] as CombatantState).position = Vector2(1111.0, 777.0)
+	world.latest_inputs[moved_npc_id] = PlayerInputFrame.new(
+		int(world.acknowledged_inputs.get(moved_npc_id, 0)),
+		world.server_tick,
+		Vector2.RIGHT,
+		0.0,
+		true
+	)
+	coordinator.machine.finish_team_heat(1, world.server_tick)
+	coordinator._capture_transitions()
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	var moved_npc := world.combatants[moved_npc_id] as CombatantState
+	context.expect_equal(moved_npc.position, coordinator._spawn_assignments_cache[moved_npc_id], "team NPC returns to its newly assigned spawn for the next heat")
+	context.expect_true((world.latest_inputs[moved_npc_id] as PlayerInputFrame).movement.is_zero_approx(), "team NPC cannot carry movement input into the next heat")
 
 
 static func _validate_last_survivor_resolution(context: TestContext) -> void:

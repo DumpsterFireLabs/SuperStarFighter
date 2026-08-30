@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"causality_cannon"
 display_name = "Causality Cannon"
-description = "Projectile damage ×2.00, speed ×1.50 and +2 pierces per stack."
+description = "Per stack: +100% projectile damage; +50% projectile speed; +2 pierces."
 category = 2
 rarity = 5
 multiplicative_modifiers = {"projectile_damage": 2.0, "projectile_speed": 1.5}

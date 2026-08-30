@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"nanite_reservoir"
 display_name = "Nanite Reservoir"
-description = "Activates auto-repair and adds 35 maximum hull per stack."
+description = "Unlock auto-repair. Per stack: +35 maximum hull."
 category = 0
 rarity = 3
 additive_modifiers = {"max_health": 35.0}

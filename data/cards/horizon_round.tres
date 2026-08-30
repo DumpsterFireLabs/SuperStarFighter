@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"horizon_round"
 display_name = "Horizon Round"
-description = "Projectile lifetime ×2.50, speed ×1.50 and +2 pierces per stack."
+description = "Per stack: +150% projectile lifetime; +50% projectile speed; +2 pierces."
 category = 2
 rarity = 5
 multiplicative_modifiers = {"projectile_lifetime": 2.5, "projectile_speed": 1.5}

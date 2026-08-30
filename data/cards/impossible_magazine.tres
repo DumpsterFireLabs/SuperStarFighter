@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"impossible_magazine"
 display_name = "Impossible Magazine"
-description = "+20 magazine capacity, reload duration ×0.70 and fire rate ×1.20 per stack."
+description = "Per stack: +20 magazine capacity; -30% reload time; +20% fire rate."
 category = 2
 rarity = 4
 multiplicative_modifiers = {"reload_duration": 0.7, "fire_rate": 1.2}

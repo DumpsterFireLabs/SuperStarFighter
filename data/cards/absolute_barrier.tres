@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"absolute_barrier"
 display_name = "Absolute Barrier"
-description = "Capacity ×2.50, arc ×3.00, drain ×0.35, block cost ×0.25 and recovery threshold ×0.20."
+description = "Per stack: +150% shield capacity; +200% arc; -65% drain; -75% block cost; -80% recovery threshold."
 category = 1
 rarity = 6
 multiplicative_modifiers = {"shield_capacity": 2.5, "shield_arc_degrees": 3.0, "shield_continuous_drain": 0.35, "shield_block_cost": 0.25, "shield_depletion_threshold": 0.2}

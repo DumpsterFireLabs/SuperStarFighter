@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"phoenix_chassis"
 display_name = "Phoenix Chassis"
-description = "Maximum hull ×1.30 and maximum speed ×1.08 per stack."
+description = "Per stack: +30% maximum hull; +8% maximum speed."
 category = 0
 rarity = 3
 multiplicative_modifiers = {"max_health": 1.3, "max_speed": 1.08}

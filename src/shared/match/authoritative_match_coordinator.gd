@@ -32,6 +32,8 @@ var _last_objective_broadcast_tick: int = -1
 var _team_assignments_cache: Dictionary = {}
 var _capture_zones_cache: Dictionary = {}
 var _objective_view_cache: Dictionary = {}
+var _spawn_assignments_cache: Dictionary = {}
+var _respawn_deadlines: Dictionary = {}
 
 
 func _init(
@@ -125,6 +127,7 @@ func step(delta: float) -> void:
 				})
 			_sync_combat_and_resolve(tick)
 			if machine.state == MatchStateMachine.State.ACTIVE_HEAT:
+				_step_respawns(tick)
 				_step_game_mode(delta, tick)
 		_:
 			machine.advance_time(tick)
@@ -261,6 +264,7 @@ func _handle_state_entry(new_state: int) -> void:
 				lobby.config.random_powerups_permanent
 			)
 		MatchStateMachine.State.HEAT_RESULT:
+			_respawn_deadlines.clear()
 			powerups.clear()
 			world.clear_projectiles()
 		MatchStateMachine.State.ROUND_RESULT:
@@ -334,6 +338,9 @@ func _prepare_world_heat() -> void:
 		if not spawn_assignments.has(peer_id):
 			spawn_assignments[peer_id] = anchors[index]
 	world.set_team_assignments(_team_assignments_cache)
+	_spawn_assignments_cache = spawn_assignments.duplicate(true)
+	if lobby.config.game_mode == GameModeRules.Mode.CAPTURE_THE_FLAG:
+		_rebuild_objective_static_cache()
 	world.prepare_heat(participant_stats, spawn_assignments)
 
 
@@ -390,6 +397,10 @@ func _sync_combat_and_resolve(tick: int) -> void:
 		if player.alive and not combatant.alive:
 			newly_eliminated.append(peer_id)
 	if not newly_eliminated.is_empty():
+		if GameModeRules.uses_respawns(lobby.config.game_mode):
+			var respawn_ticks := lobby.config.duration_to_ticks(GameModeRules.OBJECTIVE_RESPAWN_SECONDS)
+			for peer_id in newly_eliminated:
+				_respawn_deadlines[peer_id] = tick + respawn_ticks
 		_events.append({
 			"event_type": &"PLAYER_ELIMINATED",
 			"server_tick": tick,
@@ -397,16 +408,78 @@ func _sync_combat_and_resolve(tick: int) -> void:
 				"peer_ids": newly_eliminated,
 				"reason": "combat",
 				"scores": machine.score_snapshot(),
+				"respawn_deadlines": _respawn_deadlines.duplicate(true),
 			},
 		})
 		machine.eliminate_players(newly_eliminated, tick)
 		_capture_transitions()
 
 
+func _step_respawns(tick: int) -> void:
+	if not GameModeRules.uses_respawns(lobby.config.game_mode) or _respawn_deadlines.is_empty():
+		return
+	var due_peer_ids: Array[int] = []
+	for peer_value in _respawn_deadlines.keys():
+		var peer_id := int(peer_value)
+		if tick >= int(_respawn_deadlines[peer_value]):
+			due_peer_ids.append(peer_id)
+	due_peer_ids.sort()
+	for peer_id in due_peer_ids:
+		_respawn_deadlines.erase(peer_id)
+		if not machine.respawn_player(peer_id):
+			continue
+		var player := machine.players[peer_id] as PlayerMatchState
+		var stats := StatSystem.derive(player.effective_card_stacks(), catalog)
+		var spawn_position := _safe_respawn_position(peer_id)
+		if not world.respawn_peer(peer_id, stats, spawn_position):
+			player.eliminate()
+			continue
+		_events.append({
+			"event_type": &"PLAYER_RESPAWNED",
+			"server_tick": tick,
+			"payload": {
+				"peer_id": peer_id,
+				"position": spawn_position,
+				"alive_peer_ids": machine.alive_participant_ids(),
+				"respawn_deadlines": _respawn_deadlines.duplicate(true),
+			},
+		})
+
+
+func _safe_respawn_position(peer_id: int) -> Vector2:
+	var preferred := _spawn_assignments_cache.get(peer_id, ArenaLayout.center(current_map_id)) as Vector2
+	var candidates: Array[Vector2] = [preferred]
+	for anchor in ArenaLayout.spawn_anchors(current_map_id):
+		if anchor != preferred:
+			candidates.append(anchor)
+	candidates.sort_custom(func(left: Vector2, right: Vector2) -> bool:
+		return left.distance_squared_to(preferred) < right.distance_squared_to(preferred)
+	)
+	for candidate in candidates:
+		var available := true
+		for other_id in machine.alive_participant_ids():
+			if other_id == peer_id:
+				continue
+			var other := world.combatants.get(other_id) as CombatantState
+			if other != null and other.alive and other.position.distance_to(candidate) < GameConstants.SHIP_COLLISION_RADIUS * 3.0:
+				available = false
+				break
+		if available and ArenaCollisionSystem.is_ship_position_clear(candidate, current_map_id):
+			return candidate
+	return preferred
+
+
 func _reset_objective_for_heat() -> void:
-	_objective_position = GameModeRules.objective_spawn(current_map_id)
+	_objective_position = GameModeRules.objective_spawn(
+		current_map_id,
+		machine.round_number if GameModeRules.uses_hill(lobby.config.game_mode) else 0
+	)
 	_rebuild_objective_static_cache()
+	_respawn_deadlines.clear()
 	_objective_progress.clear()
+	if GameModeRules.uses_hill(lobby.config.game_mode):
+		for peer_id in machine.participant_ids():
+			_objective_progress[peer_id] = 0.0
 	_objective_controller_id = 0
 	_flag_position = _objective_position
 	_flag_carrier_id = 0
@@ -439,16 +512,14 @@ func _step_hill(delta: float, tick: int) -> void:
 			occupants.append(peer_id)
 	if occupants.size() != 1:
 		if _objective_controller_id != 0:
-			_objective_progress[_objective_controller_id] = 0.0
 			_objective_controller_id = 0
 			_emit_objective_transition(tick, &"HILL_CONTROL_LOST")
 		return
 	var controller_id := occupants[0]
 	if controller_id != _objective_controller_id:
-		if _objective_controller_id != 0:
-			_objective_progress[_objective_controller_id] = 0.0
 		_objective_controller_id = controller_id
-		_objective_progress[controller_id] = 0.0
+		if not _objective_progress.has(controller_id):
+			_objective_progress[controller_id] = 0.0
 		_emit_objective_transition(tick, &"HILL_CONTROLLER_CHANGED")
 	_objective_progress[controller_id] = float(_objective_progress.get(controller_id, 0.0)) + maxf(delta, 0.0)
 	if float(_objective_progress[controller_id]) >= GameModeRules.HILL_HOLD_SECONDS:
@@ -468,7 +539,8 @@ func _step_flag(delta: float, tick: int) -> void:
 		else:
 			_flag_position = carrier.position
 			var carrier_team := int(_team_assignments_cache.get(_flag_carrier_id, 0))
-			var capture_position := _capture_zones_cache.get(carrier_team, Vector2.ZERO) as Vector2
+			var capture_zone_id := carrier_team if GameModeRules.is_team_mode(lobby.config.game_mode) else _flag_carrier_id
+			var capture_position := _capture_zones_cache.get(capture_zone_id, Vector2.ZERO) as Vector2
 			if carrier.position.distance_to(capture_position) <= GameModeRules.OBJECTIVE_ZONE_RADIUS:
 				if GameModeRules.is_team_mode(lobby.config.game_mode):
 					machine.finish_team_heat(carrier_team, tick)
@@ -544,8 +616,15 @@ func _rebuild_objective_static_cache() -> void:
 	_capture_zones_cache.clear()
 	var mode := lobby.config.game_mode
 	if GameModeRules.uses_flag(mode):
-		for team_id in [0, 1, 2]:
-			_capture_zones_cache[team_id] = GameModeRules.capture_zone(mode, team_id, current_map_id)
+		if GameModeRules.is_team_mode(mode):
+			for team_id in range(1, GameModeRules.team_count_for_mode(mode, lobby.config.team_count) + 1):
+				_capture_zones_cache[team_id] = GameModeRules.capture_zone(mode, team_id, current_map_id)
+		else:
+			for peer_id in machine.participant_ids():
+				_capture_zones_cache[peer_id] = _spawn_assignments_cache.get(
+					peer_id,
+					GameModeRules.capture_zone(mode, peer_id, current_map_id)
+				)
 	_objective_view_cache = {
 		"active": false,
 		"mode": mode,
@@ -581,6 +660,7 @@ func _state_payload() -> Dictionary:
 		"tied_heat": machine.tied_heat,
 		"scores": machine.score_snapshot(),
 		"alive_peer_ids": machine.alive_participant_ids(),
+		"respawn_deadlines": _respawn_deadlines.duplicate(true),
 		"participant_peer_ids": machine.participant_ids(),
 		"builds": _public_builds(),
 		"powerups": powerups.snapshot() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else [],

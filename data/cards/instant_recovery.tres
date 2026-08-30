@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"instant_recovery"
 display_name = "Instant Recovery"
-description = "Regeneration delay ×0.20, recovery threshold ×0.25 and regeneration ×2.00 per stack."
+description = "Per stack: -80% regeneration delay; -75% recovery threshold; +100% shield regeneration."
 category = 1
 rarity = 5
 multiplicative_modifiers = {"shield_regeneration_delay": 0.2, "shield_depletion_threshold": 0.25, "shield_regeneration": 2.0}

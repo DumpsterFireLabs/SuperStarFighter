@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"supernova_array"
 display_name = "Supernova Array"
-description = "+4 shots, +32° spread, damage ×1.40, fire rate ×1.25 and lifetime ×1.50 per stack."
+description = "Per stack: +4 projectiles; +32° spread; +40% damage; +25% fire rate; +50% lifetime."
 category = 2
 rarity = 6
 additive_modifiers = {"projectile_spread_degrees": 32.0}

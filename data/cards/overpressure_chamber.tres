@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"overpressure_chamber"
 display_name = "Overpressure Chamber"
-description = "Projectile damage ×1.30, but lifetime ×0.80 and fire rate ×0.90 per stack."
+description = "Per stack: +30% projectile damage; -20% lifetime; -10% fire rate."
 category = 2
 rarity = 2
 multiplicative_modifiers = {"projectile_damage": 1.3, "projectile_lifetime": 0.8, "fire_rate": 0.9}

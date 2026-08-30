@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"kinetic_plating"
 display_name = "Kinetic Plating"
-description = "+15 maximum hull and 5% stronger flight damping per stack."
+description = "Per stack: +15 maximum hull; +5% braking."
 category = 0
 rarity = 0
 additive_modifiers = {"max_health": 15.0}

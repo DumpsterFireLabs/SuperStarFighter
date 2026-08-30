@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"sunbeam_core"
 display_name = "Sunbeam Core"
-description = "Adds beam tech, damage ×1.45, fire rate ×1.15 and +1 pierce."
+description = "Unlock beam weapons. Per stack: +45% damage; +15% fire rate; +1 pierce."
 category = 2
 rarity = 5
 multiplicative_modifiers = {"projectile_damage": 1.45, "fire_rate": 1.15}

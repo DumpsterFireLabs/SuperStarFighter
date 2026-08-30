@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"comet_drive"
 display_name = "Comet Drive"
-description = "Maximum speed ×1.35 and projectile speed ×1.15, but maximum hull ×0.80 per stack."
+description = "Per stack: +35% maximum speed; +15% projectile speed; -20% maximum hull."
 category = 0
 rarity = 3
 multiplicative_modifiers = {"max_speed": 1.35, "projectile_speed": 1.15, "max_health": 0.8}

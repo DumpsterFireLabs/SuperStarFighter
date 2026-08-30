@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"event_horizon_drive"
 display_name = "Event Horizon Drive"
-description = "Speed ×1.60, acceleration ×1.60 and shielded acceleration ×1.50 per stack."
+description = "Per stack: +60% maximum speed; +60% acceleration; +50% acceleration while shielding."
 category = 0
 rarity = 5
 multiplicative_modifiers = {"max_speed": 1.6, "acceleration": 1.6, "shield_acceleration_factor": 1.5}

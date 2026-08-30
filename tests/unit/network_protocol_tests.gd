@@ -271,6 +271,11 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_false(lobby.all_humans_ready(), "settings changes clear human readiness")
 	context.expect_false(lobby.config.random_spawn_powerups, "random spawn powerups default off")
 	context.expect_equal(lobby.config.game_mode, GameModeRules.Mode.DEATH_MATCH, "Death Match is the default lobby mode")
+	var hill_lobby := ServerLobby.new()
+	hill_lobby.admit(20, "HillHost")
+	context.expect_true(hill_lobby.request_game_mode(20, GameModeRules.Mode.KING_OF_THE_HILL).ok, "leader can select King of the Hill")
+	context.expect_true(hill_lobby.config.random_spawn_powerups, "King of the Hill enables temporary arena powerups by default")
+	context.expect_false(hill_lobby.config.random_powerups_permanent, "King of the Hill default powerups expire after the heat")
 	context.expect_false(lobby.request_game_mode(3, GameModeRules.Mode.TEAM_DEATH_MATCH).ok, "non-leader cannot change the game mode")
 	context.expect_true(lobby.request_game_mode(2, GameModeRules.Mode.TEAM_DEATH_MATCH).ok, "leader can select Team Death Match")
 	context.expect_equal(lobby.config.team_count, 2, "Team Death Match defaults to two teams")
@@ -693,6 +698,8 @@ static func _validate_prediction_and_interpolation(context: TestContext) -> void
 	var extrapolated := interpolation.sample(3, 0.5)
 	context.expect_approx((extrapolated.position as Vector2).x, 30.0, "remote extrapolation is capped at 100 ms")
 	context.expect_true(extrapolated.extrapolated, "late remote sample reports extrapolation")
+	interpolation.clear()
+	context.expect_false(bool(interpolation.sample(3, 0.5).get("ok", false)), "heat reset discards stale remote interpolation samples")
 
 	var predicted_projectiles := PredictedProjectileTracker.new()
 	predicted_projectiles.add(2, 7, 0.0)
@@ -1053,6 +1060,15 @@ static func _validate_connection_admission(context: TestContext) -> void:
 
 
 static func _validate_reconnect_reset(context: TestContext) -> void:
+	var bridge := NetworkBridge.new()
+	bridge.role = NetworkBridge.Role.CLIENT
+	bridge.local_peer_id = 99
+	bridge.latest_lobby_state = {"revision": 500, "match_active": false}
+	bridge.stop()
+	context.expect_equal(bridge.role, NetworkBridge.Role.NONE, "disconnect marks transport inactive before teardown callbacks can re-enter")
+	context.expect_equal(bridge.local_peer_id, 0, "disconnect clears the prior network peer identity")
+	context.expect_empty(bridge.latest_lobby_state, "disconnect clears lobby revision state so a new server can start from revision one")
+	bridge.free()
 	var view := NetworkWorldView.new()
 	view.camera = Camera2D.new()
 	view.camera.position = Vector2(50.0, 75.0)

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"flash_recharger"
 display_name = "Flash Recharger"
-description = "Shield regeneration ×1.50, but regeneration delay ×1.15 per stack."
+description = "Per stack: +50% shield regeneration; +15% regeneration delay."
 category = 1
 rarity = 2
 multiplicative_modifiers = {"shield_regeneration": 1.5, "shield_regeneration_delay": 1.15}

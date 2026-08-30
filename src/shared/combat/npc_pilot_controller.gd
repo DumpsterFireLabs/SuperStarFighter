@@ -204,8 +204,9 @@ func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, o
 		var carrier_id := int(objective.get("flag_carrier_id", 0))
 		if carrier_id == combatant.peer_id:
 			var team_id := int(world.team_assignments.get(combatant.peer_id, 0))
+			var capture_zone_id := team_id if GameModeRules.is_team_mode(mode) else combatant.peer_id
 			var zones := objective.get("capture_zones", {}) as Dictionary
-			destination = zones.get(team_id, zones.get(str(team_id), Vector2.ZERO)) as Vector2
+			destination = zones.get(capture_zone_id, zones.get(str(capture_zone_id), Vector2.ZERO)) as Vector2
 		else:
 			destination = objective.get("flag_position", Vector2.ZERO) as Vector2
 	if destination.is_zero_approx():

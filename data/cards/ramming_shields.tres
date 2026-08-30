@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"ramming_shields"
 display_name = "Ramming Shields"
-description = "Shield-up collisions deal +44 serious impact damage, trigger at 30% lower speed, and multiply shielded acceleration by 1.12 per stack."
+description = "Per stack: +44 shield-ram damage; -30% minimum ram speed; +12% acceleration while shielding."
 category = 1
 rarity = 3
 additive_modifiers = {"shield_ram_damage": 44.0}

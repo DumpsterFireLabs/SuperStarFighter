@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"worldbreaker_prow"
 display_name = "Worldbreaker Prow"
-description = "+90 shield-ram damage, capacity ×1.25 and ram cooldown ×0.55 per stack."
+description = "Per stack: +90 shield-ram damage; +25% shield capacity; -45% ram cooldown."
 category = 1
 rarity = 6
 additive_modifiers = {"shield_ram_damage": 90.0}

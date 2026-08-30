@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"ouroboros_hull"
 display_name = "Ouroboros Hull"
-description = "Maximum hull ×1.75, shield regeneration ×1.50 and unlock auto-repair at rate ×2.00 per stack."
+description = "Unlock auto-repair. Per stack: +75% maximum hull; +50% shield regeneration; +100% repair rate."
 category = 0
 rarity = 5
 multiplicative_modifiers = {"max_health": 1.75, "shield_regeneration": 1.5, "auto_repair_rate": 2.0}

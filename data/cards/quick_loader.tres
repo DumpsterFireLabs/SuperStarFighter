@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"quick_loader"
 display_name = "Quick Loader"
-description = "Reload duration is multiplied by 0.75, but magazine capacity is reduced by 2."
+description = "Per stack: -25% reload time; -2 magazine capacity."
 category = 2
 rarity = 1
 additive_modifiers = {"magazine_size": -2.0}

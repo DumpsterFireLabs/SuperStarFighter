@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"chronal_shield"
 display_name = "Chronal Shield"
-description = "Regeneration delay ×0.30 and regeneration ×1.75 per stack."
+description = "Per stack: -70% shield regeneration delay; +75% shield regeneration."
 category = 1
 rarity = 5
 multiplicative_modifiers = {"shield_regeneration_delay": 0.3, "shield_regeneration": 1.75}

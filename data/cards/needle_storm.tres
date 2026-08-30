@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"needle_storm"
 display_name = "Needle Storm"
-description = "+2 shots, +8° spread, projectile speed ×1.25, damage ×0.68 and fire rate ×1.10 per stack."
+description = "Per stack: +2 projectiles; +8° spread; +25% speed; +10% fire rate; -32% damage."
 category = 2
 rarity = 3
 additive_modifiers = {"projectile_spread_degrees": 8.0}

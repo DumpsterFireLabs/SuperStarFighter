@@ -105,6 +105,11 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 			context.expect_equal(card.category, EXPECTED_CARDS[card_id], "%s category matches specification" % card_id)
 		context.expect_false(card.display_name.is_empty(), "%s has display text" % card_id)
 		context.expect_false(card.description.is_empty(), "%s has effect description" % card_id)
+		context.expect_true(card.description.length() <= 105, "%s keeps its effect description concise" % card_id)
+		context.expect_false(card.description.contains("×") or card.description.contains("multiplied by"), "%s uses readable percentage language" % card_id)
+		var has_stackable_effects := not card.additive_modifiers.is_empty() or not card.multiplicative_modifiers.is_empty() or not card.integer_modifiers.is_empty()
+		if has_stackable_effects:
+			context.expect_true(card.description.contains("Per stack:"), "%s labels its stackable effects" % card_id)
 		context.expect_true(card.rarity_drop_chance() > 0.0, "%s declares a positive rarity-tier drop chance" % card_id)
 		category_counts[card.category] = int(category_counts[card.category]) + 1
 		mechanical_signatures[CardCatalog.mechanical_signature(card)] = card_id

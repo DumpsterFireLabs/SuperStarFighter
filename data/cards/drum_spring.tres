@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"drum_spring"
 display_name = "Drum Spring"
-description = "+2 magazine capacity, but reload duration ×1.05 per stack."
+description = "Per stack: +2 magazine capacity; +5% reload time."
 category = 2
 rarity = 0
 multiplicative_modifiers = {"reload_duration": 1.05}

@@ -188,8 +188,19 @@ func eliminate_players(peer_ids: Array[int], at_tick: int) -> bool:
 		var living_teams := alive_team_ids()
 		if living_teams.size() <= 1:
 			_resolve_team_heat(living_teams[0] if living_teams.size() == 1 else 0, at_tick)
-	elif survivors.is_empty():
+	elif not GameModeRules.uses_respawns(config.game_mode) and survivors.is_empty():
 		_resolve_heat(0, at_tick)
+	return true
+
+
+func respawn_player(peer_id: int) -> bool:
+	if state != State.ACTIVE_HEAT or not GameModeRules.uses_respawns(config.game_mode):
+		return false
+	var player := players.get(peer_id) as PlayerMatchState
+	if player == null or not player.connected or not player.participant or player.alive:
+		return false
+	var stats := StatSystem.derive(player.effective_card_stacks(), catalog)
+	player.reset_for_heat(stats)
 	return true
 
 

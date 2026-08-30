@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"scar_tissue"
 display_name = "Scar Tissue"
-description = "+12 maximum hull and auto-repair rate ×1.08 per stack; repair rate matters after acquiring repair tech."
+description = "Per stack: +12 maximum hull. With auto-repair: +8% repair rate."
 category = 0
 rarity = 0
 additive_modifiers = {"max_health": 12.0}

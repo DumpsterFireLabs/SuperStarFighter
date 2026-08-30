@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"ricochet_rounds"
 display_name = "Ricochet Rounds"
-description = "+1 projectile ricochet and projectile speed is multiplied by 1.08."
+description = "Per stack: +1 ricochet; +8% projectile speed."
 category = 2
 rarity = 2
 multiplicative_modifiers = {"projectile_speed": 1.08}

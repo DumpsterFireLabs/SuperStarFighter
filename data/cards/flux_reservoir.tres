@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"flux_reservoir"
 display_name = "Flux Reservoir"
-description = "+20 maximum shield capacity per stack."
+description = "Per stack: +20 shield capacity."
 category = 1
 rarity = 0
 additive_modifiers = {"shield_capacity": 20.0}

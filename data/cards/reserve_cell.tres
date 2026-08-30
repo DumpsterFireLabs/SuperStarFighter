@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"reserve_cell"
 display_name = "Reserve Cell"
-description = "+15 shield capacity and regeneration delay ×0.92 per stack."
+description = "Per stack: +15 shield capacity; -8% regeneration delay."
 category = 1
 rarity = 0
 additive_modifiers = {"shield_capacity": 15.0}

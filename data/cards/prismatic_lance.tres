@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"prismatic_lance"
 display_name = "Prismatic Lance"
-description = "Adds beam tech, +2 pierces, damage ×1.25 and fire rate ×0.72 per stack."
+description = "Unlock beam weapons. Per stack: +2 pierces; +25% damage; -28% fire rate."
 category = 2
 rarity = 4
 multiplicative_modifiers = {"projectile_damage": 1.25, "fire_rate": 0.72}

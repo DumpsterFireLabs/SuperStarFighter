@@ -6,6 +6,6 @@
 script = ExtResource("1_card")
 card_id = &"efficient_field"
 display_name = "Efficient Field"
-description = "Continuous shield drain is multiplied by 0.80."
+description = "Per stack: -20% shield drain."
 category = 1
 multiplicative_modifiers = {"shield_continuous_drain": 0.8}

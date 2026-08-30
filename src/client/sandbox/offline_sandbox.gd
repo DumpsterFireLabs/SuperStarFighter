@@ -2,8 +2,10 @@ class_name OfflineSandbox
 extends Node2D
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
+signal presentation_event(event_name: StringName, payload: Dictionary)
 
 var catalog: CardCatalog = CardCatalog.create_default()
 var build: Dictionary = {}
@@ -216,6 +218,8 @@ func _on_input_bindings_changed() -> void:
 
 func _spawn_shot(ship: SandboxShip) -> void:
 	var muzzle := ship.global_position + Vector2.from_angle(ship.combatant.aim_angle) * 31.0
+	var audio_sequence := next_projectile_id
+	var spawned_any := false
 	for angle in MovementSystem.spread_angles(ship.combatant.aim_angle, ship.combatant.stats.projectile_count, ship.combatant.stats.projectile_spread_degrees):
 		var projectile := ProjectileState.create(next_projectile_id, ship.combatant.peer_id, ship.combatant.weapon.shot_sequence, muzzle, angle, ship.combatant.stats)
 		next_projectile_id += 1
@@ -230,6 +234,17 @@ func _spawn_shot(ship: SandboxShip) -> void:
 				GameConstants.SHIP_COLLISION_RADIUS + projectile.radius + 1.0
 			)
 		projectile_registry.add(projectile)
+		spawned_any = true
+	if spawned_any:
+		var source_build := build if ship == player else {}
+		presentation_event.emit(&"weapon_fire", {
+			"profile": WeaponSoundProfileScript.from_stats(ship.combatant.stats, source_build, catalog),
+			"owner_id": ship.combatant.peer_id,
+			"shot_sequence": audio_sequence,
+			"position": muzzle,
+			"listener_position": player.global_position,
+			"local": ship == player,
+		})
 
 
 func _simulate_projectiles(delta: float) -> void:
@@ -265,6 +280,12 @@ func _simulate_projectiles(delta: float) -> void:
 						target.combatant.stats.max_health
 					)
 				projectile_registry.remove(projectile.projectile_id)
+				presentation_event.emit(&"shield_block", {
+					"peer_id": target.combatant.peer_id,
+					"projectile_id": projectile.projectile_id,
+					"position": impact_position,
+					"listener_position": player.global_position,
+				})
 				continue
 			if projectile.can_hit(target.combatant.peer_id):
 				_apply_projectile_knockback(target.combatant, projectile, 1.0)
@@ -276,8 +297,21 @@ func _simulate_projectiles(delta: float) -> void:
 		else:
 			var collision_normal: Vector2 = hit["normal"]
 			if projectile.ricochet(collision_normal):
+				presentation_event.emit(&"ricochet", {
+					"projectile_id": projectile.projectile_id,
+					"owner_id": projectile.owner_id,
+					"ricochets_remaining": projectile.remaining_ricochets,
+					"position": impact_position,
+					"listener_position": player.global_position,
+				})
 				projectile.position += projectile.velocity.normalized() * 2.0
 			else:
+				presentation_event.emit(&"projectile_impact", {
+					"projectile_id": projectile.projectile_id,
+					"owner_id": projectile.owner_id,
+					"position": impact_position,
+					"listener_position": player.global_position,
+				})
 				projectile_registry.remove(projectile.projectile_id)
 	_apply_damage_events(damage_events)
 
@@ -340,7 +374,8 @@ func _update_hud() -> void:
 	for ship_value in ships_by_id.values():
 		if (ship_value as SandboxShip).combatant.alive:
 			alive_count += 1
-	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s · Projectiles %d · Alive %d/%d · %.1fs%s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text]
+	var sound_profile = WeaponSoundProfileScript.from_stats(derived_stats, build, catalog)
+	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
 
 
 func _update_card_label() -> void:

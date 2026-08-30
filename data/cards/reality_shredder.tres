@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"reality_shredder"
 display_name = "Reality Shredder"
-description = "Beam tech, damage ×2.50, fire rate ×1.60, +2 shots, +4 pierces and +2 ricochets."
+description = "Unlock beam weapons. Per stack: +150% damage; +60% fire rate; +2 projectiles; +4 pierces; +2 ricochets."
 category = 2
 rarity = 6
 multiplicative_modifiers = {"projectile_damage": 2.5, "fire_rate": 1.6}

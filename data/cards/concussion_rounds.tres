@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"concussion_rounds"
 display_name = "Concussion Rounds"
-description = "Projectile hits add +180 knockback per stack. Shield blocks absorb most of the shove, but not all of it."
+description = "Per stack: +180 projectile knockback. Shields absorb most, but not all, of the push."
 category = 2
 rarity = 2
 additive_modifiers = {"projectile_knockback": 180.0}

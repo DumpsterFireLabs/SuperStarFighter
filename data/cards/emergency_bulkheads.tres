@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"emergency_bulkheads"
 display_name = "Emergency Bulkheads"
-description = "+45 maximum hull and auto-repair delay ×0.80 per stack; repair timing activates with repair tech."
+description = "Per stack: +45 maximum hull. With auto-repair: -20% repair delay."
 category = 0
 rarity = 2
 additive_modifiers = {"max_health": 45.0}

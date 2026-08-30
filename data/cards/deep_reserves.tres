@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"deep_reserves"
 display_name = "Deep Reserves"
-description = "Shield capacity ×1.25, but regeneration ×0.90 per stack."
+description = "Per stack: +25% shield capacity; -10% shield regeneration."
 category = 1
 rarity = 2
 multiplicative_modifiers = {"shield_capacity": 1.25, "shield_regeneration": 0.9}

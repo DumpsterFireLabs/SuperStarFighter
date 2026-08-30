@@ -138,11 +138,28 @@ func prepare_heat(
 				participant_stats[peer_id] as CombatStats,
 				spawn_assignments[peer_id] as Vector2
 			)
+			# A new heat must not inherit movement, firing, or shielding from the
+			# previous one. This is especially important for server-owned NPCs,
+			# which do not submit neutral input during the countdown.
+			latest_inputs[peer_id] = PlayerInputFrame.new(
+				int(acknowledged_inputs.get(peer_id, 0)),
+				server_tick
+			)
 		else:
 			combatant.alive = false
 			combatant.health = 0.0
 			combatant.velocity = Vector2.ZERO
 			combatant.shield.active = false
+
+
+func respawn_peer(peer_id: int, stats: CombatStats, spawn_position: Vector2) -> bool:
+	var combatant := combatants.get(peer_id) as CombatantState
+	if combatant == null or combatant.alive:
+		return false
+	combatant.reset_for_heat(stats, spawn_position)
+	latest_inputs[peer_id] = PlayerInputFrame.new()
+	projectile_registry.schedule_owner_cleanup(peer_id)
+	return true
 
 
 func set_map_id(value: StringName) -> void:

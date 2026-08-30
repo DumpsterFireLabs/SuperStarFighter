@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"ablative_shell"
 display_name = "Ablative Shell"
-description = "+20 maximum hull per stack. Simple, dependable, stackable survival."
+description = "Per stack: +20 maximum hull."
 category = 0
 rarity = 0
 additive_modifiers = {"max_health": 20.0}

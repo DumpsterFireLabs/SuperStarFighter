@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"reactive_barrier"
 display_name = "Reactive Barrier"
-description = "Shield drain ×0.85 and regeneration delay ×0.85 per stack."
+description = "Per stack: -15% shield drain; -15% regeneration delay."
 category = 1
 rarity = 1
 multiplicative_modifiers = {"shield_continuous_drain": 0.85, "shield_regeneration_delay": 0.85}

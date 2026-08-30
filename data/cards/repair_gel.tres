@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"repair_gel"
 display_name = "Repair Gel"
-description = "Unlock auto-repair with rate ×1.12 and delay ×0.92 per stack."
+description = "Unlock auto-repair. Per stack: +12% repair rate; -8% repair delay."
 category = 0
 rarity = 2
 multiplicative_modifiers = {"auto_repair_rate": 1.12, "auto_repair_delay": 0.92}

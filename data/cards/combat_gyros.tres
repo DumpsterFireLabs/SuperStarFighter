@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"combat_gyros"
 display_name = "Combat Gyros"
-description = "Braking drag ×1.18 per stack for tighter direction changes."
+description = "Per stack: +18% braking for tighter turns."
 category = 0
 rarity = 0
 multiplicative_modifiers = {"drag": 1.18}

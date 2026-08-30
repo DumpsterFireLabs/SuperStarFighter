@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"tight_bore"
 display_name = "Tight Bore"
-description = "Projectile spread −4° per stack; combines especially well with multi-shot arrays."
+description = "Per stack: -4° projectile spread."
 category = 2
 rarity = 0
 additive_modifiers = {"projectile_spread_degrees": -4.0}

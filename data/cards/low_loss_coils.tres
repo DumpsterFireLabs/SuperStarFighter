@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"low_loss_coils"
 display_name = "Low-Loss Coils"
-description = "Continuous shield drain ×0.90 and block cost ×0.95 per stack."
+description = "Per stack: -10% shield drain; -5% shield block cost."
 category = 1
 rarity = 0
 multiplicative_modifiers = {"shield_continuous_drain": 0.9, "shield_block_cost": 0.95}

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"stellar_aegis"
 display_name = "Stellar Aegis"
-description = "Shield capacity ×1.60, arc ×1.25 and block cost ×0.75 per stack."
+description = "Per stack: +60% shield capacity; +25% shield arc; -25% shield block cost."
 category = 1
 rarity = 4
 multiplicative_modifiers = {"shield_capacity": 1.6, "shield_arc_degrees": 1.25, "shield_block_cost": 0.75}

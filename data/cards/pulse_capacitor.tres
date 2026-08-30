@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"pulse_capacitor"
 display_name = "Pulse Capacitor"
-description = "+12 shield capacity and recovery threshold ×0.95 per stack."
+description = "Per stack: +12 shield capacity; -5% recovery threshold."
 category = 1
 rarity = 0
 additive_modifiers = {"shield_capacity": 12.0}

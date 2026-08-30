@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"damage_control"
 display_name = "Damage Control"
-description = "Auto-repair delay ×0.85 per stack; activates once any repair technology is owned."
+description = "Requires auto-repair. Per stack: -15% repair delay."
 category = 0
 rarity = 1
 multiplicative_modifiers = {"auto_repair_delay": 0.85}
