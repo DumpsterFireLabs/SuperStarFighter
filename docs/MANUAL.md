@@ -314,7 +314,7 @@ The controller/joystick profile defaults to:
 | A / Cross | Confirm |
 | B / Circle | Back |
 
-**Newtonian** is the default flight mode. Movement follows the ship's heading: if the ship faces down, forward input moves down. **Relative** mode keeps movement aligned to the screen, so `W` or stick-up always moves upward regardless of aim. Select either persistent mode under **Settings → Controls**.
+**Relative** is the default flight mode. Movement stays aligned to the screen, so `W` or stick-up always moves upward regardless of aim. **Newtonian** mode instead follows the ship's heading: if the ship faces down, forward input moves down. Select either persistent mode under **Settings → Controls**.
 
 Diagonal input is normalized, so combining directions does not increase top speed.
 

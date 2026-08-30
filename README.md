@@ -90,7 +90,7 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 
 Mapped Xbox-, PlayStation-, and similar controllers use these defaults. Flight sticks and other joysticks can bind any detected axis direction or button from the Controls tab.
 
-Newtonian is the default flight mode: movement follows the ship's heading. Relative mode keeps movement aligned to the screen, so `W` or stick-up always moves upward regardless of aim. The local ship carries its own ammo/reload readout above the model.
+Relative is the default flight mode: movement stays aligned to the screen, so `W` or stick-up always moves upward regardless of aim. Newtonian mode instead follows the ship's heading. The local ship carries its own ammo/reload readout above the model.
 
 ## Documentation
 

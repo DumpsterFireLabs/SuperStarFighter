@@ -358,7 +358,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.settings_tabs.get_tab_count(), 2, "settings separates display and audio from controls")
 	context.expect_equal(client.control_scheme_control.item_count, 2, "settings can switch between keyboard/mouse and controller profiles")
 	context.expect_equal(client.flight_mode_control.item_count, 2, "settings exposes Newtonian and Relative flight modes")
-	context.expect_equal(client.flight_mode_control.get_item_id(0), client.InputProfileManagerScript.FlightMode.NEWTONIAN, "Newtonian ship-facing flight remains selected by default")
+	context.expect_equal(client.flight_mode_control.get_selected_id(), client.InputProfileManagerScript.FlightMode.RELATIVE, "Relative screen-aligned flight is selected by default")
 	context.expect_equal(client.input_profiles.binding_text(&"manual_reload"), "R", "controls screen reserves R for manual reload by default")
 	context.expect_equal(client.binding_rows.get_child_count(), client.input_profiles.rebind_actions().size() * 2, "controls tab exposes every active-profile binding")
 	context.expect_equal(client.window_mode_control.item_count, 3, "settings exposes windowed, borderless fullscreen, and exclusive fullscreen")

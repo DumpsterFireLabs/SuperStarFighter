@@ -206,7 +206,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 | Drag | 700 px/s² |
 
 - Normalize combined local movement input so diagonal or analog input is never faster.
-- Default to persistent **Newtonian** movement in ship-local space: keyboard `W`/`S` or the controller's forward/back axis moves along the current aim direction, while keyboard `A`/`D` or the lateral axis strafes perpendicular to aim. The persistent **Relative** option instead aligns movement with the screen so up remains world-up regardless of aim; the client converts it into the canonical ship-local network input before transmission.
+- Default to persistent **Relative** movement aligned with the screen, so up remains world-up regardless of aim; the client converts it into the canonical ship-local network input before transmission. The persistent **Newtonian** option instead moves in ship-local space: keyboard `W`/`S` or the controller's forward/back axis moves along the current aim direction, while keyboard `A`/`D` or the lateral axis strafes perpendicular to aim.
 - With movement input, move velocity toward `input_direction × maximum_speed` at `acceleration × delta`.
 - Without movement input, move velocity toward zero at `drag × delta`.
 - Aim is independent of movement. Keyboard/mouse uses the cursor-derived angle; controller/joystick uses the configured aim axes and retains the last valid angle while the stick is inside its deadzone.

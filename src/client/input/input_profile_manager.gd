@@ -87,7 +87,7 @@ const ACTION_LABELS: Dictionary = {
 }
 
 var active_scheme: Scheme = Scheme.KEYBOARD_MOUSE
-var flight_mode: FlightMode = FlightMode.NEWTONIAN
+var flight_mode: FlightMode = FlightMode.RELATIVE
 var controller_deadzone: float = DEFAULT_CONTROLLER_DEADZONE
 var settings_path: String = SETTINGS_PATH
 var keyboard_bindings: Dictionary = {}
@@ -109,12 +109,12 @@ func load_settings() -> void:
 	keyboard_bindings = _default_keyboard_bindings()
 	controller_bindings = _default_controller_bindings()
 	active_scheme = Scheme.KEYBOARD_MOUSE
-	flight_mode = FlightMode.NEWTONIAN
+	flight_mode = FlightMode.RELATIVE
 	controller_deadzone = DEFAULT_CONTROLLER_DEADZONE
 	var config := ConfigFile.new()
 	if config.load(settings_path) == OK:
 		active_scheme = _validated_scheme(int(config.get_value(SETTINGS_SECTION, "scheme", Scheme.KEYBOARD_MOUSE)))
-		flight_mode = _validated_flight_mode(int(config.get_value(SETTINGS_SECTION, "flight_mode", FlightMode.NEWTONIAN)))
+		flight_mode = _validated_flight_mode(int(config.get_value(SETTINGS_SECTION, "flight_mode", FlightMode.RELATIVE)))
 		controller_deadzone = clampf(
 			float(config.get_value(SETTINGS_SECTION, "controller_deadzone", DEFAULT_CONTROLLER_DEADZONE)),
 			MIN_CONTROLLER_DEADZONE,
@@ -527,7 +527,7 @@ func _validated_scheme(value: int) -> Scheme:
 
 
 func _validated_flight_mode(value: int) -> FlightMode:
-	return FlightMode.RELATIVE if value == FlightMode.RELATIVE else FlightMode.NEWTONIAN
+	return FlightMode.NEWTONIAN if value == FlightMode.NEWTONIAN else FlightMode.RELATIVE
 
 
 func _on_joy_connection_changed(_device: int, _connected: bool) -> void:
