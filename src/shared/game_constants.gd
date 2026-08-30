@@ -5,7 +5,7 @@ const GAME_NAME: String = "Super Star Fighter"
 const GAME_VERSION: String = "0.1.0-beta.6"
 const RELEASE_LABEL: String = "BETA 6"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 14
+const PROTOCOL_VERSION: int = 15
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024

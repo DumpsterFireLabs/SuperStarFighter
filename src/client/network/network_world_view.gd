@@ -8,6 +8,10 @@ const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_s
 const PROJECTILE_COLLISION_ITERATIONS: int = 16
 const COLLISION_SURFACE_EPSILON: float = 0.35
 const LOCAL_CONTACT_ESCAPE_SPEED: float = 180.0
+const MIN_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS: float = 0.4
+const MAX_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS: float = 1.25
+const PROJECTILE_CONFIRMATION_RTT_MULTIPLIER: float = 2.0
+const PROJECTILE_CONFIRMATION_GRACE_SECONDS: float = 0.2
 signal presentation_event(event_name: StringName, payload: Dictionary)
 
 var bridge: NetworkBridge
@@ -57,6 +61,12 @@ var _nearest_incoming_cache: ProjectileState
 var _nearest_incoming_revision: int = -1
 var _incoming_refresh_accumulator: float = 0.0
 var _diagnostics_refresh_accumulator: float = 0.0
+var expired_predicted_volleys: int = 0
+var last_snapshot_receive_time: float = -1.0
+var snapshot_jitter_ms: float = 0.0
+var snapshot_gap_count: int = 0
+var interpolation_sample_count: int = 0
+var interpolation_extrapolated_count: int = 0
 
 
 func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
@@ -126,6 +136,12 @@ func reset_session() -> void:
 	_nearest_incoming_revision = -1
 	_incoming_refresh_accumulator = 0.0
 	_diagnostics_refresh_accumulator = 0.0
+	expired_predicted_volleys = 0
+	last_snapshot_receive_time = -1.0
+	snapshot_jitter_ms = 0.0
+	snapshot_gap_count = 0
+	interpolation_sample_count = 0
+	interpolation_extrapolated_count = 0
 	prediction = ClientPredictionBuffer.new()
 	interpolation = RemoteInterpolator.new()
 	predicted_tracker = PredictedProjectileTracker.new()
@@ -157,7 +173,7 @@ func reset_match_presentation() -> void:
 func _physics_process(delta: float) -> void:
 	if local_peer_id == 0 or not ships.has(local_peer_id):
 		return
-	client_tick = SequenceMath.increment(client_tick)
+	_advance_input_clock()
 	input_send_accumulator += delta
 	local_special_cooldown_remaining = maxf(local_special_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	var local_ship := ships[local_peer_id] as SandboxShip
@@ -195,12 +211,10 @@ func _physics_process(delta: float) -> void:
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
 		input_send_accumulator = fmod(input_send_accumulator, send_interval)
-		input_sequence = SequenceMath.increment(input_sequence)
-		frame.sequence = input_sequence
 		bridge.send_input(frame)
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and controls_enabled:
-		prediction.predict(frame, local_stats, delta)
+		prediction.predict(frame, local_stats, delta, arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID)
 		if special_just_pressed and local_stats.afterburner_enabled:
 			prediction.predicted_velocity = (
 				prediction.predicted_velocity + Vector2.from_angle(aim_angle) * local_stats.afterburner_impulse
@@ -230,9 +244,17 @@ func _physics_process(delta: float) -> void:
 	_update_camera(local_ship, delta)
 	_update_camera_shake(delta)
 	_update_overtime_presentation()
-	predicted_tracker.step(_now_seconds())
+	_expire_unconfirmed_predicted_projectiles(_now_seconds())
 	_update_diagnostics(delta)
 	queue_redraw()
+
+
+func _advance_input_clock() -> void:
+	client_tick = SequenceMath.increment(client_tick)
+	# Every predicted physics frame needs its own sequence, including frames
+	# between the 30 Hz network sends. Otherwise an acknowledgement for the
+	# previous send can incorrectly prune newer local movement from replay.
+	input_sequence = SequenceMath.increment(input_sequence)
 
 
 func _on_connected(peer_id: int) -> void:
@@ -242,8 +264,9 @@ func _on_connected(peer_id: int) -> void:
 
 func _on_snapshot(decoded: Dictionary) -> void:
 	latest_acknowledged_input = int(decoded.acknowledged_input)
-	latest_server_tick = int(decoded.server_tick)
 	var receive_time := _now_seconds()
+	_record_snapshot_arrival(int(decoded.server_tick), receive_time)
+	latest_server_tick = int(decoded.server_tick)
 	var present_ids: Dictionary = {}
 	for state_value in decoded.states:
 		var state := state_value as Dictionary
@@ -264,10 +287,16 @@ func _on_snapshot(decoded: Dictionary) -> void:
 				camera.position = state.position
 				prediction_initialized = true
 			else:
-				prediction.reconcile(state.position, state.velocity, decoded.acknowledged_input, local_stats)
+				prediction.reconcile(
+					state.position,
+					state.velocity,
+					decoded.acknowledged_input,
+					local_stats,
+					arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+				)
 			local_weapon.ammunition = int(state.ammunition)
 		else:
-			interpolation.add_sample(peer_id, receive_time, state)
+			interpolation.add_sample(peer_id, receive_time, latest_server_tick, state)
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
 		if not present_ids.has(peer_id):
@@ -368,12 +397,7 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 	var emitted_shots: Dictionary = {}
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
-		if projectile.owner_id == local_peer_id and predicted_projectile_ids.has(projectile.shot_sequence):
-			var predicted_ids := predicted_projectile_ids[projectile.shot_sequence] as Array
-			for predicted_id in predicted_ids:
-				authoritative_projectiles.remove(int(predicted_id))
-			predicted_projectile_ids.erase(projectile.shot_sequence)
-			predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
+		_reconcile_predicted_projectile(projectile)
 		authoritative_projectiles.add(projectile)
 		var shot_key := "%d:%d" % [projectile.owner_id, projectile.shot_sequence]
 		if not emitted_shots.has(shot_key):
@@ -398,6 +422,10 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 	var authoritative_ids: Dictionary = {}
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
+		# A correction can be the first authoritative evidence of a shot when its
+		# unreliable delta was lost. Promote it immediately instead of rendering
+		# the authoritative and predicted copies together until the timeout.
+		_reconcile_predicted_projectile(projectile)
 		authoritative_ids[projectile.projectile_id] = true
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
@@ -503,6 +531,9 @@ func _update_remote_ships() -> void:
 			continue
 		var sample := interpolation.sample(peer_id, now)
 		if sample.ok:
+			interpolation_sample_count += 1
+			if bool(sample.extrapolated):
+				interpolation_extrapolated_count += 1
 			var ship := ships[peer_id] as SandboxShip
 			ship.global_position = sample.position
 			ship.combatant.position = sample.position
@@ -522,6 +553,57 @@ func _spawn_predicted_projectile(ship: SandboxShip, aim_angle: float) -> void:
 	predicted_projectile_ids[local_weapon.shot_sequence] = predicted_ids
 	predicted_tracker.add(local_peer_id, local_weapon.shot_sequence, _now_seconds())
 	_emit_weapon_shot(local_peer_id, local_weapon.shot_sequence, muzzle)
+
+
+func _expire_unconfirmed_predicted_projectiles(now_seconds: float) -> void:
+	for key in predicted_tracker.step(now_seconds, _projectile_confirmation_timeout_seconds()):
+		var parts := key.split(":", false, 1)
+		if parts.size() != 2 or int(parts[0]) != local_peer_id:
+			continue
+		_remove_predicted_volley(int(parts[1]))
+		expired_predicted_volleys += 1
+
+
+func _remove_predicted_volley(shot_sequence: int) -> void:
+	if not predicted_projectile_ids.has(shot_sequence):
+		return
+	for predicted_id in predicted_projectile_ids[shot_sequence] as Array:
+		authoritative_projectiles.remove(int(predicted_id))
+	predicted_projectile_ids.erase(shot_sequence)
+
+
+func _reconcile_predicted_projectile(projectile: ProjectileState) -> void:
+	if projectile.owner_id != local_peer_id or not predicted_projectile_ids.has(projectile.shot_sequence):
+		return
+	_remove_predicted_volley(projectile.shot_sequence)
+	predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
+
+
+func _projectile_confirmation_timeout_seconds() -> float:
+	var rtt_seconds := 0.0
+	if bridge != null:
+		rtt_seconds = maxf(float(bridge.get_round_trip_time_ms()), 0.0) / 1000.0
+	return clampf(
+		maxf(
+			MIN_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS,
+			rtt_seconds * PROJECTILE_CONFIRMATION_RTT_MULTIPLIER + PROJECTILE_CONFIRMATION_GRACE_SECONDS
+		),
+		MIN_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS,
+		MAX_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS
+	)
+
+
+func _record_snapshot_arrival(server_tick: int, receive_time: float) -> void:
+	if last_snapshot_receive_time >= 0.0:
+		var expected_interval := 1.0 / GameConstants.PLAYER_SNAPSHOT_RATE
+		var arrival_deviation := absf(receive_time - last_snapshot_receive_time - expected_interval)
+		snapshot_jitter_ms = lerpf(snapshot_jitter_ms, arrival_deviation * 1000.0, 0.1)
+	if latest_server_tick != 0:
+		var tick_delta := (server_tick - latest_server_tick) & SequenceMath.UINT32_MASK
+		var expected_tick_delta := GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE
+		if tick_delta > expected_tick_delta and tick_delta < GameConstants.PHYSICS_TICKS_PER_SECOND * 5:
+			snapshot_gap_count += maxi(floori(float(tick_delta) / expected_tick_delta) - 1, 0)
+	last_snapshot_receive_time = receive_time
 
 
 func _step_projectile_visuals(delta: float) -> void:
@@ -739,7 +821,32 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 	_diagnostics_refresh_accumulator += maxf(delta, 0.0)
 	if diagnostics_visible and _diagnostics_refresh_accumulator >= 0.25:
 		_diagnostics_refresh_accumulator = fmod(_diagnostics_refresh_accumulator, 0.25)
-		diagnostics_label.text = "NETWORK · FPS %d · RTT %d ms · peer %d · ack %d\nerror %.2f px · snaps %d · players %d · projectiles %d · interpolation 100 ms" % [Engine.get_frames_per_second(), bridge.get_round_trip_time_ms(), local_peer_id, latest_acknowledged_input, prediction.last_reconciliation_error, prediction.snap_count, ships.size(), authoritative_projectiles.size()]
+		var network_stats := bridge.get_network_statistics()
+		var extrapolation_percent := (
+			float(interpolation_extrapolated_count) / interpolation_sample_count * 100.0
+			if interpolation_sample_count > 0
+			else 0.0
+		)
+		diagnostics_label.text = (
+			"NETWORK · FPS %d · RTT %d ± %d ms · loss %.2f%% · throttle %.0f%%\n"
+			+ "SNAP · jitter %.1f ms · gaps %d · extrap %.1f%% · buffer %d ms\n"
+			+ "PRED · error %.2f px · snaps %d · pending %d · expired shots %d · ack %d"
+		) % [
+			Engine.get_frames_per_second(),
+			int(network_stats.rtt_ms),
+			int(network_stats.rtt_variance_ms),
+			float(network_stats.packet_loss_percent),
+			float(network_stats.packet_throttle_percent),
+			snapshot_jitter_ms,
+			snapshot_gap_count,
+			extrapolation_percent,
+			roundi(RemoteInterpolator.INTERPOLATION_DELAY_SECONDS * 1000.0),
+			prediction.last_reconciliation_error,
+			prediction.snap_count,
+			prediction.buffered_inputs.size(),
+			expired_predicted_volleys,
+			latest_acknowledged_input,
+		]
 
 
 func _local_is_eliminated() -> bool:

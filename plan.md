@@ -35,7 +35,7 @@ The workspace contains a complete vertical slice with a Windows client, headless
 
 - Use one Godot project with shared deterministic combat/stat code and separate client/server startup paths. Export Windows x64 client and stripped headless server builds.
 - Run an authoritative 60 Hz server. Clients send sequenced input at 30 Hz; the server publishes world snapshots at 20 Hz. Use local movement prediction and reconciliation for the controlled ship and approximately 100 ms interpolation for remote ships.
-- Separate ENet traffic into unreliable-ordered input, unreliable-ordered snapshots, and reliable match/control events. The server exclusively owns movement validation, projectiles, collision, shield-ram damage, shield energy, powerup RNG/spawns/pickups, card offers and inventory changes, deaths, and state transitions.
+- Separate ENet traffic into reliable-ordered control events plus independent unreliable-ordered input, player-snapshot, projectile-delta, projectile-correction, and objective-snapshot streams. The server exclusively owns movement validation, projectiles, collision, shield-ram damage, shield energy, powerup RNG/spawns/pickups, card offers and inventory changes, deaths, and state transitions.
 - Model the match as `LOBBY → DRAFT → COUNTDOWN → ACTIVE_HEAT → HEAT_RESULT → ROUND_RESULT → MATCH_RESULT`. Reliable events carry transitions and scores; snapshots carry transient world state.
 - Define typed shared models:
   - `MatchConfig`: protocol version, maximum players, rounds-to-win, port, draft duration, and overtime timings.

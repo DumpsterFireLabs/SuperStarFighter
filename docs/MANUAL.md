@@ -437,7 +437,7 @@ When eliminated, you immediately spectate. Use the configured previous/next-targ
 
 Press the configured pilot-menu action (`Escape` or Menu / Start by default) to open the pilot menu. Online combat does not pause: the overlay blocks only your local controls. From it you may resume, open settings, disconnect to the main menu, or quit.
 
-The configured diagnostics action (`F3` or Y / Triangle by default) shows network information such as frame rate, round-trip time, input acknowledgment, prediction error, snapshot count, player count, and projectile count. It is primarily a playtest and troubleshooting tool.
+The configured diagnostics action (`F3` or Y / Triangle by default) shows frame rate, round-trip time and variance, ENet loss/throttle, snapshot jitter and gaps, interpolation extrapolation, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment. It is primarily a playtest and troubleshooting tool.
 
 ## 10. Settings, Controls, and Audio
 

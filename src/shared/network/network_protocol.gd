@@ -6,9 +6,11 @@ const SERVER_PEER_ID: int = 1
 
 const CHANNEL_CONTROL: int = 0
 const CHANNEL_INPUT: int = 1
-const CHANNEL_SNAPSHOT: int = 2
-const CHANNEL_OBJECTIVE: int = 3
-const CHANNEL_COUNT: int = 4
+const CHANNEL_PLAYER_SNAPSHOT: int = 2
+const CHANNEL_PROJECTILE_DELTA: int = 3
+const CHANNEL_PROJECTILE_CORRECTION: int = 4
+const CHANNEL_OBJECTIVE: int = 5
+const CHANNEL_COUNT: int = 6
 
 const ACTION_FIRE: int = 1
 const ACTION_SHIELD: int = 2

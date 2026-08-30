@@ -25,11 +25,18 @@ func reject(owner_id: int, shot_sequence: int, now_seconds: float) -> bool:
 	return true
 
 
-func step(now_seconds: float) -> Array[String]:
+func step(now_seconds: float, confirmation_timeout_seconds: float = INF) -> Array[String]:
 	var removed: Array[String] = []
 	for key_value in _predicted.keys():
 		var key := String(key_value)
 		var item := _predicted[key] as Dictionary
+		if (
+			float(item.rejected_at) < 0.0
+			and now_seconds - float(item.created_at) + 0.000001 >= maxf(confirmation_timeout_seconds, 0.0)
+		):
+			_predicted.erase(key)
+			removed.append(key)
+			continue
 		if float(item.rejected_at) >= 0.0 and now_seconds - float(item.rejected_at) >= REJECT_FADE_SECONDS:
 			_predicted.erase(key)
 			removed.append(key)

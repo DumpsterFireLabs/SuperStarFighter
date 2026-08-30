@@ -6,11 +6,16 @@ const MAX_EXTRAPOLATION_SECONDS: float = 0.1
 const MAX_SAMPLES_PER_PEER: int = 32
 
 var _samples: Dictionary = {}
+var _clock_offset_seconds: float = 0.0
+var _clock_initialized: bool = false
+var _last_clock_server_tick: int = -1
 
 
-func add_sample(peer_id: int, receive_time: float, state: Dictionary) -> void:
+func add_sample(peer_id: int, receive_time: float, server_tick: int, state: Dictionary) -> void:
+	var server_time := float(server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND
+	_update_clock_offset(receive_time, server_time, server_tick)
 	var peer_samples: Array = _samples.get(peer_id, [])
-	peer_samples.append({"time": receive_time, "state": state.duplicate(true)})
+	peer_samples.append({"time": server_time, "state": state.duplicate(true)})
 	while peer_samples.size() > MAX_SAMPLES_PER_PEER:
 		peer_samples.pop_front()
 	_samples[peer_id] = peer_samples
@@ -20,7 +25,8 @@ func sample(peer_id: int, now_seconds: float) -> Dictionary:
 	var peer_samples: Array = _samples.get(peer_id, [])
 	if peer_samples.is_empty():
 		return {"ok": false}
-	var render_time := now_seconds - INTERPOLATION_DELAY_SECONDS
+	var estimated_server_time := now_seconds - _clock_offset_seconds if _clock_initialized else now_seconds
+	var render_time := estimated_server_time - INTERPOLATION_DELAY_SECONDS
 	var before: Dictionary = peer_samples[0]
 	var after: Dictionary = peer_samples[peer_samples.size() - 1]
 	for item_value in peer_samples:
@@ -63,3 +69,20 @@ func remove_peer(peer_id: int) -> void:
 
 func clear() -> void:
 	_samples.clear()
+	_clock_offset_seconds = 0.0
+	_clock_initialized = false
+	_last_clock_server_tick = -1
+
+
+func _update_clock_offset(receive_time: float, server_time: float, server_tick: int) -> void:
+	if server_tick == _last_clock_server_tick:
+		return
+	_last_clock_server_tick = server_tick
+	var observed_offset := receive_time - server_time
+	if not _clock_initialized or observed_offset < _clock_offset_seconds:
+		_clock_offset_seconds = observed_offset
+		_clock_initialized = true
+		return
+	# Arrival spikes are queueing/jitter, not clock movement. Increase the
+	# baseline slowly, while accepting a new lower-latency baseline immediately.
+	_clock_offset_seconds = lerpf(_clock_offset_seconds, observed_offset, 0.02)

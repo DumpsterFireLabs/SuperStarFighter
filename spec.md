@@ -468,9 +468,9 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `14` and a maximum of 32 client peers in addition to the server. Version 14 adds authoritative mid-heat objective respawn deadlines/events and corrected flag-to-base capture state; it retains version 13's configurable team counts and explicit/automatic per-participant team selection.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `15` and a maximum of 32 client peers in addition to the server. Version 15 isolates player snapshots, projectile deltas, projectile corrections, and objective snapshots on independent unreliable-ordered ENet channels so variable-sized projectile traffic cannot supersede player movement updates; it retains version 14's authoritative mid-heat objective respawn and flag-capture state.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile corrections are sent at 5 Hz; replaceable objective snapshots are sent at 4 Hz.
-- Use four logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player/projectile snapshots, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
+- Use six logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player snapshots, unreliable ordered projectile deltas, unreliable ordered projectile corrections, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
 
 ### 8.2 One-Click Hosting and LAN Discovery
@@ -572,7 +572,7 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 - The server writes JSON-line logs to stdout with UTC timestamp, level, event name, and bounded fields.
 - Log startup configuration, match seed, joins/leaves, rejected requests, state transitions, heat/round/match results, shutdown, and fatal errors. Do not log every input frame or a client's IP address.
 - Every 10 seconds during a match, log connected peers, participant/entity counts, mean/p95/maximum simulation duration, outbound byte counts, static memory, object/node counts, and orphan-node count.
-- A debug-only client overlay shows FPS, round-trip time, interpolation delay, reconciliation error, last acknowledged input, and active entity counts.
+- A debug-only client overlay shows FPS, round-trip time and variance, ENet loss/throttle, snapshot arrival jitter and gaps, interpolation delay and extrapolation rate, reconciliation error/snaps, buffered input count, expired predicted shots, and the last acknowledged input.
 - Scene or payload decode failures must produce an error, reject the affected operation, and leave the server state valid. A single bad client message must not terminate the server.
 
 ## 11. Testing and Acceptance

@@ -31,6 +31,19 @@ static func _validate_sequence_wrap(context: TestContext) -> void:
 	context.expect_true(SequenceMath.is_newer(0, 0xffffffff), "sequence comparison handles uint32 wrap")
 	context.expect_false(SequenceMath.is_newer(0xffffffff, 0), "pre-wrap sequence is older after wrap")
 	context.expect_equal(SequenceMath.increment(0xffffffff), 0, "uint32 sequence increment wraps to zero")
+	var channels := [
+		NetworkProtocol.CHANNEL_CONTROL,
+		NetworkProtocol.CHANNEL_INPUT,
+		NetworkProtocol.CHANNEL_PLAYER_SNAPSHOT,
+		NetworkProtocol.CHANNEL_PROJECTILE_DELTA,
+		NetworkProtocol.CHANNEL_PROJECTILE_CORRECTION,
+		NetworkProtocol.CHANNEL_OBJECTIVE,
+	]
+	var unique_channels: Dictionary = {}
+	for channel in channels:
+		unique_channels[channel] = true
+	context.expect_equal(unique_channels.size(), channels.size(), "latency-sensitive ENet streams use independent channels")
+	context.expect_equal(NetworkProtocol.CHANNEL_COUNT, channels.size(), "ENet allocation covers every declared transport channel")
 
 
 static func _validate_lan_discovery_protocol(context: TestContext) -> void:
@@ -688,10 +701,22 @@ static func _validate_prediction_and_interpolation(context: TestContext) -> void
 	var snap_result := prediction.reconcile(Vector2.ZERO, Vector2.ZERO, 121, stats)
 	context.expect_true(snap_result.snapped, "prediction error above 128 pixels snaps")
 	context.expect_equal(prediction.snap_count, 1, "prediction snap increments diagnostics")
+	var collision_prediction := ClientPredictionBuffer.new()
+	collision_prediction.predicted_position = Vector2(GameConstants.SHIP_COLLISION_RADIUS + 1.0, 400.0)
+	collision_prediction.predicted_velocity = Vector2(-240.0, 0.0)
+	collision_prediction.predict(PlayerInputFrame.new(1, 1), stats, 0.1)
+	context.expect_true(
+		collision_prediction.predicted_position.x >= GameConstants.SHIP_COLLISION_RADIUS,
+		"local prediction mirrors authoritative arena collision instead of crossing a wall"
+	)
+	context.expect_true(
+		collision_prediction.predicted_velocity.x >= -0.001,
+		"local prediction mirrors authoritative wall slide velocity"
+	)
 
 	var interpolation := RemoteInterpolator.new()
-	interpolation.add_sample(3, 0.0, {"position": Vector2.ZERO, "velocity": Vector2(100.0, 0.0), "aim_angle": 0.0})
-	interpolation.add_sample(3, 0.2, {"position": Vector2(20.0, 0.0), "velocity": Vector2(100.0, 0.0), "aim_angle": PI * 0.5})
+	interpolation.add_sample(3, 0.0, 0, {"position": Vector2.ZERO, "velocity": Vector2(100.0, 0.0), "aim_angle": 0.0})
+	interpolation.add_sample(3, 0.2, 12, {"position": Vector2(20.0, 0.0), "velocity": Vector2(100.0, 0.0), "aim_angle": PI * 0.5})
 	var interpolated := interpolation.sample(3, 0.2)
 	context.expect_approx((interpolated.position as Vector2).x, 10.0, "remote player renders 100 ms behind between snapshots")
 	context.expect_false(interpolated.extrapolated, "surrounded remote sample interpolates")
@@ -700,6 +725,16 @@ static func _validate_prediction_and_interpolation(context: TestContext) -> void
 	context.expect_true(extrapolated.extrapolated, "late remote sample reports extrapolation")
 	interpolation.clear()
 	context.expect_false(bool(interpolation.sample(3, 0.5).get("ok", false)), "heat reset discards stale remote interpolation samples")
+	var jittered_interpolation := RemoteInterpolator.new()
+	jittered_interpolation.add_sample(4, 0.05, 0, {"position": Vector2.ZERO, "velocity": Vector2(100.0, 0.0), "aim_angle": 0.0})
+	jittered_interpolation.add_sample(4, 0.25, 6, {"position": Vector2(10.0, 0.0), "velocity": Vector2(100.0, 0.0), "aim_angle": 0.0})
+	var jittered_sample := jittered_interpolation.sample(4, 0.25)
+	context.expect_approx(
+		(jittered_sample.position as Vector2).x,
+		9.8,
+		"server-tick interpolation resists uneven snapshot arrival spacing",
+		0.05
+	)
 
 	var predicted_projectiles := PredictedProjectileTracker.new()
 	predicted_projectiles.add(2, 7, 0.0)
@@ -708,6 +743,9 @@ static func _validate_prediction_and_interpolation(context: TestContext) -> void
 	context.expect_true(predicted_projectiles.reject(2, 8, 1.0), "rejected predicted projectile begins fade")
 	context.expect_empty(predicted_projectiles.step(1.099), "rejected projectile remains during 100 ms fade")
 	context.expect_equal(predicted_projectiles.step(1.1), ["2:8"], "rejected projectile is removed after 100 ms fade")
+	predicted_projectiles.add(2, 9, 2.0)
+	context.expect_empty(predicted_projectiles.step(2.399, 0.4), "unconfirmed projectile remains inside its network allowance")
+	context.expect_equal(predicted_projectiles.step(2.4, 0.4), ["2:9"], "unconfirmed projectile expires at its bounded confirmation timeout")
 
 
 static func _validate_authoritative_world(context: TestContext) -> void:

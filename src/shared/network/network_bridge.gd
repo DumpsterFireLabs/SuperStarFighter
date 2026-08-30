@@ -192,12 +192,35 @@ func flush_metrics() -> void:
 
 
 func get_round_trip_time_ms() -> int:
+	return int(get_network_statistics().rtt_ms)
+
+
+func get_network_statistics() -> Dictionary:
+	var unavailable := {
+		"rtt_ms": -1,
+		"rtt_variance_ms": 0,
+		"packet_loss_percent": 0.0,
+		"packet_throttle_percent": 100.0,
+	}
 	if role != Role.CLIENT or _enet_peer == null:
-		return -1
+		return unavailable
 	var server_peer := _enet_peer.get_peer(NetworkProtocol.SERVER_PEER_ID)
 	if server_peer == null:
-		return -1
-	return int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+		return unavailable
+	return {
+		"rtt_ms": int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
+		"rtt_variance_ms": int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME_VARIANCE)),
+		"packet_loss_percent": (
+			float(server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS))
+			/ ENetPacketPeer.PACKET_LOSS_SCALE
+			* 100.0
+		),
+		"packet_throttle_percent": (
+			float(server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE))
+			/ ENetPacketPeer.PACKET_THROTTLE_SCALE
+			* 100.0
+		),
+	}
 
 
 func send_input(frame: PlayerInputFrame) -> void:
@@ -770,7 +793,7 @@ func objective_snapshot(server_tick_value: int, payload: Dictionary) -> void:
 		client_match_event_received.emit(&"OBJECTIVE_UPDATED", server_tick_value, payload)
 
 
-@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PLAYER_SNAPSHOT)
 func world_snapshot(packet: PackedByteArray) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return
@@ -779,7 +802,7 @@ func world_snapshot(packet: PackedByteArray) -> void:
 		client_snapshot_received.emit(decoded)
 
 
-@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PROJECTILE_DELTA)
 func projectile_batch(packet: PackedByteArray) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return
@@ -788,7 +811,7 @@ func projectile_batch(packet: PackedByteArray) -> void:
 		client_projectile_batch_received.emit(decoded)
 
 
-@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_SNAPSHOT)
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PROJECTILE_CORRECTION)
 func projectile_correction(packet: PackedByteArray) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return

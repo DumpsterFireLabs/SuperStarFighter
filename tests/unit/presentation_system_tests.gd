@@ -149,6 +149,11 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 
 	var view := NetworkWorldView.new()
 	view.local_peer_id = 1
+	view.input_sequence = 40
+	view.client_tick = 80
+	view._advance_input_clock()
+	context.expect_equal(view.input_sequence, 41, "every predicted physics frame advances its replay sequence")
+	context.expect_equal(view.client_tick, 81, "prediction input time advances with its replay sequence")
 	var local_ship := SandboxShip.new()
 	local_ship.setup(1, CombatStats.create_base(), Vector2(100.0, 100.0), Color.WHITE, true, "Local")
 	view.ships[1] = local_ship
@@ -228,6 +233,22 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	)
 	for scatter_projectile in view.authoritative_projectiles.all_projectiles():
 		view.authoritative_projectiles.remove(scatter_projectile.projectile_id)
+	view.local_stats = CombatStats.create_base()
+	view.local_weapon.shot_sequence = 18
+	view._spawn_predicted_projectile(local_ship, 0.0)
+	var recovered_projectile := ProjectileState.create(1800, 1, 18, local_ship.global_position, 0.0, view.local_stats)
+	view._on_projectile_correction({"spawned": [recovered_projectile]})
+	context.expect_false(view.predicted_projectile_ids.has(18), "a correction promotes a local shot when its unreliable spawn delta was lost")
+	context.expect_true(view.authoritative_projectiles.get_projectile(1800) != null, "correction recovery leaves one authoritative local projectile")
+	view.authoritative_projectiles.remove(1800)
+	view.local_weapon.shot_sequence = 19
+	view._spawn_predicted_projectile(local_ship, 0.0)
+	context.expect_true(view.predicted_projectile_ids.has(19), "unconfirmed local volley starts under bounded prediction tracking")
+	view._expire_unconfirmed_predicted_projectiles(
+		Time.get_ticks_msec() / 1000.0 + NetworkWorldView.MAX_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS + 0.1
+	)
+	context.expect_false(view.predicted_projectile_ids.has(19), "timed-out local volley cannot survive as a client-only ghost")
+	context.expect_equal(view.expired_predicted_volleys, 1, "expired local volleys increment network diagnostics")
 	var beam_volley_stats := CombatStats.create_base()
 	beam_volley_stats.beam_weapon = true
 	beam_volley_stats.projectile_count = 3
