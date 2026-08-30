@@ -102,6 +102,10 @@ var draft_title: Label
 var draft_buttons: Array[Button] = []
 var draft_rarity_labels: Array[Label] = []
 var draft_bye_label: Label
+var draft_confirmation_row: HBoxContainer
+var draft_confirmation_label: Label
+var draft_confirm_button: Button
+var draft_change_button: Button
 var scoreboard_panel: PanelContainer
 var scoreboard_label: Label
 var scoreboard_context_label: Label
@@ -159,6 +163,7 @@ var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
 var active_offer_token: String = ""
 var active_offer_deadline: int = -1
+var pending_draft_index: int = -1
 var latest_match_payload: Dictionary = {}
 var _applying_lobby_state: bool = false
 var interface_theme: Theme
@@ -238,6 +243,10 @@ func _notification(what: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if draft_panel != null and draft_panel.visible and pending_draft_index >= 0 and (event.is_action_pressed("pause_overlay") or event.is_action_pressed(&"ui_cancel")) and not (event is InputEventKey and event.echo):
+		_cancel_draft_confirmation()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
 		if credits_panel != null and credits_panel.visible:
 			_hide_credits()
@@ -870,6 +879,28 @@ func _create_match_ui() -> void:
 	draft_bye_label.custom_minimum_size.y = 390.0
 	draft_bye_label.visible = false
 	content.add_child(draft_bye_label)
+	draft_confirmation_row = HBoxContainer.new()
+	draft_confirmation_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	draft_confirmation_row.add_theme_constant_override("separation", 12)
+	draft_confirmation_row.visible = false
+	content.add_child(draft_confirmation_row)
+	draft_confirmation_label = Label.new()
+	draft_confirmation_label.add_theme_font_size_override("font_size", 18)
+	draft_confirmation_label.add_theme_color_override("font_color", Color("fff36a"))
+	draft_confirmation_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	draft_confirmation_row.add_child(draft_confirmation_label)
+	draft_change_button = Button.new()
+	draft_change_button.text = "CHOOSE ANOTHER"
+	draft_change_button.theme_type_variation = &"QuietButton"
+	draft_change_button.custom_minimum_size = Vector2(180.0, 48.0)
+	draft_change_button.pressed.connect(_cancel_draft_confirmation)
+	draft_confirmation_row.add_child(draft_change_button)
+	draft_confirm_button = Button.new()
+	draft_confirm_button.text = "CONFIRM PICK"
+	draft_confirm_button.theme_type_variation = &"PrimaryButton"
+	draft_confirm_button.custom_minimum_size = Vector2(180.0, 48.0)
+	draft_confirm_button.pressed.connect(_confirm_draft_card)
+	draft_confirmation_row.add_child(draft_confirm_button)
 
 
 func _create_draft_card_content(button: Button, index: int) -> void:
@@ -2488,6 +2519,11 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 				if draft_button.visible:
 					draft_button.disabled = false
 					draft_button.text = draft_button.text.trim_suffix("\n\nSELECTED")
+					var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
+					draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
+					(draft_button.get_node("CardContent/Details/State") as Label).text = ""
+			pending_draft_index = -1
+			draft_confirmation_row.visible = false
 	elif event_type == &"DRAFT_OFFER":
 		_show_draft_offer(payload)
 	elif event_type == &"STATE_CHANGED":
@@ -2513,6 +2549,8 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		_results_rows_dirty = true
 		active_offer_token = ""
 		active_offer_deadline = -1
+		pending_draft_index = -1
+		draft_confirmation_row.visible = false
 		draft_panel.visible = false
 	elif event_type == &"PLAYER_ELIMINATED":
 		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
@@ -2585,6 +2623,8 @@ func _update_pointer_visibility() -> void:
 func _show_draft_offer(payload: Dictionary) -> void:
 	active_offer_token = String(payload.get("offer_token", ""))
 	active_offer_deadline = int(payload.get("deadline_tick", -1))
+	pending_draft_index = -1
+	draft_confirmation_row.visible = false
 	draft_bye_label.visible = false
 	var card_ids := payload.get("card_ids", []) as Array
 	for index in draft_buttons.size():
@@ -2643,6 +2683,30 @@ func _select_draft_card(index: int) -> void:
 	var card_id := button.get_meta("card_id", &"") as StringName
 	if card_id.is_empty():
 		return
+	pending_draft_index = index
+	var card := card_catalog.get_card(card_id)
+	var card_name := card.display_name.to_upper() if card != null else String(card_id).to_upper()
+	draft_confirmation_label.text = "LOCK IN %s?" % card_name
+	draft_confirmation_row.visible = true
+	for button_index in draft_buttons.size():
+		var draft_button := draft_buttons[button_index]
+		if not draft_button.visible:
+			continue
+		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
+		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, button_index == index))
+		(draft_button.get_node("CardContent/Details/State") as Label).text = "AWAITING CONFIRMATION" if button_index == index else ""
+	draft_confirm_button.grab_focus()
+
+
+func _confirm_draft_card() -> void:
+	if pending_draft_index < 0 or pending_draft_index >= draft_buttons.size():
+		return
+	var button := draft_buttons[pending_draft_index]
+	if not button.visible or button.disabled or active_offer_token.is_empty():
+		return
+	var card_id := button.get_meta("card_id", &"") as StringName
+	if card_id.is_empty():
+		return
 	bridge.send_card_selection(active_offer_token, card_id)
 	audio_director.play_sfx(&"card_lock", "%s:%s" % [active_offer_token, card_id])
 	for draft_button in draft_buttons:
@@ -2651,11 +2715,31 @@ func _select_draft_card(index: int) -> void:
 	(button.get_node("CardContent/Details/State") as Label).text = "SELECTED  ✓"
 	var selected_color: Color = button.get_meta("rarity_color", Color("42e8ff"))
 	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
+	pending_draft_index = -1
+	draft_confirmation_row.visible = false
+
+
+func _cancel_draft_confirmation() -> void:
+	var previous_index := pending_draft_index
+	pending_draft_index = -1
+	draft_confirmation_row.visible = false
+	for draft_button in draft_buttons:
+		if not draft_button.visible or draft_button.disabled:
+			continue
+		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
+		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
+		(draft_button.get_node("CardContent/Details/State") as Label).text = ""
+	if previous_index >= 0 and previous_index < draft_buttons.size():
+		var previous_button := draft_buttons[previous_index]
+		if previous_button.visible and not previous_button.disabled:
+			previous_button.grab_focus()
 
 
 func _show_draft_bye(deadline_tick: int) -> void:
 	active_offer_token = ""
 	active_offer_deadline = deadline_tick
+	pending_draft_index = -1
+	draft_confirmation_row.visible = false
 	for index in draft_buttons.size():
 		draft_buttons[index].visible = false
 		draft_rarity_labels[index].visible = false
@@ -2722,7 +2806,7 @@ func _update_match_presentation() -> void:
 				_show_draft_bye(deadline)
 			draft_title.text = "ROUND WINNER BYE · OTHERS DRAFTING · %.1fs" % seconds_left
 		elif not draft_bye_label.visible:
-			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · CLICK OR PRESS 1–5" % seconds_left
+			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · PICK, THEN CONFIRM" % seconds_left
 
 
 func _update_heat_intro(state_name: String, seconds_left: float) -> void:

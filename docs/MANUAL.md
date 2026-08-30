@@ -411,6 +411,8 @@ Each draft card shows:
 - Current stack transition, such as `STACK 2 → 3`.
 - Rarity and rarity-tier weight in smaller text at the bottom.
 
+Click a card or press its `1`–`5` shortcut to stage it, then select **Confirm Pick** to lock it in. Until you confirm, select another card directly or use **Choose Another** (or Back/Escape) to clear the staged choice.
+
 Cards do not always contain a downside. Higher rarity means scarcity, not a guarantee that the card is correct for the current build.
 
 ### Build advice

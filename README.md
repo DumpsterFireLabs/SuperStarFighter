@@ -67,7 +67,7 @@ The script runs the complete foundation gate, exports a single embedded-PCK exec
 | Left mouse | Fire automatically while held |
 | Right mouse | Hold the directional shield |
 | `R` | Manually reload a partially used magazine |
-| `1`–`5` or click | Choose a draft card |
+| `1`–`5` or click, then confirm | Choose and lock in a draft card |
 | Hold `Tab` | Show live standings and public builds |
 | `Escape` | Open the non-pausing pilot menu |
 | `F3` | Toggle network diagnostics |

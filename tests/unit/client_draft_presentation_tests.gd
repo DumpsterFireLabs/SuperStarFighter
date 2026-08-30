@@ -54,9 +54,20 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	context.expect_true(draft_preview != null and draft_preview.name == "CardPreview", "draft hover opens the rarity-styled graphical card preview")
 	draft_preview.free()
 	client._select_draft_card(0)
-	context.expect_true((client.draft_buttons[0] as Button).text.contains("SELECTED"), "chosen draft card renders its locked selection")
+	context.expect_equal(client.pending_draft_index, 0, "clicking a draft card stages it for confirmation")
+	context.expect_true(client.draft_confirmation_row.visible, "staged card displays explicit confirmation controls")
+	context.expect_true(client.draft_confirmation_label.text.contains("OVERCHARGED THRUSTERS"), "confirmation names the card about to be locked")
 	for button_value in client.draft_buttons:
-		context.expect_true((button_value as Button).disabled, "all draft choices lock after selection")
+		context.expect_false((button_value as Button).disabled, "staging a card keeps the draw changeable")
+	client._cancel_draft_confirmation()
+	context.expect_equal(client.pending_draft_index, -1, "choose another clears the staged card")
+	context.expect_false(client.draft_confirmation_row.visible, "choose another dismisses confirmation controls")
+	client._select_draft_card(0)
+	client._confirm_draft_card()
+	context.expect_equal(client.pending_draft_index, -1, "confirming clears the pending choice")
+	context.expect_true((client.draft_buttons[0] as Button).text.contains("SELECTED"), "confirmed draft card renders its locked selection")
+	for button_value in client.draft_buttons:
+		context.expect_true((button_value as Button).disabled, "all draft choices lock only after confirmation")
 	client._show_draft_offer({
 		"offer_token": "rarity-precision-token",
 		"card_ids": [&"reality_shredder", &"chronal_shield", &"sunbeam_core", &"aegis_matrix", &"hollow_points"],
