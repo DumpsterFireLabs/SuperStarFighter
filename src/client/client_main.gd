@@ -1670,7 +1670,7 @@ func _create_credits_overlay() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	credits_panel.add_child(center)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720.0, 610.0)
+	panel.custom_minimum_size = Vector2(960.0, 610.0)
 	panel.theme = interface_theme
 	panel.add_theme_stylebox_override("panel", _panel_style(Color("ff8a3d"), 0.98))
 	center.add_child(panel)
@@ -1691,17 +1691,16 @@ func _create_credits_overlay() -> void:
 	title.add_theme_color_override("font_color", Color("fff1bf"))
 	content.add_child(title)
 	var thank_you := Label.new()
-	thank_you.text = "To everyone who stepped into the arena—thank you for giving our little game a shot.\nWe hope you had as much fun playing it as we did making it!"
-	thank_you.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	thank_you.text = "To everyone who stepped into the arena—thank you for giving the game a shot.\nI set out to make the kind of game I’d have a blast playing with friends, whether at a LAN party or online.\nI hope you had as much fun playing—and testing—it as I did making it!"
+	thank_you.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	thank_you.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	thank_you.custom_minimum_size = Vector2(650.0, 0.0)
+	thank_you.custom_minimum_size = Vector2(900.0, 0.0)
 	thank_you.add_theme_font_size_override("font_size", 18)
 	thank_you.add_theme_color_override("font_color", Color("f4fbff"))
 	content.add_child(thank_you)
 	_add_credit_block(content, "CREATED BY", "Graphite")
 	_add_credit_block(content, "TESTERS", "Champ")
 	_add_credit_block(content, "HONOURABLE MENTIONS", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink")
-	_add_credit_block(content, "SPECIAL THANKS", "ChatGPT")
 	var back_center := CenterContainer.new()
 	content.add_child(back_center)
 	var back_button := Button.new()
