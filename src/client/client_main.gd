@@ -4,6 +4,8 @@ const InputProfileManagerScript = preload("res://src/client/input/input_profile_
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const ShipPatternPreviewScript = preload("res://src/client/ui/ship_pattern_preview.gd")
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 const DUMPSTER_FIRE_LABS_TEXTURE: Texture2D = preload("res://assets/ui/dumpster_fire_labs.png")
 const STUDIO_SPLASH_AUTO_ADVANCE_SECONDS: float = 4.0
@@ -56,6 +58,9 @@ var port_field: LineEdit
 var host_port_field: LineEdit
 var name_field: LineEdit
 var server_name_field: LineEdit
+var direct_password_field: LineEdit
+var remember_password_button: CheckButton
+var host_password_field: LineEdit
 var connection_status: Label
 var lan_servers_container: VBoxContainer
 var lan_refresh_button: Button
@@ -89,6 +94,8 @@ var ship_color_blocker: ColorRect
 var ship_color_focus_return: Control
 var random_color_button: Button
 var ship_color_picker: ColorPicker
+var ship_pattern_control: OptionButton
+var ship_pattern_preview
 var apply_ship_color_button: Button
 var start_button: Button
 var match_panel: PanelContainer
@@ -147,6 +154,8 @@ var current_window_mode: int = WindowModeOption.WINDOWED
 var current_resolution: Vector2i = Vector2i(1280, 720)
 var preferred_ship_color: Color = Color("42e8ff")
 var pending_ship_color: Color = Color("42e8ff")
+var preferred_ship_pattern: StringName = ShipAppearanceScript.SOLID
+var pending_ship_pattern: StringName = ShipAppearanceScript.SOLID
 var random_ship_color: bool = true
 var settings_return_to_pause: bool = false
 var settings_return_to_lobby: bool = false
@@ -180,6 +189,9 @@ var pause_disconnect_button: Button
 var f2_return_confirmation: ConfirmationDialog
 var _application_has_focus: bool = true
 var _disconnect_in_progress: bool = false
+var _pending_password_host: String = ""
+var _pending_password_value: String = ""
+var _pending_remember_password: bool = false
 
 
 func _ready() -> void:
@@ -445,8 +457,17 @@ func _create_direct_join_tab(configuration: Dictionary) -> void:
 	tab.name = "DIRECT CONNECT"
 	tab.add_theme_constant_override("separation", 10)
 	connection_tabs.add_child(tab)
-	host_field = _add_labeled_field(tab, "Server host or IP", configuration.get("host", "127.0.0.1"))
-	port_field = _add_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	host_field = _add_compact_labeled_field(tab, "Server host or IP", configuration.get("host", "127.0.0.1"))
+	port_field = _add_compact_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	direct_password_field = _add_compact_labeled_field(tab, "Lobby password", "")
+	direct_password_field.secret = true
+	direct_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
+	remember_password_button = CheckButton.new()
+	remember_password_button.text = "Remember password for this IP"
+	remember_password_button.tooltip_text = "Saved locally after the server accepts the connection."
+	tab.add_child(remember_password_button)
+	host_field.text_changed.connect(_on_direct_host_changed)
+	_apply_remembered_password(host_field.text)
 	var connect_center := CenterContainer.new()
 	tab.add_child(connect_center)
 	direct_connect_button = Button.new()
@@ -463,9 +484,12 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	tab.name = "HOST GAME"
 	tab.add_theme_constant_override("separation", 10)
 	connection_tabs.add_child(tab)
-	server_name_field = _add_labeled_field(tab, "Server name", "Super Star Arena")
+	server_name_field = _add_compact_labeled_field(tab, "Server name", "Super Star Arena")
 	server_name_field.max_length = LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
-	host_port_field = _add_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	host_port_field = _add_compact_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	host_password_field = _add_compact_labeled_field(tab, "Required lobby password", "")
+	host_password_field.secret = true
+	host_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
 	var host_center := CenterContainer.new()
 	tab.add_child(host_center)
 	host_join_button = Button.new()
@@ -738,22 +762,45 @@ func _create_ship_color_popup() -> void:
 	content.add_theme_constant_override("separation", 12)
 	ship_color_popup.add_child(content)
 	var title := Label.new()
-	title.text = "CHOOSE YOUR SHIP COLOUR"
+	title.text = "CUSTOMIZE YOUR SHIP"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color("73f7ff"))
 	content.add_child(title)
 	var note := Label.new()
-	note.text = "Pick a colour, then apply it. Your roster swatch is the colour control."
+	note.text = "Combine any colour with a hull pattern, then apply your appearance."
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(note)
+	var appearance_row := HBoxContainer.new()
+	appearance_row.add_theme_constant_override("separation", 18)
+	content.add_child(appearance_row)
+	ship_pattern_preview = ShipPatternPreviewScript.new()
+	ship_pattern_preview.set_appearance(preferred_ship_color, preferred_ship_pattern)
+	appearance_row.add_child(ship_pattern_preview)
+	var pattern_column := VBoxContainer.new()
+	pattern_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	appearance_row.add_child(pattern_column)
+	var pattern_label := Label.new()
+	pattern_label.text = "HULL PATTERN"
+	pattern_label.add_theme_color_override("font_color", Color("e8f5ff"))
+	pattern_column.add_child(pattern_label)
+	ship_pattern_control = OptionButton.new()
+	ship_pattern_control.custom_minimum_size.y = 48.0
+	for pattern in ShipAppearanceScript.PATTERNS:
+		ship_pattern_control.add_item(ShipAppearanceScript.display_name(pattern))
+	ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(preferred_ship_pattern))
+	ship_pattern_control.item_selected.connect(_on_ship_pattern_selected)
+	pattern_column.add_child(ship_pattern_control)
 	ship_color_picker = ColorPicker.new()
 	ship_color_picker.color = preferred_ship_color
 	ship_color_picker.edit_alpha = false
 	ship_color_picker.picker_shape = ColorPicker.SHAPE_HSV_WHEEL
-	ship_color_picker.custom_minimum_size = Vector2(640.0, 430.0)
+	ship_color_picker.sliders_visible = false
+	ship_color_picker.presets_visible = false
+	ship_color_picker.sampler_visible = false
+	ship_color_picker.custom_minimum_size = Vector2(640.0, 300.0)
 	ship_color_picker.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	ship_color_picker.color_changed.connect(_on_ship_color_changed)
 	content.add_child(ship_color_picker)
@@ -761,7 +808,7 @@ func _create_ship_color_popup() -> void:
 	actions.add_theme_constant_override("separation", 12)
 	content.add_child(actions)
 	random_color_button = Button.new()
-	random_color_button.text = "USE RANDOM"
+	random_color_button.text = "RANDOM COLOUR"
 	random_color_button.theme_type_variation = &"SecondaryButton"
 	random_color_button.custom_minimum_size = Vector2(180.0, 48.0)
 	random_color_button.tooltip_text = "Ask the server for a high-contrast random ship colour."
@@ -775,7 +822,7 @@ func _create_ship_color_popup() -> void:
 	cancel_button.pressed.connect(_cancel_ship_color)
 	actions.add_child(cancel_button)
 	apply_ship_color_button = Button.new()
-	apply_ship_color_button.text = "APPLY COLOUR"
+	apply_ship_color_button.text = "APPLY APPEARANCE"
 	apply_ship_color_button.theme_type_variation = &"PrimaryButton"
 	apply_ship_color_button.custom_minimum_size = Vector2(210.0, 48.0)
 	apply_ship_color_button.pressed.connect(_apply_ship_color)
@@ -1128,6 +1175,23 @@ func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text:
 	field.text = initial_text
 	field.custom_minimum_size.y = 48.0
 	parent.add_child(field)
+	return field
+
+
+func _add_compact_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 210.0
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(label)
+	var field := LineEdit.new()
+	field.text = initial_text
+	field.custom_minimum_size.y = 48.0
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(field)
 	return field
 
 
@@ -1630,6 +1694,9 @@ func _load_appearance_settings() -> void:
 	var saved_color := String(config.get_value("appearance", "ship_color", preferred_ship_color.to_html(false)))
 	if not ServerLobby._normalized_ship_color(saved_color).is_empty():
 		preferred_ship_color = Color.from_string("#%s" % saved_color.trim_prefix("#"), preferred_ship_color)
+	var saved_pattern := ShipAppearanceScript.normalized_pattern(String(config.get_value("appearance", "ship_pattern", ShipAppearanceScript.SOLID)))
+	if not saved_pattern.is_empty():
+		preferred_ship_pattern = saved_pattern
 
 
 func _save_appearance_settings() -> void:
@@ -1637,7 +1704,56 @@ func _save_appearance_settings() -> void:
 	config.load(AudioDirector.SETTINGS_PATH)
 	config.set_value("appearance", "random_ship_color", random_ship_color)
 	config.set_value("appearance", "ship_color", preferred_ship_color.to_html(false))
+	config.set_value("appearance", "ship_pattern", String(preferred_ship_pattern))
 	config.save(AudioDirector.SETTINGS_PATH)
+
+
+func _on_direct_host_changed(address: String) -> void:
+	_apply_remembered_password(address)
+
+
+func _apply_remembered_password(address: String) -> void:
+	if direct_password_field == null or remember_password_button == null:
+		return
+	var remembered := _remembered_password_for_host(address)
+	direct_password_field.text = remembered
+	remember_password_button.button_pressed = not remembered.is_empty()
+
+
+func _remembered_password_for_host(address: String) -> String:
+	var key := _password_settings_key(address)
+	if key.is_empty():
+		return ""
+	var config := ConfigFile.new()
+	if config.load(AudioDirector.SETTINGS_PATH) != OK:
+		return ""
+	var remembered := String(config.get_value("lobby_passwords", key, ""))
+	return remembered if NetworkProtocol.is_valid_lobby_password(remembered) else ""
+
+
+func _commit_pending_password_preference() -> void:
+	var key := _password_settings_key(_pending_password_host)
+	if key.is_empty():
+		return
+	var config := ConfigFile.new()
+	config.load(AudioDirector.SETTINGS_PATH)
+	if _pending_remember_password and NetworkProtocol.is_valid_lobby_password(_pending_password_value):
+		config.set_value("lobby_passwords", key, _pending_password_value)
+	elif config.has_section_key("lobby_passwords", key):
+		config.erase_section_key("lobby_passwords", key)
+	config.save(AudioDirector.SETTINGS_PATH)
+	_pending_password_host = ""
+	_pending_password_value = ""
+	_pending_remember_password = false
+
+
+static func _password_settings_key(address: String) -> String:
+	var normalized := address.strip_edges().to_lower()
+	if normalized.begins_with("[") and normalized.ends_with("]"):
+		normalized = normalized.substr(1, normalized.length() - 2)
+	if normalized.is_empty():
+		return ""
+	return normalized.sha256_text()
 
 
 func _show_settings(return_to_pause: bool) -> void:
@@ -2011,10 +2127,19 @@ func _connect_online() -> void:
 	if not ServerLobby.is_valid_display_name(display_name):
 		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
 		return
+	var lobby_password := direct_password_field.text
+	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
+		connection_status.text = "Enter the lobby password (1–%d printable characters)." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
+		direct_password_field.grab_focus()
+		return
+	var address := host_field.text.strip_edges()
 	offline_sandbox.set_sandbox_active(false)
 	network_world.set_network_active(false)
-	connection_status.text = "Connecting to %s:%d…" % [host_field.text.strip_edges(), port]
-	var error := bridge.start_client(host_field.text.strip_edges(), port, display_name)
+	_pending_password_host = address
+	_pending_password_value = lobby_password
+	_pending_remember_password = remember_password_button.button_pressed
+	connection_status.text = "Authenticating with %s:%d…" % [address, port]
+	var error := bridge.start_client(address, port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:
 		connection_status.text = bridge.last_error
 
@@ -2031,6 +2156,11 @@ func _host_online() -> void:
 	if not LanDiscoveryProtocol.is_valid_server_name(server_name):
 		connection_status.text = "Server name must contain 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
 		return
+	var lobby_password := host_password_field.text
+	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
+		connection_status.text = "Set a required lobby password containing 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
+		host_password_field.grab_focus()
+		return
 	bridge.stop()
 	_stop_hosted_server()
 	var error := _start_hosted_server({
@@ -2038,6 +2168,7 @@ func _host_online() -> void:
 		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"server_name": server_name,
+		"lobby_password": lobby_password,
 	})
 	if error != OK:
 		connection_status.text = _hosted_server_bridge.last_error if _hosted_server_bridge != null else "Could not start the local server."
@@ -2046,7 +2177,10 @@ func _host_online() -> void:
 	offline_sandbox.set_sandbox_active(false)
 	network_world.set_network_active(false)
 	connection_status.text = "Hosting %s on UDP %d and joining locally…" % [server_name, port]
-	error = bridge.start_client("127.0.0.1", port, display_name)
+	_pending_password_host = ""
+	_pending_password_value = ""
+	_pending_remember_password = false
+	error = bridge.start_client("127.0.0.1", port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:
 		connection_status.text = bridge.last_error
 		_stop_hosted_server()
@@ -2124,6 +2258,7 @@ func _rebuild_lan_server_list() -> void:
 
 func _add_lan_server_row(server: Dictionary) -> void:
 	var compatible := int(server.get("protocol_version", 0)) == GameConstants.PROTOCOL_VERSION
+	var remembered_password := _remembered_password_for_host(String(server.get("address", "")))
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size.y = 62.0
 	panel.set_meta("address", String(server.get("address", "")))
@@ -2144,7 +2279,7 @@ func _add_lan_server_row(server: Dictionary) -> void:
 	identity.add_child(name_label)
 	var detail_label := Label.new()
 	var state_text := "IN MATCH" if bool(server.get("match_active", false)) else "LOBBY"
-	detail_label.text = "%s:%d  ·  %d HUMAN + %d NPC / %d  ·  %s  ·  %d ms" % [
+	detail_label.text = "%s:%d  ·  LOCKED  ·  %d HUMAN + %d NPC / %d  ·  %s  ·  %d ms" % [
 		server.get("address", ""), server.get("game_port", 0), server.get("human_count", 0),
 		server.get("npc_count", 0), server.get("player_limit", 0), state_text, server.get("ping_ms", 0),
 	]
@@ -2152,7 +2287,7 @@ func _add_lan_server_row(server: Dictionary) -> void:
 	detail_label.add_theme_color_override("font_color", Color("aebbd4"))
 	identity.add_child(detail_label)
 	var join_button := Button.new()
-	join_button.text = "JOIN" if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
+	join_button.text = ("JOIN" if not remembered_password.is_empty() else "PASSWORD") if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
 	join_button.theme_type_variation = &"PrimaryButton" if compatible else &"QuietButton"
 	join_button.disabled = not compatible
 	join_button.custom_minimum_size = Vector2(140.0, 46.0)
@@ -2163,6 +2298,12 @@ func _add_lan_server_row(server: Dictionary) -> void:
 func _join_lan_server(address: String, port: int) -> void:
 	host_field.text = address
 	port_field.text = str(port)
+	_apply_remembered_password(address)
+	if direct_password_field.text.is_empty():
+		connection_tabs.current_tab = 1
+		connection_status.text = "Enter the password for %s, then connect." % address
+		direct_password_field.grab_focus()
+		return
 	_connect_online()
 
 
@@ -2200,6 +2341,9 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 		f2_return_confirmation.hide()
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
+	_pending_password_host = ""
+	_pending_password_value = ""
+	_pending_remember_password = false
 	_stop_hosted_server()
 	network_world.set_network_active(false)
 	_set_scoreboard_open(false)
@@ -2231,6 +2375,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 
 
 func _on_connected(peer_id: int) -> void:
+	_commit_pending_password_preference()
 	connection_screen.visible = true
 	connection_form_panel.visible = false
 	lobby_panel.visible = true
@@ -2238,7 +2383,7 @@ func _on_connected(peer_id: int) -> void:
 	connection_status.text = "Connected as peer %d." % peer_id
 	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
-	bridge.send_player_color(random_ship_color, preferred_ship_color)
+	bridge.send_player_appearance(random_ship_color, preferred_ship_color, preferred_ship_pattern)
 	ready_button.grab_focus()
 
 
@@ -2296,9 +2441,15 @@ func _on_lobby_state(state: Dictionary) -> void:
 		var player := player_value as Dictionary
 		if int(player.get("peer_id", 0)) == bridge.local_peer_id:
 			preferred_ship_color = Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), preferred_ship_color)
+			preferred_ship_pattern = ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
+			if preferred_ship_pattern.is_empty():
+				preferred_ship_pattern = ShipAppearanceScript.SOLID
 			if not ship_color_popup.visible:
 				pending_ship_color = preferred_ship_color
+				pending_ship_pattern = preferred_ship_pattern
 				ship_color_picker.color = preferred_ship_color
+				ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(preferred_ship_pattern))
+				ship_pattern_preview.set_appearance(preferred_ship_color, preferred_ship_pattern)
 			break
 	_applying_lobby_state = false
 	ready_button.disabled = match_active
@@ -2356,6 +2507,12 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		var color_swatch := Button.new()
 		color_swatch.name = "ShipColor"
 		var swatch_color := Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
+		var swatch_pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
+		if swatch_pattern.is_empty():
+			swatch_pattern = ShipAppearanceScript.SOLID
+		color_swatch.text = ShipAppearanceScript.swatch_symbol(swatch_pattern)
+		color_swatch.add_theme_color_override("font_color", Color.WHITE)
+		color_swatch.add_theme_font_size_override("font_size", 16)
 		color_swatch.custom_minimum_size = Vector2(34.0, 34.0)
 		color_swatch.add_theme_stylebox_override("normal", _ship_color_swatch_style(swatch_color, false))
 		color_swatch.add_theme_stylebox_override("hover", _ship_color_swatch_style(swatch_color, true))
@@ -2365,7 +2522,7 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		var can_choose_color := peer_id == bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false))
 		color_swatch.disabled = not can_choose_color
 		color_swatch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_choose_color else Control.CURSOR_ARROW
-		color_swatch.tooltip_text = "Click to choose your ship colour" if can_choose_color else "Selected ship colour"
+		color_swatch.tooltip_text = "Click to customize your ship" if can_choose_color else "%s hull pattern" % ShipAppearanceScript.display_name(swatch_pattern)
 		if can_choose_color:
 			color_swatch.pressed.connect(_show_ship_color_popup)
 		row.add_child(color_swatch)
@@ -2489,7 +2646,10 @@ func _show_ship_color_popup() -> void:
 	if lobby_options_popup != null:
 		_hide_lobby_options(false)
 	pending_ship_color = preferred_ship_color
+	pending_ship_pattern = preferred_ship_pattern
 	ship_color_picker.color = pending_ship_color
+	ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(pending_ship_pattern))
+	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
 	ship_color_blocker.show()
 	lobby_panel.hide()
 	ship_color_popup.show()
@@ -2527,26 +2687,39 @@ func _on_ship_color_changed(color: Color) -> void:
 	if _applying_lobby_state:
 		return
 	pending_ship_color = Color(color.r, color.g, color.b, 1.0)
+	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
+
+
+func _on_ship_pattern_selected(index: int) -> void:
+	if _applying_lobby_state or index < 0 or index >= ShipAppearanceScript.PATTERNS.size():
+		return
+	pending_ship_pattern = ShipAppearanceScript.PATTERNS[index]
+	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
 
 
 func _apply_ship_color() -> void:
 	preferred_ship_color = pending_ship_color
+	preferred_ship_pattern = pending_ship_pattern
 	random_ship_color = false
 	_save_appearance_settings()
-	bridge.send_player_color(false, preferred_ship_color)
+	bridge.send_player_appearance(false, preferred_ship_color, preferred_ship_pattern)
 	_hide_ship_color()
 
 
 func _on_random_color_pressed() -> void:
+	preferred_ship_pattern = pending_ship_pattern
 	random_ship_color = true
 	_save_appearance_settings()
-	bridge.send_player_color(true, preferred_ship_color)
+	bridge.send_player_appearance(true, preferred_ship_color, preferred_ship_pattern)
 	_hide_ship_color()
 
 
 func _cancel_ship_color() -> void:
 	pending_ship_color = preferred_ship_color
+	pending_ship_pattern = preferred_ship_pattern
 	ship_color_picker.color = preferred_ship_color
+	ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(preferred_ship_pattern))
+	ship_pattern_preview.set_appearance(preferred_ship_color, preferred_ship_pattern)
 	_hide_ship_color()
 
 
@@ -3547,8 +3720,13 @@ func _lan_server_row_style(compatible: bool) -> StyleBoxFlat:
 	style.content_margin_top = 7.0
 	style.content_margin_bottom = 7.0
 	return style
-func _on_rejected(_reason: StringName, message: String) -> void:
+
+
+func _on_rejected(reason: StringName, message: String) -> void:
 	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck the server settings, then try again." % message, true)
+	if reason == NetworkProtocol.REJECT_INVALID_PASSWORD:
+		connection_tabs.current_tab = 1
+		direct_password_field.grab_focus()
 
 
 func _on_connection_lost(message: String) -> void:

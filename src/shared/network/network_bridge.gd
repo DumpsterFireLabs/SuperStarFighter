@@ -1,6 +1,8 @@
 class_name NetworkBridge
 extends Node
 
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+
 const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
 
 signal server_peer_admitted(peer_id: int, player: PlayerMatchState)
@@ -39,6 +41,7 @@ var _control_rate_limiter := RequestRateLimiter.new()
 var _malformed_control_strikes: Dictionary = {}
 var _client_name: String = "Pilot"
 var _client_protocol_version: int = GameConstants.PROTOCOL_VERSION
+var _client_password: String = ""
 var _last_metrics_tick: int = 0
 var _simulation_total_usec: int = 0
 var _simulation_max_usec: int = 0
@@ -59,6 +62,11 @@ const PARTIAL_PROJECTILE_CORRECTION_COUNT: int = 40
 func start_server(configuration: Dictionary) -> Error:
 	stop()
 	role = Role.SERVER
+	var lobby_password := String(configuration.get("lobby_password", ""))
+	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
+		last_error = "A lobby password containing 1–%d printable characters is required." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
+		role = Role.NONE
+		return ERR_INVALID_PARAMETER
 	_configuration = configuration.duplicate(true)
 	var match_config := MatchConfig.new()
 	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
@@ -113,12 +121,14 @@ func start_client(
 	host: String,
 	port: int,
 	display_name: String,
-	protocol_version: int = GameConstants.PROTOCOL_VERSION
+	protocol_version: int = GameConstants.PROTOCOL_VERSION,
+	lobby_password: String = ""
 ) -> Error:
 	stop()
 	role = Role.CLIENT
 	_client_name = display_name
 	_client_protocol_version = protocol_version
+	_client_password = lobby_password
 	_enet_peer = ENetMultiplayerPeer.new()
 	var error := _enet_peer.create_client(host, port, NetworkProtocol.CHANNEL_COUNT)
 	if error != OK:
@@ -167,6 +177,8 @@ func stop() -> void:
 	_projectile_correction_cursor = 0
 	_projectile_correction_send_count = 0
 	_projectile_correction_assembler.clear()
+	_client_password = ""
+	_configuration.clear()
 	local_peer_id = 0
 	latest_lobby_state.clear()
 	match_coordinator = null
@@ -183,6 +195,7 @@ func _lan_discovery_payload() -> Dictionary:
 		"npc_count": lobby.npc_count() if lobby != null else 0,
 		"player_limit": lobby.player_limit if lobby != null else int(_configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS)),
 		"match_active": lobby.match_active if lobby != null else false,
+		"password_required": true,
 	}
 
 
@@ -268,6 +281,11 @@ func send_random_spawn_powerups(enabled: bool) -> void:
 func send_player_color(random_color: bool, color: Color) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_player_color.rpc_id(NetworkProtocol.SERVER_PEER_ID, random_color, color.to_html(false))
+
+
+func send_player_appearance(random_color: bool, color: Color, pattern: StringName) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_player_appearance.rpc_id(NetworkProtocol.SERVER_PEER_ID, random_color, color.to_html(false), String(pattern))
 
 
 func send_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
@@ -371,7 +389,7 @@ func _physics_process(delta: float) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func client_hello(protocol_version: int, display_name: String) -> void:
+func client_hello(protocol_version: int, display_name: String, lobby_password: String) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
@@ -382,7 +400,9 @@ func client_hello(protocol_version: int, display_name: String) -> void:
 		protocol_version,
 		display_name,
 		lobby.players.size() if lobby.match_active else lobby.human_count(),
-		lobby.player_limit
+		lobby.player_limit,
+		lobby_password,
+		String(_configuration.get("lobby_password", ""))
 	)
 	if not rejection.is_empty():
 		_reject_connection(sender_id, rejection)
@@ -532,6 +552,24 @@ func request_player_color(random_color: bool, color_value: String) -> void:
 		_reject_malformed_control(sender_id, "oversized_player_color")
 		return
 	var result := lobby.request_player_color(sender_id, random_color, color_value)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_player_appearance(random_color: bool, color_value: String, pattern_value: String) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "player_appearance"):
+		return
+	if color_value.length() > 7 or pattern_value.length() > 16:
+		_reject_malformed_control(sender_id, "oversized_player_appearance")
+		return
+	var pattern := ShipAppearanceScript.normalized_pattern(pattern_value)
+	var result := lobby.request_player_appearance(sender_id, random_color, color_value, pattern)
 	if not result.ok:
 		_send_request_rejected(sender_id, result.error)
 	elif bool(result.get("changed", false)):
@@ -847,7 +885,7 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 
 
 func _on_client_transport_connected() -> void:
-	client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, _client_protocol_version, _client_name)
+	client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, _client_protocol_version, _client_name, _client_password)
 
 
 func _on_client_connection_failed() -> void:

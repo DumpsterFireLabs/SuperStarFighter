@@ -1,6 +1,8 @@
 class_name PlayerMatchState
 extends RefCounted
 
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+
 var peer_id: int
 var display_name: String
 var join_sequence: int
@@ -12,6 +14,7 @@ var spectator: bool = true
 var lobby_ready: bool = false
 var npc_difficulty: int = NpcPilotController.Difficulty.NEUTRAL
 var ship_color: String = "42e8ff"
+var ship_pattern: StringName = ShipAppearanceScript.SOLID
 var team_id: int = 0
 var team_selection: int = 0
 

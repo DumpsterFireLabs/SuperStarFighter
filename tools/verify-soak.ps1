@@ -71,13 +71,13 @@ try {
     $serverDuration = $DurationSeconds + 45
     Write-Host "Starting $ClientCount-client ENet soak for at least $DurationSeconds seconds."
     $server = Start-SsfSoakProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", "--max-players=$ClientCount", '--rounds-to-win=5', '--test-fast-match',
+        '--server', '--password=test-lobby', "--port=$Port", "--max-players=$ClientCount", '--rounds-to-win=5', '--test-fast-match',
         "--test-server-duration=$serverDuration", '--test-match-seed=610632'
     )
     Start-Sleep -Milliseconds 800
     for ($index = 0; $index -lt $botNames.Count; $index++) {
         $name = $botNames[$index]
-        $arguments = @("--bot-client=$name", '--bot-randomized', '--host=127.0.0.1', "--port=$Port")
+        $arguments = @("--bot-client=$name", '--password=test-lobby', '--bot-randomized', '--host=127.0.0.1', "--port=$Port")
         if ($index -eq 0) { $arguments += "--bot-start-at=$ClientCount" }
         $clientProcesses[$name] = Start-SsfSoakProcess -Name $name -UserArguments $arguments
         Start-Sleep -Milliseconds 100
@@ -109,7 +109,7 @@ try {
     Write-Host "$disconnectName disconnected during combat and was removed authoritatively."
 
     $late = Start-SsfSoakProcess -Name 'LateSpectator' -UserArguments @(
-        '--bot-client=LateSpectator', '--bot-randomized', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=LateSpectator', '--password=test-lobby', '--bot-randomized', '--host=127.0.0.1', "--port=$Port"
     )
     $clientProcesses['LateSpectator'] = $late
     Wait-SsfSoakCondition -Description 'late spectator admission' -Condition {

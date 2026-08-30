@@ -60,7 +60,7 @@ Apply a `theme_type_variation` to every meaningful action:
 | `SuccessToggle` | Readiness or positive commitment |
 
 Do not place multiple primary actions in the same decision group. Prefer
-specific labels such as `EXIT TO LOBBY` or `APPLY COLOUR` over vague labels
+specific labels such as `EXIT TO LOBBY` or `APPLY APPEARANCE` over vague labels
 such as `OK`.
 
 ## Focus and input

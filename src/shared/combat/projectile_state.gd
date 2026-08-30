@@ -14,6 +14,7 @@ var remaining_pierces: int = 0
 var remaining_ricochets: int = 0
 var is_beam: bool = false
 var is_mine: bool = false
+var mine_activation_remaining: float = 0.0
 var has_rebounded: bool = false
 var hit_peer_ids: Dictionary = {}
 
@@ -54,7 +55,17 @@ static func create_mine(id: int, owner: int, spawn_position: Vector2) -> Project
 	mine.radius = GameConstants.MINE_RADIUS
 	mine.lifetime_remaining = INF
 	mine.is_mine = true
+	mine.mine_activation_remaining = GameConstants.MINE_ACTIVATION_SECONDS
 	return mine
+
+
+func is_mine_armed() -> bool:
+	return is_mine and mine_activation_remaining <= 0.0
+
+
+func step_mine_activation(delta: float) -> void:
+	if is_mine:
+		mine_activation_remaining = maxf(mine_activation_remaining - maxf(delta, 0.0), 0.0)
 
 
 func step(delta: float) -> bool:

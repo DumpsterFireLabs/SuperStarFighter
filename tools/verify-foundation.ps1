@@ -75,11 +75,11 @@ foreach ($scriptFile in $scripts) {
 }
 Invoke-FoundationCheck -Name 'Server startup and argument parsing' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--quit-after', '5', '--',
-    '--server', '--port=7123', '--max-players=16', '--rounds-to-win=4'
+    '--server', '--password=test-lobby', '--port=7123', '--max-players=16', '--rounds-to-win=4'
 ) -ExpectedMarker 'SSF_MODE_READY=server port=7123 max_players=16 rounds_to_win=4'
 Invoke-FoundationCheck -Name 'Bot-client startup' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--quit-after', '5', '--',
-    '--bot-client=FoundationBot', '--port=7123'
+    '--bot-client=FoundationBot', '--password=test-lobby', '--port=7123'
 ) -ExpectedMarker 'SSF_MODE_READY=bot_client name=FoundationBot host=127.0.0.1 port=7123'
 Invoke-FoundationCheck -Name 'Passing test suite' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--', '--run-tests'

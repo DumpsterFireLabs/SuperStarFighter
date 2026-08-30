@@ -5,7 +5,7 @@ const GAME_NAME: String = "Super Star Fighter"
 const GAME_VERSION: String = "0.1.0-beta.8"
 const RELEASE_LABEL: String = "BETA 8"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 17
+const PROTOCOL_VERSION: int = 19
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024
@@ -43,8 +43,9 @@ const MAX_PROJECTILES_PER_OWNER: int = 64
 const MAX_PROJECTILES_GLOBAL: int = 1024
 const DEAD_OWNER_PROJECTILE_LIFETIME: float = 0.5
 
-const MINE_COOLDOWN_SECONDS: float = 10.0
-const MINE_DAMAGE: float = 75.0
+const MINE_COOLDOWN_SECONDS: float = 5.0
+const MINE_ACTIVATION_SECONDS: float = 0.25
+const MINE_DAMAGE: float = 100.0
 const MINE_RADIUS: float = 14.0
 const MINE_TRIGGER_RADIUS: float = 70.0
 const MINE_BLAST_RADIUS: float = 150.0

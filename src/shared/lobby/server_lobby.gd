@@ -1,6 +1,8 @@
 class_name ServerLobby
 extends RefCounted
 
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+
 var config: MatchConfig
 var players: Dictionary = {}
 var leader_id: int = 0
@@ -281,20 +283,29 @@ func request_overtime_start(sender_id: int, seconds: float) -> Dictionary:
 
 
 func request_player_color(sender_id: int, random_color: bool, color_value: String) -> Dictionary:
+	var player := players.get(sender_id) as PlayerMatchState
+	var pattern: StringName = player.ship_pattern if player != null else ShipAppearanceScript.SOLID
+	return request_player_appearance(sender_id, random_color, color_value, pattern)
+
+
+func request_player_appearance(sender_id: int, random_color: bool, color_value: String, pattern_value: StringName) -> Dictionary:
 	if match_active:
-		return {"ok": false, "error": "Ship colour cannot change during a match."}
+		return {"ok": false, "error": "Ship appearance cannot change during a match."}
 	var player := players.get(sender_id) as PlayerMatchState
 	if player == null or player.is_npc:
-		return {"ok": false, "error": "Only connected human players may choose a ship colour."}
+		return {"ok": false, "error": "Only connected human players may choose a ship appearance."}
 	var chosen := _random_ship_color(sender_id, player.join_sequence + revision) if random_color else _normalized_ship_color(color_value)
 	if chosen.is_empty():
 		return {"ok": false, "error": "Ship colour must be a six-digit RGB value."}
-	if player.ship_color == chosen:
-		return {"ok": true, "changed": false, "ship_color": chosen}
+	if not ShipAppearanceScript.is_valid_pattern(pattern_value):
+		return {"ok": false, "error": "Ship pattern is not supported."}
+	if player.ship_color == chosen and player.ship_pattern == pattern_value:
+		return {"ok": true, "changed": false, "ship_color": chosen, "ship_pattern": pattern_value}
 	player.ship_color = chosen
+	player.ship_pattern = pattern_value
 	player.lobby_ready = false
 	_revision_changed()
-	return {"ok": true, "changed": true, "ship_color": chosen}
+	return {"ok": true, "changed": true, "ship_color": chosen, "ship_pattern": pattern_value}
 
 
 func request_start(sender_id: int) -> Dictionary:
@@ -451,6 +462,7 @@ func serialize() -> Dictionary:
 			"is_npc": player.is_npc,
 			"npc_difficulty": player.npc_difficulty,
 			"ship_color": player.ship_color,
+			"ship_pattern": player.ship_pattern,
 			"team_id": player.team_id,
 			"team_selection": player.team_selection,
 			"ready": player.lobby_ready,
@@ -561,6 +573,7 @@ func _fill_npc_seats() -> Array[PlayerMatchState]:
 		npc.is_npc = true
 		npc.npc_difficulty = default_npc_difficulty
 		npc.ship_color = _random_ship_color(peer_id, npc.join_sequence)
+		npc.ship_pattern = _random_ship_pattern(peer_id, npc.join_sequence)
 		npc.participant = true
 		npc.spectator = false
 		npc.lobby_ready = true
@@ -647,6 +660,10 @@ func _clear_human_ready() -> void:
 
 func _random_ship_color(peer_id: int, salt: int) -> String:
 	return RANDOM_SHIP_COLORS[posmod(peer_id * 31 + salt * 17, RANDOM_SHIP_COLORS.size())]
+
+
+func _random_ship_pattern(peer_id: int, salt: int) -> StringName:
+	return ShipAppearanceScript.PATTERNS[posmod(peer_id * 13 + salt * 7, ShipAppearanceScript.PATTERNS.size())]
 
 
 static func _normalized_ship_color(value: String) -> String:

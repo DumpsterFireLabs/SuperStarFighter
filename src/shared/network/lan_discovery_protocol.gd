@@ -47,6 +47,7 @@ static func encode_response(nonce: String, server_state: Dictionary) -> PackedBy
 		"npc_count": int(server_state.get("npc_count", 0)),
 		"player_limit": int(server_state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS)),
 		"match_active": bool(server_state.get("match_active", false)),
+		"password_required": bool(server_state.get("password_required", true)),
 	}).to_utf8_buffer()
 
 
@@ -88,6 +89,7 @@ static func decode_response(packet: PackedByteArray) -> Dictionary:
 		"npc_count": npc_count,
 		"player_limit": player_limit,
 		"match_active": bool(payload.get("match_active", false)),
+		"password_required": bool(payload.get("password_required", true)),
 	}
 
 

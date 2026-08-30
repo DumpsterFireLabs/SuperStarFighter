@@ -11,6 +11,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"port": GameConstants.DEFAULT_PORT,
 		"host": "127.0.0.1",
 		"server_name": "Super Star Fighter Server",
+		"lobby_password": "",
 		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"auto_start": false,
@@ -62,6 +63,11 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if not LanDiscoveryProtocol.is_valid_server_name(parsed_server_name):
 				return _error("--server-name requires 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH)
 			result.server_name = parsed_server_name
+		elif argument.begins_with("--password="):
+			var parsed_password := argument.trim_prefix("--password=")
+			if not NetworkProtocol.is_valid_lobby_password(parsed_password):
+				return _error("--password requires 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH)
+			result.lobby_password = parsed_password
 		elif argument.begins_with("--max-players="):
 			var parsed_players := _parse_bounded_integer(
 				argument.trim_prefix("--max-players="),
@@ -158,6 +164,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("Choose only one startup mode: --server, --run-tests, or --bot-client.")
 	if explicit_modes.size() == 1:
 		result.mode = explicit_modes[0]
+	if result.mode in ["server", "bot_client"] and String(result.lobby_password).is_empty():
+		return _error("--password is required when hosting or joining a network lobby.")
 	if result.auto_start and result.mode != "server":
 		return _error("--auto-start is only valid with --server.")
 	if result.force_test_failure and result.mode != "tests":

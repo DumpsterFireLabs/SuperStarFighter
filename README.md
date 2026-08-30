@@ -34,12 +34,12 @@ In the game:
 
 1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
-3. Choose a server name and gameplay UDP port, then select **Host & Join**.
-4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options** contains the game-mode selector plus optional timed-powerup and overtime rules. Click your colour swatch beside your roster name to open the colour wheel, then apply a custom colour or choose Random.
+3. Choose a server name, gameplay UDP port, and required lobby password, then select **Host & Join**.
+4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options** contains the game-mode selector plus optional timed-powerup and overtime rules. Click your appearance swatch beside your roster name to combine a custom colour with Solid, Zebra, Leopard, Checkerboard, Racing Stripe, or Chevron hull graphics, then apply the appearance or choose a random colour.
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 
-Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address and gameplay port.
+Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address, gameplay port, and lobby password. Guests may remember an accepted password locally for that host address.
 
 ## Controls
 
@@ -123,7 +123,7 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 Start a headless authoritative server with:
 
 ```powershell
-.\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -MaxPlayers 32 -RoundsToWin 3
+.\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -Password "friends-only" -MaxPlayers 32 -RoundsToWin 3
 ```
 
 Super Star Fighter uses ENet over UDP. LAN discovery uses UDP `7359`; gameplay uses the selected UDP port, `7000` by default. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting currently requires direct IP/hostname access and manual router/firewall configuration; UPnP traversal is not implemented.
@@ -154,7 +154,7 @@ The current gate passes 2,568 automated assertions and 90 project checks. Networ
 
 ## Current Scope
 
-Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 133 cards, custom ship colours, and validated 32-client server behavior.
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 133 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
 
 The Beta 8 Windows x64, Linux x64, and universal macOS client export paths are operational, while Beta 1 through Beta 7 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 

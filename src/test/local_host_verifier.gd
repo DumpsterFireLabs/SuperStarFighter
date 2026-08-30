@@ -25,6 +25,7 @@ func _run() -> void:
 	client.name_field.text = "HostVerifier"
 	client.server_name_field.text = "Verified Local Arena"
 	client.host_port_field.text = str(verification_port)
+	client.host_password_field.text = "test-lobby"
 	client._host_online()
 	var started_at := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:

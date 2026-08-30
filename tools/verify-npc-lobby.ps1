@@ -67,12 +67,12 @@ function Wait-SsfNpcCondition {
 
 try {
     $server = Start-SsfNpcProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", '--max-players=32', '--rounds-to-win=1',
+        '--server', '--password=test-lobby', "--port=$Port", '--max-players=32', '--rounds-to-win=1',
         '--test-fast-match', '--test-match-seed=5150', '--test-server-duration=12'
     )
     Start-Sleep -Milliseconds 600
     $solo = Start-SsfNpcProcess -Name 'solo' -UserArguments @(
-        '--bot-client=SoloPilot', '--bot-enable-npcs', '--bot-player-limit=4',
+        '--bot-client=SoloPilot', '--password=test-lobby', '--bot-enable-npcs', '--bot-player-limit=4',
         '--host=127.0.0.1', "--port=$Port"
     )
 

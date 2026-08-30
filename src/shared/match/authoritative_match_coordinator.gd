@@ -69,6 +69,7 @@ func _init(
 		player.is_npc = lobby_player.is_npc
 		player.npc_difficulty = lobby_player.npc_difficulty
 		player.ship_color = lobby_player.ship_color
+		player.ship_pattern = lobby_player.ship_pattern
 		player.team_id = lobby_player.team_id
 		player.team_selection = lobby_player.team_selection
 	_rebuild_team_assignments_cache()

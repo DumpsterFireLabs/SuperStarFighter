@@ -1,6 +1,8 @@
 class_name NetworkWorldView
 extends Node2D
 
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
@@ -155,6 +157,8 @@ func reset_session() -> void:
 	predicted_tracker = PredictedProjectileTracker.new()
 	local_weapon = WeaponState.new()
 	local_weapon.reset(local_stats)
+	if projectile_layer != null:
+		projectile_layer.set_beam_builds({}, card_catalog)
 	if effects_layer != null:
 		effects_layer.clear_effects()
 	if powerup_layer != null:
@@ -362,6 +366,8 @@ func apply_objective_state(objective: Dictionary) -> void:
 
 
 func apply_builds(builds: Dictionary) -> void:
+	if projectile_layer != null:
+		projectile_layer.set_beam_builds(builds, card_catalog)
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
 		var ship := ships[peer_id] as SandboxShip
@@ -486,11 +492,11 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 		# receive the first snapshot before the final reliable lobby update, so
 		# refresh identity data instead of freezing whatever was available when
 		# the presentation node happened to be created.
-		existing.set_ship_color(_player_color(peer_id))
+		existing.set_ship_appearance(_player_color(peer_id), _player_pattern(peer_id))
 		return existing
 	var ship := SandboxShip.new()
 	var color := _player_color(peer_id)
-	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == local_peer_id, _display_name(peer_id))
+	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == local_peer_id, _display_name(peer_id), _player_pattern(peer_id))
 	add_child(ship)
 	ships[peer_id] = ship
 	return ship
@@ -657,6 +663,7 @@ func _step_projectile_visuals(delta: float) -> void:
 		if projectile == null:
 			continue
 		if projectile.is_mine:
+			projectile.step_mine_activation(delta)
 			continue
 		var safe_delta := maxf(delta, 0.0)
 		projectile.lifetime_remaining -= safe_delta
@@ -721,6 +728,7 @@ func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileStat
 	existing.lifetime_remaining = incoming.lifetime_remaining
 	existing.is_beam = incoming.is_beam
 	existing.is_mine = incoming.is_mine
+	existing.mine_activation_remaining = incoming.mine_activation_remaining
 	existing.has_rebounded = incoming.has_rebounded
 	existing.radius = incoming.radius
 	return newly_rebounded
@@ -1105,6 +1113,15 @@ func _player_color(peer_id: int) -> Color:
 		if int(player.get("peer_id", 0)) == peer_id:
 			return Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
 	return Color("42e8ff")
+
+
+func _player_pattern(peer_id: int) -> StringName:
+	for player_value in bridge.latest_lobby_state.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == peer_id:
+			var pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
+			return pattern if not pattern.is_empty() else ShipAppearanceScript.SOLID
+	return ShipAppearanceScript.SOLID
 
 
 func _display_name(peer_id: int) -> String:

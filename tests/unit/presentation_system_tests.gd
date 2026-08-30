@@ -3,6 +3,7 @@ extends RefCounted
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 
 static func run(context: TestContext, tree_parent: Node) -> void:
 	_validate_audio_pipeline(context, tree_parent)
@@ -94,6 +95,24 @@ static func _supported_audio_file_count(directory_path: String) -> int:
 
 
 static func _validate_visual_feedback(context: TestContext) -> void:
+	var catalog := CardCatalog.create_default()
+	var projectile_layer := SandboxProjectileLayer.new()
+	projectile_layer.set_beam_builds({
+		1: {&"laser_repeater": 1},
+		2: {&"beam_emitter": 1},
+		3: {&"sunbeam_core": 1},
+		4: {&"reality_shredder": 1},
+		5: {&"beam_emitter": 1, &"sunbeam_core": 1},
+		6: {&"supernova_array": 1},
+	}, catalog)
+	context.expect_equal(projectile_layer.beam_color_for_owner(1), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "Epic beam weapons retain the standard beam colour")
+	context.expect_equal(projectile_layer.beam_color_for_owner(2), catalog.get_card(&"beam_emitter").rarity_color(), "Legendary beam weapons render in Legendary yellow")
+	context.expect_equal(projectile_layer.beam_color_for_owner(3), catalog.get_card(&"sunbeam_core").rarity_color(), "Mythical beam weapons render in the Mythical colour")
+	context.expect_equal(projectile_layer.beam_color_for_owner(4), catalog.get_card(&"reality_shredder").rarity_color(), "Unobtanium beam weapons render in the Unobtanium colour")
+	context.expect_equal(projectile_layer.beam_color_for_owner(5), catalog.get_card(&"sunbeam_core").rarity_color(), "the highest owned beam-weapon rarity controls the beam colour")
+	context.expect_equal(projectile_layer.beam_color_for_owner(6), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "high-rarity non-beam cards do not recolour beams")
+	projectile_layer.free()
+
 	var ship := SandboxShip.new()
 	ship.setup(7, CombatStats.create_base(), Vector2(300.0, 400.0), Color("ff4f78"), true, "Neon Ace")
 	context.expect_equal(ship.display_name, "Neon Ace", "ship presentation retains its public nameplate")
@@ -114,6 +133,8 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	ship.set_ship_color(Color("ff4ea3"))
 	context.expect_equal(ship.ship_color.to_html(false), "ff4ea3", "an existing ship accepts a newer authoritative lobby colour")
 	context.expect_approx(ship.thruster_particles.color_ramp.colors[1].b, Color("ff4ea3").lightened(0.18).b, "ship colour refresh also updates its thruster presentation")
+	ship.set_ship_pattern(ShipAppearanceScript.CHECKERBOARD)
+	context.expect_equal(ship.ship_pattern, ShipAppearanceScript.CHECKERBOARD, "an existing ship accepts a newer authoritative hull pattern")
 	ship.flash_damage()
 	ship.flash_shield_block()
 	context.expect_true(ship.damage_flash_remaining > 0.0, "damage has a distinct ship flash")
@@ -127,14 +148,15 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_false(ship.thruster_particles.emitting, "eliminated ships stop emitting thruster particles")
 	ship.free()
 	var bridge := NetworkBridge.new()
-	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "42e8ff"}]}
+	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "42e8ff", "ship_pattern": "solid"}]}
 	var identity_view := NetworkWorldView.new()
 	identity_view.bridge = bridge
 	var guest_ship := identity_view._ensure_ship(8, {"position": Vector2.ZERO})
 	context.expect_equal(guest_ship.ship_color.to_html(false), "42e8ff", "guest ship can spawn from the lobby state available with its first snapshot")
-	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "ff4ea3"}]}
+	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "ff4ea3", "ship_pattern": "zebra"}]}
 	identity_view._ensure_ship(8, {"position": Vector2.ZERO})
 	context.expect_equal(guest_ship.ship_color.to_html(false), "ff4ea3", "the next snapshot applies a later reliable lobby colour to an existing guest ship")
+	context.expect_equal(guest_ship.ship_pattern, ShipAppearanceScript.ZEBRA, "the next snapshot applies a later reliable lobby pattern to an existing guest ship")
 	identity_view.free()
 	bridge.free()
 
@@ -322,6 +344,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client._pointer_mode_for_gameplay(true), Input.MOUSE_MODE_CONFINED_HIDDEN, "active gameplay confines the hidden mouse pointer to the game window")
 	context.expect_equal(client._pointer_mode_for_gameplay(false), Input.MOUSE_MODE_VISIBLE, "interactive screens release and reveal the mouse pointer")
 	context.expect_equal(client.connection_tabs.get_tab_count(), 3, "connection screen separates LAN, direct-connect, and host flows")
+	context.expect_true(client.direct_password_field != null and client.direct_password_field.secret, "direct connect requires a masked lobby-password field")
+	context.expect_true(client.remember_password_button != null, "direct connect offers remembered passwords by host address")
+	context.expect_true(client.host_password_field != null and client.host_password_field.secret, "hosts must set a masked lobby password")
+	context.expect_equal(client._password_settings_key(" EXAMPLE.COM "), client._password_settings_key("example.com"), "remembered-password keys normalize host casing and whitespace")
+	context.expect_equal(client._password_settings_key("[2001:db8::1]"), client._password_settings_key("2001:db8::1"), "remembered-password keys normalize bracketed IPv6 addresses")
 	context.expect_true(client.lan_browser != null and client.lan_browser.mode == LanDiscoveryService.Mode.BROWSER, "connection screen actively browses for LAN servers")
 	var discovered_servers: Array[Dictionary] = [
 		{"server_name": "Local Test Arena", "address": "192.168.1.50", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 2, "npc_count": 1, "player_limit": 8, "match_active": false, "ping_ms": 4},
@@ -333,7 +360,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var incompatible_join := client.lan_servers_container.get_child(1).get_child(0).get_child(1) as Button
 	context.expect_false(compatible_join.disabled, "compatible LAN server is directly joinable")
 	context.expect_true(incompatible_join.disabled, "protocol-mismatched LAN server remains visible but cannot be joined")
-	var host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Embedded Test Arena"})
+	var host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Embedded Test Arena", "lobby_password": "test-lobby"})
 	context.expect_equal(host_error, OK, "one-click host creates a real authoritative server inside an isolated multiplayer subtree")
 	context.expect_true(client._hosted_server_bridge.role == NetworkBridge.Role.SERVER and client._hosted_server_multiplayer != client.multiplayer, "hosted server and playable client retain independent MultiplayerAPI instances")
 	var f2_event := InputEventKey.new()
@@ -347,7 +374,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._cancel_f2_return_to_menu()
 	context.expect_false(client.network_world.input_blocked, "canceling the F2 confirmation restores gameplay input")
 	client._stop_hosted_server()
-	var reserved_host_error: Error = client._start_hosted_server({"port": LanDiscoveryProtocol.DISCOVERY_PORT, "max_players": 32, "rounds_to_win": 3, "server_name": "Collision Test"})
+	var reserved_host_error: Error = client._start_hosted_server({"port": LanDiscoveryProtocol.DISCOVERY_PORT, "max_players": 32, "rounds_to_win": 3, "server_name": "Collision Test", "lobby_password": "test-lobby"})
 	context.expect_equal(reserved_host_error, ERR_INVALID_PARAMETER, "gameplay server cannot consume the fixed LAN discovery port")
 	client._stop_hosted_server()
 	context.expect_true(client.lobby_panel != null, "production lobby screen exists")
@@ -369,8 +396,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(int(client.team_count_control.min_value), 2, "Team Death Match requires at least two teams")
 	context.expect_equal(int(client.team_count_control.max_value), 8, "Team Death Match supports up to eight teams")
 	context.expect_equal(client.npc_all_difficulty_control.item_count, 5, "lobby provides one bulk dropdown covering every NPC difficulty")
-	context.expect_true(client.ship_color_popup != null and client.random_color_button != null and client.ship_color_picker != null and client.apply_ship_color_button != null, "roster colour selection owns a wheel with Random and explicit Apply actions")
+	context.expect_true(client.ship_color_popup != null and client.random_color_button != null and client.ship_color_picker != null and client.ship_pattern_control != null and client.apply_ship_color_button != null, "roster appearance selection owns colour, pattern, Random, and explicit Apply controls")
 	context.expect_equal(client.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
+	context.expect_equal(client.ship_pattern_control.item_count, ShipAppearanceScript.PATTERNS.size(), "ship customization exposes every supported hull pattern")
 	context.expect_true(client.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
 	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")
@@ -490,12 +518,19 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.ship_color_blocker.visible and not client.lobby_panel.visible, "colour selection behaves as a true modal and blocks the lobby beneath it")
 	var prior_color: Color = client.preferred_ship_color
 	client._on_ship_color_changed(Color("ff4ea3"))
+	client._on_ship_pattern_selected(ShipAppearanceScript.PATTERNS.find(ShipAppearanceScript.LEOPARD))
 	context.expect_equal(client.preferred_ship_color, prior_color, "wheel changes remain pending until Apply is pressed")
 	context.expect_equal(client.pending_ship_color.to_html(false), "ff4ea3", "wheel tracks the pending custom colour")
+	context.expect_equal(client.pending_ship_pattern, ShipAppearanceScript.LEOPARD, "pattern selection remains pending until Apply is pressed")
 	client._apply_ship_color()
 	context.expect_equal(client.preferred_ship_color.to_html(false), "ff4ea3", "Apply commits the selected ship colour")
+	context.expect_equal(client.preferred_ship_pattern, ShipAppearanceScript.LEOPARD, "Apply commits the selected hull pattern")
 	context.expect_false(client.ship_color_popup.visible, "Apply closes the roster colour picker")
 	context.expect_true(not client.ship_color_blocker.visible and client.lobby_panel.visible, "closing colour selection restores the waiting lobby")
+	client._show_ship_color_popup()
+	client._on_ship_pattern_selected(ShipAppearanceScript.PATTERNS.find(ShipAppearanceScript.ZEBRA))
+	client._on_random_color_pressed()
+	context.expect_equal(client.preferred_ship_pattern, ShipAppearanceScript.ZEBRA, "Random Colour applies the pending pattern while randomizing only the colour")
 	client._show_lobby_options()
 	context.expect_true(client.lobby_options_popup.visible and client.lobby_options_blocker.visible and not client.lobby_panel.visible, "match options behaves as a focused modal surface")
 	client._hide_lobby_options()
@@ -736,7 +771,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._hide_pause_overlay()
 	client._on_rejected(&"SERVER_FULL", "The server is full.")
 	context.expect_true(client.connection_screen.visible and client.connection_status.text.contains("try again"), "connection rejection returns to a usable recovery screen")
-	var disconnect_host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Disconnect Test Arena"})
+	var disconnect_host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Disconnect Test Arena", "lobby_password": "test-lobby"})
 	context.expect_equal(disconnect_host_error, OK, "host-disconnect acceptance path starts an embedded authority")
 	client.bridge.role = NetworkBridge.Role.CLIENT
 	client.bridge.latest_lobby_state = {"revision": 500, "match_active": false}

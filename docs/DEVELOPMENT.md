@@ -55,7 +55,7 @@ Useful launch commands:
 ```powershell
 .\tools\run-editor.ps1
 .\tools\start-client.ps1
-.\tools\start-server.ps1 -Port 7000 -MaxPlayers 8 -RoundsToWin 2
+.\tools\start-server.ps1 -Port 7000 -Password "dev-lobby" -MaxPlayers 8 -RoundsToWin 2
 ```
 
 ## 3. Repository Map

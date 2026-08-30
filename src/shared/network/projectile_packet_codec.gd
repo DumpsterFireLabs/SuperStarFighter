@@ -166,7 +166,8 @@ static func _append_projectile(bytes: PackedByteArray, projectile: ProjectileSta
 	ByteCodec.append_u16(bytes, roundi(clampf(projectile.damage, 0.0, 655.35) * DAMAGE_SCALE))
 	ByteCodec.append_u8(bytes, clampi(projectile.remaining_pierces, 0, 255))
 	ByteCodec.append_u8(bytes, clampi(projectile.remaining_ricochets, 0, 255))
-	ByteCodec.append_u16(bytes, roundi(clampf(projectile.lifetime_remaining, 0.0, 65.535) * LIFETIME_SCALE))
+	var serialized_lifetime := projectile.mine_activation_remaining if projectile.is_mine else projectile.lifetime_remaining
+	ByteCodec.append_u16(bytes, roundi(clampf(serialized_lifetime, 0.0, 65.535) * LIFETIME_SCALE))
 	var flags := 0
 	if projectile.is_beam:
 		flags |= 1
@@ -194,6 +195,8 @@ static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileS
 	projectile.has_rebounded = (flags & 4) != 0
 	if projectile.is_mine:
 		projectile.radius = GameConstants.MINE_RADIUS
+		projectile.mine_activation_remaining = projectile.lifetime_remaining
+		projectile.lifetime_remaining = INF
 	return projectile
 
 

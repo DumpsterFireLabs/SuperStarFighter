@@ -415,6 +415,16 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 
 	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
+	_step_mine_activation(safe_delta)
+
+
+func _step_mine_activation(delta: float) -> void:
+	for projectile_id in projectile_registry.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var mine := projectile_registry.get_projectile(projectile_id)
+		if mine != null and mine.is_mine:
+			mine.step_mine_activation(delta)
 
 
 func _step_mine_proximity(peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:
@@ -422,7 +432,7 @@ func _step_mine_proximity(peer_ids: Array[int], damage_events: Array[Dictionary]
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
 		var mine := projectile_registry.get_projectile(projectile_id)
-		if mine == null or not mine.is_mine:
+		if mine == null or not mine.is_mine_armed():
 			continue
 		for peer_id in peer_ids:
 			var target := combatants[peer_id] as CombatantState
@@ -440,7 +450,7 @@ func _nearest_projectile_mine_hit(projectile: ProjectileState, start: Vector2, f
 		if mine_id == ProjectileRegistry.REMOVED_ID or mine_id == projectile.projectile_id:
 			continue
 		var mine := projectile_registry.get_projectile(mine_id)
-		if mine == null or not mine.is_mine:
+		if mine == null or not mine.is_mine_armed():
 			continue
 		var fraction := _segment_circle_hit_fraction(
 			start,
@@ -462,21 +472,39 @@ func _nearest_projectile_mine_hit(projectile: ProjectileState, start: Vector2, f
 
 
 func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:
-	if mine == null or not mine.is_mine or projectile_registry.get_projectile(mine.projectile_id) == null:
+	if mine == null or not mine.is_mine_armed() or projectile_registry.get_projectile(mine.projectile_id) == null:
 		return
-	_remove_projectile(mine.projectile_id)
-	for peer_id in peer_ids:
-		var target := combatants[peer_id] as CombatantState
-		if not target.alive or peer_id == mine.owner_id or are_allies(mine.owner_id, peer_id):
+	var pending: Array[int] = [mine.projectile_id]
+	var queued: Dictionary = {}
+	queued[mine.projectile_id] = true
+	while not pending.is_empty():
+		var current_id: int = pending.pop_front()
+		var current := projectile_registry.get_projectile(current_id)
+		if current == null or not current.is_mine_armed():
 			continue
-		if target.position.distance_to(mine.position) > GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
-			continue
-		damage_events.append({
-			"projectile_id": mine.projectile_id,
-			"attacker_id": mine.owner_id,
-			"target_id": peer_id,
-			"damage": mine.damage,
-		})
+		_remove_projectile(current.projectile_id)
+		for peer_id in peer_ids:
+			var target := combatants[peer_id] as CombatantState
+			if not target.alive or peer_id == current.owner_id or are_allies(current.owner_id, peer_id):
+				continue
+			if target.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+				continue
+			damage_events.append({
+				"projectile_id": current.projectile_id,
+				"attacker_id": current.owner_id,
+				"target_id": peer_id,
+				"damage": current.damage,
+			})
+		for candidate_id in projectile_registry.ordered_ids_view():
+			if candidate_id == ProjectileRegistry.REMOVED_ID or queued.has(candidate_id):
+				continue
+			var candidate := projectile_registry.get_projectile(candidate_id)
+			if candidate == null or not candidate.is_mine_armed():
+				continue
+			if candidate.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + candidate.radius:
+				continue
+			queued[candidate_id] = true
+			pending.append(candidate_id)
 
 
 func _nearest_projectile_ship_hit(

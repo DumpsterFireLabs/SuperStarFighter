@@ -61,7 +61,8 @@ func _ready() -> void:
 		configuration.get("host", "127.0.0.1"),
 		configuration.get("port", GameConstants.DEFAULT_PORT),
 		configuration.get("bot_name", "FoundationBot"),
-		configuration.get("test_protocol_version", GameConstants.PROTOCOL_VERSION)
+		configuration.get("test_protocol_version", GameConstants.PROTOCOL_VERSION),
+		configuration.get("lobby_password", "")
 	)
 	if connect_error != OK:
 		push_error(bridge.last_error)

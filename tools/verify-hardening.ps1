@@ -53,18 +53,18 @@ function Wait-SsfHardeningCondition {
 
 try {
     $server = Start-SsfHardeningProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", '--max-players=4', '--rounds-to-win=2', '--test-fast-match', '--test-server-duration=35'
+        '--server', '--password=test-lobby', "--port=$Port", '--max-players=4', '--rounds-to-win=2', '--test-fast-match', '--test-server-duration=35'
     )
     Start-Sleep -Milliseconds 600
-    $alpha = Start-SsfHardeningProcess -Name 'alpha' -UserArguments @('--bot-client=Alpha', '--host=127.0.0.1', "--port=$Port")
-    $beta = Start-SsfHardeningProcess -Name 'beta' -UserArguments @('--bot-client=Beta', '--host=127.0.0.1', "--port=$Port")
+    $alpha = Start-SsfHardeningProcess -Name 'alpha' -UserArguments @('--bot-client=Alpha', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port")
+    $beta = Start-SsfHardeningProcess -Name 'beta' -UserArguments @('--bot-client=Beta', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port")
     Wait-SsfHardeningCondition -Description 'healthy clients entering combat' -Condition {
         (Get-SsfHardeningOutput 'alpha').Contains('SSF_BOT_STATE state=ACTIVE_HEAT') -and
         (Get-SsfHardeningOutput 'beta').Contains('SSF_BOT_STATE state=ACTIVE_HEAT')
     }
 
     $malformed = Start-SsfHardeningProcess -Name 'malformed' -UserArguments @(
-        '--bot-client=Malformed', '--bot-malformed-input', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Malformed', '--password=test-lobby', '--bot-malformed-input', '--host=127.0.0.1', "--port=$Port"
     )
     Wait-SsfHardeningCondition -Description 'malformed peer isolation' -Condition {
         (Get-SsfHardeningOutput 'malformed').Contains('SSF_BOT_REJECTED reason=MALFORMED_TRAFFIC') -and
@@ -72,7 +72,7 @@ try {
     }
 
     $excessive = Start-SsfHardeningProcess -Name 'excessive' -UserArguments @(
-        '--bot-client=Excessive', '--bot-excessive-input', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Excessive', '--password=test-lobby', '--bot-excessive-input', '--host=127.0.0.1', "--port=$Port"
     )
     Wait-SsfHardeningCondition -Description 'excessive peer isolation' -TimeoutSeconds 12 -Condition {
         (Get-SsfHardeningOutput 'excessive').Contains('SSF_BOT_REJECTED reason=MALFORMED_TRAFFIC')

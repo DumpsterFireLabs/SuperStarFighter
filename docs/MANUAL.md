@@ -108,7 +108,8 @@ For most playtests, use **Host Game**:
 2. Open the **Host Game** tab.
 3. Enter a server name. This is what nearby players see in the LAN list.
 4. Choose a gameplay UDP port from `1024` through `65535`. Port `7359` is reserved for discovery and cannot be used for gameplay.
-5. Select **Host & Join**.
+5. Set the required lobby password (1–64 printable characters).
+6. Select **Host & Join**.
 
 The game starts an authoritative server inside an isolated multiplayer subtree, then connects your playable client to it over loopback. The host's player does not receive special simulation authority or gameplay advantages.
 
@@ -120,7 +121,7 @@ Closing or disconnecting the hosting client shuts down its in-process server, so
 2. Open **LAN Servers**.
 3. Select **Refresh** if the desired host has not appeared.
 4. Review the server name, occupancy, player limit, match state, compatibility, and ping.
-5. Join a compatible row.
+5. Join a compatible row. If this address has no remembered password, the game opens **Direct Connect** so you can enter it.
 
 LAN discovery uses UDP port `7359` and works within one broadcast domain. Guest Wi-Fi isolation, VLAN boundaries, VPN routing, or operating-system firewall rules may prevent discovery even when direct connection works.
 
@@ -132,7 +133,11 @@ Use **Direct Connect** when you know the server address:
 
 1. Enter a hostname or IPv4/IPv6 address in **Server host or IP**.
 2. Enter the server's gameplay UDP port.
-3. Select **Connect to Server**.
+3. Enter the lobby password.
+4. Optionally enable **Remember password for this IP**. The password is saved locally only after the server accepts it; a failed guess is never saved.
+5. Select **Connect to Server**.
+
+Remembered passwords are keyed by host address rather than port. They are stored in the game's local settings file, so leave the option off on a shared computer.
 
 For the same computer, use `127.0.0.1`. For another computer on the LAN, use that computer's private address, such as `192.168.1.50`. For an internet server, use its public hostname or public IP.
 
@@ -144,6 +149,7 @@ From the repository root:
 .\tools\start-server.ps1 `
     -Port 7000 `
     -ServerName "Friday Fight Night" `
+    -Password "friends-only" `
     -MaxPlayers 32 `
     -RoundsToWin 3
 ```
@@ -154,6 +160,7 @@ Parameters:
 | --- | ---: | ---: | --- |
 | `Port` | 1024–65535 | 7000 | ENet gameplay UDP port |
 | `ServerName` | 1–40 printable characters | Super Star Fighter Server | LAN browser name |
+| `Password` | 1–64 printable characters | Required | Lobby admission password |
 | `MaxPlayers` | 2–32 | 32 | Maximum server/lobby participant capacity |
 | `RoundsToWin` | 1–5 | 3 | Initial lobby round target |
 
@@ -178,7 +185,7 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 ### Every human player
 
 - Reviews the roster and lobby rules.
-- Clicks the colour swatch beside their own roster name to open the HSV colour wheel, then selects **Apply Colour** or **Use Random**. This preference is remembered for later sessions.
+- Clicks the appearance swatch beside their own roster name to combine an HSV colour with **Solid**, **Zebra Stripes**, **Leopard Spots**, **Checkerboard**, **Racing Stripes**, or **Chevrons**, then selects **Apply Appearance**. **Random Colour** asks the server for a high-contrast colour without changing the selected pattern. Both preferences are remembered for later sessions.
 - Selects **Ready for Launch** when prepared.
 - Becomes not ready whenever the leader changes a lobby setting.
 - May disconnect voluntarily before or during a match.
@@ -209,7 +216,7 @@ The leader cannot eject players during an active match and cannot eject themselv
 
 The start button explains whichever requirement is missing. When a normal human lobby is ready it reads **Start Match**; a solo NPC-assisted launch reads **Start Match with NPCs**.
 
-Changing a match option clears human readiness. Changing your own ship colour clears only your readiness. Every roster swatch previews the authoritative colour other players will see, but only your own human-player swatch is clickable. Colour-wheel changes remain a preview until **Apply Colour** is selected; **Use Random** asks the server for a high-contrast palette colour.
+Changing a match option clears human readiness. Changing your own ship appearance clears only your readiness. Every roster swatch previews the authoritative colour and identifies the pattern other players will see, but only your own human-player swatch is clickable. Colour and pattern changes remain a preview until **Apply Appearance** is selected; **Random Colour** asks the server for a high-contrast palette colour while preserving the selected pattern.
 
 ### Random Spawn Powerups
 
@@ -333,7 +340,7 @@ Cards can alter damage, cadence, magazine size, reload, projectile count, spread
 
 Afterburner is an active Ship card. Press the configured Special action (`Shift` or Left Stick Click by default) for a short forward speed and acceleration burst. It has an authoritative cooldown, works for human and NPC pilots, and produces a larger exhaust bloom while active.
 
-Star Mines is an active Legendary Weapon card using the same Special action. Each stack supplies ten additional mines for the match. A mine can be placed immediately and then at most once every ten seconds; an enemy entering its small trigger radius, direct contact, or any projectile hit detonates its 75-damage blast. The HUD shows authoritative remaining charges and cooldown. Mines disappear when their owner is eliminated or the heat ends.
+Star Mines is an active Legendary Weapon card using the same Special action. Each stack supplies ten additional mines for the match. A mine can be placed immediately and then at most once every five seconds. It arms 0.25 seconds after placement; once armed, an enemy entering its small trigger radius, direct contact, any projectile hit, or another mine's blast detonates its 100-damage blast. Chain reactions can continue through other armed mines. The HUD shows authoritative remaining charges and cooldown. Mines disappear when their owner is eliminated or the heat ends.
 
 Cloak! is an active Legendary Ship card using the Special action. Each stack supplies one use for the entire match. Activation makes the ship invisible for five seconds and prevents it from firing; any positive hull damage ends invisibility immediately. The local pilot sees a faint outline, opponents see no ship, nameplate, shield, or exhaust, and NPC pilots cannot acquire a cloaked target. The HUD shows authoritative remaining uses and active state.
 

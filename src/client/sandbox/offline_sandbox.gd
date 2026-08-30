@@ -352,11 +352,13 @@ func _simulate_projectiles(delta: float) -> void:
 				})
 				projectile_registry.remove(projectile.projectile_id)
 	_apply_damage_events(damage_events)
+	for projectile in projectile_registry.all_projectiles():
+		projectile.step_mine_activation(delta)
 
 
 func _detonate_proximity_mines(damage_events: Array[Dictionary]) -> void:
 	for projectile in projectile_registry.all_projectiles():
-		if not projectile.is_mine:
+		if not projectile.is_mine_armed():
 			continue
 		for ship_value in ships_by_id.values():
 			var ship := ship_value as SandboxShip
@@ -371,7 +373,7 @@ func _nearest_sandbox_mine(start: Vector2, finish: Vector2, projectile: Projecti
 	var nearest: ProjectileState
 	var nearest_fraction := INF
 	for candidate in projectile_registry.all_projectiles():
-		if not candidate.is_mine:
+		if not candidate.is_mine_armed():
 			continue
 		var fraction := AuthoritativeWorld._segment_circle_hit_fraction(
 			start,
@@ -386,26 +388,41 @@ func _nearest_sandbox_mine(start: Vector2, finish: Vector2, projectile: Projecti
 
 
 func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> void:
-	if mine == null or projectile_registry.get_projectile(mine.projectile_id) == null:
+	if mine == null or not mine.is_mine_armed() or projectile_registry.get_projectile(mine.projectile_id) == null:
 		return
-	projectile_registry.remove(mine.projectile_id)
-	presentation_event.emit(&"mine_detonated", {
-		"projectile_id": mine.projectile_id,
-		"owner_id": mine.owner_id,
-		"position": mine.position,
-		"listener_position": player.global_position,
-	})
-	for ship_value in ships_by_id.values():
-		var ship := ship_value as SandboxShip
-		if not ship.combatant.alive or ship.combatant.peer_id == mine.owner_id:
+	var pending: Array[int] = [mine.projectile_id]
+	var queued: Dictionary = {}
+	queued[mine.projectile_id] = true
+	while not pending.is_empty():
+		var current_id: int = pending.pop_front()
+		var current := projectile_registry.get_projectile(current_id)
+		if current == null or not current.is_mine_armed():
 			continue
-		if ship.global_position.distance_to(mine.position) <= GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
-			damage_events.append({
-				"projectile_id": mine.projectile_id,
-				"attacker_id": mine.owner_id,
-				"target_id": ship.combatant.peer_id,
-				"damage": mine.damage,
-			})
+		projectile_registry.remove(current.projectile_id)
+		presentation_event.emit(&"mine_detonated", {
+			"projectile_id": current.projectile_id,
+			"owner_id": current.owner_id,
+			"position": current.position,
+			"listener_position": player.global_position,
+		})
+		for ship_value in ships_by_id.values():
+			var ship := ship_value as SandboxShip
+			if not ship.combatant.alive or ship.combatant.peer_id == current.owner_id:
+				continue
+			if ship.global_position.distance_to(current.position) <= GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+				damage_events.append({
+					"projectile_id": current.projectile_id,
+					"attacker_id": current.owner_id,
+					"target_id": ship.combatant.peer_id,
+					"damage": current.damage,
+				})
+		for candidate in projectile_registry.all_projectiles():
+			if queued.has(candidate.projectile_id) or not candidate.is_mine_armed():
+				continue
+			if candidate.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + candidate.radius:
+				continue
+			queued[candidate.projectile_id] = true
+			pending.append(candidate.projectile_id)
 
 
 func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
@@ -496,6 +513,7 @@ func _apply_build() -> void:
 	var previous_mine_capacity := player.combatant.stats.mine_capacity
 	var previous_cloak_capacity := player.combatant.stats.cloak_capacity
 	derived_stats = StatSystem.derive(build, catalog)
+	projectile_layer.set_beam_builds({player.combatant.peer_id: build}, catalog)
 	player.combatant.stats = derived_stats.duplicate_stats()
 	if derived_stats.mine_capacity > previous_mine_capacity:
 		player.combatant.mine_charges_remaining += derived_stats.mine_capacity - previous_mine_capacity

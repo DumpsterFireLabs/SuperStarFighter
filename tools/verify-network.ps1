@@ -12,7 +12,7 @@ $logRoot = Join-Path $SsfToolsRoot 'network-verification'
 Assert-SsfPathWithinTools -Path $logRoot
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 
-$names = @('server', 'alpha', 'beta', 'gamma', 'badversion', 'badname', 'full')
+$names = @('server', 'badpassword', 'alpha', 'beta', 'gamma', 'badversion', 'badname', 'full')
 $knownLogs = foreach ($name in $names) {
     Join-Path $logRoot "$name.out.log"
     Join-Path $logRoot "$name.err.log"
@@ -91,15 +91,21 @@ function Assert-SsfContains {
 
 try {
     $server = Start-SsfProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", '--max-players=2', '--rounds-to-win=2', '--auto-start', '--test-server-duration=40'
+        '--server', '--password=test-lobby', "--port=$Port", '--max-players=2', '--rounds-to-win=2', '--auto-start', '--test-server-duration=40'
     )
     Start-Sleep -Milliseconds 600
+    $badPassword = Start-SsfProcess -Name 'badpassword' -UserArguments @(
+        '--bot-client=BadPassword', '--password=wrong-lobby', '--host=127.0.0.1', "--port=$Port"
+    )
+    Wait-SsfCondition -Description 'incorrect lobby password rejection' -Condition {
+        (Get-SsfOutput -Name 'badpassword').Contains('SSF_BOT_REJECTED reason=INVALID_PASSWORD')
+    }
     $alpha = Start-SsfProcess -Name 'alpha' -UserArguments @(
-        '--bot-client=Alpha', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Alpha', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port"
     )
     Start-Sleep -Milliseconds 350
     $beta = Start-SsfProcess -Name 'beta' -UserArguments @(
-        '--bot-client=Beta', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Beta', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port"
     )
 
     Wait-SsfCondition -Description 'two admitted clients, snapshots, and projectile replication' -Condition {
@@ -139,7 +145,7 @@ try {
     }
 
     $gamma = Start-SsfProcess -Name 'gamma' -UserArguments @(
-        '--bot-client=Gamma', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Gamma', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port"
     )
     Wait-SsfCondition -Description 'late spectator admission' -Condition {
         $serverText = Get-SsfOutput -Name 'server'
@@ -151,7 +157,7 @@ try {
     }
 
     $badVersion = Start-SsfProcess -Name 'badversion' -UserArguments @(
-        '--bot-client=BadVersion', '--test-protocol-version=999', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=BadVersion', '--password=test-lobby', '--test-protocol-version=999', '--host=127.0.0.1', "--port=$Port"
     )
     Wait-SsfCondition -Description 'version mismatch rejection' -Condition {
         (Get-SsfOutput -Name 'badversion').Contains('SSF_BOT_REJECTED reason=VERSION_MISMATCH')
@@ -159,7 +165,7 @@ try {
     Start-Sleep -Milliseconds 300
 
     $badName = Start-SsfProcess -Name 'badname' -UserArguments @(
-        '--bot-client=ABCDEFGHIJKLMNOPQ', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=ABCDEFGHIJKLMNOPQ', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port"
     )
     Wait-SsfCondition -Description 'invalid name rejection' -Condition {
         (Get-SsfOutput -Name 'badname').Contains('SSF_BOT_REJECTED reason=INVALID_NAME')
@@ -167,7 +173,7 @@ try {
     Start-Sleep -Milliseconds 300
 
     $full = Start-SsfProcess -Name 'full' -UserArguments @(
-        '--bot-client=Full', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Full', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port"
     )
     Wait-SsfCondition -Description 'server full rejection' -Condition {
         (Get-SsfOutput -Name 'full').Contains('SSF_BOT_REJECTED reason=SERVER_FULL')

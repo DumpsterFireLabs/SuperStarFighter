@@ -3,6 +3,7 @@ extends RefCounted
 
 const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
 const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
+const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 
 
 static func run(context: TestContext) -> void:
@@ -65,12 +66,14 @@ static func _validate_lan_discovery_protocol(context: TestContext) -> void:
 		"npc_count": 3,
 		"player_limit": 8,
 		"match_active": false,
+		"password_required": true,
 	})
 	context.expect_true(response_packet.size() <= LanDiscoveryProtocol.MAX_PACKET_BYTES, "LAN discovery response is bounded")
 	var response := LanDiscoveryProtocol.decode_response(response_packet)
 	context.expect_true(response.ok, "valid LAN discovery response decodes")
 	context.expect_equal(response.server_name, "Neon Local Arena", "LAN response retains its display name")
 	context.expect_equal(response.human_count + response.npc_count, 5, "LAN response retains bounded participant counts")
+	context.expect_true(response.password_required, "LAN response advertises password protection without exposing the password")
 	context.expect_true(LanDiscoveryProtocol.is_valid_server_name("Friends Only"), "printable LAN server name is valid")
 	context.expect_false(LanDiscoveryProtocol.is_valid_server_name("Bad\nName"), "control characters are invalid in LAN server names")
 	var invalid_counts := JSON.stringify({
@@ -186,6 +189,8 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 		var decoded_mine := decoded.spawned[1] as ProjectileState
 		context.expect_true(decoded_mine.is_mine, "mine presentation flag round-trips")
 		context.expect_approx(decoded_mine.radius, GameConstants.MINE_RADIUS, "decoded mine restores its collision radius")
+		context.expect_approx(decoded_mine.mine_activation_remaining, GameConstants.MINE_ACTIVATION_SECONDS, "mine activation time round-trips")
+		context.expect_approx(decoded_mine.damage, 100.0, "mine damage round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_batch(packet.slice(0, 8)).ok, "truncated projectile batch is rejected")
 	var bad_flags := packet.duplicate()
 	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 8
@@ -279,6 +284,10 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_false(ServerLobby.is_valid_display_name("bad\nname"), "control characters are invalid in display names")
 	context.expect_true(ServerLobby.is_valid_display_name("Nova 星"), "printable Unicode display name is valid")
 	context.expect_equal(NetworkProtocol.rejection_message(NetworkProtocol.REJECT_EJECTED), "You were removed from the lobby by its leader.", "ejected clients receive a clear recovery message")
+	context.expect_equal(NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_PASSWORD), "The lobby password is incorrect.", "password rejection gives a retryable message")
+	context.expect_true(NetworkProtocol.is_valid_lobby_password("friends only"), "printable lobby passwords are accepted")
+	context.expect_false(NetworkProtocol.is_valid_lobby_password(""), "empty lobby passwords are rejected")
+	context.expect_false(NetworkProtocol.is_valid_lobby_password("bad\npassword"), "control characters are rejected in lobby passwords")
 	context.expect_true(lobby.admit(2, " Nova ").ok, "first peer is admitted with trimmed name")
 	context.expect_equal(lobby.leader_id, 2, "first admitted peer becomes leader")
 	context.expect_true(lobby.admit(3, "Nova").ok, "duplicate base name is admitted")
@@ -321,7 +330,11 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_false(lobby.request_player_color(3, false, "not-a-colour").ok, "malformed custom ship colours are rejected")
 	context.expect_true(lobby.request_player_color(3, false, "ff00aa").ok, "each human can choose a custom ship colour")
 	context.expect_equal((lobby.players[3] as PlayerMatchState).ship_color, "ff00aa", "custom ship colour is stored authoritatively")
+	context.expect_false(lobby.request_player_appearance(3, false, "ff00aa", &"unsupported").ok, "unsupported ship patterns are rejected")
+	context.expect_true(lobby.request_player_appearance(3, false, "ff00aa", ShipAppearanceScript.ZEBRA).ok, "each human can choose a supported hull pattern")
+	context.expect_equal((lobby.players[3] as PlayerMatchState).ship_pattern, ShipAppearanceScript.ZEBRA, "custom ship pattern is stored authoritatively")
 	context.expect_true(lobby.request_player_color(3, true, "").ok, "a player can return to a server-selected random colour")
+	context.expect_equal((lobby.players[3] as PlayerMatchState).ship_pattern, ShipAppearanceScript.ZEBRA, "randomizing colour preserves the selected hull pattern")
 	lobby.request_ready(2, true)
 	lobby.request_ready(3, true)
 	context.expect_true(lobby.request_start(2).ok, "leader starts with two participants")
@@ -347,6 +360,7 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_equal(serialized.team_count, 2, "serialized lobby publishes the configured team count")
 	var serialized_player := (serialized.players as Array).filter(func(player: Dictionary) -> bool: return int(player.peer_id) == 3)[0] as Dictionary
 	context.expect_equal(String(serialized_player.ship_color).length(), 6, "serialized player rows publish canonical RGB ship colours")
+	context.expect_equal(serialized_player.ship_pattern, ShipAppearanceScript.ZEBRA, "serialized player rows publish the authoritative hull pattern")
 	context.expect_true(serialized_player.has("team_selection"), "serialized player rows distinguish Auto from an explicit team selection")
 
 
@@ -1049,15 +1063,12 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	mine_world.submit_input(230, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
 	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(layer.mine_charges_remaining, 9, "placing a mine consumes exactly one of ten charges")
-	context.expect_true(layer.mine_cooldown_remaining > 9.9, "placing a mine starts the ten-second cooldown")
+	context.expect_true(layer.mine_cooldown_remaining > 4.9, "placing a mine starts the five-second cooldown")
 	context.expect_equal(mine_world.active_projectiles().size(), 1, "Shift places one persistent authoritative mine")
+	var placed_mine := mine_world.active_projectiles()[0] as ProjectileState
+	context.expect_false(placed_mine.is_mine_armed(), "a newly placed mine begins its quarter-second activation delay")
 	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(mine_world.active_projectiles().size(), 1, "repeated special frames cannot bypass the mine cooldown")
-	var trigger_shot := ProjectileState.create(900, 230, 2, Vector2(480.0, 500.0), 0.0, CombatStats.create_base())
-	mine_world.projectile_registry.add(trigger_shot)
-	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
-	context.expect_equal(mine_world.active_projectiles().size(), 0, "a projectile hit consumes both the triggering shot and mine")
-	context.expect_approx(mine_target.health, 25.0, "a projectile-triggered mine damages enemies in its blast radius")
 	var two_stack_mines := StatSystem.derive({&"mine_layer": 2}, catalog)
 	layer.reset_for_heat(two_stack_mines, Vector2(500.0, 500.0))
 	context.expect_equal(layer.mine_charges_remaining, 19, "taking Star Mines again adds ten charges without restoring spent mines")
@@ -1073,9 +1084,32 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	proximity_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	proximity_target.position = Vector2(780.0, 500.0)
 	proximity_world.submit_input(240, PlayerInputFrame.new(2, 2))
+	proximity_world.step(0.20)
+	context.expect_equal(proximity_world.active_projectiles().size(), 1, "enemy proximity cannot trigger a mine during its activation delay")
+	context.expect_approx(proximity_target.health, 100.0, "an inactive mine cannot damage an enemy")
+	proximity_world.step(0.05)
 	proximity_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_empty(proximity_world.active_projectiles(), "an enemy entering the trigger radius detonates the mine")
-	context.expect_approx(proximity_target.health, 25.0, "proximity detonation applies mine blast damage")
+	context.expect_approx(proximity_target.health, 0.0, "a mine deals 100 damage and eliminates a stock hull")
+
+	var chain_world := AuthoritativeWorld.new()
+	var chain_layer := chain_world.add_peer(242, mine_stats)
+	chain_layer.position = Vector2(300.0, 300.0)
+	var chain_target := chain_world.add_peer(243)
+	chain_target.position = Vector2(950.0, 500.0)
+	var chain_positions := [Vector2(500.0, 500.0), Vector2(650.0, 500.0), Vector2(800.0, 500.0)]
+	for chain_index in chain_positions.size():
+		var chain_mine := ProjectileState.create_mine(910 + chain_index, 242, chain_positions[chain_index])
+		chain_mine.mine_activation_remaining = 0.0
+		chain_world.projectile_registry.add(chain_mine)
+	var inactive_chain_mine := ProjectileState.create_mine(914, 242, Vector2(950.0, 500.0))
+	chain_world.projectile_registry.add(inactive_chain_mine)
+	var chain_trigger := ProjectileState.create(913, 243, 1, Vector2(475.0, 500.0), 0.0, CombatStats.create_base())
+	chain_world.projectile_registry.add(chain_trigger)
+	chain_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(chain_world.active_projectiles().size(), 1, "an armed mine blast recursively detonates other armed mines in range")
+	context.expect_equal((chain_world.active_projectiles()[0] as ProjectileState).projectile_id, 914, "an inactive mine cannot join a chain reaction")
+	context.expect_approx(chain_target.health, 0.0, "a chained mine blast applies its own 100 damage")
 
 	var cloak_stats := StatSystem.derive({&"cloak": 1}, catalog)
 	context.expect_true(cloak_stats.cloak_enabled, "Cloak! enables the authoritative special action")
@@ -1211,6 +1245,16 @@ static func _validate_connection_admission(context: TestContext) -> void:
 		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32),
 		&"",
 		"valid hello passes admission validation"
+	)
+	context.expect_equal(
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, "wrong", "correct"),
+		NetworkProtocol.REJECT_INVALID_PASSWORD,
+		"incorrect lobby password is rejected before admission"
+	)
+	context.expect_equal(
+		ConnectionAdmission.validate_hello(GameConstants.PROTOCOL_VERSION, "Pilot", 0, 32, "correct", "correct"),
+		&"",
+		"matching lobby password passes admission"
 	)
 	var handshakes := HandshakeRegistry.new()
 	handshakes.begin(9, 100.0)

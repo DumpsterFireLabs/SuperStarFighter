@@ -68,17 +68,17 @@ function Wait-SsfMatchCondition {
 
 try {
     $server = Start-SsfMatchProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", '--max-players=2', '--rounds-to-win=1',
+        '--server', '--password=test-lobby', "--port=$Port", '--max-players=2', '--rounds-to-win=1',
         '--auto-start', '--test-fast-match', '--test-match-seed=4242',
         '--test-server-duration=35'
     )
     Start-Sleep -Milliseconds 600
     $alpha = Start-SsfMatchProcess -Name 'alpha' -UserArguments @(
-        '--bot-client=Alpha', '--host=127.0.0.1', "--port=$Port"
+        '--bot-client=Alpha', '--password=test-lobby', '--host=127.0.0.1', "--port=$Port"
     )
     Start-Sleep -Milliseconds 350
     $beta = Start-SsfMatchProcess -Name 'beta' -UserArguments @(
-        '--bot-client=Beta', '--bot-passive', '--bot-draft-timeout',
+        '--bot-client=Beta', '--password=test-lobby', '--bot-passive', '--bot-draft-timeout',
         '--host=127.0.0.1', "--port=$Port"
     )
 

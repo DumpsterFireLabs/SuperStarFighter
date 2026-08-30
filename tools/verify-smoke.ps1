@@ -57,12 +57,12 @@ function Wait-SsfSmokeCondition {
 try {
     $serverDuration = $DurationSeconds + 10
     $server = Start-SsfSmokeProcess -Name 'server' -UserArguments @(
-        '--server', "--port=$Port", "--max-players=$ClientCount", '--rounds-to-win=2', '--test-fast-match',
+        '--server', '--password=test-lobby', "--port=$Port", "--max-players=$ClientCount", '--rounds-to-win=2', '--test-fast-match',
         "--test-server-duration=$serverDuration", '--test-match-seed=6106'
     )
     Start-Sleep -Milliseconds 600
     for ($index = 0; $index -lt $botNames.Count; $index++) {
-        $arguments = @("--bot-client=$($botNames[$index])", '--bot-randomized', '--host=127.0.0.1', "--port=$Port")
+        $arguments = @("--bot-client=$($botNames[$index])", '--password=test-lobby', '--bot-randomized', '--host=127.0.0.1', "--port=$Port")
         if ($index -eq 0) { $arguments += "--bot-start-at=$ClientCount" }
         Start-SsfSmokeProcess -Name $botNames[$index] -UserArguments $arguments | Out-Null
         Start-Sleep -Milliseconds 80
