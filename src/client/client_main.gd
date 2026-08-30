@@ -177,6 +177,7 @@ var lobby_settings_button: Button
 var pause_resume_button: Button
 var lobby_disconnect_button: Button
 var pause_disconnect_button: Button
+var f2_return_confirmation: ConfirmationDialog
 var _application_has_focus: bool = true
 var _disconnect_in_progress: bool = false
 
@@ -222,6 +223,7 @@ func _ready() -> void:
 		connection_status.text = lan_browser.last_error
 	_create_match_ui()
 	_create_pause_overlay()
+	_create_f2_return_confirmation()
 	_create_settings_overlay()
 	_create_credits_overlay()
 	_create_gameplay_cursor()
@@ -280,7 +282,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if pause_overlay != null and pause_overlay.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
-		_show_connection_screen("Choose online play or the offline combat lab.")
+		_request_f2_return_to_menu()
+		get_viewport().set_input_as_handled()
+		return
 	if draft_panel != null and draft_panel.visible:
 		for index in draft_buttons.size():
 			if event.is_action_pressed("draft_%d" % (index + 1)):
@@ -1178,6 +1182,19 @@ func _create_pause_overlay() -> void:
 	content.add_child(quit_button)
 
 
+func _create_f2_return_confirmation() -> void:
+	f2_return_confirmation = ConfirmationDialog.new()
+	f2_return_confirmation.title = "LEAVE CURRENT GAME?"
+	f2_return_confirmation.ok_button_text = "RETURN TO MAIN MENU"
+	f2_return_confirmation.cancel_button_text = "STAY IN GAME"
+	f2_return_confirmation.exclusive = true
+	f2_return_confirmation.theme = interface_theme
+	f2_return_confirmation.confirmed.connect(_confirm_f2_return_to_menu)
+	f2_return_confirmation.canceled.connect(_cancel_f2_return_to_menu)
+	connection_canvas.add_child(f2_return_confirmation)
+	f2_return_confirmation.get_ok_button().theme_type_variation = &"DangerButton"
+
+
 func _create_settings_overlay() -> void:
 	settings_panel = Control.new()
 	settings_panel.name = "SettingsScreen"
@@ -1941,6 +1958,51 @@ func _return_from_pause() -> void:
 	_disconnect_online("Returned to the main menu.")
 
 
+func _request_f2_return_to_menu() -> void:
+	if f2_return_confirmation == null or not _f2_would_leave_session():
+		_show_connection_screen("Choose online play or the offline combat lab.")
+		return
+	if f2_return_confirmation.visible:
+		return
+	var hosting := _hosted_server_root != null and is_instance_valid(_hosted_server_root)
+	if hosting:
+		f2_return_confirmation.dialog_text = "You are hosting this game.\n\nReturning to the main menu will stop the server and disconnect every player."
+		f2_return_confirmation.ok_button_text = "STOP SERVER"
+	elif offline_sandbox.visible:
+		f2_return_confirmation.dialog_text = "Return to the main menu and leave the Offline Combat Lab?"
+		f2_return_confirmation.ok_button_text = "RETURN TO MAIN MENU"
+	else:
+		f2_return_confirmation.dialog_text = "Returning to the main menu will disconnect you from the current game."
+		f2_return_confirmation.ok_button_text = "DISCONNECT"
+	f2_return_confirmation.popup_centered(Vector2i(680, 260))
+	_set_f2_confirmation_gameplay_blocked(true)
+
+
+func _f2_would_leave_session() -> bool:
+	if offline_sandbox != null and offline_sandbox.visible:
+		return true
+	if _hosted_server_root != null and is_instance_valid(_hosted_server_root):
+		return true
+	return bridge != null and bridge.role == NetworkBridge.Role.CLIENT
+
+
+func _confirm_f2_return_to_menu() -> void:
+	_show_connection_screen("Returned to the main menu.")
+
+
+func _cancel_f2_return_to_menu() -> void:
+	_set_f2_confirmation_gameplay_blocked(false)
+
+
+func _set_f2_confirmation_gameplay_blocked(blocked: bool) -> void:
+	if network_world != null:
+		network_world.input_blocked = blocked
+	if offline_sandbox != null and offline_sandbox.visible:
+		offline_sandbox.set_process(not blocked)
+		offline_sandbox.set_physics_process(not blocked)
+	_update_pointer_visibility()
+
+
 func _connect_online() -> void:
 	var port := _validated_port(port_field)
 	if port == 0:
@@ -2134,6 +2196,8 @@ func _disconnect_online(message: String = "Disconnected. Ready to reconnect.") -
 
 
 func _show_connection_screen(message: String, is_error: bool = false) -> void:
+	if f2_return_confirmation != null and f2_return_confirmation.visible:
+		f2_return_confirmation.hide()
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
 	_stop_hosted_server()
@@ -2617,7 +2681,7 @@ func _update_pointer_visibility() -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_screen.visible or settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible
+	var interactive_overlay := connection_screen.visible or settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	if gameplay_cursor != null:
 		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller()

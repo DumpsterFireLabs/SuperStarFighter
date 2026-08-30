@@ -83,6 +83,7 @@ The Windows script runs the complete foundation gate, exports a single embedded-
 | `1`–`5` or click, then confirm | Choose and lock in a draft card |
 | Hold `Tab` | Show live standings and public builds |
 | `Escape` | Open the non-pausing pilot menu |
+| `F2` | Return to the main menu; active sessions require confirmation |
 | `F3` | Toggle network diagnostics |
 | `A` / `D` or mouse buttons while spectating | Cycle living pilots |
 

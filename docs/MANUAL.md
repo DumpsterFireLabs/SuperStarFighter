@@ -296,6 +296,7 @@ Keyboard and mouse is the first-launch default:
 | `Shift` | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
 | Hold `Tab` | Live standings and public builds |
 | `Escape` | Pilot menu; online combat continues |
+| `F2` | Return to the main menu; active sessions require confirmation |
 | `F3` | Network diagnostic overlay |
 
 The controller/joystick profile defaults to:

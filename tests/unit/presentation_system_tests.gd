@@ -336,6 +336,16 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Embedded Test Arena"})
 	context.expect_equal(host_error, OK, "one-click host creates a real authoritative server inside an isolated multiplayer subtree")
 	context.expect_true(client._hosted_server_bridge.role == NetworkBridge.Role.SERVER and client._hosted_server_multiplayer != client.multiplayer, "hosted server and playable client retain independent MultiplayerAPI instances")
+	var f2_event := InputEventKey.new()
+	f2_event.physical_keycode = KEY_F2
+	f2_event.pressed = true
+	client._unhandled_input(f2_event)
+	context.expect_true(client.f2_return_confirmation.visible, "F2 asks for confirmation before leaving an active session")
+	context.expect_true(client.f2_return_confirmation.dialog_text.contains("disconnect every player"), "F2 explicitly warns a host that returning to the menu will end the game for everyone")
+	context.expect_true(client._hosted_server_root != null, "opening the F2 confirmation cannot stop the hosted server")
+	client.f2_return_confirmation.hide()
+	client._cancel_f2_return_to_menu()
+	context.expect_false(client.network_world.input_blocked, "canceling the F2 confirmation restores gameplay input")
 	client._stop_hosted_server()
 	var reserved_host_error: Error = client._start_hosted_server({"port": LanDiscoveryProtocol.DISCOVERY_PORT, "max_players": 32, "rounds_to_win": 3, "server_name": "Collision Test"})
 	context.expect_equal(reserved_host_error, ERR_INVALID_PARAMETER, "gameplay server cannot consume the fixed LAN discovery port")
