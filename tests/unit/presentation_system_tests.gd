@@ -626,8 +626,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
 	context.expect_false(client.results_extend_button.disabled, "lobby leader receives an actionable five-more-rounds button")
 	context.expect_equal(client.results_extend_button.text, "PLAY 5 MORE ROUNDS", "results screen clearly labels the match extension action")
+	context.expect_equal(client.results_extend_button.action_mode, BaseButton.ACTION_MODE_BUTTON_PRESS, "match extension activates on mouse-down before the results layout can swallow its release action")
 	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
 	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")
+	client.results_extend_button.pressed.emit()
+	context.expect_true(client._extend_match_requested, "five-more-rounds button dispatches the extension request")
 	context.expect_false(client.lobby_panel.visible, "lobby menu remains hidden throughout the game loop")
 	client.network_world._on_snapshot({"server_tick": 400, "acknowledged_input": 20, "states": [
 		{"peer_id": 2, "position": Vector2(500.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},

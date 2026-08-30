@@ -1103,6 +1103,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	results_extend_button = Button.new()
 	results_extend_button.text = "PLAY 5 MORE ROUNDS"
 	results_extend_button.theme_type_variation = &"PrimaryButton"
+	results_extend_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	results_extend_button.custom_minimum_size = Vector2(300.0, 52.0)
 	results_extend_button.add_theme_font_size_override("font_size", 19)
 	results_extend_button.pressed.connect(_on_results_extend_pressed)
