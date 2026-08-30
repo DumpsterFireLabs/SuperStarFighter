@@ -997,6 +997,7 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	context.expect_approx(hull_target.velocity.x, knockback_stats.projectile_knockback, "unshielded projectile hit applies full knockback", 0.01)
 
 	var nosferatu_stats := StatSystem.derive({&"nosferatu_shield": 1}, catalog)
+	context.expect_approx(nosferatu_stats.shield_damage_heal_fraction, 0.25, "Nosferatu Shield heals 25% of blocked projectile damage", 0.001)
 	var shield_world := AuthoritativeWorld.new()
 	shield_world.add_peer(220, knockback_stats)
 	var shield_target := shield_world.add_peer(221, nosferatu_stats)

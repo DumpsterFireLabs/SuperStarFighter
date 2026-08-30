@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"nosferatu_shield"
 display_name = "Nosferatu Shield"
-description = "Per stack: blocked projectiles restore hull equal to 18% of their damage."
+description = "Per stack: blocked projectiles restore hull equal to 25% of their damage."
 category = 1
 rarity = 4
-additive_modifiers = {"shield_damage_heal_fraction": 0.18}
+additive_modifiers = {"shield_damage_heal_fraction": 0.25}

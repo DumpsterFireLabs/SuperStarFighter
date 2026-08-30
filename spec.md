@@ -460,7 +460,7 @@ The launch catalog contains 130 unlimited-stack cards: 39 ship, 45 shield, and 4
 | `ramming_shields` | Ramming Shields | Shield | Epic | +44 shield-ram damage; ×0.70 ram trigger speed; ×1.12 shielded acceleration |
 | `concussion_rounds` | Concussion Rounds | Weapon | Rare | +180 projectile knockback; shields retain 20% |
 | `repulsor_payload` | Repulsor Payload | Weapon | Epic | +320 projectile knockback; ×0.90 projectile speed; shields retain 20% |
-| `nosferatu_shield` | Nosferatu Shield | Shield | Legendary | Heal hull for 18% of blocked projectile damage |
+| `nosferatu_shield` | Nosferatu Shield | Shield | Legendary | Heal hull for 25% of blocked projectile damage |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
