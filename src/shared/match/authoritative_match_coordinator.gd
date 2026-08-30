@@ -689,6 +689,7 @@ func _state_payload() -> Dictionary:
 		"draft_bye_peer_ids": _next_draft_bye_peer_ids.duplicate(),
 		"match_winner": machine.match_winner,
 		"rounds_to_win": machine.config.rounds_to_win,
+		"extension_end_round_number": machine.extension_end_round_number,
 		"can_extend_match": machine.can_extend_match(),
 		"tied_heat": machine.tied_heat,
 		"scores": machine.score_snapshot(),

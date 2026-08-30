@@ -17,6 +17,9 @@ static func peer_ids(payload: Dictionary) -> Array[int]:
 		var second_rounds := int(second_score.get("round_wins", 0))
 		if first_rounds != second_rounds:
 			return first_rounds > second_rounds
+		var match_winner := int(payload.get("match_winner", 0))
+		if first == match_winner or second == match_winner:
+			return first == match_winner
 		var first_heats := int(first_score.get("heat_wins", 0))
 		var second_heats := int(second_score.get("heat_wins", 0))
 		if first_heats != second_heats:

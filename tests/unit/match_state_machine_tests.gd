@@ -117,13 +117,29 @@ static func _validate_match_extension(context: TestContext) -> void:
 	context.expect_false(machine.extend_match(0, machine.state_entered_tick), "match extension requires a positive number of rounds")
 	context.expect_true(machine.extend_match(GameConstants.MATCH_EXTENSION_ROUNDS, machine.state_entered_tick + 1), "completed match accepts a five-round extension")
 	context.expect_equal(machine.state, MatchStateMachine.State.ROUND_RESULT, "extension resumes through the completed round intermission")
-	context.expect_equal(machine.config.rounds_to_win, 6, "extension raises the active round-win target by five")
+	context.expect_equal(machine.extension_end_round_number, 6, "extension records an exact five-round ending point")
+	context.expect_equal(machine.config.rounds_to_win, 1, "extension does not turn the fixed round limit into a score target")
 	context.expect_equal(machine.match_winner, 0, "extension clears the concluded winner while play resumes")
 	context.expect_equal(machine.scores.get_score(1).round_wins, 1, "extension retains the current round scores")
 	context.expect_equal((machine.players[1] as PlayerMatchState).card_stack(&"heavy_rounds"), 2, "extension retains every drawn card stack")
 	machine.advance_time(machine.state_deadline_tick)
 	context.expect_equal(machine.state, MatchStateMachine.State.DRAFT, "extended match proceeds to the next draft")
 	context.expect_equal(machine.round_number, 2, "extended match continues with the next round number")
+	var extension_winners: Array[int] = [2, 1, 2, 1, 2]
+	for winner_index in extension_winners.size():
+		active_tick = _complete_draft_and_enter_heat(machine, machine.state_entered_tick)
+		machine.finish_heat(extension_winners[winner_index], active_tick)
+		active_tick = _advance_heat_result_to_active(machine)
+		machine.finish_heat(extension_winners[winner_index], active_tick)
+		machine.advance_time(machine.state_deadline_tick)
+		if winner_index < extension_winners.size() - 1:
+			context.expect_equal(machine.state, MatchStateMachine.State.ROUND_RESULT, "extension remains active before all five added rounds finish")
+			machine.advance_time(machine.state_deadline_tick)
+			context.expect_equal(machine.state, MatchStateMachine.State.DRAFT, "the next added round begins normally")
+	context.expect_equal(machine.round_number, 6, "extension stops after exactly five additional rounds")
+	context.expect_equal(machine.state, MatchStateMachine.State.MATCH_RESULT, "fifth added round returns to final results even when nobody reaches a raised score target")
+	context.expect_equal(machine.match_winner, 2, "final added-round winner breaks a tie in total round wins")
+	context.expect_equal(machine.extension_end_round_number, 0, "completed extension clears its active round limit")
 
 
 static func _validate_forfeit_and_late_spectator(context: TestContext) -> void:

@@ -32,6 +32,7 @@ var team_heat_wins: Dictionary = {}
 var team_round_wins: Dictionary = {}
 var tied_heat: bool = false
 var event_history: Array[Dictionary] = []
+var extension_end_round_number: int = 0
 
 var _pending_round_winner: int = 0
 var _pending_match_winner: int = 0
@@ -85,6 +86,7 @@ func start_match(at_tick: int) -> bool:
 	_pending_match_winner = 0
 	_pending_round_winner_team = 0
 	_pending_match_winner_team = 0
+	extension_end_round_number = 0
 	event_history.clear()
 	_transition(State.DRAFT, at_tick)
 	return true
@@ -293,7 +295,7 @@ func can_extend_match() -> bool:
 func extend_match(additional_rounds: int, at_tick: int) -> bool:
 	if additional_rounds <= 0 or not can_extend_match():
 		return false
-	config.rounds_to_win += additional_rounds
+	extension_end_round_number = round_number + additional_rounds
 	match_winner = 0
 	match_winner_team = 0
 	_pending_match_winner = 0
@@ -313,7 +315,12 @@ func _resolve_heat(winner_peer_id: int, at_tick: int) -> void:
 	if winner_peer_id != 0:
 		var result := scores.award_heat(winner_peer_id, config.rounds_to_win)
 		_pending_round_winner = result.round_winner
-		_pending_match_winner = result.match_winner
+		if _pending_round_winner != 0 and extension_end_round_number > 0:
+			if round_number >= extension_end_round_number:
+				_pending_match_winner = _extension_peer_winner(_pending_round_winner)
+				extension_end_round_number = 0
+		else:
+			_pending_match_winner = result.match_winner
 	_transition(State.HEAT_RESULT, at_tick)
 
 
@@ -328,7 +335,12 @@ func _resolve_team_heat(winner_team_id: int, at_tick: int) -> void:
 	if winner_team_id != 0:
 		var result := team_scores.award_heat(winner_team_id, config.rounds_to_win)
 		_pending_round_winner_team = int(result.round_winner)
-		_pending_match_winner_team = int(result.match_winner)
+		if _pending_round_winner_team != 0 and extension_end_round_number > 0:
+			if round_number >= extension_end_round_number:
+				_pending_match_winner_team = _extension_team_winner(_pending_round_winner_team)
+				extension_end_round_number = 0
+		else:
+			_pending_match_winner_team = int(result.match_winner)
 		if _pending_match_winner_team != 0:
 			_pending_match_winner = _team_representative(_pending_match_winner_team)
 		_pending_round_winner = _team_representative(_pending_round_winner_team)
@@ -347,6 +359,7 @@ func _prepare_heat() -> void:
 
 
 func _award_forfeit(peer_id: int, at_tick: int) -> void:
+	extension_end_round_number = 0
 	scores.award_forfeit(peer_id, config.rounds_to_win)
 	match_winner = peer_id
 	_pending_match_winner = peer_id
@@ -355,6 +368,7 @@ func _award_forfeit(peer_id: int, at_tick: int) -> void:
 
 
 func _award_team_forfeit(team_id: int, at_tick: int) -> void:
+	extension_end_round_number = 0
 	team_scores.award_forfeit(team_id, config.rounds_to_win)
 	_refresh_team_score_views()
 	match_winner_team = team_id
@@ -394,7 +408,38 @@ func _return_to_lobby(at_tick: int) -> void:
 	_pending_match_winner = 0
 	_pending_round_winner_team = 0
 	_pending_match_winner_team = 0
+	extension_end_round_number = 0
 	_transition(State.LOBBY, at_tick)
+
+
+func _extension_peer_winner(final_round_winner: int) -> int:
+	var winner := final_round_winner
+	var winning_rounds := -1
+	for peer_id in participant_ids():
+		var score := scores.get_score(peer_id)
+		if score == null:
+			continue
+		if score.round_wins > winning_rounds:
+			winner = peer_id
+			winning_rounds = score.round_wins
+		elif score.round_wins == winning_rounds and peer_id == final_round_winner:
+			winner = peer_id
+	return winner
+
+
+func _extension_team_winner(final_round_winner_team: int) -> int:
+	var winner := final_round_winner_team
+	var winning_rounds := -1
+	for team_id in _participant_team_ids():
+		var score := team_scores.get_score(team_id)
+		if score == null:
+			continue
+		if score.round_wins > winning_rounds:
+			winner = team_id
+			winning_rounds = score.round_wins
+		elif score.round_wins == winning_rounds and team_id == final_round_winner_team:
+			winner = team_id
+	return winner
 
 
 func _transition(next_state: int, at_tick: int) -> void:

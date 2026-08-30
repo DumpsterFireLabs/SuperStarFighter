@@ -113,7 +113,7 @@ The server owns a single explicit state machine.
 | `ROUND_RESULT` | 2 s | Award a non-final round win and clear all heat wins. | Start the next draft. |
 | `MATCH_RESULT` | Indefinite | Show winner and final builds/scores. | Lobby leader selects Play 5 More Rounds or Exit to Lobby. |
 
-State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. A decisive final heat transitions directly from `HEAT_RESULT` to `MATCH_RESULT`, skipping the redundant two-second `ROUND_RESULT` intermission. `MATCH_RESULT` has no deadline and cannot advance from elapsed time. From final results, the lobby leader may raise the current match target by five round wins and resume through `ROUND_RESULT`; scores and every permanent card stack remain intact, and the decisive-round winner receives the normal next-draft bye. This extension may be selected again after a later match result.
+State transitions are reliable server events containing the new state, server tick, optional end time, and state-specific score data. Clients derive countdown displays from the server time, not local timers. A decisive final heat transitions directly from `HEAT_RESULT` to `MATCH_RESULT`, skipping the redundant two-second `ROUND_RESULT` intermission. `MATCH_RESULT` has no deadline and cannot advance from elapsed time. From final results, the lobby leader may add exactly five rounds and resume through `ROUND_RESULT`; scores and every permanent card stack remain intact, and the decisive-round winner receives the normal next-draft bye. The match returns to results after the fifth added round, with the total-round leader winning and that final round's winner breaking a tied total. This extension may be selected again after a later match result.
 
 ### 4.2 Lobby Rules
 
@@ -160,7 +160,7 @@ State transitions are reliable server events containing the new state, server ti
 - In Death Match, when exactly one participant remains alive after a complete authoritative damage tick, end the heat immediately and award that player one heat win. In Team Death Match, resolve when only one living team remains. Objective modes remain active for a lone survivor so that pilot must complete the objective.
 - When zero participants remain because multiple deaths resolve during the same server tick, award no heat win and replay the heat after `HEAT_RESULT`.
 - The first player—or team in a team mode—to reach two heat wins gains one round win. All heat-win counters then reset to zero.
-- The first player—or team in a team mode—to reach `rounds_to_win` wins the match.
+- The first player—or team in a team mode—to reach `rounds_to_win` wins the initial match. During a five-round results extension, that score trigger is suspended until all five added rounds finish.
 - A participant disconnecting during `ACTIVE_HEAT` is eliminated before survivor resolution. Disconnecting during another match state removes the participant from subsequent spawns.
 - If only one participant remains in the match after removals, that participant wins by forfeit. If none remain, return immediately to an empty lobby. NPC participants remain present without network peers.
 
@@ -503,7 +503,7 @@ Client-to-server messages:
 - `request_ready_state(ready)` — reliable, waiting human only.
 - `request_eject_player(peer_id)` — reliable, lobby leader and lobby state only; the sender cannot target themselves or an NPC.
 - `request_start_match()` — reliable, lobby leader only; all connected humans must be ready.
-- `request_extend_match()` — reliable, lobby leader and `MATCH_RESULT` only; raises the active target by five round wins and resumes the same builds and scores when at least two competitors remain.
+- `request_extend_match()` — reliable, lobby leader and `MATCH_RESULT` only; adds exactly five rounds and resumes the same builds and scores when at least two competitors remain.
 - `request_return_to_lobby()` — reliable, lobby leader and `MATCH_RESULT` only; closes final standings for every connected client.
 - `select_card(offer_token, card_id)` — reliable, current participant and draft only.
 - `submit_input(sequence, client_tick, move_x, move_y, aim_angle, action_bits)` — unreliable ordered.

@@ -3117,7 +3117,7 @@ func _update_results_screen() -> void:
 		results_extend_button.tooltip_text = "Waiting for server confirmation."
 	else:
 		results_extend_button.text = "PLAY 5 MORE ROUNDS"
-		results_extend_button.tooltip_text = "Continue this match to a target five round wins higher while keeping every player's cards."
+		results_extend_button.tooltip_text = "Continue this match for exactly five more rounds while keeping every player's cards and scores."
 	if _return_to_lobby_requested:
 		results_return_button.text = "RETURNING EVERYONE TO LOBBY…"
 		results_return_button.tooltip_text = "Waiting for server confirmation."
