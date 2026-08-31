@@ -261,6 +261,7 @@ func _spawn_mine(combatant: CombatantState) -> void:
 
 func _simulate_projectiles(delta: float) -> void:
 	var damage_events: Array[Dictionary] = []
+	_step_mine_magnetism(delta)
 	_detonate_proximity_mines(damage_events)
 	for projectile in projectile_registry.all_projectiles():
 		if projectile.is_mine:
@@ -354,6 +355,44 @@ func _simulate_projectiles(delta: float) -> void:
 	_apply_damage_events(damage_events)
 	for projectile in projectile_registry.all_projectiles():
 		projectile.step_mine_activation(delta)
+
+
+func _step_mine_magnetism(delta: float) -> void:
+	for mine in projectile_registry.all_projectiles():
+		if not mine.is_mine_armed():
+			continue
+		var nearest: SandboxShip
+		var nearest_distance_squared := GameConstants.MINE_MAGNETIC_RADIUS * GameConstants.MINE_MAGNETIC_RADIUS
+		for ship_value in ships_by_id.values():
+			var ship := ship_value as SandboxShip
+			if not ship.combatant.alive or ship.combatant.peer_id == mine.owner_id:
+				continue
+			var distance_squared := ship.global_position.distance_squared_to(mine.position)
+			if distance_squared > nearest_distance_squared:
+				continue
+			if nearest != null and is_equal_approx(distance_squared, nearest_distance_squared) and ship.combatant.peer_id > nearest.combatant.peer_id:
+				continue
+			nearest = ship
+			nearest_distance_squared = distance_squared
+		if nearest == null:
+			mine.velocity = Vector2.ZERO
+			continue
+		var offset := nearest.global_position - mine.position
+		if offset.is_zero_approx():
+			mine.velocity = Vector2.ZERO
+			continue
+		mine.velocity = offset.normalized() * GameConstants.MINE_MAGNETIC_SPEED
+		var finish := mine.position + mine.velocity * maxf(delta, 0.0)
+		var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
+			mine.position,
+			finish,
+			mine.radius
+		)
+		if obstacle_hit == null:
+			mine.position = finish
+		else:
+			mine.position = obstacle_hit.position as Vector2
+			mine.velocity = Vector2.ZERO
 
 
 func _detonate_proximity_mines(damage_events: Array[Dictionary]) -> void:

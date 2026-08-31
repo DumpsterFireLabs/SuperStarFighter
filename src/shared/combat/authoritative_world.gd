@@ -168,7 +168,7 @@ func respawn_peer(peer_id: int, stats: CombatStats, spawn_position: Vector2) -> 
 	var combatant := combatants.get(peer_id) as CombatantState
 	if combatant == null or combatant.alive:
 		return false
-	combatant.reset_for_heat(stats, spawn_position)
+	combatant.reset_for_heat(stats, spawn_position, false)
 	latest_inputs[peer_id] = PlayerInputFrame.new()
 	projectile_registry.schedule_owner_cleanup(peer_id)
 	return true
@@ -343,6 +343,7 @@ func _spawn_mine(combatant: CombatantState) -> void:
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	var damage_events: Array[Dictionary] = []
 	var safe_delta := maxf(delta, 0.0)
+	_step_mine_magnetism(safe_delta, peer_ids)
 	_step_mine_proximity(peer_ids, damage_events)
 	for projectile_id in projectile_registry.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
@@ -425,6 +426,60 @@ func _step_mine_activation(delta: float) -> void:
 		var mine := projectile_registry.get_projectile(projectile_id)
 		if mine != null and mine.is_mine:
 			mine.step_mine_activation(delta)
+
+
+func _step_mine_magnetism(delta: float, peer_ids: Array[int]) -> void:
+	var target_scan_interval := maxi(
+		ceili(float(GameConstants.PHYSICS_TICKS_PER_SECOND) / GameConstants.MINE_MAGNETIC_TARGET_RATE),
+		1
+	)
+	for projectile_id in projectile_registry.ordered_ids_view():
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			continue
+		var mine := projectile_registry.get_projectile(projectile_id)
+		if mine == null or not mine.is_mine_armed():
+			continue
+		if posmod(server_tick + projectile_id, target_scan_interval) == 0:
+			var target := _nearest_mine_target(mine, peer_ids)
+			if target == null:
+				mine.velocity = Vector2.ZERO
+			else:
+				var offset := target.position - mine.position
+				mine.velocity = (
+					offset.normalized() * GameConstants.MINE_MAGNETIC_SPEED
+					if not offset.is_zero_approx() else Vector2.ZERO
+				)
+		if mine.velocity.is_zero_approx():
+			continue
+		var finish := mine.position + mine.velocity * maxf(delta, 0.0)
+		var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
+			mine.position,
+			finish,
+			mine.radius,
+			map_id
+		)
+		if obstacle_hit == null:
+			mine.position = finish
+		else:
+			mine.position = obstacle_hit.position as Vector2
+			mine.velocity = Vector2.ZERO
+
+
+func _nearest_mine_target(mine: ProjectileState, peer_ids: Array[int]) -> CombatantState:
+	var nearest: CombatantState
+	var nearest_distance_squared := GameConstants.MINE_MAGNETIC_RADIUS * GameConstants.MINE_MAGNETIC_RADIUS
+	for peer_id in peer_ids:
+		var candidate := combatants[peer_id] as CombatantState
+		if not candidate.alive or peer_id == mine.owner_id or are_allies(mine.owner_id, peer_id):
+			continue
+		var distance_squared := candidate.position.distance_squared_to(mine.position)
+		if distance_squared > nearest_distance_squared:
+			continue
+		if nearest != null and is_equal_approx(distance_squared, nearest_distance_squared) and peer_id > nearest.peer_id:
+			continue
+		nearest = candidate
+		nearest_distance_squared = distance_squared
+	return nearest
 
 
 func _step_mine_proximity(peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:

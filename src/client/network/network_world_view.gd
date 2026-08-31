@@ -667,6 +667,7 @@ func _step_projectile_visuals(delta: float) -> void:
 			continue
 		if projectile.is_mine:
 			projectile.step_mine_activation(delta)
+			projectile.position += projectile.velocity * maxf(delta, 0.0)
 			continue
 		var safe_delta := maxf(delta, 0.0)
 		projectile.lifetime_remaining -= safe_delta

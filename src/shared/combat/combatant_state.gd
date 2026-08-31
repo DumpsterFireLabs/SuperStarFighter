@@ -31,18 +31,18 @@ static func create(
 	return combatant
 
 
-func reset_for_heat(combat_stats: CombatStats, spawn_position: Vector2) -> void:
-	var previous_mine_capacity := stats.mine_capacity
-	var previous_mine_charges := mine_charges_remaining
+func reset_for_heat(
+	combat_stats: CombatStats,
+	spawn_position: Vector2,
+	refresh_heat_inventory: bool = true
+) -> void:
 	var previous_cloak_capacity := stats.cloak_capacity
 	var previous_cloak_charges := cloak_charges_remaining
 	stats = combat_stats.duplicate_stats()
-	if stats.mine_capacity > previous_mine_capacity:
-		mine_charges_remaining = mini(previous_mine_charges + stats.mine_capacity - previous_mine_capacity, stats.mine_capacity)
-	elif stats.mine_capacity < previous_mine_capacity:
-		mine_charges_remaining = mini(previous_mine_charges, stats.mine_capacity)
+	if refresh_heat_inventory:
+		mine_charges_remaining = stats.mine_capacity
 	else:
-		mine_charges_remaining = mini(previous_mine_charges, stats.mine_capacity)
+		mine_charges_remaining = mini(mine_charges_remaining, stats.mine_capacity)
 	if stats.cloak_capacity > previous_cloak_capacity:
 		cloak_charges_remaining = mini(previous_cloak_charges + stats.cloak_capacity - previous_cloak_capacity, stats.cloak_capacity)
 	elif stats.cloak_capacity < previous_cloak_capacity:

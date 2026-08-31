@@ -48,7 +48,10 @@ const MINE_ACTIVATION_SECONDS: float = 0.25
 const MINE_DAMAGE: float = 100.0
 const MINE_RADIUS: float = 14.0
 const MINE_TRIGGER_RADIUS: float = 70.0
-const MINE_BLAST_RADIUS: float = 150.0
+const MINE_MAGNETIC_RADIUS: float = 320.0
+const MINE_MAGNETIC_SPEED: float = 60.0
+const MINE_MAGNETIC_TARGET_RATE: int = 10
+const MINE_BLAST_RADIUS: float = 200.0
 
 const CLOAK_DURATION_SECONDS: float = 5.0
 

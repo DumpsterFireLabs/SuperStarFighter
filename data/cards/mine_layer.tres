@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"mine_layer"
 display_name = "Star Mines"
-description = "Special drops a mine. Per stack: +10 mines. Arms in 0.25s; 5s cooldown; blasts chain for 100 damage."
+description = "Special drops a magnetic mine. Per stack: +10 per heat. Arms in 0.25s; 5s cooldown; bigger blasts chain."
 category = 2
 rarity = 4
 integer_modifiers = {"mine_capacity": 10}
