@@ -5,7 +5,7 @@ const GAME_NAME: String = "Super Star Fighter"
 const GAME_VERSION: String = "0.1.0-beta.8"
 const RELEASE_LABEL: String = "BETA 8"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 20
+const PROTOCOL_VERSION: int = 21
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024
@@ -54,6 +54,7 @@ const MINE_MAGNETIC_TARGET_RATE: int = 10
 const MINE_BLAST_RADIUS: float = 200.0
 
 const CLOAK_DURATION_SECONDS: float = 5.0
+const CLOAK_COOLDOWN_SECONDS: float = 20.0
 
 const OVERTIME_START_SECONDS: float = 45.0
 const OVERTIME_WARNING_SECONDS: float = 5.0

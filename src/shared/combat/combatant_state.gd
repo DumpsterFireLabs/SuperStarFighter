@@ -15,6 +15,7 @@ var mine_charges_remaining: int = 0
 var mine_cooldown_remaining: float = 0.0
 var cloak_charges_remaining: int = 0
 var cloak_remaining: float = 0.0
+var cloak_cooldown_remaining: float = 0.0
 var cloak_activation_latched: bool = false
 var shield: ShieldState = ShieldState.new()
 var weapon: WeaponState = WeaponState.new()
@@ -36,19 +37,18 @@ func reset_for_heat(
 	spawn_position: Vector2,
 	refresh_heat_inventory: bool = true
 ) -> void:
-	var previous_cloak_capacity := stats.cloak_capacity
-	var previous_cloak_charges := cloak_charges_remaining
+	var previous_cloak_cooldown := cloak_cooldown_remaining
 	stats = combat_stats.duplicate_stats()
 	if refresh_heat_inventory:
 		mine_charges_remaining = stats.mine_capacity
 	else:
 		mine_charges_remaining = mini(mine_charges_remaining, stats.mine_capacity)
-	if stats.cloak_capacity > previous_cloak_capacity:
-		cloak_charges_remaining = mini(previous_cloak_charges + stats.cloak_capacity - previous_cloak_capacity, stats.cloak_capacity)
-	elif stats.cloak_capacity < previous_cloak_capacity:
-		cloak_charges_remaining = mini(previous_cloak_charges, stats.cloak_capacity)
+	if refresh_heat_inventory:
+		cloak_charges_remaining = stats.cloak_capacity
+		cloak_cooldown_remaining = 0.0
 	else:
-		cloak_charges_remaining = mini(previous_cloak_charges, stats.cloak_capacity)
+		cloak_charges_remaining = mini(cloak_charges_remaining, stats.cloak_capacity)
+		cloak_cooldown_remaining = previous_cloak_cooldown
 	position = spawn_position
 	velocity = Vector2.ZERO
 	aim_angle = 0.0
@@ -71,6 +71,7 @@ func reset_match_inventory() -> void:
 	stats.mine_layer_enabled = false
 	cloak_charges_remaining = 0
 	cloak_remaining = 0.0
+	cloak_cooldown_remaining = 0.0
 	cloak_activation_latched = false
 	stats.cloak_capacity = 0
 	stats.cloak_enabled = false
@@ -92,6 +93,7 @@ func step(
 	afterburner_cooldown_remaining = maxf(afterburner_cooldown_remaining - safe_delta, 0.0)
 	mine_cooldown_remaining = maxf(mine_cooldown_remaining - safe_delta, 0.0)
 	cloak_remaining = maxf(cloak_remaining - safe_delta, 0.0)
+	cloak_cooldown_remaining = maxf(cloak_cooldown_remaining - safe_delta, 0.0)
 	velocity = MovementSystem.step_velocity(
 		velocity,
 		input_direction,
@@ -149,10 +151,11 @@ func activate_cloak() -> bool:
 	if cloak_activation_latched:
 		return false
 	cloak_activation_latched = true
-	if not alive or not stats.cloak_enabled or cloak_charges_remaining <= 0 or is_cloaked():
+	if not alive or not stats.cloak_enabled or cloak_charges_remaining <= 0 or cloak_cooldown_remaining > 0.0 or is_cloaked():
 		return false
 	cloak_charges_remaining -= 1
 	cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
+	cloak_cooldown_remaining = GameConstants.CLOAK_COOLDOWN_SECONDS
 	return true
 
 

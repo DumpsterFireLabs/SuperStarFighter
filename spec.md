@@ -465,7 +465,7 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `sundering_aegis` | Sundering Aegis | Shield | Mythical | +66 shield-ram damage; ×0.70 minimum ram speed |
 | `worldbreaker_prow` | Worldbreaker Prow | Shield | Unobtanium | +90 shield-ram damage; ×1.25 shield capacity; ×0.55 ram cooldown |
 | `afterburner` | Afterburner | Ship | Rare | Enable the Special-input forward burst; ×0.88 cooldown |
-| `cloak` | Cloak! | Ship | Legendary | Special cloaks for 5 seconds; damage breaks it; cannot fire; +1 match-long use per stack |
+| `cloak` | Cloak! | Ship | Legendary | Special cloaks for 5 seconds; damage breaks it; cannot fire; shared 20-second cooldown; +1 use per heat per stack |
 | `ramming_shields` | Ramming Shields | Shield | Epic | +44 shield-ram damage; ×0.70 ram trigger speed; ×1.12 shielded acceleration |
 | `concussion_rounds` | Concussion Rounds | Weapon | Rare | +180 projectile knockback; shields retain 20% |
 | `repulsor_payload` | Repulsor Payload | Weapon | Epic | +320 projectile knockback; ×0.90 projectile speed; shields retain 20% |

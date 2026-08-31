@@ -132,6 +132,7 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 			"mine_cooldown": 7.25 if peer_id == 2 else 0.0,
 			"cloaked": peer_id == 2,
 			"cloak_charges": 3 if peer_id == 2 else 0,
+			"cloak_cooldown": 12.5 if peer_id == 2 else 0.0,
 		})
 	var packet := PlayerSnapshotCodec.encode(900, 44, states)
 	var decoded := PlayerSnapshotCodec.decode(packet)
@@ -148,7 +149,8 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 		context.expect_equal(int(first.mine_charges), 9, "snapshot carries authoritative remaining mine charges")
 		context.expect_approx(float(first.mine_cooldown), 7.25, "snapshot carries the authoritative mine cooldown")
 		context.expect_true(bool(first.cloaked), "snapshot carries the authoritative cloak state")
-		context.expect_equal(int(first.cloak_charges), 3, "snapshot carries match-long cloak charges")
+		context.expect_equal(int(first.cloak_charges), 3, "snapshot carries heat-scoped cloak charges")
+		context.expect_approx(float(first.cloak_cooldown), 12.5, "snapshot carries the authoritative cloak cooldown")
 	context.expect_false(PlayerSnapshotCodec.decode(packet.slice(0, packet.size() - 1)).ok, "truncated player snapshot is rejected")
 	var oversized := PackedByteArray()
 	oversized.resize(PlayerSnapshotCodec.HEADER_SIZE)
@@ -1053,7 +1055,7 @@ static func _validate_card_powerups(context: TestContext) -> void:
 		context.expect_equal(player.card_stack(StringName(fast_spawn.card_id)), 1, "permanent-drop option stores the pickup in the match-long inventory")
 	var powerup_cloak := world.add_peer(3)
 	CardPowerupSystemScript._apply_updated_stats(powerup_cloak, StatSystem.derive({&"cloak": 1}, catalog))
-	context.expect_equal(powerup_cloak.cloak_charges_remaining, 1, "a mid-heat Cloak! pickup immediately grants its match-long use")
+	context.expect_equal(powerup_cloak.cloak_charges_remaining, 1, "a mid-heat Cloak! pickup immediately grants its heat-scoped use")
 
 
 static func _validate_new_card_mechanics(context: TestContext) -> void:
@@ -1166,7 +1168,7 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 
 	var cloak_stats := StatSystem.derive({&"cloak": 1}, catalog)
 	context.expect_true(cloak_stats.cloak_enabled, "Cloak! enables the authoritative special action")
-	context.expect_equal(cloak_stats.cloak_capacity, 1, "each Cloak! card supplies one match-long use")
+	context.expect_equal(cloak_stats.cloak_capacity, 1, "each Cloak! card supplies one use per heat")
 	var cloak_world := AuthoritativeWorld.new()
 	var cloaked := cloak_world.add_peer(250, cloak_stats)
 	cloak_world.submit_input(250, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, true, false, false, true))
@@ -1174,6 +1176,7 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	context.expect_true(cloaked.is_cloaked(), "Shift activates five seconds of authoritative invisibility")
 	context.expect_equal(cloaked.cloak_charges_remaining, 0, "activating Cloak! consumes exactly one card charge")
 	context.expect_true(cloaked.cloak_remaining > 4.9, "Cloak! retains almost its full five-second duration after activation")
+	context.expect_true(cloaked.cloak_cooldown_remaining > 19.9, "activating Cloak! starts its 20-second cooldown")
 	context.expect_equal(cloaked.weapon.ammunition, cloak_stats.magazine_size, "a firing input cannot consume ammunition while cloaked")
 	context.expect_false(cloaked.apply_damage(10.0), "nonlethal damage leaves the cloaked pilot alive")
 	context.expect_false(cloaked.is_cloaked(), "taking positive damage immediately breaks invisibility")
@@ -1181,13 +1184,25 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	cloak_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	cloak_world.submit_input(250, PlayerInputFrame.new(3, 3, Vector2.ZERO, 0.0, false, false, false, true))
 	cloak_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
-	context.expect_false(cloaked.is_cloaked(), "a spent Cloak! card cannot reactivate during the match")
+	context.expect_false(cloaked.is_cloaked(), "a spent Cloak! card cannot reactivate during the same heat")
 	var two_cloak_stats := StatSystem.derive({&"cloak": 2}, catalog)
 	cloaked.reset_for_heat(two_cloak_stats, Vector2(400.0, 400.0))
-	context.expect_equal(cloaked.cloak_charges_remaining, 1, "drafting another Cloak! adds one use without restoring the spent card")
-	cloak_world.reset_match_inventories()
-	cloaked.reset_for_heat(cloak_stats, Vector2(400.0, 400.0))
-	context.expect_equal(cloaked.cloak_charges_remaining, 1, "a new match restores one use for each Cloak! card")
+	context.expect_equal(cloaked.cloak_charges_remaining, 2, "a new heat restores one Cloak! use per stack")
+	context.expect_approx(cloaked.cloak_cooldown_remaining, 0.0, "a new heat clears the Cloak! cooldown")
+	context.expect_true(cloaked.activate_cloak(), "the first stacked Cloak! use activates immediately")
+	cloaked.apply_damage(1.0)
+	cloaked.release_special_activation()
+	context.expect_false(cloaked.activate_cloak(), "a second stacked use cannot bypass the shared cooldown")
+	cloaked.release_special_activation()
+	cloaked.step(Vector2.ZERO, 0.0, false, GameConstants.CLOAK_COOLDOWN_SECONDS)
+	context.expect_true(cloaked.activate_cloak(), "a stacked Cloak! use becomes available after 20 seconds")
+	cloaked.reset_for_heat(two_cloak_stats, Vector2(400.0, 400.0))
+	cloaked.activate_cloak()
+	cloaked.apply_damage(1.0)
+	cloaked.alive = false
+	context.expect_true(cloak_world.respawn_peer(250, two_cloak_stats, Vector2(400.0, 400.0)), "an eliminated cloaked pilot can respawn in an objective heat")
+	context.expect_equal(cloaked.cloak_charges_remaining, 1, "an objective respawn does not replenish heat-scoped Cloak! uses")
+	context.expect_true(cloaked.cloak_cooldown_remaining > 19.9, "an objective respawn does not clear the Cloak! cooldown")
 
 	var ramming_stats := StatSystem.derive({&"ramming_shields": 1}, catalog)
 	context.expect_true(ramming_stats.shield_ram_damage >= 44.0, "Ramming Shields independently enables serious melee damage")

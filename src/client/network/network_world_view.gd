@@ -63,6 +63,7 @@ var local_mine_charges_remaining: int = 0
 var local_mine_cooldown_remaining: float = 0.0
 var local_cloak_charges_remaining: int = 0
 var local_cloak_remaining: float = 0.0
+var local_cloak_cooldown_remaining: float = 0.0
 var _nearest_incoming_cache: ProjectileState
 var _nearest_incoming_revision: int = -1
 var _incoming_refresh_accumulator: float = 0.0
@@ -142,6 +143,7 @@ func reset_session() -> void:
 	local_mine_cooldown_remaining = 0.0
 	local_cloak_charges_remaining = 0
 	local_cloak_remaining = 0.0
+	local_cloak_cooldown_remaining = 0.0
 	_nearest_incoming_cache = null
 	_nearest_incoming_revision = -1
 	_incoming_refresh_accumulator = 0.0
@@ -190,6 +192,7 @@ func _physics_process(delta: float) -> void:
 	local_special_cooldown_remaining = maxf(local_special_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_mine_cooldown_remaining = maxf(local_mine_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_remaining = maxf(local_cloak_remaining - maxf(delta, 0.0), 0.0)
+	local_cloak_cooldown_remaining = maxf(local_cloak_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	var local_ship := ships[local_peer_id] as SandboxShip
 	var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else _unshaken_mouse_world_position() - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
@@ -201,7 +204,7 @@ func _physics_process(delta: float) -> void:
 		local_movement = Vector2.ZERO
 	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
 	var mine_ready := local_stats.mine_layer_enabled and local_mine_charges_remaining > 0 and local_mine_cooldown_remaining <= 0.0
-	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0
+	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
 	var special_just_pressed := (
 		controls_enabled
 		and not input_blocked
@@ -219,6 +222,7 @@ func _physics_process(delta: float) -> void:
 		if cloak_ready:
 			local_cloak_charges_remaining -= 1
 			local_cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
+			local_cloak_cooldown_remaining = GameConstants.CLOAK_COOLDOWN_SECONDS
 			local_ship.combatant.cloak_remaining = local_cloak_remaining
 			local_ship.queue_redraw()
 	elif not controls_enabled or input_blocked or not local_alive:
@@ -520,11 +524,13 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	ship.combatant.mine_cooldown_remaining = float(state.get("mine_cooldown", 0.0))
 	ship.combatant.cloak_remaining = maxf(ship.combatant.cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
 	ship.combatant.cloak_charges_remaining = int(state.get("cloak_charges", 0))
+	ship.combatant.cloak_cooldown_remaining = float(state.get("cloak_cooldown", 0.0))
 	if ship.combatant.peer_id == local_peer_id:
 		local_mine_charges_remaining = ship.combatant.mine_charges_remaining
 		local_mine_cooldown_remaining = ship.combatant.mine_cooldown_remaining
 		local_cloak_charges_remaining = ship.combatant.cloak_charges_remaining
 		local_cloak_remaining = maxf(local_cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
+		local_cloak_cooldown_remaining = ship.combatant.cloak_cooldown_remaining
 	if bool(state.get("afterburner_active", false)):
 		ship.flash_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
@@ -891,6 +897,8 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			resources += "   MINES %s" % mine_status
 		if local_stats.cloak_enabled:
 			var cloak_status := "ACTIVE" if local_cloak_remaining > 0.0 else "%d" % local_cloak_charges_remaining
+			if local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining > 0.05:
+				cloak_status += " (%.1fs)" % local_cloak_cooldown_remaining
 			resources += "   CLOAK %s" % cloak_status
 		var reload_hint: String = input_profiles.binding_text(&"manual_reload") if input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]

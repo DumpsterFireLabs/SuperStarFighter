@@ -248,6 +248,7 @@ func snapshot_states() -> Array[Dictionary]:
 			"mine_cooldown": combatant.mine_cooldown_remaining,
 			"cloaked": combatant.is_cloaked(),
 			"cloak_charges": combatant.cloak_charges_remaining,
+			"cloak_cooldown": combatant.cloak_cooldown_remaining,
 		})
 	return states
 

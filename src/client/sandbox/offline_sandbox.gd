@@ -531,6 +531,8 @@ func _update_hud() -> void:
 	var cloak_text := ""
 	if player.combatant.stats.cloak_enabled:
 		cloak_text = " · Cloak %s" % ("ACTIVE" if player.combatant.is_cloaked() else str(player.combatant.cloak_charges_remaining))
+		if not player.combatant.is_cloaked() and player.combatant.cloak_cooldown_remaining > 0.05:
+			cloak_text += " (%.1fs)" % player.combatant.cloak_cooldown_remaining
 	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, cloak_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
 
 

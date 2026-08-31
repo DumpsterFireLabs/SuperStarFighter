@@ -2,7 +2,7 @@ class_name PlayerSnapshotCodec
 extends RefCounted
 
 const HEADER_SIZE: int = 10
-const PLAYER_RECORD_SIZE: int = 26
+const PLAYER_RECORD_SIZE: int = 28
 const POSITION_SCALE: float = 16.0
 const VELOCITY_SCALE: float = 8.0
 const RESOURCE_SCALE: float = 100.0
@@ -57,7 +57,8 @@ static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
 		int(state.get("mine_charges", 0)),
 		float(state.get("mine_cooldown", 0.0)),
 		bool(state.get("cloaked", false)),
-		int(state.get("cloak_charges", 0))
+		int(state.get("cloak_charges", 0)),
+		float(state.get("cloak_cooldown", 0.0))
 	)
 
 
@@ -77,7 +78,8 @@ static func _append_combatant(bytes: PackedByteArray, peer_id: int, combatant: C
 		combatant.mine_charges_remaining,
 		combatant.mine_cooldown_remaining,
 		combatant.is_cloaked(),
-		combatant.cloak_charges_remaining
+		combatant.cloak_charges_remaining,
+		combatant.cloak_cooldown_remaining
 	)
 
 
@@ -96,7 +98,8 @@ static func _append_values(
 	mine_charges: int,
 	mine_cooldown: float,
 	cloaked: bool,
-	cloak_charges: int
+	cloak_charges: int,
+	cloak_cooldown: float
 ) -> void:
 	ByteCodec.append_u32(bytes, peer_id)
 	ByteCodec.append_u16(bytes, roundi(clampf(position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
@@ -120,6 +123,7 @@ static func _append_values(
 	ByteCodec.append_u16(bytes, clampi(mine_charges, 0, 65535))
 	ByteCodec.append_u16(bytes, roundi(clampf(mine_cooldown, 0.0, 65.535) * 1000.0))
 	ByteCodec.append_u16(bytes, clampi(cloak_charges, 0, 65535))
+	ByteCodec.append_u16(bytes, roundi(clampf(cloak_cooldown, 0.0, 65.535) * 1000.0))
 
 
 static func decode(bytes: PackedByteArray) -> Dictionary:
@@ -154,6 +158,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 			"mine_cooldown": ByteCodec.read_u16(bytes, offset + 22) / 1000.0,
 			"cloaked": bool(flags & 8),
 			"cloak_charges": ByteCodec.read_u16(bytes, offset + 24),
+			"cloak_cooldown": ByteCodec.read_u16(bytes, offset + 26) / 1000.0,
 		})
 		offset += PLAYER_RECORD_SIZE
 	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states}
