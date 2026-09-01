@@ -112,6 +112,12 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 		4: {&"reality_shredder": 1},
 		5: {&"beam_emitter": 1, &"sunbeam_core": 1},
 		6: {&"supernova_array": 1},
+		7: {&"hollow_points": 1},
+		8: {&"rail_accelerant": 1},
+		9: {&"twin_shot": 1, &"causality_cannon": 1},
+		10: {&"transcendent_chassis": 1},
+		11: {&"supernova_array": 0},
+		12: {&"hollow_points": 1, &"mine_layer": 1},
 	}, catalog)
 	context.expect_equal(projectile_layer.beam_color_for_owner(1), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "Epic beam weapons retain the standard beam colour")
 	context.expect_equal(projectile_layer.beam_color_for_owner(2), catalog.get_card(&"beam_emitter").rarity_color(), "Legendary beam weapons render in Legendary yellow")
@@ -119,6 +125,12 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_equal(projectile_layer.beam_color_for_owner(4), catalog.get_card(&"reality_shredder").rarity_color(), "Unobtanium beam weapons render in the Unobtanium colour")
 	context.expect_equal(projectile_layer.beam_color_for_owner(5), catalog.get_card(&"sunbeam_core").rarity_color(), "the highest owned beam-weapon rarity controls the beam colour")
 	context.expect_equal(projectile_layer.beam_color_for_owner(6), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "high-rarity non-beam cards do not recolour beams")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(7), catalog.get_card(&"hollow_points").rarity_color(), "Common weapon cards colour ordinary projectiles with their rarity")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(8), catalog.get_card(&"rail_accelerant").rarity_color(), "Rare weapon cards colour ordinary projectiles with their rarity")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(9), catalog.get_card(&"causality_cannon").rarity_color(), "the highest applied weapon rarity controls ordinary projectile colour")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(10), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "non-weapon cards do not recolour ordinary projectiles")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(11), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "weapon cards with no applied stacks do not recolour ordinary projectiles")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(12), catalog.get_card(&"hollow_points").rarity_color(), "special weapons such as Star Mines do not influence ordinary projectile colour")
 	projectile_layer.free()
 
 	var ship := SandboxShip.new()

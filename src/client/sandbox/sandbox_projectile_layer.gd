@@ -6,25 +6,34 @@ const REBOUNDED_BEAM_COLOR: Color = Color("ff4fd8")
 
 var registry: ProjectileRegistry
 var visible_world_rect: Rect2 = Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
+var projectile_colors_by_owner: Dictionary = {}
 var high_tier_beam_colors_by_owner: Dictionary = {}
 
 
 func set_beam_builds(builds: Dictionary, catalog: CardCatalog) -> void:
+	projectile_colors_by_owner.clear()
 	high_tier_beam_colors_by_owner.clear()
 	for peer_value in builds:
 		var build_value: Variant = builds[peer_value]
 		if not build_value is Dictionary:
 			continue
 		var build := build_value as Dictionary
+		var highest_weapon_card: CardDefinition
 		var highest_beam_card: CardDefinition
 		for card_value in build:
 			if int(build[card_value]) <= 0:
 				continue
 			var card := catalog.get_card(StringName(card_value))
-			if card == null or card.special_behavior_id != &"beam_weapon":
+			if card == null or card.category != CardDefinition.Category.WEAPON:
+				continue
+			if card.special_behavior_id.is_empty() and (highest_weapon_card == null or card.rarity > highest_weapon_card.rarity):
+				highest_weapon_card = card
+			if card.special_behavior_id != &"beam_weapon":
 				continue
 			if highest_beam_card == null or card.rarity > highest_beam_card.rarity:
 				highest_beam_card = card
+		if highest_weapon_card != null:
+			projectile_colors_by_owner[int(peer_value)] = highest_weapon_card.rarity_color()
 		if highest_beam_card != null and highest_beam_card.rarity >= CardDefinition.Rarity.LEGENDARY:
 			high_tier_beam_colors_by_owner[int(peer_value)] = highest_beam_card.rarity_color()
 	queue_redraw()
@@ -32,6 +41,10 @@ func set_beam_builds(builds: Dictionary, catalog: CardCatalog) -> void:
 
 func beam_color_for_owner(owner_id: int) -> Color:
 	return high_tier_beam_colors_by_owner.get(owner_id, DEFAULT_BEAM_COLOR) as Color
+
+
+func projectile_color_for_owner(owner_id: int) -> Color:
+	return projectile_colors_by_owner.get(owner_id, DEFAULT_BEAM_COLOR) as Color
 
 
 func _beam_color(projectile: ProjectileState) -> Color:
@@ -64,7 +77,7 @@ func _draw() -> void:
 				draw_line(projectile.position + direction * 7.0, projectile.position + direction * 20.0, Color("ff9f43"), 4.0)
 			continue
 		var direction := projectile.velocity.normalized()
-		var trail_color := REBOUNDED_BEAM_COLOR if projectile.has_rebounded else DEFAULT_BEAM_COLOR
+		var trail_color := REBOUNDED_BEAM_COLOR if projectile.has_rebounded else projectile_color_for_owner(projectile.owner_id)
 		if projectile.is_beam:
 			trail_color = _beam_color(projectile)
 			var tail := projectile.position - direction * 230.0
@@ -75,5 +88,5 @@ func _draw() -> void:
 			continue
 		draw_line(projectile.position, projectile.position - direction * 32.0, Color(trail_color, 0.16), 9.0)
 		draw_circle(projectile.position, projectile.radius + 7.0, Color(trail_color, 0.12))
-		draw_circle(projectile.position, projectile.radius, Color("f4fbff"))
+		draw_circle(projectile.position, projectile.radius, trail_color.lightened(0.72))
 		draw_line(projectile.position, projectile.position - direction * 25.0, Color(trail_color, 0.82), 3.0)
