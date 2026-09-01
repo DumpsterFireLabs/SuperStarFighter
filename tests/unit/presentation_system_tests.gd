@@ -356,6 +356,15 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tree_parent.add_child(client)
 	context.expect_true(client.connection_screen != null, "production connection screen exists")
 	context.expect_true(client.offline_sandbox.effects_layer is CombatEffectsLayer, "offline combat renders the same mine explosion feedback as network matches")
+	var sandbox := client.offline_sandbox as OfflineSandbox
+	var common_index := sandbox.catalog.all_ids().find(&"ablative_shell")
+	var epic_index := sandbox.catalog.all_ids().find(&"aegis_matrix")
+	sandbox.selected_card_index = common_index
+	sandbox._update_card_label()
+	context.expect_equal(sandbox.card_label.get_theme_color(&"font_color"), sandbox.catalog.get_card(&"ablative_shell").rarity_color(), "offline card selector renders a Common card in its rarity colour")
+	sandbox.selected_card_index = epic_index
+	sandbox._update_card_label()
+	context.expect_equal(sandbox.card_label.get_theme_color(&"font_color"), sandbox.catalog.get_card(&"aegis_matrix").rarity_color(), "cycling the offline card selector refreshes its colour to the selected card rarity")
 	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"Button"), "shared interface theme defines a visible keyboard and controller focus state")
 	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"LineEdit"), "shared interface theme defines focused text inputs")
 	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")

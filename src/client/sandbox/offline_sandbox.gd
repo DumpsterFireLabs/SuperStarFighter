@@ -184,7 +184,6 @@ func _create_hud() -> void:
 	status_label.add_theme_font_size_override("font_size", 20)
 	content.add_child(status_label)
 	card_label = Label.new()
-	card_label.add_theme_color_override("font_color", Color("d39cff"))
 	card_label.add_theme_font_size_override("font_size", 20)
 	content.add_child(card_label)
 	help_label = Label.new()
@@ -547,6 +546,7 @@ func _update_card_label() -> void:
 	var card_id := catalog.all_ids()[selected_card_index]
 	var card := catalog.get_card(card_id)
 	card_label.text = "Selected: %s [STACK %d] — %s" % [card.display_name, int(build.get(card_id, 0)), card.description]
+	card_label.add_theme_color_override("font_color", card.rarity_color())
 
 
 func _grant_selected_card() -> void:
