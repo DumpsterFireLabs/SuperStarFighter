@@ -2781,7 +2781,7 @@ func _on_eject_pressed(peer_id: int) -> void:
 	bridge.send_eject_player(peer_id)
 
 
-func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
+func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
 	if event_type == &"REQUEST_REJECTED":
 		_extend_match_requested = false
 		_return_to_lobby_requested = false
@@ -2830,6 +2830,15 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 			alive_peer_ids.erase(int(peer_value))
 		latest_match_payload["alive_peer_ids"] = alive_peer_ids
 		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
+		var eliminations := payload.get("eliminations", []) as Array
+		if eliminations.is_empty():
+			for peer_value in payload.get("peer_ids", []):
+				eliminations.append({
+					"killer_id": 0,
+					"victim_id": int(peer_value),
+					"reason": String(payload.get("reason", "combat")),
+				})
+		network_world.add_kill_feed_entries(eliminations, server_tick)
 		if payload.has("scores"):
 			latest_match_payload["scores"] = (payload.scores as Dictionary).duplicate(true)
 			_scoreboard_rows_dirty = true

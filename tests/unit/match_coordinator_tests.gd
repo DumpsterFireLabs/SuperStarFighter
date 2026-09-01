@@ -6,6 +6,7 @@ const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_sy
 
 static func run(context: TestContext) -> void:
 	_validate_complete_match_and_rematch(context)
+	_validate_elimination_attribution_payload(context)
 	_validate_match_extension(context)
 	_validate_last_survivor_resolution(context)
 	_validate_round_winner_draft_bye(context)
@@ -18,6 +19,40 @@ static func run(context: TestContext) -> void:
 	_validate_free_for_all_spawn_spread(context)
 	_validate_multi_team_spawns(context)
 	_validate_team_npc_spawn_resets(context)
+
+
+static func _validate_elimination_attribution_payload(context: TestContext) -> void:
+	var lobby := ServerLobby.new(_fast_config())
+	for peer_id in [2, 3]:
+		lobby.admit(peer_id, "Pilot%d" % peer_id)
+	_ready_all(lobby)
+	lobby.request_start(2)
+	var world := AuthoritativeWorld.new()
+	for peer_id in [2, 3]:
+		world.add_peer(peer_id)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 5150)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	coordinator.drain_events()
+	var victim := world.combatants[3] as CombatantState
+	victim.health = 0.0
+	victim.alive = false
+	world._kills_since_drain.append({"killer_id": 2, "target_id": 3})
+	coordinator.step(1.0 / 60.0)
+	var elimination_payload: Dictionary = {}
+	for event_value in coordinator.drain_events():
+		var event := event_value as Dictionary
+		if event.event_type == &"PLAYER_ELIMINATED":
+			elimination_payload = event.payload as Dictionary
+	var records := elimination_payload.get("eliminations", []) as Array
+	context.expect_equal(records.size(), 1, "combat elimination publishes one kill-feed record per victim")
+	if not records.is_empty():
+		context.expect_equal(int(records[0].killer_id), 2, "kill-feed record preserves the authoritative killer")
+		context.expect_equal(int(records[0].victim_id), 3, "kill-feed record preserves the authoritative victim")
+		context.expect_equal(String(records[0].reason), "combat", "credited kill-feed record identifies combat attribution")
+	var uncredited := coordinator._elimination_records([3], [])
+	context.expect_equal(int(uncredited[0].killer_id), 0, "uncredited elimination does not invent a killer")
+	context.expect_equal(String(uncredited[0].reason), "environment", "uncredited elimination is labeled as environmental")
 
 
 static func _validate_complete_match_and_rematch(context: TestContext) -> void:

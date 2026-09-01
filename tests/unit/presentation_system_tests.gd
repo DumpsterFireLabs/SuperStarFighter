@@ -3,6 +3,7 @@ extends RefCounted
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
+const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
 
@@ -695,7 +696,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_match_event(&"CARD_POWERUP_COLLECTED", 308, {"powerup_id": 9, "card_id": &"kinetic_prow", "peer_id": 2, "position": Vector2(700.0, 500.0), "builds": {2: {&"kinetic_prow": 1}}})
 	context.expect_false(client.network_world.powerup_layer.powerups.has(9), "reliable collection event removes the arena card visual")
 	context.expect_true(client.network_world.local_stats.shield_ram_damage > 0.0, "local prediction adopts a collected card build immediately")
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 4}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}, "builds": {2: {&"heavy_rounds": 2}, 3: {&"glass_reactor": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "players": [{"peer_id": 2, "display_name": "Local Ace", "ship_color": "42e8ff"}, {"peer_id": 3, "display_name": "Rival Pilot", "ship_color": "ff5f7f"}], "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 4}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}, "builds": {2: {&"heavy_rounds": 2}, 3: {&"glass_reactor": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
 	var npc_max_health := StatSystem.derive({&"glass_reactor": 2}, client.card_catalog).max_health
@@ -738,7 +739,28 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  HEAVY ELECTRONIC EDGE MAIN"), "scoreboard identifies the active gameplay song")
 	var live_kills := client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
-	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})
+	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})
+	context.expect_equal(client.network_world.kill_feed.entries.size(), 1, "reliable elimination event adds one top-right kill-feed entry")
+	var kill_feed_entry := client.network_world.kill_feed.entries[0].node as PanelContainer
+	context.expect_equal(int(kill_feed_entry.get_meta("killer_id")), 2, "kill-feed entry retains the killer identity")
+	context.expect_equal(int(kill_feed_entry.get_meta("victim_id")), 3, "kill-feed entry retains the victim identity")
+	context.expect_true(bool(kill_feed_entry.get_meta("local_involved")), "kill-feed highlights an elimination involving the local pilot")
+	context.expect_equal((kill_feed_entry.get_child(0).get_child(0) as Label).text, "Local Ace", "kill-feed resolves the killer's immutable match name")
+	context.expect_equal((kill_feed_entry.get_child(0).get_child(2) as Label).text, "Rival Pilot", "kill-feed resolves the victim's immutable match name")
+	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}]})
+	context.expect_equal(client.network_world.kill_feed.entries.size(), 1, "kill-feed deduplicates a repeated reliable elimination record")
+	client.network_world.kill_feed.set_match_state("HEAT_RESULT")
+	context.expect_true(client.network_world.kill_feed.visible and client.network_world.kill_feed.entries.size() == 1, "decisive elimination remains visible through the heat result")
+	client.network_world.kill_feed.set_match_state("COUNTDOWN")
+	context.expect_false(client.network_world.kill_feed.visible, "kill-feed hides for the next heat countdown")
+	context.expect_empty(client.network_world.kill_feed.entries, "new heat countdown clears prior elimination entries")
+	client.network_world.kill_feed.set_match_state("ACTIVE_HEAT")
+	for feed_index in 7:
+		client.network_world.add_kill_feed_entries([{"killer_id": 2, "victim_id": 100 + feed_index, "reason": "combat"}], 400 + feed_index)
+	context.expect_equal(client.network_world.kill_feed.entries.size(), KillFeedScript.MAX_ENTRIES, "kill-feed remains bounded during a large elimination burst")
+	context.expect_equal(int(client.network_world.kill_feed.entries[0].victim_id), 106, "newest elimination stays at the top of the feed")
+	client.network_world.kill_feed.advance(KillFeedScript.ENTRY_LIFETIME_SECONDS + 0.1)
+	context.expect_empty(client.network_world.kill_feed.entries, "kill-feed entries expire after their display lifetime")
 	client._update_scoreboard()
 	live_kills = client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "5", "live elimination score payload refreshes cached scoreboard rows immediately")

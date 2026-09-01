@@ -177,6 +177,11 @@ func disconnect_peer(peer_id: int) -> void:
 			"server_tick": world.server_tick,
 			"payload": {
 				"peer_ids": [peer_id],
+				"eliminations": [{
+					"killer_id": 0,
+					"victim_id": peer_id,
+					"reason": "disconnect",
+				}],
 				"reason": "disconnect",
 				"scores": machine.score_snapshot(),
 			},
@@ -434,7 +439,8 @@ func _select_map_for_round(round_number: int) -> void:
 
 
 func _sync_combat_and_resolve(tick: int) -> void:
-	for kill_event in world.drain_kill_events():
+	var kill_events := world.drain_kill_events()
+	for kill_event in kill_events:
 		machine.scores.award_kill(int(kill_event.killer_id))
 	var newly_eliminated: Array[int] = []
 	for peer_id in machine.participant_ids():
@@ -457,6 +463,7 @@ func _sync_combat_and_resolve(tick: int) -> void:
 			"server_tick": tick,
 			"payload": {
 				"peer_ids": newly_eliminated,
+				"eliminations": _elimination_records(newly_eliminated, kill_events),
 				"reason": "combat",
 				"scores": machine.score_snapshot(),
 				"respawn_deadlines": _respawn_deadlines.duplicate(true),
@@ -464,6 +471,21 @@ func _sync_combat_and_resolve(tick: int) -> void:
 		})
 		machine.eliminate_players(newly_eliminated, tick)
 		_capture_transitions()
+
+
+func _elimination_records(peer_ids: Array[int], kill_events: Array[Dictionary]) -> Array[Dictionary]:
+	var killers_by_victim: Dictionary = {}
+	for event in kill_events:
+		killers_by_victim[int(event.get("target_id", 0))] = int(event.get("killer_id", 0))
+	var records: Array[Dictionary] = []
+	for victim_id in peer_ids:
+		var killer_id := int(killers_by_victim.get(victim_id, 0))
+		records.append({
+			"killer_id": killer_id,
+			"victim_id": victim_id,
+			"reason": "combat" if killer_id != 0 else "environment",
+		})
+	return records
 
 
 func _step_respawns(tick: int) -> void:

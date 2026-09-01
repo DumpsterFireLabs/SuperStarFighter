@@ -6,6 +6,7 @@ const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
+const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const PROJECTILE_COLLISION_ITERATIONS: int = 16
 const COLLISION_SURFACE_EPSILON: float = 0.35
@@ -39,6 +40,7 @@ var match_status_label: Label
 var resources_label: Label
 var combat_status_label: Label
 var spectator_label: Label
+var kill_feed: Control
 var health_bar: ProgressBar
 var shield_bar: ProgressBar
 var input_sequence: int = 0
@@ -171,6 +173,8 @@ func reset_session() -> void:
 		effects_layer.clear_effects()
 	if powerup_layer != null:
 		powerup_layer.clear_powerups()
+	if kill_feed != null:
+		kill_feed.clear()
 	if arena != null:
 		arena.set_map_id(ArenaLayout.DEFAULT_MAP_ID)
 		arena.set_overtime(false, OvertimeSystem.initial_radius())
@@ -359,6 +363,8 @@ func apply_match_state(payload: Dictionary) -> void:
 		ship.set_ship_appearance(_player_color(ship.combatant.peer_id), _player_pattern(ship.combatant.peer_id))
 	if hud_panel != null:
 		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
+	if kill_feed != null:
+		kill_feed.set_match_state(state_name)
 	apply_builds(payload.get("builds", {}) as Dictionary)
 	if powerup_layer != null:
 		powerup_layer.set_powerups(payload.get("powerups", []) as Array)
@@ -403,6 +409,16 @@ func collect_card_powerup(payload: Dictionary) -> void:
 	if effects_layer != null:
 		var card := card_catalog.get_card(StringName(payload.get("card_id", &"")))
 		effects_layer.spawn_impact(payload.get("position", Vector2.ZERO) as Vector2, card.rarity_color() if card != null else Color("42e8ff"))
+
+
+func add_kill_feed_entries(eliminations: Array, server_tick: int) -> void:
+	if kill_feed != null:
+		kill_feed.add_eliminations(
+			eliminations,
+			server_tick,
+			local_peer_id,
+			match_payload.get("players", []) as Array
+		)
 
 
 func snap_camera_to_local_ship() -> void:
@@ -884,6 +900,9 @@ func _create_camera_and_hud() -> void:
 	spectator_label.add_theme_font_size_override("font_size", 24)
 	spectator_label.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
 	canvas.add_child(spectator_label)
+	kill_feed = KillFeedScript.new()
+	kill_feed.name = "KillFeed"
+	canvas.add_child(kill_feed)
 	diagnostics_label = Label.new()
 	diagnostics_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	diagnostics_label.position = Vector2(-620.0, -120.0)
