@@ -433,6 +433,7 @@ func _nearest_sandbox_mine(start: Vector2, finish: Vector2, projectile: Projecti
 func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> void:
 	if mine == null or not mine.is_mine_armed() or projectile_registry.get_projectile(mine.projectile_id) == null:
 		return
+	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
 	var pending: Array[int] = [mine.projectile_id]
 	var queued: Dictionary = {}
 	queued[mine.projectile_id] = true
@@ -455,6 +456,8 @@ func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictiona
 			if not ship.combatant.alive or ship.combatant.peer_id == current.owner_id:
 				continue
 			if ship.global_position.distance_to(current.position) <= GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
+				if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, ship.global_position, active_map_id):
+					continue
 				damage_events.append({
 					"projectile_id": current.projectile_id,
 					"attacker_id": current.owner_id,
@@ -465,6 +468,8 @@ func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictiona
 			if queued.has(candidate.projectile_id) or not candidate.is_mine_armed():
 				continue
 			if candidate.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + candidate.radius:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, candidate.position, active_map_id):
 				continue
 			queued[candidate.projectile_id] = true
 			pending.append(candidate.projectile_id)

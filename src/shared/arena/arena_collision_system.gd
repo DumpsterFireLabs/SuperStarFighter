@@ -97,6 +97,14 @@ static func projectile_obstacle_sweep(
 	return hit as Dictionary if hit != null else {"hit": false}
 
 
+static func has_clear_line_of_sight(
+	start: Vector2,
+	end: Vector2,
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+) -> bool:
+	return projectile_obstacle_sweep_hit(start, end, 0.0, map_id) == null
+
+
 static func projectile_obstacle_sweep_hit(
 	start: Vector2,
 	end: Vector2,

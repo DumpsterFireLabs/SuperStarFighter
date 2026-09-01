@@ -1130,6 +1130,48 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	blast_world.projectile_registry.add(blast_trigger)
 	blast_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_approx(blast_target.health, 0.0, "the enlarged mine blast reaches a hull 200 pixels from its center")
+
+	var wall_blast_world := AuthoritativeWorld.new()
+	wall_blast_world.set_map_id(&"riftline")
+	wall_blast_world.add_peer(260, mine_stats).position = Vector2(1300.0, 300.0)
+	var wall_blast_target := wall_blast_world.add_peer(261)
+	wall_blast_target.position = Vector2(1700.0, 300.0)
+	var wall_blast_mine := ProjectileState.create_mine(920, 260, Vector2(1500.0, 300.0))
+	wall_blast_mine.mine_activation_remaining = 0.0
+	wall_blast_world.projectile_registry.add(wall_blast_mine)
+	var wall_blast_trigger := ProjectileState.create(921, 261, 1, Vector2(1475.0, 300.0), 0.0, CombatStats.create_base())
+	wall_blast_world.projectile_registry.add(wall_blast_trigger)
+	wall_blast_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_approx(wall_blast_target.health, 100.0, "a rectangular wall blocks mine blast damage")
+	context.expect_true(wall_blast_world.projectile_registry.get_projectile(920) == null, "the wall-blocked mine still detonates")
+
+	var structure_blast_world := AuthoritativeWorld.new()
+	structure_blast_world.set_map_id(&"relay_zero")
+	structure_blast_world.add_peer(262, mine_stats).position = Vector2(900.0, 1000.0)
+	var structure_blast_target := structure_blast_world.add_peer(263)
+	structure_blast_target.position = Vector2(1195.0, 1000.0)
+	var structure_blast_mine := ProjectileState.create_mine(922, 262, Vector2(1045.0, 1000.0))
+	structure_blast_mine.mine_activation_remaining = 0.0
+	structure_blast_world.projectile_registry.add(structure_blast_mine)
+	var structure_blast_trigger := ProjectileState.create(923, 263, 1, Vector2(1020.0, 1000.0), 0.0, CombatStats.create_base())
+	structure_blast_world.projectile_registry.add(structure_blast_trigger)
+	structure_blast_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_approx(structure_blast_target.health, 100.0, "a circular structure blocks mine blast damage")
+
+	var blocked_chain_world := AuthoritativeWorld.new()
+	blocked_chain_world.set_map_id(&"riftline")
+	blocked_chain_world.add_peer(264, mine_stats).position = Vector2(1300.0, 300.0)
+	blocked_chain_world.add_peer(265).position = Vector2(1800.0, 300.0)
+	for blocked_chain_data in [[924, Vector2(1500.0, 300.0)], [925, Vector2(1700.0, 300.0)]]:
+		var blocked_chain_mine := ProjectileState.create_mine(int(blocked_chain_data[0]), 264, blocked_chain_data[1] as Vector2)
+		blocked_chain_mine.mine_activation_remaining = 0.0
+		blocked_chain_world.projectile_registry.add(blocked_chain_mine)
+	var blocked_chain_trigger := ProjectileState.create(926, 265, 1, Vector2(1475.0, 300.0), 0.0, CombatStats.create_base())
+	blocked_chain_world.projectile_registry.add(blocked_chain_trigger)
+	blocked_chain_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(blocked_chain_world.projectile_registry.get_projectile(924) == null, "the struck mine detonates beside a wall")
+	context.expect_true(blocked_chain_world.projectile_registry.get_projectile(925) != null, "a wall blocks mine chain propagation")
+
 	var proximity_world := AuthoritativeWorld.new()
 	var proximity_layer := proximity_world.add_peer(240, mine_stats)
 	var proximity_target := proximity_world.add_peer(241)
@@ -1151,15 +1193,15 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	var chain_layer := chain_world.add_peer(242, mine_stats)
 	chain_layer.position = Vector2(300.0, 300.0)
 	var chain_target := chain_world.add_peer(243)
-	chain_target.position = Vector2(950.0, 500.0)
-	var chain_positions := [Vector2(500.0, 500.0), Vector2(650.0, 500.0), Vector2(800.0, 500.0)]
+	chain_target.position = Vector2(950.0, 300.0)
+	var chain_positions := [Vector2(500.0, 300.0), Vector2(650.0, 300.0), Vector2(800.0, 300.0)]
 	for chain_index in chain_positions.size():
 		var chain_mine := ProjectileState.create_mine(910 + chain_index, 242, chain_positions[chain_index])
 		chain_mine.mine_activation_remaining = 0.0
 		chain_world.projectile_registry.add(chain_mine)
-	var inactive_chain_mine := ProjectileState.create_mine(914, 242, Vector2(950.0, 500.0))
+	var inactive_chain_mine := ProjectileState.create_mine(914, 242, Vector2(950.0, 300.0))
 	chain_world.projectile_registry.add(inactive_chain_mine)
-	var chain_trigger := ProjectileState.create(913, 243, 1, Vector2(475.0, 500.0), 0.0, CombatStats.create_base())
+	var chain_trigger := ProjectileState.create(913, 243, 1, Vector2(475.0, 300.0), 0.0, CombatStats.create_base())
 	chain_world.projectile_registry.add(chain_trigger)
 	chain_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(chain_world.active_projectiles().size(), 1, "an armed mine blast recursively detonates other armed mines in range")

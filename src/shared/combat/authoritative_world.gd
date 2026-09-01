@@ -545,6 +545,8 @@ func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: 
 				continue
 			if target.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
 				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, target.position, map_id):
+				continue
 			damage_events.append({
 				"projectile_id": current.projectile_id,
 				"attacker_id": current.owner_id,
@@ -558,6 +560,8 @@ func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: 
 			if candidate == null or not candidate.is_mine_armed():
 				continue
 			if candidate.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + candidate.radius:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, candidate.position, map_id):
 				continue
 			queued[candidate_id] = true
 			pending.append(candidate_id)
