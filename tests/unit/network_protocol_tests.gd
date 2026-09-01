@@ -1084,7 +1084,7 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	mine_world.submit_input(230, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
 	mine_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_equal(layer.mine_charges_remaining, 9, "placing a mine consumes exactly one of ten charges")
-	context.expect_true(layer.mine_cooldown_remaining > 4.9, "placing a mine starts the five-second cooldown")
+	context.expect_true(layer.mine_cooldown_remaining > 2.9, "placing a mine starts the three-second cooldown")
 	context.expect_equal(mine_world.active_projectiles().size(), 1, "Shift places one persistent authoritative mine")
 	var placed_mine := mine_world.active_projectiles()[0] as ProjectileState
 	context.expect_false(placed_mine.is_mine_armed(), "a newly placed mine begins its quarter-second activation delay")

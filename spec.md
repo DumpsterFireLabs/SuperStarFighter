@@ -471,7 +471,7 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `repulsor_payload` | Repulsor Payload | Weapon | Epic | +320 projectile knockback; ×0.90 projectile speed; shields retain 20% |
 | `nosferatu_shield` | Nosferatu Shield | Shield | Legendary | Heal hull for 25% of blocked projectile damage |
 | `rebound_shields` | Rebound Shields | Shield | Legendary | Rebound blocked shots; each stack ×1.25 return damage/range, starting at 50%; one rebound maximum |
-| `mine_layer` | Star Mines | Weapon | Legendary | Special drops a magnetic proximity mine that arms after 0.25 seconds, drags toward the nearest enemy within 320 pixels at 60 pixels/second, and deals 100 damage in a 200-pixel blast; armed mines chain-react; +10 charges per stack refreshed each heat but not on respawn; 5-second placement cooldown |
+| `mine_layer` | Star Mines | Weapon | Legendary | Special drops a magnetic proximity mine that arms after 0.25 seconds, drags toward the nearest enemy within 320 pixels at 60 pixels/second, and deals 100 damage in a 200-pixel blast; armed mines chain-react; +10 charges per stack refreshed each heat but not on respawn; 3-second placement cooldown |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
