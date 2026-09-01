@@ -139,6 +139,23 @@ func _capture_sequence() -> void:
 		{"killer_id": 0, "victim_id": 5, "reason": "disconnect"},
 	], 201)
 	await _capture(client, "combat")
+	client.network_world.set_physics_process(false)
+	var afterburner_ship := client.network_world.ships[2] as SandboxShip
+	var before_afterburner_position := afterburner_ship.global_position
+	afterburner_ship.combatant.aim_angle = -0.18
+	afterburner_ship.combatant.velocity = Vector2(360.0, 190.0)
+	afterburner_ship.set_thrust_input(MovementSystem.world_to_ship_relative(Vector2.UP, afterburner_ship.combatant.aim_angle))
+	afterburner_ship.flash_afterburner(0.55)
+	for echo_index in 4:
+		afterburner_ship.global_position += Vector2(11.0, 6.0)
+		afterburner_ship._process(SandboxShip.AFTERBURNER_ECHO_INTERVAL_SECONDS)
+	await _capture(client, "afterburner")
+	afterburner_ship.global_position = before_afterburner_position
+	afterburner_ship.afterburner_bloom_remaining = 0.0
+	afterburner_ship.afterburner_ignition_remaining = 0.0
+	afterburner_ship.afterburner_echoes.clear()
+	afterburner_ship.set_thrust_input(Vector2.ZERO)
+	client.network_world.set_physics_process(true)
 	client.network_world.effects_layer.spawn_mine_explosion(Vector2(760.0, 300.0))
 	client.network_world.effects_layer._process(CombatEffectsLayer.MINE_EFFECT_DELAY + 0.08)
 	await _capture(client, "mine_explosion")

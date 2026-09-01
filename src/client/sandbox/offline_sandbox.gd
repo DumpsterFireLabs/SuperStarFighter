@@ -29,6 +29,9 @@ var overtime_debug_stage: int = 0
 var targets_shielding: bool = false
 var targets_firing: bool = false
 var input_profiles: Node
+var camera_kick_remaining: float = 0.0
+var camera_kick_duration: float = 0.0
+var camera_kick_offset: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -57,12 +60,22 @@ func _physics_process(delta: float) -> void:
 		var aim_angle := player.combatant.aim_angle
 		if not aim_vector.is_zero_approx():
 			aim_angle = aim_vector.angle()
-		var movement: Vector2 = input_profiles.world_movement_for_aim(aim_angle) if input_profiles != null else MovementSystem.ship_relative_to_world(Input.get_vector("move_left", "move_right", "move_up", "move_down"), aim_angle)
+		var ship_movement: Vector2 = input_profiles.movement_input_for_aim(aim_angle) if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		var movement := MovementSystem.ship_relative_to_world(ship_movement, aim_angle)
+		player.set_thrust_input(ship_movement)
 		player.simulate(movement, aim_angle, Input.is_action_pressed("shield"), delta)
 		if Input.is_action_just_pressed("special"):
 			if player.combatant.activate_special():
 				player.velocity = player.combatant.velocity
 				player.flash_afterburner(player.combatant.stats.afterburner_duration)
+				_trigger_afterburner_feedback(Vector2.from_angle(aim_angle))
+				presentation_event.emit(&"afterburner", {
+					"peer_id": player.combatant.peer_id,
+					"server_tick": roundi(heat_elapsed * GameConstants.PHYSICS_TICKS_PER_SECOND),
+					"position": player.global_position,
+					"listener_position": player.global_position,
+					"local": true,
+				})
 			if player.combatant.deploy_mine():
 				_spawn_mine(player.combatant)
 			player.combatant.activate_cloak()
@@ -72,6 +85,8 @@ func _physics_process(delta: float) -> void:
 			player.combatant.request_reload()
 		if Input.is_action_pressed("fire") and player.combatant.try_fire():
 			_spawn_shot(player)
+	else:
+		player.set_thrust_input(Vector2.ZERO)
 	for target in targets:
 		if target.combatant.alive:
 			var aim_at_player := (player.global_position - target.global_position).angle()
@@ -570,6 +585,21 @@ func _update_camera(delta: float) -> void:
 				target_position = target.global_position
 				break
 	camera.position = camera.position.lerp(target_position, 1.0 - exp(-8.0 * delta))
+	if camera_kick_remaining > 0.0:
+		var fraction := clampf(camera_kick_remaining / maxf(camera_kick_duration, 0.001), 0.0, 1.0)
+		camera.offset = camera_kick_offset * fraction * fraction
+		camera_kick_remaining = maxf(camera_kick_remaining - maxf(delta, 0.0), 0.0)
+	else:
+		camera.offset = camera.offset.lerp(Vector2.ZERO, 1.0 - exp(-18.0 * delta))
+
+
+func _trigger_afterburner_feedback(forward: Vector2) -> void:
+	var direction := forward.normalized()
+	if direction.is_zero_approx():
+		direction = Vector2.RIGHT
+	camera_kick_duration = 0.18
+	camera_kick_remaining = camera_kick_duration
+	camera_kick_offset = -direction * 5.5
 
 
 func _update_hud() -> void:

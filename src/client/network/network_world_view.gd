@@ -58,6 +58,9 @@ var input_blocked: bool = false
 var presentation_states: Dictionary = {}
 var camera_shake_remaining: float = 0.0
 var camera_shake_intensity: float = 0.0
+var camera_kick_remaining: float = 0.0
+var camera_kick_duration: float = 0.0
+var camera_kick_offset: Vector2 = Vector2.ZERO
 var diagnostics_visible: bool = false
 var special_activation_sends_remaining: int = 0
 var local_special_cooldown_remaining: float = 0.0
@@ -142,6 +145,9 @@ func reset_session() -> void:
 	presentation_states.clear()
 	camera_shake_remaining = 0.0
 	camera_shake_intensity = 0.0
+	camera_kick_remaining = 0.0
+	camera_kick_duration = 0.0
+	camera_kick_offset = Vector2.ZERO
 	special_activation_sends_remaining = 0
 	local_special_cooldown_remaining = 0.0
 	local_mine_charges_remaining = 0
@@ -214,6 +220,7 @@ func _physics_process(delta: float) -> void:
 	var local_alive := local_ship.combatant.alive
 	if not controls_enabled or input_blocked:
 		local_movement = Vector2.ZERO
+	local_ship.set_thrust_input(local_movement)
 	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
 	var mine_ready := local_stats.mine_layer_enabled and local_mine_charges_remaining > 0 and local_mine_cooldown_remaining <= 0.0
 	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
@@ -261,6 +268,14 @@ func _physics_process(delta: float) -> void:
 				prediction.predicted_velocity + Vector2.from_angle(aim_angle) * local_stats.afterburner_impulse
 			).limit_length(local_stats.max_speed * local_stats.afterburner_speed_multiplier)
 			local_ship.flash_afterburner(local_stats.afterburner_duration)
+			trigger_afterburner_feedback(Vector2.from_angle(aim_angle))
+			presentation_event.emit(&"afterburner", {
+				"peer_id": local_peer_id,
+				"server_tick": client_tick,
+				"position": local_ship.global_position,
+				"listener_position": local_ship.global_position,
+				"local": true,
+			})
 		local_ship.global_position = prediction.visual_position(delta)
 		local_ship.combatant.position = local_ship.global_position
 		local_ship.combatant.velocity = prediction.predicted_velocity
@@ -565,7 +580,7 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 		local_kinetic_vent_charge = ship.combatant.shield.kinetic_vent_charge
 		local_breakaway_cooldown_remaining = ship.combatant.breakaway_cooldown_remaining
 	if bool(state.get("afterburner_active", false)):
-		ship.flash_afterburner(0.14)
+		ship.sustain_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
 	ship.combatant.alive = state.alive
 	if not state.alive:
@@ -1078,6 +1093,16 @@ func trigger_camera_shake(intensity: float, duration: float) -> void:
 	camera_shake_remaining = maxf(camera_shake_remaining, duration)
 
 
+func trigger_afterburner_feedback(forward: Vector2) -> void:
+	var direction := forward.normalized()
+	if direction.is_zero_approx():
+		direction = Vector2.RIGHT
+	camera_kick_duration = 0.18
+	camera_kick_remaining = camera_kick_duration
+	camera_kick_offset = -direction * 5.5
+	trigger_camera_shake(2.4, 0.11)
+
+
 func _create_indicator_layer() -> void:
 	var canvas := CanvasLayer.new()
 	canvas.name = "OffscreenIndicators"
@@ -1123,8 +1148,17 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: SandboxShi
 		presentation_event.emit(&"kinetic_vent", {"peer_id": peer_id, "server_tick": latest_server_tick})
 		if peer_id == local_peer_id:
 			trigger_camera_shake(3.0, 0.12)
+	if not bool(previous.get("afterburner_active", false)) and bool(state.get("afterburner_active", false)):
+		ship.flash_afterburner(ship.combatant.stats.afterburner_duration)
+		if peer_id != local_peer_id:
+			presentation_event.emit(&"afterburner", {
+				"peer_id": peer_id,
+				"server_tick": latest_server_tick,
+				"position": state.get("position", Vector2.ZERO),
+				"listener_position": _audio_listener_position(),
+				"local": false,
+			})
 	if not bool(previous.get("breakaway_active", false)) and bool(state.get("breakaway_active", false)):
-		ship.flash_afterburner(GameConstants.BREAKAWAY_DURATION_SECONDS)
 		presentation_event.emit(&"breakaway", {"peer_id": peer_id, "server_tick": latest_server_tick})
 	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
 		if effects_layer != null:
@@ -1154,12 +1188,20 @@ func _update_overtime_presentation() -> void:
 func _update_camera_shake(delta: float) -> void:
 	if camera == null:
 		return
-	if camera_shake_remaining <= 0.0:
+	var safe_delta := maxf(delta, 0.0)
+	var desired_offset := Vector2.ZERO
+	if camera_kick_remaining > 0.0:
+		var kick_fraction := clampf(camera_kick_remaining / maxf(camera_kick_duration, 0.001), 0.0, 1.0)
+		desired_offset += camera_kick_offset * kick_fraction * kick_fraction
+		camera_kick_remaining = maxf(camera_kick_remaining - safe_delta, 0.0)
+	if camera_shake_remaining <= 0.0 and desired_offset.is_zero_approx():
 		camera.offset = camera.offset.lerp(Vector2.ZERO, 1.0 - exp(-18.0 * delta))
 		return
-	camera_shake_remaining = maxf(camera_shake_remaining - delta, 0.0)
-	var fade := minf(camera_shake_remaining * 8.0, 1.0)
-	camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * camera_shake_intensity * fade
+	if camera_shake_remaining > 0.0:
+		camera_shake_remaining = maxf(camera_shake_remaining - safe_delta, 0.0)
+		var fade := minf(camera_shake_remaining * 8.0, 1.0)
+		desired_offset += Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * camera_shake_intensity * fade
+	camera.offset = desired_offset
 
 
 func _unshaken_mouse_world_position() -> Vector2:

@@ -3,6 +3,10 @@ extends CharacterBody2D
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
+const AFTERBURNER_IGNITION_SECONDS: float = 0.12
+const AFTERBURNER_ECHO_LIFETIME_SECONDS: float = 0.30
+const AFTERBURNER_ECHO_INTERVAL_SECONDS: float = 0.045
+const MAX_AFTERBURNER_ECHOES: int = 6
 
 var combatant: CombatantState
 var ship_color: Color = Color("42e8ff")
@@ -16,6 +20,11 @@ var elimination_pulse_remaining: float = 0.0
 var thruster_particles: CPUParticles2D
 var thruster_intensity: float = 0.0
 var afterburner_bloom_remaining: float = 0.0
+var afterburner_duration: float = 0.0
+var afterburner_ignition_remaining: float = 0.0
+var afterburner_echo_accumulator: float = 0.0
+var afterburner_echoes: Array[Dictionary] = []
+var thrust_input: Vector2 = Vector2.ZERO
 
 
 func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Color, is_local: bool = false, pilot_name: String = "", pattern: StringName = ShipAppearanceScript.SOLID) -> void:
@@ -66,8 +75,19 @@ func _process(delta: float) -> void:
 	shield_flash_remaining = maxf(shield_flash_remaining - delta, 0.0)
 	elimination_pulse_remaining = maxf(elimination_pulse_remaining - delta, 0.0)
 	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining - delta, 0.0)
+	afterburner_ignition_remaining = maxf(afterburner_ignition_remaining - delta, 0.0)
+	_update_afterburner_echoes(delta)
 	_update_thruster_particles()
-	if damage_flash_remaining > 0.0 or shield_flash_remaining > 0.0 or elimination_pulse_remaining > 0.0 or combatant != null and (combatant.breakaway_remaining > 0.0 or combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()):
+	if (
+		damage_flash_remaining > 0.0
+		or shield_flash_remaining > 0.0
+		or elimination_pulse_remaining > 0.0
+		or afterburner_bloom_remaining > 0.0
+		or afterburner_ignition_remaining > 0.0
+		or not afterburner_echoes.is_empty()
+		or not thrust_input.is_zero_approx()
+		or combatant != null and (combatant.breakaway_remaining > 0.0 or combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback())
+	):
 		queue_redraw()
 
 
@@ -80,10 +100,22 @@ func simulate(input_direction: Vector2, aim_angle: float, shield_held: bool, del
 	queue_redraw()
 
 
+func set_thrust_input(ship_relative_input: Vector2) -> void:
+	var normalized := MovementSystem.sanitize_input(ship_relative_input)
+	if thrust_input.is_equal_approx(normalized):
+		return
+	thrust_input = normalized
+	queue_redraw()
+
+
 func set_eliminated() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	elimination_pulse_remaining = 0.65
+	thrust_input = Vector2.ZERO
+	afterburner_bloom_remaining = 0.0
+	afterburner_ignition_remaining = 0.0
+	afterburner_echoes.clear()
 	if thruster_particles != null:
 		thruster_particles.emitting = false
 	queue_redraw()
@@ -100,7 +132,22 @@ func flash_shield_block() -> void:
 
 
 func flash_afterburner(duration: float = 0.18) -> void:
-	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining, duration)
+	var safe_duration := maxf(duration, 0.0)
+	var newly_active := afterburner_bloom_remaining <= 0.0
+	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining, safe_duration)
+	if newly_active:
+		afterburner_duration = safe_duration
+		afterburner_ignition_remaining = AFTERBURNER_IGNITION_SECONDS
+		afterburner_echo_accumulator = AFTERBURNER_ECHO_INTERVAL_SECONDS
+	else:
+		afterburner_duration = maxf(afterburner_duration, safe_duration)
+	queue_redraw()
+
+
+func sustain_afterburner(duration: float = 0.14) -> void:
+	var safe_duration := maxf(duration, 0.0)
+	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining, safe_duration)
+	afterburner_duration = maxf(afterburner_duration, safe_duration)
 	queue_redraw()
 
 
@@ -111,6 +158,11 @@ func reset_ship(stats: CombatStats, spawn_position: Vector2) -> void:
 	shield_flash_remaining = 0.0
 	elimination_pulse_remaining = 0.0
 	afterburner_bloom_remaining = 0.0
+	afterburner_duration = 0.0
+	afterburner_ignition_remaining = 0.0
+	afterburner_echo_accumulator = 0.0
+	afterburner_echoes.clear()
+	thrust_input = Vector2.ZERO
 	collision_layer = 2
 	collision_mask = 3
 	if thruster_particles != null:
@@ -163,17 +215,38 @@ func _update_thruster_particles() -> void:
 		thruster_particles.emitting = false
 		return
 	var travel_direction := combatant.velocity / speed
-	var afterburning := afterburner_bloom_remaining > 0.0 or combatant.breakaway_remaining > 0.0
+	var afterburning := afterburner_bloom_remaining > 0.0
+	var breaking_away := combatant.breakaway_remaining > 0.0
 	thruster_particles.position = -travel_direction * 18.0
 	thruster_particles.rotation = travel_direction.angle()
-	thruster_particles.amount = 36 if afterburning else 10
-	thruster_particles.spread = 24.0 if afterburning else 16.0
-	thruster_particles.initial_velocity_min = 110.0 if afterburning else 42.0
-	thruster_particles.initial_velocity_max = 230.0 if afterburning else 92.0
-	thruster_particles.scale_amount_min = 1.8 if afterburning else 1.4
-	thruster_particles.scale_amount_max = 4.8 if afterburning else 3.2
-	thruster_particles.speed_scale = (2.15 if afterburning else lerpf(0.7, 1.35, thruster_intensity))
+	thruster_particles.amount = 18 if afterburning else (15 if breaking_away else 10)
+	thruster_particles.spread = 10.0 if afterburning else (21.0 if breaking_away else 16.0)
+	thruster_particles.initial_velocity_min = 86.0 if afterburning else (76.0 if breaking_away else 42.0)
+	thruster_particles.initial_velocity_max = 168.0 if afterburning else (150.0 if breaking_away else 92.0)
+	thruster_particles.scale_amount_min = 1.5 if afterburning else (1.7 if breaking_away else 1.4)
+	thruster_particles.scale_amount_max = 3.8 if afterburning else (4.2 if breaking_away else 3.2)
+	thruster_particles.speed_scale = (1.75 if afterburning else (1.65 if breaking_away else lerpf(0.7, 1.35, thruster_intensity)))
 	thruster_particles.emitting = true
+
+
+func _update_afterburner_echoes(delta: float) -> void:
+	var safe_delta := maxf(delta, 0.0)
+	for echo in afterburner_echoes:
+		echo["age"] = float(echo.get("age", 0.0)) + safe_delta
+	while not afterburner_echoes.is_empty() and float(afterburner_echoes[0].get("age", 0.0)) >= AFTERBURNER_ECHO_LIFETIME_SECONDS:
+		afterburner_echoes.pop_front()
+	if afterburner_bloom_remaining <= 0.0 or combatant == null or not combatant.alive or combatant.is_cloaked():
+		return
+	afterburner_echo_accumulator += safe_delta
+	while afterburner_echo_accumulator >= AFTERBURNER_ECHO_INTERVAL_SECONDS:
+		afterburner_echo_accumulator -= AFTERBURNER_ECHO_INTERVAL_SECONDS
+		afterburner_echoes.append({
+			"position": global_position,
+			"aim_angle": combatant.aim_angle,
+			"age": 0.0,
+		})
+		while afterburner_echoes.size() > MAX_AFTERBURNER_ECHOES:
+			afterburner_echoes.pop_front()
 
 
 func _draw() -> void:
@@ -204,6 +277,9 @@ func _draw() -> void:
 	var forward := Vector2.from_angle(combatant.aim_angle)
 	var side := forward.orthogonal()
 	var points := PackedVector2Array([forward * 29.0, -forward * 19.0 + side * 17.0, -forward * 11.0, -forward * 19.0 - side * 17.0])
+	_draw_afterburner_echoes()
+	_draw_maneuvering_jets(forward, side)
+	_draw_afterburner_plume(forward, side)
 	draw_polyline(points + PackedVector2Array([points[0]]), Color(ship_color, 0.18), 12.0)
 	draw_colored_polygon(points, Color(ship_color.darkened(0.45), 0.82))
 	_draw_cosmetic_pattern(forward, side)
@@ -213,7 +289,7 @@ func _draw() -> void:
 		var offset := (float(mark) - identity_pattern * 0.5) * 8.0
 		draw_line(-forward * 8.0 + side * offset, -forward * 16.0 + side * offset, Color.WHITE, 2.5)
 	if local_control:
-		var marker_center := -forward * 39.0
+		var marker_center := -side * 39.0 if afterburner_bloom_remaining > 0.0 else -forward * 39.0
 		draw_polyline(PackedVector2Array([marker_center - side * 9.0, marker_center + forward * 8.0, marker_center + side * 9.0]), Color("fff36a"), 4.0)
 		_draw_ammo_indicator()
 	if combatant.shield.active:
@@ -228,6 +304,108 @@ func _draw() -> void:
 	var health_angle := TAU * combatant.health_fraction()
 	draw_arc(Vector2.ZERO, 26.0, -PI * 0.5, -PI * 0.5 + health_angle, 24, Color("54ff8b"), 2.0)
 	_draw_nameplate(Color("fff36a") if local_control else Color("e8f5ff"))
+
+
+func _draw_afterburner_echoes() -> void:
+	for echo in afterburner_echoes:
+		var progress := clampf(float(echo.get("age", 0.0)) / AFTERBURNER_ECHO_LIFETIME_SECONDS, 0.0, 1.0)
+		var echo_forward := Vector2.from_angle(float(echo.get("aim_angle", 0.0)))
+		var echo_side := echo_forward.orthogonal()
+		var origin := to_local(echo.get("position", global_position) as Vector2)
+		var echo_points := PackedVector2Array([
+			origin + echo_forward * 29.0,
+			origin - echo_forward * 19.0 + echo_side * 17.0,
+			origin - echo_forward * 11.0,
+			origin - echo_forward * 19.0 - echo_side * 17.0,
+		])
+		var alpha := pow(1.0 - progress, 1.7) * 0.34
+		draw_colored_polygon(echo_points, Color(ship_color, alpha * 0.16))
+		draw_polyline(echo_points + PackedVector2Array([echo_points[0]]), Color(ship_color.lightened(0.42), alpha), lerpf(3.0, 1.0, progress))
+
+
+func _draw_maneuvering_jets(forward: Vector2, side: Vector2) -> void:
+	if thrust_input.is_zero_approx():
+		return
+	var forward_thrust := maxf(-thrust_input.y, 0.0)
+	var reverse_thrust := maxf(thrust_input.y, 0.0)
+	var lateral_thrust := thrust_input.x
+	if forward_thrust > 0.02 and afterburner_bloom_remaining <= 0.0:
+		_draw_jet(-forward * 17.0 + side * 9.0, -forward, forward_thrust, 23.0, 4.5)
+		_draw_jet(-forward * 17.0 - side * 9.0, -forward, forward_thrust, 23.0, 4.5)
+	if reverse_thrust > 0.02:
+		_draw_jet(forward * 15.0 + side * 10.0, forward, reverse_thrust, 16.0, 3.4)
+		_draw_jet(forward * 15.0 - side * 10.0, forward, reverse_thrust, 16.0, 3.4)
+	if absf(lateral_thrust) > 0.02:
+		var lateral_sign := signf(lateral_thrust)
+		var exhaust_direction := side * lateral_sign
+		var nozzle_side := side * lateral_sign * 14.0
+		_draw_jet(nozzle_side + forward * 8.0, exhaust_direction, absf(lateral_thrust), 14.0, 3.0)
+		_draw_jet(nozzle_side - forward * 9.0, exhaust_direction, absf(lateral_thrust), 14.0, 3.0)
+
+
+func _draw_jet(nozzle: Vector2, exhaust_direction: Vector2, intensity: float, maximum_length: float, half_width: float) -> void:
+	var strength := clampf(intensity, 0.0, 1.0)
+	var direction := exhaust_direction.normalized()
+	var cross := direction.orthogonal()
+	var pulse := 0.86 + sin(Time.get_ticks_msec() * 0.024 + float(combatant.peer_id)) * 0.14
+	var length := maximum_length * strength * pulse
+	var width := half_width * (0.55 + strength * 0.45)
+	var tip := nozzle + direction * length
+	draw_colored_polygon(PackedVector2Array([
+		nozzle - cross * width,
+		nozzle + cross * width,
+		tip + cross * width * 0.12,
+		tip - cross * width * 0.12,
+	]), Color(ship_color.lightened(0.30), 0.26 + strength * 0.34))
+	draw_line(nozzle, nozzle + direction * length * 0.72, Color(1.0, 1.0, 1.0, 0.48 + strength * 0.34), maxf(width * 0.55, 1.0), true)
+
+
+func _draw_afterburner_plume(forward: Vector2, side: Vector2) -> void:
+	if afterburner_bloom_remaining <= 0.0:
+		return
+	var elapsed := maxf(afterburner_duration - afterburner_bloom_remaining, 0.0)
+	var ignition_mix := clampf(elapsed / 0.055, 0.0, 1.0)
+	var shutdown_mix := clampf(afterburner_bloom_remaining / 0.09, 0.0, 1.0)
+	var strength := minf(ignition_mix, shutdown_mix)
+	var flicker := 0.90 + sin(elapsed * 58.0 + float(combatant.peer_id) * 1.7) * 0.10
+	var plume_length := (78.0 + 22.0 * flicker) * strength
+	var nozzle := -forward * 18.0
+	var tail := nozzle - forward * plume_length
+	var outer_width := (11.0 + 2.0 * flicker) * strength
+	var middle_width := outer_width * 0.58
+	var outer_color := Color(ship_color.lightened(0.18), 0.24 + strength * 0.34)
+	var middle_color := Color(ship_color.lightened(0.58), 0.42 + strength * 0.40)
+	draw_line(nozzle, tail + forward * plume_length * 0.08, Color(ship_color, 0.08 * strength), maxf(outer_width * 2.8, 1.0), true)
+	draw_line(nozzle, tail + forward * plume_length * 0.16, Color(ship_color.lightened(0.32), 0.14 * strength), maxf(outer_width * 1.75, 1.0), true)
+	draw_colored_polygon(PackedVector2Array([
+		nozzle + side * outer_width,
+		nozzle - side * outer_width,
+		tail - side * outer_width * 0.10,
+		tail + side * outer_width * 0.10,
+	]), outer_color)
+	draw_colored_polygon(PackedVector2Array([
+		nozzle + side * middle_width,
+		nozzle - side * middle_width,
+		tail + forward * plume_length * 0.15 - side * middle_width * 0.08,
+		tail + forward * plume_length * 0.15 + side * middle_width * 0.08,
+	]), middle_color)
+	draw_circle(nozzle, outer_width * 1.22, Color(ship_color.lightened(0.42), 0.24 * strength))
+	draw_circle(nozzle, middle_width * 0.62, Color(1.0, 1.0, 1.0, 0.72 * strength))
+	draw_line(nozzle, tail + forward * plume_length * 0.34, Color(1.0, 1.0, 1.0, 0.92 * strength), maxf(3.0 * strength, 1.0), true)
+	for diamond_index in 2:
+		var center := nozzle - forward * plume_length * (0.32 + diamond_index * 0.29)
+		var half_length := plume_length * 0.08
+		var half_height := middle_width * (0.62 - diamond_index * 0.12)
+		draw_colored_polygon(PackedVector2Array([
+			center + forward * half_length,
+			center + side * half_height,
+			center - forward * half_length,
+			center - side * half_height,
+		]), Color(1.0, 1.0, 1.0, 0.36 * strength))
+	if afterburner_ignition_remaining > 0.0:
+		var ring_progress := 1.0 - afterburner_ignition_remaining / AFTERBURNER_IGNITION_SECONDS
+		var ring_radius := lerpf(7.0, 34.0, ring_progress)
+		draw_arc(nozzle, ring_radius, 0.0, TAU, 28, Color(ship_color.lightened(0.55), (1.0 - ring_progress) * 0.78), lerpf(5.0, 1.0, ring_progress), true)
 
 
 func _draw_cosmetic_pattern(forward: Vector2, side: Vector2) -> void:

@@ -16,7 +16,7 @@ const SFX_NAMES: Array[StringName] = [
 	&"fire", &"beam_fire", &"reload", &"shield_on", &"shield_block", &"shield_break",
 	&"damage", &"elimination", &"card_lock", &"countdown", &"overtime",
 	&"round_win", &"match_win", &"projectile_impact", &"ricochet", &"mine_detonated",
-	&"rebound", &"kinetic_vent", &"breakaway",
+	&"rebound", &"kinetic_vent", &"breakaway", &"afterburner",
 ]
 
 var menu_player: AudioStreamPlayer
@@ -169,7 +169,7 @@ func play_sfx(event_name: StringName, unique_key: String = "", volume_db: float 
 	_last_played_msec[cooldown_scope] = now
 	if not playback_enabled:
 		return
-	var priority := 6 if event_name in [&"shield_break", &"elimination", &"match_win", &"mine_detonated"] else 2
+	var priority := 6 if event_name in [&"shield_break", &"elimination", &"match_win", &"mine_detonated"] else (4 if event_name == &"afterburner" else 2)
 	var player := _acquire_sfx_player(priority)
 	if player == null:
 		return
@@ -368,12 +368,17 @@ func _load_sfx() -> void:
 		&"projectile_impact": [310.0, 72.0, 0.13], &"ricochet": [1180.0, 540.0, 0.10],
 		&"mine_detonated": [145.0, 42.0, 0.42], &"rebound": [1480.0, 680.0, 0.13],
 		&"kinetic_vent": [210.0, 1050.0, 0.24], &"breakaway": [330.0, 920.0, 0.22],
+		&"afterburner": [185.0, 1180.0, 0.48],
 	}
 	for event_name in SFX_NAMES:
 		var override := _load_audio_override(String(event_name))
 		if override != null:
 			sfx_streams[event_name] = override
 			sfx_generated[event_name] = false
+			continue
+		if event_name == &"afterburner":
+			sfx_streams[event_name] = _synthesize_afterburner()
+			sfx_generated[event_name] = true
 			continue
 		var spec := tone_specs[event_name] as Array
 		sfx_streams[event_name] = _synthesize_tone(float(spec[0]), float(spec[1]), float(spec[2]))
@@ -664,6 +669,39 @@ func _synthesize_tone(start_hz: float, end_hz: float, duration: float) -> AudioS
 		phase += TAU * frequency / mix_rate
 		var envelope := minf(progress / 0.08, 1.0) * pow(1.0 - progress, 1.8)
 		bytes.encode_s16(index * 2, clampi(roundi(sin(phase) * envelope * 15000.0), -32768, 32767))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = mix_rate
+	stream.stereo = false
+	stream.data = bytes
+	return stream
+
+
+func _synthesize_afterburner() -> AudioStreamWAV:
+	var mix_rate := 22050
+	var duration := 0.52
+	var sample_count := roundi(duration * mix_rate)
+	var bytes := PackedByteArray()
+	bytes.resize(sample_count * 2)
+	var primary_phase := 0.0
+	var secondary_phase := 0.0
+	var noise_state := 947_231
+	var filtered_noise := 0.0
+	for index in sample_count:
+		var progress := float(index) / float(sample_count)
+		var frequency := lerpf(74.0, 142.0, minf(progress / 0.42, 1.0))
+		primary_phase += TAU * frequency / mix_rate
+		secondary_phase += TAU * frequency * 2.03 / mix_rate
+		noise_state = int(posmod(noise_state * 1103515245 + 12345, 2147483647))
+		var noise := float(noise_state) / 1073741823.5 - 1.0
+		filtered_noise = lerpf(filtered_noise, noise, 0.075)
+		var attack := minf(progress / 0.028, 1.0)
+		var release := pow(1.0 - progress, 0.72)
+		var envelope := attack * release
+		var ignition := noise * exp(-progress * 52.0) * 0.62
+		var roar := sin(primary_phase) * 0.42 + sin(secondary_phase) * 0.16 + filtered_noise * 0.48
+		var sample := (roar * envelope + ignition) * 0.72
+		bytes.encode_s16(index * 2, clampi(roundi(sample * 26000.0), -32768, 32767))
 	var stream := AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = mix_rate

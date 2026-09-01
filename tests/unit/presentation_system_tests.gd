@@ -25,6 +25,7 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_true(FileAccess.file_exists("res://assets/audio/sfx/mine_detonated.wav"), "authored mine detonation is bundled")
 	context.expect_false(bool(audio.sfx_generated.get(&"mine_detonated", true)), "authored mine detonation replaces its synthesized placeholder")
 	context.expect_true(audio.sfx_streams.get(&"mine_detonated") is AudioStreamWAV, "authored mine detonation imports as a WAV stream")
+	context.expect_true((audio.sfx_streams.get(&"afterburner") as AudioStreamWAV).get_length() >= 0.5, "Afterburner receives a sustained ignition-and-roar cue instead of a short generic chirp")
 	context.expect_equal(audio.sfx_players.size(), AudioDirector.SFX_PLAYER_COUNT, "combat audio reserves the expanded priority-aware polyphony pool")
 	var sfx_bus_index := AudioServer.get_bus_index(AudioDirector.SFX_BUS)
 	var has_sfx_limiter := false
@@ -142,15 +143,24 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	ship.combatant.velocity = Vector2(240.0, 0.0)
 	ship._process(1.0 / 60.0)
 	context.expect_true(ship.thruster_particles.emitting and ship.thruster_intensity > 0.0, "ship movement activates speed-responsive thruster particles")
+	context.expect_approx(ship.thruster_particles.rotation, 0.0, "the persistent contrail follows actual velocity", 0.001)
+	ship.combatant.aim_angle = PI * 0.5
+	ship.set_thrust_input(Vector2(1.0, 0.0))
+	context.expect_equal(ship.thrust_input, Vector2(1.0, 0.0), "maneuvering jets retain the canonical ship-relative control command independently of velocity")
 	ship.flash_afterburner(0.5)
 	ship._process(1.0 / 60.0)
 	context.expect_true(
 		ship.thruster_particles.amount > 10
-		and ship.thruster_particles.speed_scale >= 2.0
-		and ship.thruster_particles.initial_velocity_max > 200.0
-		and ship.thruster_particles.spread > 16.0,
-		"Afterburner produces a fast, visibly larger particle plume"
+		and ship.thruster_particles.speed_scale >= 1.7
+		and ship.thruster_particles.initial_velocity_max > 160.0
+		and ship.thruster_particles.spread < 16.0,
+		"Afterburner strengthens and narrows the velocity wake behind its dedicated facing-aligned lance"
 	)
+	context.expect_true(ship.afterburner_ignition_remaining > 0.0, "Afterburner starts a distinct ignition shock phase")
+	ship.global_position += Vector2(18.0, 0.0)
+	ship._process(SandboxShip.AFTERBURNER_ECHO_INTERVAL_SECONDS)
+	context.expect_true(not ship.afterburner_echoes.is_empty(), "Afterburner leaves a bounded world-space ship echo wake")
+	context.expect_true(ship.afterburner_echoes.size() <= SandboxShip.MAX_AFTERBURNER_ECHOES, "Afterburner echo history remains bounded per ship")
 	ship.set_ship_color(Color("ff4ea3"))
 	context.expect_equal(ship.ship_color.to_html(false), "ff4ea3", "an existing ship accepts a newer authoritative lobby colour")
 	context.expect_approx(ship.thruster_particles.color_ramp.colors[1].b, Color("ff4ea3").lightened(0.18).b, "ship colour refresh also updates its thruster presentation")
@@ -225,6 +235,8 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view.camera = Camera2D.new()
 	view.trigger_camera_shake(5.0, 0.2)
 	context.expect_true(view.camera_shake_remaining > 0.0, "local damage can trigger restrained presentation-only camera shake")
+	view.trigger_afterburner_feedback(Vector2.RIGHT)
+	context.expect_true(view.camera_kick_remaining > 0.0 and view.camera_kick_offset.x < 0.0, "local Afterburner ignition recoils the camera opposite the boost direction")
 	var feedback_events: Array[StringName] = []
 	var feedback_payloads: Array[Dictionary] = []
 	view.presentation_event.connect(func(event_name: StringName, payload: Dictionary) -> void:
@@ -247,6 +259,19 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	remote_ship.setup(2, CombatStats.create_base(), Vector2(112.0, 120.0), Color.CYAN, false, "Remote")
 	remote_ship.global_position = Vector2(112.0, 120.0)
 	view.ships[2] = remote_ship
+	view.latest_server_tick = 30
+	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": false}, remote_ship)
+	view.latest_server_tick = 31
+	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": true, "breakaway_active": false}, remote_ship)
+	context.expect_equal(feedback_events.back(), &"afterburner", "a remote authoritative activation edge emits one Afterburner presentation event")
+	context.expect_true(remote_ship.afterburner_bloom_remaining > 0.0, "remote Afterburner presentation anchors its dedicated lance from authoritative facing")
+	remote_ship.afterburner_bloom_remaining = 0.0
+	view.latest_server_tick = 32
+	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": false}, remote_ship)
+	view.latest_server_tick = 33
+	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": true}, remote_ship)
+	context.expect_equal(feedback_events.back(), &"breakaway", "Breakaway retains its own presentation event")
+	context.expect_approx(remote_ship.afterburner_bloom_remaining, 0.0, "Breakaway no longer impersonates the facing-aligned Afterburner lance")
 	view.prediction_initialized = true
 	view.prediction.predicted_position = Vector2(100.0, 120.0)
 	view.prediction.predicted_velocity = Vector2(240.0, 0.0)
