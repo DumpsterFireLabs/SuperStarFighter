@@ -16,6 +16,7 @@ var targets: Array[SandboxShip] = []
 var ships_by_id: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
 var projectile_layer: SandboxProjectileLayer
+var effects_layer: CombatEffectsLayer
 var arena: SandboxArena
 var camera: Camera2D
 var status_label: Label
@@ -38,6 +39,10 @@ func _ready() -> void:
 	projectile_layer.name = "Projectiles"
 	projectile_layer.registry = projectile_registry
 	add_child(projectile_layer)
+	effects_layer = CombatEffectsLayer.new()
+	effects_layer.name = "CombatEffects"
+	effects_layer.z_index = 5
+	add_child(effects_layer)
 	_create_ships()
 	_create_camera()
 	_create_hud()
@@ -438,6 +443,8 @@ func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictiona
 		if current == null or not current.is_mine_armed():
 			continue
 		projectile_registry.remove(current.projectile_id)
+		if effects_layer != null:
+			effects_layer.spawn_mine_explosion(current.position)
 		presentation_event.emit(&"mine_detonated", {
 			"projectile_id": current.projectile_id,
 			"owner_id": current.owner_id,
@@ -574,6 +581,8 @@ func _reset_combatants() -> void:
 		targets[index].reset_ship(CombatStats.create_base(), anchors[12 + index * 3])
 	for projectile in projectile_registry.all_projectiles():
 		projectile_registry.remove(projectile.projectile_id)
+	if effects_layer != null:
+		effects_layer.clear_effects()
 	heat_elapsed = 0.0
 	overtime_debug_stage = 0
 

@@ -134,6 +134,10 @@ func _capture_sequence() -> void:
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	await _capture(client, "combat")
+	client.network_world.effects_layer.spawn_mine_explosion(Vector2(760.0, 300.0))
+	client.network_world.effects_layer._process(CombatEffectsLayer.MINE_EFFECT_DELAY + 0.08)
+	await _capture(client, "mine_explosion")
+	client.network_world.effects_layer.clear_effects()
 	for map_id in ArenaLayout.map_ids():
 		client.latest_match_payload["map_id"] = map_id
 		client.latest_match_payload["map_name"] = ArenaLayout.display_name(map_id)

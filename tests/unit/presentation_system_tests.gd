@@ -16,7 +16,14 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	var audio := AudioDirector.new()
 	tree_parent.add_child(audio)
 	context.expect_equal(audio.sfx_streams.size(), AudioDirector.SFX_NAMES.size(), "audio director provides every required combat cue")
-	context.expect_equal(audio.synthesized_placeholder_count(), AudioDirector.SFX_NAMES.size(), "missing authored SFX receive synthesized placeholders")
+	var authored_sfx_count := 0
+	for event_name in AudioDirector.SFX_NAMES:
+		if not bool(audio.sfx_generated.get(event_name, true)):
+			authored_sfx_count += 1
+	context.expect_equal(audio.synthesized_placeholder_count() + authored_sfx_count, AudioDirector.SFX_NAMES.size(), "missing authored SFX receive synthesized placeholders")
+	context.expect_true(FileAccess.file_exists("res://assets/audio/sfx/mine_detonated.wav"), "authored mine detonation is bundled")
+	context.expect_false(bool(audio.sfx_generated.get(&"mine_detonated", true)), "authored mine detonation replaces its synthesized placeholder")
+	context.expect_true(audio.sfx_streams.get(&"mine_detonated") is AudioStreamWAV, "authored mine detonation imports as a WAV stream")
 	context.expect_equal(audio.sfx_players.size(), AudioDirector.SFX_PLAYER_COUNT, "combat audio reserves the expanded priority-aware polyphony pool")
 	var sfx_bus_index := AudioServer.get_bus_index(AudioDirector.SFX_BUS)
 	var has_sfx_limiter := false
@@ -172,9 +179,15 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	effects.spawn_damage(Vector2.ONE, Vector2.RIGHT)
 	effects.spawn_elimination(Vector2.ONE, Color.WHITE)
 	effects.spawn_rebound(Vector2.ONE)
-	context.expect_equal(effects.effects.size(), 4, "impact, damage direction, elimination, and rebound effects coexist")
+	effects.spawn_mine_explosion(Vector2.ONE)
+	context.expect_equal(effects.effects.size(), 5, "impact, damage direction, elimination, rebound, and mine effects coexist")
+	var mine_effect := effects.effects[-1]
+	context.expect_equal((mine_effect.sparks as Array).size(), CombatEffectsLayer.MINE_SPARK_COUNT, "mine explosion has a bounded radial spark burst")
+	context.expect_equal((mine_effect.smoke as Array).size(), CombatEffectsLayer.MINE_SMOKE_COUNT, "mine explosion has a bounded smoke bloom")
+	context.expect_approx(CombatEffectsLayer.MINE_EFFECT_DELAY, 0.1, "mine flash synchronizes with the authored sound delay")
 	effects.clear_effects()
 	context.expect_empty(effects.effects, "presentation effects clear between heats")
+	context.expect_equal(effects.active_mine_effect_count, 0, "clearing presentation effects resets the mine-effect budget")
 	effects.free()
 	var powerup_layer := PowerupLayerScript.new()
 	powerup_layer.add_powerup({"powerup_id": 7, "card_id": &"kinetic_prow", "position": Vector2(500.0, 400.0), "rarity": CardDefinition.Rarity.RARE})
@@ -342,6 +355,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var client := packed_scene.instantiate()
 	tree_parent.add_child(client)
 	context.expect_true(client.connection_screen != null, "production connection screen exists")
+	context.expect_true(client.offline_sandbox.effects_layer is CombatEffectsLayer, "offline combat renders the same mine explosion feedback as network matches")
 	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"Button"), "shared interface theme defines a visible keyboard and controller focus state")
 	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"LineEdit"), "shared interface theme defines focused text inputs")
 	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")
