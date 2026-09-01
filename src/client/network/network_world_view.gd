@@ -66,6 +66,8 @@ var special_activation_sends_remaining: int = 0
 var local_special_cooldown_remaining: float = 0.0
 var local_mine_charges_remaining: int = 0
 var local_mine_cooldown_remaining: float = 0.0
+var local_missile_charges_remaining: int = 0
+var local_missile_cooldown_remaining: float = 0.0
 var local_cloak_charges_remaining: int = 0
 var local_cloak_remaining: float = 0.0
 var local_cloak_cooldown_remaining: float = 0.0
@@ -152,6 +154,8 @@ func reset_session() -> void:
 	local_special_cooldown_remaining = 0.0
 	local_mine_charges_remaining = 0
 	local_mine_cooldown_remaining = 0.0
+	local_missile_charges_remaining = 0
+	local_missile_cooldown_remaining = 0.0
 	local_cloak_charges_remaining = 0
 	local_cloak_remaining = 0.0
 	local_cloak_cooldown_remaining = 0.0
@@ -207,6 +211,7 @@ func _physics_process(delta: float) -> void:
 	input_send_accumulator += delta
 	local_special_cooldown_remaining = maxf(local_special_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_mine_cooldown_remaining = maxf(local_mine_cooldown_remaining - maxf(delta, 0.0), 0.0)
+	local_missile_cooldown_remaining = maxf(local_missile_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_remaining = maxf(local_cloak_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_cooldown_remaining = maxf(local_cloak_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_breakaway_remaining = maxf(local_breakaway_remaining - maxf(delta, 0.0), 0.0)
@@ -223,12 +228,13 @@ func _physics_process(delta: float) -> void:
 	local_ship.set_thrust_input(local_movement)
 	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
 	var mine_ready := local_stats.mine_layer_enabled and local_mine_charges_remaining > 0 and local_mine_cooldown_remaining <= 0.0
+	var missile_ready := local_stats.missile_launcher_enabled and local_missile_charges_remaining > 0 and local_missile_cooldown_remaining <= 0.0
 	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
 	var special_just_pressed := (
 		controls_enabled
 		and not input_blocked
 		and local_alive
-		and (afterburner_ready or mine_ready or cloak_ready)
+		and (afterburner_ready or mine_ready or missile_ready or cloak_ready)
 		and Input.is_action_just_pressed("special")
 	)
 	if special_just_pressed:
@@ -238,6 +244,9 @@ func _physics_process(delta: float) -> void:
 		if mine_ready:
 			local_mine_charges_remaining -= 1
 			local_mine_cooldown_remaining = GameConstants.MINE_COOLDOWN_SECONDS
+		if missile_ready:
+			local_missile_charges_remaining -= 1
+			local_missile_cooldown_remaining = GameConstants.MISSILE_COOLDOWN_SECONDS
 		if cloak_ready:
 			local_cloak_charges_remaining -= 1
 			local_cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
@@ -484,6 +493,15 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 				_emit_rebound_feedback(projectile)
 		if projectile.is_mine or existing != null or projectile.has_rebounded:
 			continue
+		if projectile.is_missile:
+			presentation_event.emit(&"missile_launch", {
+				"projectile_id": projectile.projectile_id,
+				"owner_id": projectile.owner_id,
+				"position": projectile.position,
+				"listener_position": _audio_listener_position(),
+				"server_tick": latest_server_tick,
+			})
+			continue
 		var shot_key := "%d:%d" % [projectile.owner_id, projectile.shot_sequence]
 		if not emitted_shots.has(shot_key):
 			emitted_shots[shot_key] = true
@@ -562,6 +580,8 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	ship.combatant.afterburner_remaining = 0.1 if bool(state.get("afterburner_active", false)) else 0.0
 	ship.combatant.mine_charges_remaining = int(state.get("mine_charges", 0))
 	ship.combatant.mine_cooldown_remaining = float(state.get("mine_cooldown", 0.0))
+	ship.combatant.missile_charges_remaining = int(state.get("missile_charges", 0))
+	ship.combatant.missile_cooldown_remaining = float(state.get("missile_cooldown", 0.0))
 	ship.combatant.cloak_remaining = maxf(ship.combatant.cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
 	ship.combatant.cloak_charges_remaining = int(state.get("cloak_charges", 0))
 	ship.combatant.cloak_cooldown_remaining = float(state.get("cloak_cooldown", 0.0))
@@ -573,6 +593,8 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	if ship.combatant.peer_id == local_peer_id:
 		local_mine_charges_remaining = ship.combatant.mine_charges_remaining
 		local_mine_cooldown_remaining = ship.combatant.mine_cooldown_remaining
+		local_missile_charges_remaining = ship.combatant.missile_charges_remaining
+		local_missile_cooldown_remaining = ship.combatant.missile_cooldown_remaining
 		local_cloak_charges_remaining = ship.combatant.cloak_charges_remaining
 		local_cloak_remaining = maxf(local_cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
 		local_cloak_cooldown_remaining = ship.combatant.cloak_cooldown_remaining
@@ -786,6 +808,7 @@ func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileStat
 	existing.lifetime_remaining = incoming.lifetime_remaining
 	existing.is_beam = incoming.is_beam
 	existing.is_mine = incoming.is_mine
+	existing.is_missile = incoming.is_missile
 	existing.mine_activation_remaining = incoming.mine_activation_remaining
 	existing.has_rebounded = incoming.has_rebounded
 	existing.radius = incoming.radius
@@ -946,6 +969,11 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			if local_mine_cooldown_remaining > 0.05:
 				mine_status += " (%.1fs)" % local_mine_cooldown_remaining
 			resources += "   MINES %s" % mine_status
+		if local_stats.missile_launcher_enabled:
+			var missile_status := "%d" % local_missile_charges_remaining
+			if local_missile_cooldown_remaining > 0.05:
+				missile_status += " (%.1fs)" % local_missile_cooldown_remaining
+			resources += "   MISSILES %s" % missile_status
 		if local_stats.cloak_enabled:
 			var cloak_status := "ACTIVE" if local_cloak_remaining > 0.0 else "%d" % local_cloak_charges_remaining
 			if local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining > 0.05:
@@ -964,6 +992,9 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 		if local_stats.mine_layer_enabled:
 			var mine_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
 			combat_status += "   ·   %s Star Mine" % mine_hint
+		if local_stats.missile_launcher_enabled:
+			var missile_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
+			combat_status += "   ·   %s Hunter Missile" % missile_hint
 		if local_stats.cloak_enabled:
 			var cloak_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
 			combat_status += "   ·   %s Cloak" % cloak_hint

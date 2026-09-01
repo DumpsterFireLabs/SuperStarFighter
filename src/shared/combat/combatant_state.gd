@@ -13,6 +13,8 @@ var afterburner_remaining: float = 0.0
 var afterburner_cooldown_remaining: float = 0.0
 var mine_charges_remaining: int = 0
 var mine_cooldown_remaining: float = 0.0
+var missile_charges_remaining: int = 0
+var missile_cooldown_remaining: float = 0.0
 var cloak_charges_remaining: int = 0
 var cloak_remaining: float = 0.0
 var cloak_cooldown_remaining: float = 0.0
@@ -49,6 +51,10 @@ func reset_for_heat(
 	else:
 		mine_charges_remaining = mini(mine_charges_remaining, stats.mine_capacity)
 	if refresh_heat_inventory:
+		missile_charges_remaining = stats.missile_capacity
+	else:
+		missile_charges_remaining = mini(missile_charges_remaining, stats.missile_capacity)
+	if refresh_heat_inventory:
 		cloak_charges_remaining = stats.cloak_capacity
 		cloak_cooldown_remaining = 0.0
 	else:
@@ -63,6 +69,7 @@ func reset_for_heat(
 	afterburner_remaining = 0.0
 	afterburner_cooldown_remaining = 0.0
 	mine_cooldown_remaining = 0.0
+	missile_cooldown_remaining = 0.0
 	cloak_remaining = 0.0
 	cloak_activation_latched = false
 	breakaway_remaining = 0.0
@@ -79,6 +86,10 @@ func reset_match_inventory() -> void:
 	mine_cooldown_remaining = 0.0
 	stats.mine_capacity = 0
 	stats.mine_layer_enabled = false
+	missile_charges_remaining = 0
+	missile_cooldown_remaining = 0.0
+	stats.missile_capacity = 0
+	stats.missile_launcher_enabled = false
 	cloak_charges_remaining = 0
 	cloak_remaining = 0.0
 	cloak_cooldown_remaining = 0.0
@@ -108,6 +119,7 @@ func step(
 	afterburner_remaining = maxf(afterburner_remaining - safe_delta, 0.0)
 	afterburner_cooldown_remaining = maxf(afterburner_cooldown_remaining - safe_delta, 0.0)
 	mine_cooldown_remaining = maxf(mine_cooldown_remaining - safe_delta, 0.0)
+	missile_cooldown_remaining = maxf(missile_cooldown_remaining - safe_delta, 0.0)
 	cloak_remaining = maxf(cloak_remaining - safe_delta, 0.0)
 	cloak_cooldown_remaining = maxf(cloak_cooldown_remaining - safe_delta, 0.0)
 	breakaway_remaining = maxf(breakaway_remaining - safe_delta, 0.0)
@@ -178,6 +190,14 @@ func deploy_mine() -> bool:
 		return false
 	mine_charges_remaining -= 1
 	mine_cooldown_remaining = GameConstants.MINE_COOLDOWN_SECONDS
+	return true
+
+
+func launch_missile() -> bool:
+	if not alive or not stats.missile_launcher_enabled or missile_charges_remaining <= 0 or missile_cooldown_remaining > 0.0:
+		return false
+	missile_charges_remaining -= 1
+	missile_cooldown_remaining = GameConstants.MISSILE_COOLDOWN_SECONDS
 	return true
 
 

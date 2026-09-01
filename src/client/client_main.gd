@@ -3544,6 +3544,8 @@ func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: Stri
 		stat_lines.append("Special  Forward burst on Special binding")
 	elif card.special_behavior_id == &"mine_layer":
 		stat_lines.append("Special  Drop an explosive mine on Special binding")
+	elif card.special_behavior_id == &"missile_launcher":
+		stat_lines.append("Special  Launch a limited-range seeker on Special binding")
 	elif card.special_behavior_id == &"cloak":
 		stat_lines.append("Special  Become invisible for 5 seconds on Special binding")
 	elif card.special_behavior_id == &"rebound_shield":
@@ -3719,7 +3721,7 @@ func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -
 		)
 		return
 	var unique_key := ""
-	if event_name in [&"projectile_impact", &"ricochet"]:
+	if event_name in [&"projectile_impact", &"ricochet", &"missile_launch"]:
 		unique_key = "%s:%s" % [payload.get("projectile_id", 0), payload.get("ricochets_remaining", -1)]
 	else:
 		unique_key = "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", payload.get("projectile_id", 0))]

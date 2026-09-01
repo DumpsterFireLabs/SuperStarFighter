@@ -75,6 +75,7 @@ const EXPECTED_CARDS := {
 	&"nosferatu_shield": CardDefinition.Category.SHIELD,
 	&"rebound_shields": CardDefinition.Category.SHIELD,
 	&"mine_layer": CardDefinition.Category.WEAPON,
+	&"hunter_missiles": CardDefinition.Category.WEAPON,
 	&"kinetic_vent": CardDefinition.Category.SHIELD,
 	&"breakaway_thrusters": CardDefinition.Category.SHIP,
 }
@@ -82,7 +83,7 @@ const EXPECTED_CARDS := {
 
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	context.expect_equal(catalog.size(), 135, "default card catalog contains 135 differentiated cards")
+	context.expect_equal(catalog.size(), 136, "default card catalog contains 136 differentiated cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
@@ -122,7 +123,7 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 		mechanical_shapes[CardCatalog.mechanical_shape_signature(card)] = card_id
 	context.expect_equal(category_counts[CardDefinition.Category.SHIP], 41, "catalog contains forty-one differentiated ship cards")
 	context.expect_equal(category_counts[CardDefinition.Category.SHIELD], 47, "catalog contains forty-seven differentiated shield cards")
-	context.expect_equal(category_counts[CardDefinition.Category.WEAPON], 47, "weapon-heavy catalog contains forty-seven differentiated weapon cards")
+	context.expect_equal(category_counts[CardDefinition.Category.WEAPON], 48, "weapon-heavy catalog contains forty-eight differentiated weapon cards")
 	context.expect_equal(mechanical_signatures.size(), catalog.size(), "catalog sanity check finds no mechanically identical cards")
 	context.expect_equal(mechanical_shapes.size(), catalog.size(), "catalog sanity check finds no same-shape magnitude swaps")
 
@@ -222,9 +223,11 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 
 
 static func _validate_expanded_stat_surface(context: TestContext, catalog: CardCatalog) -> void:
-	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 40, "cards can modify forty authoritative numeric combat stats")
+	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 41, "cards can modify forty-one authoritative numeric combat stats")
 	_expect_build(context, catalog, &"mine_layer", 1, {"mine_layer_enabled": true, "mine_capacity": 10})
 	_expect_build(context, catalog, &"mine_layer", 2, {"mine_layer_enabled": true, "mine_capacity": 20})
+	_expect_build(context, catalog, &"hunter_missiles", 1, {"missile_launcher_enabled": true, "missile_capacity": 20})
+	_expect_build(context, catalog, &"hunter_missiles", 2, {"missile_launcher_enabled": true, "missile_capacity": 40})
 	_expect_build(context, catalog, &"cloak", 1, {"cloak_enabled": true, "cloak_capacity": 1})
 	_expect_build(context, catalog, &"cloak", 2, {"cloak_enabled": true, "cloak_capacity": 2})
 	_expect_build(context, catalog, &"rangefinder", 1, {"projectile_lifetime": 3.125, "projectile_speed": 990.0, "fire_rate": 3.8})

@@ -211,6 +211,14 @@ func submit_inputs(
 			and combatant.mine_cooldown_remaining <= 0.0
 			and distance <= GameConstants.MINE_BLAST_RADIUS * 1.6
 		)
+		var missile_special := (
+			combatant.stats.missile_launcher_enabled
+			and float(profile.fire_duty) > 0.0
+			and combatant.missile_charges_remaining > 0
+			and combatant.missile_cooldown_remaining <= 0.0
+			and has_line_of_sight
+			and distance <= GameConstants.MISSILE_RANGE
+		)
 		var cloak_special := (
 			combatant.stats.cloak_enabled
 			and combatant.cloak_charges_remaining > 0
@@ -218,7 +226,7 @@ func submit_inputs(
 			and not combatant.is_cloaked()
 			and (combatant.health_fraction() <= 0.55 or distance > float(profile.preferred_max) * 1.5)
 		)
-		var special := afterburner_special or mine_special or cloak_special
+		var special := afterburner_special or mine_special or missile_special or cloak_special
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special)
 
 

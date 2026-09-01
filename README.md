@@ -8,8 +8,8 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 
 - Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
 - Automatic weapons, directional energy shields, shield-ram melee builds, knockback rounds, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
-- 135 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, Star Mines, and Rebound Shields.
-- 40 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, rebound shields, and active mine-layer transformations.
+- 136 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, Star Mines, Hunter Missiles, and Rebound Shields.
+- 41 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, rebound shields, active mines, and forward-tracking missiles.
 - Two to 32 total participants with individual and bulk NPC difficulty controls.
 - Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, five-second objective-mode respawns, round-rotating hills, home-base flag scoring, objective-aware NPCs, live objective HUD state, and team scoring.
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
@@ -209,7 +209,7 @@ The current gate passes 2,815 automated assertions and 93 project checks. Networ
 
 ## Current Scope
 
-Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 135 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 136 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
 
 The Beta 9 Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client export paths are operational, while Beta 1 through Beta 8 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 

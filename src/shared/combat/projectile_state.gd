@@ -14,6 +14,8 @@ var remaining_pierces: int = 0
 var remaining_ricochets: int = 0
 var is_beam: bool = false
 var is_mine: bool = false
+var is_missile: bool = false
+var missile_target_id: int = 0
 var mine_activation_remaining: float = 0.0
 var kinetic_vent_displacement_remaining: float = 0.0
 var has_rebounded: bool = false
@@ -58,6 +60,26 @@ static func create_mine(id: int, owner: int, spawn_position: Vector2) -> Project
 	mine.is_mine = true
 	mine.mine_activation_remaining = GameConstants.MINE_ACTIVATION_SECONDS
 	return mine
+
+
+static func create_missile(
+	id: int,
+	owner: int,
+	spawn_position: Vector2,
+	angle: float,
+	target_id: int = 0
+) -> ProjectileState:
+	var missile := ProjectileState.new()
+	missile.projectile_id = id
+	missile.owner_id = owner
+	missile.position = spawn_position
+	missile.velocity = Vector2.from_angle(angle) * GameConstants.MISSILE_SPEED
+	missile.damage = GameConstants.MISSILE_DAMAGE
+	missile.radius = GameConstants.MISSILE_RADIUS
+	missile.lifetime_remaining = GameConstants.MISSILE_RANGE / GameConstants.MISSILE_SPEED
+	missile.is_missile = true
+	missile.missile_target_id = target_id
+	return missile
 
 
 func is_mine_armed() -> bool:
@@ -131,4 +153,5 @@ func rebound_toward(
 	damage *= clampf(damage_factor, 0.0, 1.0)
 	lifetime_remaining *= clampf(range_factor, 0.0, 1.0)
 	has_rebounded = true
+	missile_target_id = 0
 	return true

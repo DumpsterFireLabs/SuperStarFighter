@@ -81,6 +81,8 @@ func _physics_process(delta: float) -> void:
 				})
 			if player.combatant.deploy_mine():
 				_spawn_mine(player.combatant)
+			if player.combatant.launch_missile():
+				_spawn_missile(player.combatant)
 			player.combatant.activate_cloak()
 		elif not Input.is_action_pressed("special"):
 			player.combatant.release_special_activation()
@@ -288,6 +290,59 @@ func _spawn_mine(combatant: CombatantState) -> void:
 	projectile_registry.add(mine)
 
 
+func _spawn_missile(combatant: CombatantState) -> void:
+	var muzzle := combatant.position + Vector2.from_angle(combatant.aim_angle) * 34.0
+	var missile := ProjectileState.create_missile(
+		next_projectile_id,
+		combatant.peer_id,
+		muzzle,
+		combatant.aim_angle,
+		_acquire_sandbox_missile_target(
+			combatant.peer_id,
+			muzzle,
+			Vector2.from_angle(combatant.aim_angle),
+			GameConstants.MISSILE_RANGE
+		)
+	)
+	next_projectile_id += 1
+	projectile_registry.add(missile)
+	presentation_event.emit(&"missile_launch", {
+		"projectile_id": missile.projectile_id,
+		"owner_id": missile.owner_id,
+		"position": missile.position,
+		"listener_position": player.global_position,
+		"server_tick": roundi(heat_elapsed * GameConstants.PHYSICS_TICKS_PER_SECOND),
+	})
+
+
+func _acquire_sandbox_missile_target(
+	owner_id: int,
+	origin: Vector2,
+	forward: Vector2,
+	maximum_range: float
+) -> int:
+	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+	var best_id := 0
+	var best_distance_squared := maxf(maximum_range, 0.0) * maxf(maximum_range, 0.0)
+	for ship_value in ships_by_id.values():
+		var ship := ship_value as SandboxShip
+		if not ship.combatant.alive or ship.combatant.peer_id == owner_id:
+			continue
+		var offset := ship.global_position - origin
+		var distance_squared := offset.length_squared()
+		if distance_squared > best_distance_squared or offset.is_zero_approx():
+			continue
+		if absf(forward.angle_to(offset.normalized())) > GameConstants.MISSILE_ACQUISITION_HALF_ANGLE:
+			continue
+		if not ArenaCollisionSystem.has_clear_line_of_sight(origin, ship.global_position, active_map_id):
+			continue
+		if best_id != 0 and is_equal_approx(distance_squared, best_distance_squared) and ship.combatant.peer_id > best_id:
+			continue
+		best_id = ship.combatant.peer_id
+		best_distance_squared = distance_squared
+	return best_id
+
+
 func _simulate_projectiles(delta: float) -> void:
 	var damage_events: Array[Dictionary] = []
 	_step_mine_magnetism(delta)
@@ -295,6 +350,7 @@ func _simulate_projectiles(delta: float) -> void:
 	for projectile in projectile_registry.all_projectiles():
 		if projectile.is_mine:
 			continue
+		_step_sandbox_missile_guidance(projectile, delta)
 		var start := projectile.position
 		if not projectile.step(delta):
 			projectile_registry.remove(projectile.projectile_id)
@@ -387,6 +443,50 @@ func _simulate_projectiles(delta: float) -> void:
 		projectile.step_mine_activation(delta)
 
 
+func _step_sandbox_missile_guidance(missile: ProjectileState, delta: float) -> void:
+	if not missile.is_missile or missile.velocity.is_zero_approx():
+		return
+	var target := ships_by_id.get(missile.missile_target_id) as SandboxShip
+	if target != null and (
+		not target.combatant.alive
+		or not _sandbox_missile_target_is_visible_in_cone(missile, target, GameConstants.MISSILE_GUIDANCE_HALF_ANGLE)
+	):
+		missile.missile_target_id = 0
+		target = null
+	if target == null:
+		missile.missile_target_id = _acquire_sandbox_missile_target(
+			missile.owner_id,
+			missile.position,
+			missile.velocity.normalized(),
+			missile.lifetime_remaining * GameConstants.MISSILE_SPEED
+		)
+		target = ships_by_id.get(missile.missile_target_id) as SandboxShip
+		if target == null:
+			return
+	var offset := target.global_position - missile.position
+	if offset.is_zero_approx():
+		return
+	var angular_error := angle_difference(missile.velocity.angle(), offset.angle())
+	var maximum_turn := GameConstants.MISSILE_TURN_RATE * maxf(delta, 0.0)
+	missile.velocity = Vector2.from_angle(
+		missile.velocity.angle() + clampf(angular_error, -maximum_turn, maximum_turn)
+	) * GameConstants.MISSILE_SPEED
+
+
+func _sandbox_missile_target_is_visible_in_cone(
+	missile: ProjectileState,
+	target: SandboxShip,
+	half_angle: float
+) -> bool:
+	var offset := target.global_position - missile.position
+	if offset.is_zero_approx():
+		return true
+	if absf(missile.velocity.normalized().angle_to(offset.normalized())) > half_angle:
+		return false
+	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+	return ArenaCollisionSystem.has_clear_line_of_sight(missile.position, target.global_position, active_map_id)
+
+
 func _step_mine_magnetism(delta: float) -> void:
 	for mine in projectile_registry.all_projectiles():
 		if not mine.is_mine_armed():
@@ -472,6 +572,8 @@ func _resolve_sandbox_kinetic_vents() -> void:
 				projectile.apply_kinetic_vent(outward, impulse)
 			elif not projectile.velocity.is_zero_approx():
 				projectile.velocity = outward.normalized() * projectile.velocity.length()
+				if projectile.is_missile:
+					projectile.missile_target_id = 0
 
 
 func _detonate_proximity_mines(damage_events: Array[Dictionary]) -> void:
@@ -659,6 +761,11 @@ func _update_hud() -> void:
 		mine_text = " · Mines %d" % player.combatant.mine_charges_remaining
 		if player.combatant.mine_cooldown_remaining > 0.05:
 			mine_text += " (%.1fs)" % player.combatant.mine_cooldown_remaining
+	var missile_text := ""
+	if player.combatant.stats.missile_launcher_enabled:
+		missile_text = " · Missiles %d" % player.combatant.missile_charges_remaining
+		if player.combatant.missile_cooldown_remaining > 0.05:
+			missile_text += " (%.1fs)" % player.combatant.missile_cooldown_remaining
 	var cloak_text := ""
 	if player.combatant.stats.cloak_enabled:
 		cloak_text = " · Cloak %s" % ("ACTIVE" if player.combatant.is_cloaked() else str(player.combatant.cloak_charges_remaining))
@@ -667,7 +774,7 @@ func _update_hud() -> void:
 	var vent_text := ""
 	if player.combatant.stats.kinetic_vent_enabled:
 		vent_text = " · Vent %.0f/%.0f" % [player.combatant.shield.kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
-	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, cloak_text, vent_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
+	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, missile_text, cloak_text, vent_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
 
 
 func _update_card_label() -> void:
@@ -687,12 +794,16 @@ func _grant_selected_card() -> void:
 func _apply_build() -> void:
 	var health_fraction := player.combatant.health_fraction()
 	var previous_mine_capacity := player.combatant.stats.mine_capacity
+	var previous_missile_capacity := player.combatant.stats.missile_capacity
 	var previous_cloak_capacity := player.combatant.stats.cloak_capacity
 	derived_stats = StatSystem.derive(build, catalog)
 	projectile_layer.set_beam_builds({player.combatant.peer_id: build}, catalog)
 	player.combatant.stats = derived_stats.duplicate_stats()
 	if derived_stats.mine_capacity > previous_mine_capacity:
 		player.combatant.mine_charges_remaining += derived_stats.mine_capacity - previous_mine_capacity
+	if derived_stats.missile_capacity > previous_missile_capacity:
+		player.combatant.missile_charges_remaining += derived_stats.missile_capacity - previous_missile_capacity
+	player.combatant.missile_charges_remaining = mini(player.combatant.missile_charges_remaining, derived_stats.missile_capacity)
 	if derived_stats.cloak_capacity > previous_cloak_capacity:
 		player.combatant.cloak_charges_remaining += derived_stats.cloak_capacity - previous_cloak_capacity
 	player.combatant.cloak_charges_remaining = mini(player.combatant.cloak_charges_remaining, derived_stats.cloak_capacity)

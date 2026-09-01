@@ -130,6 +130,8 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 			"afterburner_active": peer_id == 2,
 			"mine_charges": 9 if peer_id == 2 else 0,
 			"mine_cooldown": 7.25 if peer_id == 2 else 0.0,
+			"missile_charges": 17 if peer_id == 2 else 0,
+			"missile_cooldown": 0.75 if peer_id == 2 else 0.0,
 			"cloaked": peer_id == 2,
 			"cloak_charges": 3 if peer_id == 2 else 0,
 			"cloak_cooldown": 12.5 if peer_id == 2 else 0.0,
@@ -153,6 +155,8 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 		context.expect_true(bool(first.afterburner_active), "snapshot carries the authoritative Afterburner bloom state")
 		context.expect_equal(int(first.mine_charges), 9, "snapshot carries authoritative remaining mine charges")
 		context.expect_approx(float(first.mine_cooldown), 7.25, "snapshot carries the authoritative mine cooldown")
+		context.expect_equal(int(first.missile_charges), 17, "snapshot carries authoritative remaining missile charges")
+		context.expect_approx(float(first.missile_cooldown), 0.75, "snapshot carries the authoritative missile cooldown")
 		context.expect_true(bool(first.cloaked), "snapshot carries the authoritative cloak state")
 		context.expect_equal(int(first.cloak_charges), 3, "snapshot carries heat-scoped cloak charges")
 		context.expect_approx(float(first.cloak_cooldown), 12.5, "snapshot carries the authoritative cloak cooldown")
@@ -180,6 +184,8 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	var spawned: Array[ProjectileState] = [projectile]
 	var mine := ProjectileState.create_mine(78, 4, Vector2(400.0, 500.0))
 	spawned.append(mine)
+	var missile := ProjectileState.create_missile(79, 4, Vector2(450.0, 500.0), 0.25, 6)
+	spawned.append(missile)
 	var packets := ProjectilePacketCodec.encode_batch_chunks(1000, 7, spawned, [10, 11])
 	context.expect_equal(packets.size(), 1, "small projectile batch fits one bounded transport message")
 	var packet := packets[0]
@@ -204,9 +210,14 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 		context.expect_approx(decoded_mine.radius, GameConstants.MINE_RADIUS, "decoded mine restores its collision radius")
 		context.expect_approx(decoded_mine.mine_activation_remaining, GameConstants.MINE_ACTIVATION_SECONDS, "mine activation time round-trips")
 		context.expect_approx(decoded_mine.damage, 100.0, "mine damage round-trips")
+		var decoded_missile := decoded.spawned[2] as ProjectileState
+		context.expect_true(decoded_missile.is_missile, "missile presentation flag round-trips")
+		context.expect_approx(decoded_missile.radius, GameConstants.MISSILE_RADIUS, "decoded missile restores its collision radius")
+		context.expect_approx(decoded_missile.velocity.length(), GameConstants.MISSILE_SPEED, "missile speed round-trips", 0.05)
+		context.expect_approx(decoded_missile.damage, GameConstants.MISSILE_DAMAGE, "missile damage round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_batch(packet.slice(0, 8)).ok, "truncated projectile batch is rejected")
 	var bad_flags := packet.duplicate()
-	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 8
+	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 16
 	context.expect_false(ProjectilePacketCodec.decode_batch(bad_flags).ok, "unsupported projectile presentation flags are rejected")
 	var correction := ProjectilePacketCodec.encode_correction_chunks(1001, 8, spawned, true)[0]
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")
@@ -1138,6 +1149,62 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	mine_world.reset_match_inventories()
 	layer.reset_for_heat(mine_stats, Vector2(500.0, 500.0))
 	context.expect_equal(layer.mine_charges_remaining, 10, "a new match heat restores the first Star Mines stack to ten charges")
+
+	var missile_stats := StatSystem.derive({&"hunter_missiles": 1}, catalog)
+	context.expect_true(missile_stats.missile_launcher_enabled, "Hunter Missiles enables the authoritative missile special")
+	context.expect_equal(missile_stats.missile_capacity, 20, "one Hunter Missiles card supplies twenty charges per heat")
+	var missile_world := AuthoritativeWorld.new()
+	var launcher := missile_world.add_peer(232, missile_stats)
+	var missile_target := missile_world.add_peer(233)
+	launcher.position = Vector2(300.0, 300.0)
+	missile_target.position = Vector2(800.0, 400.0)
+	missile_world.submit_input(232, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
+	missile_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(launcher.missile_charges_remaining, 19, "launching consumes exactly one of twenty missile charges")
+	context.expect_true(launcher.missile_cooldown_remaining > 0.9, "launching starts the one-second missile cooldown")
+	context.expect_equal(missile_world.active_projectiles().size(), 1, "Special launches one authoritative missile")
+	var guided_missile := missile_world.active_projectiles()[0] as ProjectileState
+	context.expect_true(guided_missile.is_missile, "the launched projectile retains its missile behavior")
+	context.expect_equal(guided_missile.missile_target_id, 233, "a missile locks the nearest visible enemy inside its forward cone")
+	context.expect_true(guided_missile.velocity.angle() > 0.0, "a locked missile begins turning toward an offset target")
+	context.expect_true(guided_missile.velocity.angle() <= GameConstants.MISSILE_TURN_RATE / GameConstants.PHYSICS_TICKS_PER_SECOND + 0.0001, "missile steering respects its per-tick turn-rate limit")
+	context.expect_approx(guided_missile.lifetime_remaining + 1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND, GameConstants.MISSILE_RANGE / GameConstants.MISSILE_SPEED, "missile lifetime enforces its limited travel range")
+	missile_target.position = guided_missile.position - Vector2(200.0, 0.0)
+	missile_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(guided_missile.missile_target_id, 0, "a hard turn behind the missile breaks guidance instead of producing impossible maneuvering")
+
+	var corner_world := AuthoritativeWorld.new()
+	corner_world.set_map_id(&"riftline")
+	var corner_launcher := corner_world.add_peer(240, missile_stats)
+	var corner_target := corner_world.add_peer(241)
+	corner_launcher.position = Vector2(1300.0, 500.0)
+	corner_target.position = Vector2(1800.0, 420.0)
+	corner_world.submit_input(240, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
+	corner_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	var corner_missile := corner_world.active_projectiles()[0] as ProjectileState
+	context.expect_equal(corner_missile.missile_target_id, 0, "cover prevents a missile from locking an initially hidden target")
+	for _tick in 34:
+		corner_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(corner_missile.missile_target_id, 241, "a missile reacquires an enemy that enters its forward cone after it clears a corner")
+	context.expect_true(corner_missile.velocity.y < 0.0, "in-flight reacquisition begins steering toward the newly revealed target")
+
+	var stacked_missiles := StatSystem.derive({&"hunter_missiles": 2}, catalog)
+	launcher.reset_for_heat(stacked_missiles, Vector2(300.0, 300.0))
+	context.expect_equal(launcher.missile_charges_remaining, 40, "a new heat replenishes twenty missiles per stack")
+	launcher.missile_charges_remaining = 11
+	launcher.alive = false
+	context.expect_true(missile_world.respawn_peer(232, stacked_missiles, Vector2(300.0, 300.0)), "an eliminated missile launcher can respawn in an objective heat")
+	context.expect_equal(launcher.missile_charges_remaining, 11, "an objective respawn does not replenish heat-scoped missiles")
+
+	var missile_hit_world := AuthoritativeWorld.new()
+	var hit_launcher := missile_hit_world.add_peer(234, missile_stats)
+	var hit_target := missile_hit_world.add_peer(239)
+	hit_launcher.position = Vector2(300.0, 300.0)
+	hit_target.position = Vector2(700.0, 300.0)
+	missile_hit_world.submit_input(234, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0, false, false, false, true))
+	for _tick in 45:
+		missile_hit_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_approx(hit_target.health, 60.0, "a direct Hunter Missile hit deals forty hull damage")
 
 	var magnetic_world := AuthoritativeWorld.new()
 	var magnetic_layer := magnetic_world.add_peer(235, mine_stats)

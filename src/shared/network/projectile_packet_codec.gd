@@ -124,7 +124,7 @@ static func decode_batch(bytes: PackedByteArray) -> Dictionary:
 	var spawned: Array[ProjectileState] = []
 	var offset := HEADER_SIZE
 	for index in spawn_count:
-		if (ByteCodec.read_u8(bytes, offset + 26) & 0xf8) != 0:
+		if (ByteCodec.read_u8(bytes, offset + 26) & 0xf0) != 0:
 			return _error("Projectile packet contains unsupported presentation flags.")
 		spawned.append(_read_projectile(bytes, offset))
 		offset += PROJECTILE_RECORD_SIZE
@@ -175,6 +175,8 @@ static func _append_projectile(bytes: PackedByteArray, projectile: ProjectileSta
 		flags |= 2
 	if projectile.has_rebounded:
 		flags |= 4
+	if projectile.is_missile:
+		flags |= 8
 	ByteCodec.append_u8(bytes, flags)
 
 
@@ -193,10 +195,13 @@ static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileS
 	projectile.is_beam = (flags & 1) != 0
 	projectile.is_mine = (flags & 2) != 0
 	projectile.has_rebounded = (flags & 4) != 0
+	projectile.is_missile = (flags & 8) != 0
 	if projectile.is_mine:
 		projectile.radius = GameConstants.MINE_RADIUS
 		projectile.mine_activation_remaining = projectile.lifetime_remaining
 		projectile.lifetime_remaining = INF
+	elif projectile.is_missile:
+		projectile.radius = GameConstants.MISSILE_RADIUS
 	return projectile
 
 

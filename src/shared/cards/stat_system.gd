@@ -44,6 +44,7 @@ const INTEGER_STATS: Array[StringName] = [
 	&"pierce_count",
 	&"ricochet_count",
 	&"mine_capacity",
+	&"missile_capacity",
 	&"cloak_capacity",
 ]
 
@@ -81,6 +82,8 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 			stats.afterburner_enabled = true
 		elif card.special_behavior_id == &"mine_layer":
 			stats.mine_layer_enabled = true
+		elif card.special_behavior_id == &"missile_launcher":
+			stats.missile_launcher_enabled = true
 		elif card.special_behavior_id == &"cloak":
 			stats.cloak_enabled = true
 		elif card.special_behavior_id == &"rebound_shield":
@@ -116,7 +119,7 @@ static func validate_card(card: CardDefinition) -> PackedStringArray:
 	for property_name in card.integer_modifiers:
 		if StringName(property_name) not in INTEGER_STATS:
 			errors.append("Card %s has unsupported integer stat %s." % [card.card_id, property_name])
-	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner", &"mine_layer", &"rebound_shield", &"cloak", &"kinetic_vent", &"breakaway_thrusters"]:
+	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner", &"mine_layer", &"missile_launcher", &"rebound_shield", &"cloak", &"kinetic_vent", &"breakaway_thrusters"]:
 		errors.append("Card %s has unsupported special behavior %s." % [card.card_id, card.special_behavior_id])
 	return errors
 
@@ -145,6 +148,7 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.pierce_count = clampi(stats.pierce_count, 0, 12)
 	stats.ricochet_count = clampi(stats.ricochet_count, 0, 12)
 	stats.mine_capacity = clampi(stats.mine_capacity, 0, 1000)
+	stats.missile_capacity = clampi(stats.missile_capacity, 0, 1000)
 	stats.cloak_capacity = clampi(stats.cloak_capacity, 0, 1000)
 	stats.shield_capacity = clampf(stats.shield_capacity, 5.0, 600.0)
 	stats.shield_regeneration = clampf(stats.shield_regeneration, 1.0, 400.0)

@@ -5,7 +5,7 @@ const GAME_NAME: String = "Super Star Fighter"
 const GAME_VERSION: String = "0.1.0-beta.9"
 const RELEASE_LABEL: String = "BETA 9"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 23
+const PROTOCOL_VERSION: int = 24
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024
@@ -66,6 +66,15 @@ const MINE_MAGNETIC_RADIUS: float = 320.0
 const MINE_MAGNETIC_SPEED: float = 60.0
 const MINE_MAGNETIC_TARGET_RATE: int = 10
 const MINE_BLAST_RADIUS: float = 200.0
+
+const MISSILE_COOLDOWN_SECONDS: float = 1.0
+const MISSILE_DAMAGE: float = 40.0
+const MISSILE_SPEED: float = 650.0
+const MISSILE_RANGE: float = 1100.0
+const MISSILE_RADIUS: float = 9.0
+const MISSILE_ACQUISITION_HALF_ANGLE: float = deg_to_rad(35.0)
+const MISSILE_GUIDANCE_HALF_ANGLE: float = deg_to_rad(70.0)
+const MISSILE_TURN_RATE: float = deg_to_rad(90.0)
 
 const CLOAK_DURATION_SECONDS: float = 5.0
 const CLOAK_COOLDOWN_SECONDS: float = 20.0

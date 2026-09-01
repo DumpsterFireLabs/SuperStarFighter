@@ -22,6 +22,9 @@ var projectile_knockback: float = 0.0
 var mine_capacity: int = 0
 var mine_layer_enabled: bool = false
 
+var missile_capacity: int = 0
+var missile_launcher_enabled: bool = false
+
 var cloak_capacity: int = 0
 var cloak_enabled: bool = false
 
@@ -70,6 +73,7 @@ func duplicate_stats() -> CombatStats:
 	copy.beam_weapon = beam_weapon
 	copy.afterburner_enabled = afterburner_enabled
 	copy.mine_layer_enabled = mine_layer_enabled
+	copy.missile_launcher_enabled = missile_launcher_enabled
 	copy.cloak_enabled = cloak_enabled
 	copy.rebound_shield_enabled = rebound_shield_enabled
 	copy.kinetic_vent_enabled = kinetic_vent_enabled
@@ -95,6 +99,7 @@ static func get_stat_property_names() -> Array[StringName]:
 		&"ricochet_count",
 		&"projectile_knockback",
 		&"mine_capacity",
+		&"missile_capacity",
 		&"cloak_capacity",
 		&"afterburner_impulse",
 		&"afterburner_duration",

@@ -2,7 +2,7 @@ class_name PlayerSnapshotCodec
 extends RefCounted
 
 const HEADER_SIZE: int = 10
-const PLAYER_RECORD_SIZE: int = 31
+const PLAYER_RECORD_SIZE: int = 35
 const POSITION_SCALE: float = 16.0
 const VELOCITY_SCALE: float = 8.0
 const RESOURCE_SCALE: float = 100.0
@@ -63,7 +63,9 @@ static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
 		bool(state.get("kinetic_vent_active", false)),
 		bool(state.get("breakaway_active", false)),
 		float(state.get("kinetic_vent_charge", 0.0)),
-		float(state.get("breakaway_cooldown", 0.0))
+		float(state.get("breakaway_cooldown", 0.0)),
+		int(state.get("missile_charges", 0)),
+		float(state.get("missile_cooldown", 0.0))
 	)
 
 
@@ -89,7 +91,9 @@ static func _append_combatant(bytes: PackedByteArray, peer_id: int, combatant: C
 		combatant.kinetic_vent_feedback_remaining > 0.0,
 		combatant.breakaway_remaining > 0.0,
 		combatant.shield.kinetic_vent_charge,
-		combatant.breakaway_cooldown_remaining
+		combatant.breakaway_cooldown_remaining,
+		combatant.missile_charges_remaining,
+		combatant.missile_cooldown_remaining
 	)
 
 
@@ -114,7 +118,9 @@ static func _append_values(
 	kinetic_vent_active: bool,
 	breakaway_active: bool,
 	kinetic_vent_charge: float,
-	breakaway_cooldown: float
+	breakaway_cooldown: float,
+	missile_charges: int,
+	missile_cooldown: float
 ) -> void:
 	ByteCodec.append_u32(bytes, peer_id)
 	ByteCodec.append_u16(bytes, roundi(clampf(position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
@@ -147,6 +153,8 @@ static func _append_values(
 	ByteCodec.append_u16(bytes, roundi(clampf(cloak_cooldown, 0.0, 65.535) * 1000.0))
 	ByteCodec.append_u8(bytes, roundi(clampf(kinetic_vent_charge, 0.0, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE)))
 	ByteCodec.append_u16(bytes, roundi(clampf(breakaway_cooldown, 0.0, 65.535) * 1000.0))
+	ByteCodec.append_u16(bytes, clampi(missile_charges, 0, 65535))
+	ByteCodec.append_u16(bytes, roundi(clampf(missile_cooldown, 0.0, 65.535) * 1000.0))
 
 
 static func decode(bytes: PackedByteArray) -> Dictionary:
@@ -187,6 +195,8 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 			"cloak_cooldown": ByteCodec.read_u16(bytes, offset + 26) / 1000.0,
 			"kinetic_vent_charge": float(ByteCodec.read_u8(bytes, offset + 28)),
 			"breakaway_cooldown": ByteCodec.read_u16(bytes, offset + 29) / 1000.0,
+			"missile_charges": ByteCodec.read_u16(bytes, offset + 31),
+			"missile_cooldown": ByteCodec.read_u16(bytes, offset + 33) / 1000.0,
 		})
 		offset += PLAYER_RECORD_SIZE
 	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states}

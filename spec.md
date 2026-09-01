@@ -340,7 +340,7 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 
 ### 7.3 Catalog
 
-The launch catalog contains 135 unlimited-stack cards: 41 ship, 47 shield, and 47 weapon cards. The catalog supports distinct melee, defensive-healing, projectile-rebound, counter-pulse, breakaway, and weapon builds. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
+The launch catalog contains 136 unlimited-stack cards: 41 ship, 47 shield, and 48 weapon cards. The catalog supports distinct melee, defensive-healing, projectile-rebound, counter-pulse, breakaway, guided-pressure, and weapon builds. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
 
 | ID | Card | Category | Rarity | Effect per stack |
 | --- | --- | --- | --- | --- |
@@ -479,6 +479,7 @@ The launch catalog contains 135 unlimited-stack cards: 41 ship, 47 shield, and 4
 | `rebound_shields` | Rebound Shields | Shield | Legendary | Rebound blocked shots; each stack ×1.25 return damage/range, starting at 50%; one rebound maximum |
 | `kinetic_vent` | Kinetic Vent | Shield | Epic | Blocked projectile damage stores up to 100 charge; releasing Shield at 25+ emits a 240-pixel line-of-sight pulse that redirects hostile shots and pushes exposed mines/ships; ×1.20 push impulse |
 | `mine_layer` | Star Mines | Weapon | Legendary | Special drops a magnetic proximity mine that arms after 0.25 seconds, drags toward the nearest enemy within 320 pixels at 60 pixels/second, and deals 100 damage in a 200-pixel blast; armed mines chain-react; +10 charges per stack refreshed each heat but not on respawn; 3-second placement cooldown |
+| `hunter_missiles` | Hunter Missiles | Weapon | Legendary | Special launches a 40-damage missile at 650 pixels/second; continuously scans for the nearest visible enemy in its 70° forward cone, including targets revealed during flight, turns at no more than 90°/second, loses guidance beyond a 140° pursuit cone or through cover, and expires after 1,100 pixels; +20 charges per stack refreshed each heat but not on respawn; 1-second launch cooldown |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
 
@@ -486,7 +487,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `22` and a maximum of 32 admitted client peers plus eight bounded pre-admission slots. Version 22 adds authoritative Perfect Guard, Kinetic Vent, and Breakaway presentation/resource fields while retaining challenge-response admission, source-scoped authentication cooldowns, ship-pattern selection, and isolated gameplay streams.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `24` and a maximum of 32 admitted client peers plus eight bounded pre-admission slots. Version 24 adds authoritative Hunter Missile inventory/cooldown snapshots and missile projectile presentation while retaining challenge-response admission, source-scoped authentication cooldowns, ship-pattern selection, and isolated gameplay streams.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile corrections are sent at 5 Hz; replaceable objective snapshots are sent at 4 Hz.
 - Use six logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player snapshots, unreliable ordered projectile deltas, unreliable ordered projectile corrections, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.

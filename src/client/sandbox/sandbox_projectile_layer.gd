@@ -78,6 +78,18 @@ func _draw() -> void:
 			continue
 		var direction := projectile.velocity.normalized()
 		var trail_color := REBOUNDED_BEAM_COLOR if projectile.has_rebounded else projectile_color_for_owner(projectile.owner_id)
+		if projectile.is_missile:
+			var side := direction.orthogonal()
+			var tail := projectile.position - direction * 52.0
+			draw_line(projectile.position - direction * 9.0, tail, Color(0.75, 0.82, 0.92, 0.12), 17.0)
+			draw_line(projectile.position - direction * 9.0, tail, Color("ff9f43"), 7.0)
+			draw_line(projectile.position - direction * 7.0, tail + direction * 12.0, Color("fff36a"), 3.0)
+			var nose := projectile.position + direction * 13.0
+			var rear := projectile.position - direction * 11.0
+			var body := PackedVector2Array([nose, rear + side * 7.0, rear - side * 7.0])
+			draw_colored_polygon(body, Color("e8f2ff"))
+			draw_polyline(PackedVector2Array([nose, rear + side * 7.0, rear - side * 7.0, nose]), Color("42e8ff"), 2.0)
+			continue
 		if projectile.is_beam:
 			trail_color = _beam_color(projectile)
 			var tail := projectile.position - direction * 230.0

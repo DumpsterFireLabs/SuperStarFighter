@@ -22,6 +22,7 @@ var performance_profiling_enabled: bool = false
 var last_step_profile_usec: Dictionary = {}
 var _projectile_geometry_normal: Dictionary = {}
 var _projectile_geometry_beam: Dictionary = {}
+var _projectile_geometry_missile: Dictionary = {}
 
 const SHIP_SEPARATION_SPEED: float = 360.0
 const SHIP_OVERLAP_SOLVER_PASSES: int = 6
@@ -102,6 +103,8 @@ func step(
 			combatant.activate_special()
 			if combatant.deploy_mine():
 				_spawn_mine(combatant)
+			if combatant.launch_missile():
+				_spawn_missile(combatant)
 			combatant.activate_cloak()
 		else:
 			combatant.release_special_activation()
@@ -187,6 +190,7 @@ func set_map_id(value: StringName) -> void:
 	# shared geometry cache. Detach from them instead of clearing the cache entry.
 	_projectile_geometry_normal = {}
 	_projectile_geometry_beam = {}
+	_projectile_geometry_missile = {}
 	clear_projectiles()
 
 
@@ -253,6 +257,8 @@ func snapshot_states() -> Array[Dictionary]:
 			"afterburner_active": combatant.afterburner_remaining > 0.0,
 			"mine_charges": combatant.mine_charges_remaining,
 			"mine_cooldown": combatant.mine_cooldown_remaining,
+			"missile_charges": combatant.missile_charges_remaining,
+			"missile_cooldown": combatant.missile_cooldown_remaining,
 			"cloaked": combatant.is_cloaked(),
 			"cloak_charges": combatant.cloak_charges_remaining,
 			"cloak_cooldown": combatant.cloak_cooldown_remaining,
@@ -359,6 +365,55 @@ func _spawn_mine(combatant: CombatantState) -> void:
 	_spawned_since_batch.append(mine)
 
 
+func _spawn_missile(combatant: CombatantState) -> void:
+	var muzzle := combatant.position + Vector2.from_angle(combatant.aim_angle) * 34.0
+	var missile := ProjectileState.create_missile(
+		_next_projectile_id,
+		combatant.peer_id,
+		muzzle,
+		combatant.aim_angle,
+		_acquire_missile_target(
+			combatant.peer_id,
+			muzzle,
+			Vector2.from_angle(combatant.aim_angle),
+			GameConstants.MISSILE_RANGE
+		)
+	)
+	_next_projectile_id = SequenceMath.increment(_next_projectile_id)
+	if not ArenaCollisionSystem.projectile_obstacle_normal(missile.position, missile.radius, map_id).is_zero_approx():
+		return
+	for removed_id in projectile_registry.add(missile):
+		_record_removed(removed_id)
+	_spawned_since_batch.append(missile)
+
+
+func _acquire_missile_target(
+	owner_id: int,
+	origin: Vector2,
+	forward: Vector2,
+	maximum_range: float
+) -> int:
+	var best_id := 0
+	var best_distance_squared := maxf(maximum_range, 0.0) * maxf(maximum_range, 0.0)
+	for peer_id in _ordered_peer_ids():
+		var candidate := combatants[peer_id] as CombatantState
+		if not candidate.alive or peer_id == owner_id or are_allies(owner_id, peer_id):
+			continue
+		var offset := candidate.position - origin
+		var distance_squared := offset.length_squared()
+		if distance_squared > best_distance_squared or offset.is_zero_approx():
+			continue
+		if absf(forward.angle_to(offset.normalized())) > GameConstants.MISSILE_ACQUISITION_HALF_ANGLE:
+			continue
+		if not ArenaCollisionSystem.has_clear_line_of_sight(origin, candidate.position, map_id):
+			continue
+		if best_id != 0 and is_equal_approx(distance_squared, best_distance_squared) and peer_id > best_id:
+			continue
+		best_id = peer_id
+		best_distance_squared = distance_squared
+	return best_id
+
+
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	var damage_events: Array[Dictionary] = []
 	var safe_delta := maxf(delta, 0.0)
@@ -385,6 +440,11 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 		)
 	if _projectile_geometry_beam.is_empty():
 		_projectile_geometry_beam = ArenaCollisionSystem.projectile_geometry(map_id, 7.0)
+	if _projectile_geometry_missile.is_empty():
+		_projectile_geometry_missile = ArenaCollisionSystem.projectile_geometry(
+			map_id,
+			GameConstants.MISSILE_RADIUS
+		)
 	for projectile_id in projectile_ids:
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
@@ -393,6 +453,7 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			continue
 		if projectile.is_mine:
 			continue
+		_step_missile_guidance(projectile, safe_delta)
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			_remove_projectile(projectile.projectile_id)
@@ -407,7 +468,10 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			var direction := projectile.velocity / projectile_speed
 			var start := projectile.position
 			var finish := start + direction * travel_remaining
-			var projectile_geometry := _projectile_geometry_beam if projectile.is_beam else _projectile_geometry_normal
+			var projectile_geometry := (
+				_projectile_geometry_beam if projectile.is_beam
+				else (_projectile_geometry_missile if projectile.is_missile else _projectile_geometry_normal)
+			)
 			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
@@ -453,6 +517,51 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	_step_mine_activation(safe_delta, mine_ids)
+
+
+func _step_missile_guidance(missile: ProjectileState, delta: float) -> void:
+	if not missile.is_missile or missile.velocity.is_zero_approx():
+		return
+	var target := combatants.get(missile.missile_target_id) as CombatantState
+	if target != null and (
+		not target.alive
+		or are_allies(missile.owner_id, target.peer_id)
+		or not _missile_target_is_visible_in_cone(missile, target, GameConstants.MISSILE_GUIDANCE_HALF_ANGLE)
+	):
+		missile.missile_target_id = 0
+		target = null
+	if target == null:
+		missile.missile_target_id = _acquire_missile_target(
+			missile.owner_id,
+			missile.position,
+			missile.velocity.normalized(),
+			missile.lifetime_remaining * GameConstants.MISSILE_SPEED
+		)
+		target = combatants.get(missile.missile_target_id) as CombatantState
+		if target == null:
+			return
+	var offset := target.position - missile.position
+	if offset.is_zero_approx():
+		return
+	var current_angle := missile.velocity.angle()
+	var desired_angle := offset.angle()
+	var angular_error := angle_difference(current_angle, desired_angle)
+	var maximum_turn := GameConstants.MISSILE_TURN_RATE * maxf(delta, 0.0)
+	var next_angle := current_angle + clampf(angular_error, -maximum_turn, maximum_turn)
+	missile.velocity = Vector2.from_angle(next_angle) * GameConstants.MISSILE_SPEED
+
+
+func _missile_target_is_visible_in_cone(
+	missile: ProjectileState,
+	target: CombatantState,
+	half_angle: float
+) -> bool:
+	var offset := target.position - missile.position
+	if offset.is_zero_approx():
+		return true
+	if absf(missile.velocity.normalized().angle_to(offset.normalized())) > half_angle:
+		return false
+	return ArenaCollisionSystem.has_clear_line_of_sight(missile.position, target.position, map_id)
 
 
 func _step_mine_activation(delta: float, mine_ids: Array[int]) -> void:
@@ -811,6 +920,8 @@ func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:
 				projectile.apply_kinetic_vent(outward, impulse)
 			elif not projectile.velocity.is_zero_approx():
 				projectile.velocity = outward.normalized() * projectile.velocity.length()
+				if projectile.is_missile:
+					projectile.missile_target_id = 0
 			_record_projectile_update(projectile)
 	spatial_index.invalidate_projectile_threats()
 
