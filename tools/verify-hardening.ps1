@@ -85,8 +85,11 @@ try {
     Wait-SsfHardeningCondition -Description 'clean hardening server shutdown' -TimeoutSeconds 40 -Condition { $server.HasExited }
 
     $serverText = Get-SsfHardeningOutput 'server'
-    foreach ($marker in @('"event":"server_started"', '"event":"match_seed"', '"event":"match_event"', '"event":"simulation_metrics"', '"event":"server_shutdown"')) {
+    foreach ($marker in @('"event":"server_started"', '"event":"match_randomness_initialized"', '"event":"match_event"', '"event":"simulation_metrics"', '"event":"server_shutdown"')) {
         if (-not $serverText.Contains($marker)) { throw "Structured server log is missing $marker." }
+    }
+    if ($serverText.Contains('"event":"match_seed"')) {
+        throw 'Server logs disclose the private match seed.'
     }
     if ($serverText.Contains('127.0.0.1') -or $serverText -match '"ip"\s*:') {
         throw 'Server logs contain a client address, which is forbidden by the logging contract.'

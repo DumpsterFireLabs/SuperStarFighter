@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The main screen displays **BETA 8 · VERSION 0.1.0-beta.8** so players can confirm they are using the same build before joining one another.
+The main screen displays **BETA 9 · VERSION 0.1.0-beta.9** so players can confirm they are using the same build before joining one another.
 
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
@@ -96,7 +96,7 @@ The same screen also offers:
 - **Settings** for display mode, resolution, audio, and controls.
 - **Quit** to close the game.
 
-Display names may contain 1–16 printable characters. When names collide, the server adds suffixes such as `#2` for display clarity.
+Display names may contain 1–16 visible characters. Unsafe invisible or direction-formatting characters are rejected. International text and emoji are supported; when names are visually confusable, the server adds bounded suffixes such as `#2` for display clarity.
 
 ## 4. Hosting and Joining
 
@@ -154,7 +154,7 @@ From the repository root:
     -RoundsToWin 3
 ```
 
-The launcher securely prompts for a lobby password and a distinct admin password. It never puts either prompted secret in the process command line, and the dedicated server never saves or remembers them. For unattended startup, put each secret on one line in a separately ACL-protected file outside the repository and pass `-PasswordFile` and `-AdminPasswordFile`; these are read-only operator inputs, not server-managed remembered-password files. `SSF_LOBBY_PASSWORD` and `SSF_ADMIN_PASSWORD` are also accepted as process-environment alternatives; avoid machine-wide environment variables on shared hosts.
+The launcher securely prompts for a lobby password and a distinct admin password. Admin passwords must contain 12–64 printable characters; use a long randomly generated value rather than a memorable phrase. The launcher never puts either prompted secret in the process command line, and the dedicated server never saves or remembers them. For unattended startup, put each secret on one line in a separately ACL-protected file outside the repository and pass `-PasswordFile` and `-AdminPasswordFile`; these are read-only operator inputs, not server-managed remembered-password files. `SSF_LOBBY_PASSWORD` and `SSF_ADMIN_PASSWORD` are also accepted as process-environment alternatives; avoid machine-wide environment variables on shared hosts.
 
 Parameters:
 
@@ -185,7 +185,7 @@ The admin listener accepts connections only on `127.0.0.1`. Do not expose it thr
 .\tools\admin.ps1 -Port 7001 -Command shutdown
 ```
 
-The tool prompts securely for the admin password unless `-AdminPasswordFile` or the process-scoped `SSF_ADMIN_PASSWORD` variable is present. `status` and `players` include peer IDs and source addresses for moderation. `ban` immediately removes the selected peer and persists its current source address; `kick` removes it without blocking reconnection. Address blocks are useful but are not account bans: shared NATs can affect multiple players and a player can change addresses.
+The tool prompts securely for the admin password unless `-AdminPasswordFile` or the process-scoped `SSF_ADMIN_PASSWORD` variable is present. `status` returns a compact health and lobby summary; `players` includes peer IDs and source addresses for moderation. `ban` immediately removes the selected peer and atomically persists its current source address; `kick` removes it without blocking reconnection. The block list accepts valid IP addresses only and is capped at 4,096 entries. Address blocks are useful but are not account bans: shared NATs can affect multiple players and a player can change addresses. Admin authentication failures are throttled across reconnects, authenticated connections expire after five idle minutes, and inbound and outbound messages are bounded. Repeated authentication failures temporarily lock the loopback endpoint, so do not run automated password guessing against a live server.
 
 The `set` command supports `rounds_to_win`, `player_limit`, `npcs_enabled`, `npc_difficulty` (0–4), `game_mode` (0–4), `team_count`, `random_spawn_powerups`, `random_powerup_interval`, `random_powerups_permanent`, `overtime_start`, `server_name`, and `auto_start`. Match-rule changes are rejected during an active match and clear ready states when accepted. Gameplay/admin ports and physical server capacity are restart-only because their sockets and allocation are created at startup. Admin activity is written to the server's JSON-line audit output without passwords or proofs.
 
@@ -365,6 +365,8 @@ Cards can alter damage, cadence, magazine size, reload, projectile count, spread
 
 Afterburner is an active Ship card. Press the configured Special action (`Shift` or Left Stick Click by default) for a short forward speed and acceleration burst. It has an authoritative cooldown, works for human and NPC pilots, and produces a larger exhaust bloom while active.
 
+Breakaway Thrusters is a passive Rare Ship card. Depleting the shield, or losing at least 30% of maximum hull inside 0.35 seconds, triggers 0.85 seconds of stronger acceleration and braking without granting invulnerability or additional maximum speed. Its base cooldown is eight seconds; each stack reduces that cooldown by 15%. The HUD shows whether it is active, ready, or cooling down.
+
 Star Mines is an active Legendary Weapon card using the same Special action. Each stack supplies ten mines at the start of every heat. A mine can be placed immediately and then at most once every three seconds. It arms 0.25 seconds after placement; once armed, it slowly drags itself toward the nearest enemy within 320 pixels. An enemy entering its small trigger radius, direct contact, any projectile hit, or another mine's enlarged 200-pixel blast detonates it for 100 damage. Chain reactions can continue through other armed mines. The HUD shows authoritative remaining charges and cooldown. Mines disappear when their owner is eliminated or the heat ends; objective-mode respawns do not replenish charges within the same heat.
 
 Cloak! is an active Legendary Ship card using the Special action. Each stack supplies one use at the start of every heat, with a shared 20-second cooldown between activations. Objective-mode respawns do not replenish uses or clear the cooldown. Activation makes the ship invisible for five seconds and prevents it from firing; any positive hull damage ends invisibility immediately. The local pilot sees a faint outline, opponents see no ship, nameplate, shield, or exhaust, and NPC pilots cannot acquire a cloaked target. The HUD shows authoritative remaining uses, cooldown, and active state.
@@ -378,6 +380,10 @@ A projectile is blocked only if it strikes inside the visible forward arc. Rear 
 After shield activity, regeneration waits 1.25 seconds, then restores 30 energy per second. Fully depleting the shield locks it until it reaches the recovery threshold. Cards can modify capacity, drain, regeneration, delay, block cost, recovery threshold, arc, and acceleration while shielding.
 
 Shielding prevents firing and normally reduces acceleration, so timing matters: turn the arc into danger, absorb the burst, then release to shoot and recover maneuverability.
+
+Every shield has Perfect Guard. The first projectile blocked within 0.25 seconds of raising the shield costs 80% less shield energy. The gold guard arc marks the timing window. Blocking once consumes the window, so an opponent can lead with a weaker shot, stagger a volley, wait it out, or attack outside the directional arc.
+
+Kinetic Vent is an Epic Shield card. Blocked projectile damage stores up to 100 vent charge, shown in the HUD. Deliberately releasing the shield with at least 25 charge emits a 240-pixel line-of-sight pulse: hostile projectiles turn away while retaining their original ownership, and exposed enemy ships and armed mines are pushed outward. Shield depletion discards stored charge. Each stack increases push strength by 20%; it does not increase the fixed radius or turn the pulse into damage.
 
 Ordinary collisions remain harmless. A melee card enables shield ramming: strike an enemy while your shield is active and relative impact speed meets the card-derived threshold. Impact speed scales the damage, and each attacker-target pair has a short cooldown so resting contact cannot deal damage every simulation tick. Ramming Shields is the direct serious-damage option and lowers its practical trigger speed by 30%; Kinetic Prow, Impact Capacitor, Breach Vector, Sundering Aegis, and Worldbreaker Prow provide further damage, durability, speed access, and faster repeat impacts.
 
@@ -466,11 +472,11 @@ Cards do not always contain a downside. Higher rarity means scarcity, not a guar
 - Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
 - Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
 
-The complete 133-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+The complete 135-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 
-The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, ammunition, and—when owned—mine charges/cooldown without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
+The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, ammunition, and owned ability resources such as mine inventory, cloak state, Kinetic Vent charge, and Breakaway cooldown without taking over the center of the arena. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
 
 Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
 
@@ -637,11 +643,16 @@ Before inviting players:
 
 - Run the same revision/build on server and clients.
 - Choose a gameplay UDP port other than `7359`.
-- Confirm the port is allowed through the host firewall.
+- Expose only the selected gameplay UDP port. Keep the admin TCP port on loopback and reach it through an authenticated SSH tunnel.
+- Run the process as a dedicated unprivileged OS account, keep the OS/runtime patched, and restrict read access to password files and write access to the ban file.
+- Use unique, randomly generated lobby and admin passwords; the admin password must be at least 12 characters.
+- Confirm the gameplay port is allowed through the host firewall and apply provider/host UDP rate limiting when the server is Internet-facing.
 - Test LAN discovery or direct connection from a second machine.
 - Decide the total seats, round target, and whether NPC fill is appropriate.
 - For an internet session, verify UDP forwarding and the public address.
 - Ask every human to ready again after the final lobby change.
+- Run `status` and watch `simulation_metrics` for p95/max latency and `over_budget_ticks` before the competitive session begins.
+- Investigate repeated `AUTH_RATE_LIMITED` rejections: the server caps each source at 63 accepted connection attempts per 60-second window before a one-minute cooldown, in addition to the stricter failed-password limiter.
 
 After the session:
 
@@ -652,6 +663,6 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, or console/mobile/web builds.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, stable player identity, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, replays, or console/mobile/web builds. Server authority rejects invalid state-changing requests, but without stable identity and replay evidence the current build should be treated as suitable for organized semi-competitive play rather than prize-bearing tournament administration.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.

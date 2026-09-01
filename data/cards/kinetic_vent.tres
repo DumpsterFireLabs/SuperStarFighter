@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"kinetic_vent"
+display_name = "Kinetic Vent"
+description = "Blocked damage charges a pulse released with Shield. Per stack: +20% push strength."
+category = 1
+rarity = 3
+multiplicative_modifiers = {"kinetic_vent_impulse": 1.2}
+special_behavior_id = &"kinetic_vent"

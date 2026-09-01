@@ -47,6 +47,11 @@ var shield_damage_heal_fraction: float = 0.0
 var rebound_shield_enabled: bool = false
 var rebound_damage_factor: float = 0.4
 var rebound_range_factor: float = 0.4
+var kinetic_vent_enabled: bool = false
+var kinetic_vent_impulse: float = 360.0
+
+var breakaway_thrusters_enabled: bool = false
+var breakaway_cooldown: float = GameConstants.BREAKAWAY_COOLDOWN_SECONDS
 
 var auto_repair_enabled: bool = false
 var auto_repair_delay: float = 5.0
@@ -67,6 +72,8 @@ func duplicate_stats() -> CombatStats:
 	copy.mine_layer_enabled = mine_layer_enabled
 	copy.cloak_enabled = cloak_enabled
 	copy.rebound_shield_enabled = rebound_shield_enabled
+	copy.kinetic_vent_enabled = kinetic_vent_enabled
+	copy.breakaway_thrusters_enabled = breakaway_thrusters_enabled
 	return copy
 
 
@@ -108,6 +115,8 @@ static func get_stat_property_names() -> Array[StringName]:
 		&"shield_damage_heal_fraction",
 		&"rebound_damage_factor",
 		&"rebound_range_factor",
+		&"kinetic_vent_impulse",
+		&"breakaway_cooldown",
 		&"auto_repair_delay",
 		&"auto_repair_rate",
 	]

@@ -34,9 +34,15 @@ func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array
 		if not player.connected or not player.participant:
 			continue
 		_token_serial += 1
+		var token_material := "ssf-draft-token-v1\u001f%d\u001f%d\u001f%d\u001f%d" % [
+			_match_seed,
+			round_number,
+			peer_id,
+			_token_serial,
+		]
 		var offer := DraftOffer.new(
 			peer_id,
-			"%d:%d:%d:%d" % [_match_seed, round_number, peer_id, _token_serial]
+			token_material.sha256_text()
 		)
 		if int(peer_id) in skipped_peer_ids:
 			offer.skipped = true

@@ -193,6 +193,7 @@ var _pending_password_host: String = ""
 var _pending_password_port: int = 0
 var _pending_password_value: String = ""
 var _pending_remember_password: bool = false
+var _native_gameplay_cursor_active: bool = false
 
 
 func _ready() -> void:
@@ -251,6 +252,7 @@ func _notification(what: int) -> void:
 		if gameplay_cursor != null:
 			gameplay_cursor.visible = false
 		if DisplayServer.get_name() != "headless":
+			_set_native_gameplay_cursor(false)
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		_application_has_focus = true
@@ -1848,7 +1850,7 @@ func _create_credits_overlay() -> void:
 	content.add_child(thank_you)
 	_add_credit_block(content, "CREATED BY", "Graphite")
 	_add_credit_block(content, "TESTERS", "Champ")
-	_add_credit_block(content, "HONOURABLE MENTIONS", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink")
+	_add_credit_block(content, "HONOURABLE MENTIONS", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  ChatGPT")
 	var back_center := CenterContainer.new()
 	content.add_child(back_center)
 	var back_button := Button.new()
@@ -2138,10 +2140,11 @@ func _connect_online() -> void:
 	var port := _validated_port(port_field)
 	if port == 0:
 		return
-	var display_name := name_field.text.strip_edges()
-	if not ServerLobby.is_valid_display_name(display_name):
+	var display_name := ServerLobby.sanitize_display_name(name_field.text)
+	if display_name.is_empty():
 		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
 		return
+	name_field.text = display_name
 	var lobby_password := direct_password_field.text
 	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
 		connection_status.text = "Enter the lobby password (1–%d printable characters)." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
@@ -2164,10 +2167,11 @@ func _host_online() -> void:
 	var port := _validated_port(host_port_field, true)
 	if port == 0:
 		return
-	var display_name := name_field.text.strip_edges()
-	if not ServerLobby.is_valid_display_name(display_name):
+	var display_name := ServerLobby.sanitize_display_name(name_field.text)
+	if display_name.is_empty():
 		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
 		return
+	name_field.text = display_name
 	var server_name := server_name_field.text.strip_edges()
 	if not LanDiscoveryProtocol.is_valid_server_name(server_name):
 		connection_status.text = "Server name must contain 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
@@ -2871,25 +2875,45 @@ func _update_pointer_visibility() -> void:
 	if not _application_has_focus:
 		if gameplay_cursor != null:
 			gameplay_cursor.visible = false
-		if DisplayServer.get_name() != "headless" and Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		if DisplayServer.get_name() != "headless":
+			_set_native_gameplay_cursor(false)
+			if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
 	var interactive_overlay := connection_screen.visible or settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
+	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	if gameplay_cursor != null:
-		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller()
+		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller() and not native_gameplay_cursor
 		if gameplay_cursor.visible:
 			gameplay_cursor.position = get_viewport().get_mouse_position()
 	if DisplayServer.get_name() == "headless":
 		return
-	var desired_mode := _pointer_mode_for_gameplay(gameplay_pointer_active)
+	_set_native_gameplay_cursor(native_gameplay_cursor)
+	var desired_mode := _pointer_mode_for_gameplay(gameplay_pointer_active, native_gameplay_cursor)
 	if Input.mouse_mode != desired_mode:
 		Input.mouse_mode = desired_mode
 
 
-func _pointer_mode_for_gameplay(gameplay_pointer_active: bool) -> int:
-	return Input.MOUSE_MODE_CONFINED_HIDDEN if gameplay_pointer_active else Input.MOUSE_MODE_VISIBLE
+func _uses_native_gameplay_cursor() -> bool:
+	return OS.get_name() == "macOS"
+
+
+func _set_native_gameplay_cursor(active: bool) -> void:
+	if _native_gameplay_cursor_active == active:
+		return
+	_native_gameplay_cursor_active = active
+	if active:
+		Input.set_custom_mouse_cursor(CROSSHAIR_TEXTURE, Input.CURSOR_ARROW, CROSSHAIR_TEXTURE.get_size() * 0.5)
+	else:
+		Input.set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
+
+
+func _pointer_mode_for_gameplay(gameplay_pointer_active: bool, native_gameplay_cursor: bool = false) -> int:
+	if not gameplay_pointer_active:
+		return Input.MOUSE_MODE_VISIBLE
+	return Input.MOUSE_MODE_CONFINED if native_gameplay_cursor else Input.MOUSE_MODE_CONFINED_HIDDEN
 
 
 func _show_draft_offer(payload: Dictionary) -> void:
@@ -3515,6 +3539,10 @@ func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: Stri
 		stat_lines.append("Special  Become invisible for 5 seconds on Special binding")
 	elif card.special_behavior_id == &"rebound_shield":
 		stat_lines.append("Shield Form  Rebound projectiles with stack-scaled damage and range")
+	elif card.special_behavior_id == &"kinetic_vent":
+		stat_lines.append("Shield Form  Release blocked damage as a defensive pulse")
+	elif card.special_behavior_id == &"breakaway_thrusters":
+		stat_lines.append("Escape System  Burst mobility after shield break or heavy hull damage")
 	if stat_lines.is_empty():
 		stat_lines.append("Special behavior described above")
 	lines.append_array(stat_lines)

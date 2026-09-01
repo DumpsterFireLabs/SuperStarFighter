@@ -24,9 +24,9 @@ func _ready() -> void:
 
 
 func _run_foundation_tests() -> void:
-	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.8", "game version is pinned to Beta 8")
+	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.9", "game version is pinned to Beta 9")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 21, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 22, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")
@@ -94,6 +94,9 @@ func _run_foundation_tests() -> void:
 	var admin_config := CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--port=7123", "--admin-port=7124"]))
 	_context.expect_true(admin_config.ok, "dedicated server accepts a distinct protected admin credential")
 	_context.expect_equal(admin_config.get("admin_port"), 7124, "loopback admin port parses")
+	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, "short")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--admin-port=7124"])).ok, "remote administration rejects weak short credentials")
+	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, "operator-secret")
 	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--port=7123", "--admin-port=7123"])).ok, "admin and gameplay ports cannot collide")
 	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, "lobby-secret")
 	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--admin-port=7124"])).ok, "admin and lobby credentials must differ")

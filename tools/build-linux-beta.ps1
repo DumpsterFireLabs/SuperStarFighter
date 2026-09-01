@@ -1,19 +1,24 @@
 [CmdletBinding()]
 param(
+    [ValidateSet('x86_64', 'arm64')]
+    [string]$Architecture = 'x86_64',
     [switch]$SkipFoundationGate
 )
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-$presetName = 'Linux Beta 8'
-$releaseLabel = 'Beta 8'
-$expectedGameVersion = '0.1.0-beta.8'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-8'
-$clientPath = Join-Path $buildRoot 'SuperStarFighter-Beta8.x86_64'
-$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta8-Linux-x64.zip'
+$isArm64 = $Architecture -eq 'arm64'
+$presetName = if ($isArm64) { 'Linux ARM64 Beta 9' } else { 'Linux Beta 9' }
+$releaseLabel = 'Beta 9'
+$expectedGameVersion = '0.1.0-beta.9'
+$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-9'
+$clientPath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta9.arm64' } else { 'SuperStarFighter-Beta9.x86_64' })
+$archivePath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta9-Linux-arm64.zip' } else { 'SuperStarFighter-Beta9-Linux-x64.zip' })
 $friendReadme = Join-Path $buildRoot 'README-BETA-LINUX.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES-LINUX.txt'
+$expectedMachineByte = if ($isArm64) { 0xb7 } else { 0x3e }
+$architectureDescription = if ($isArm64) { 'ARM64/AArch64' } else { 'x86_64' }
 
 function Assert-BetaBuildPath {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -70,8 +75,8 @@ try {
 if ($header[0] -ne 0x7f -or $header[1] -ne 0x45 -or $header[2] -ne 0x4c -or $header[3] -ne 0x46) {
     throw 'Linux export does not contain the expected ELF signature.'
 }
-if ($header[4] -ne 2 -or $header[5] -ne 1 -or $header[18] -ne 0x3e -or $header[19] -ne 0) {
-    throw 'Linux export is not a little-endian 64-bit x86_64 ELF executable.'
+if ($header[4] -ne 2 -or $header[5] -ne 1 -or $header[18] -ne $expectedMachineByte -or $header[19] -ne 0) {
+    throw "Linux export is not a little-endian 64-bit $architectureDescription ELF executable."
 }
 
 $binaryBytes = [System.IO.File]::ReadAllBytes($clientPath)
@@ -87,8 +92,8 @@ Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices) -Destinati
 $clientHash = (Get-FileHash -LiteralPath $clientPath -Algorithm SHA256).Hash
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
 Write-Host ''
-Write-Host "Linux $releaseLabel package passed export and static ELF verification."
-Write-Host 'Runtime launch verification must be completed on a Linux x64 host.'
+Write-Host "Linux $architectureDescription $releaseLabel package passed export and static ELF verification."
+Write-Host "Runtime launch verification must be completed on a Linux $architectureDescription host."
 Write-Host "Executable: $clientPath"
 Write-Host "Executable SHA-256: $clientHash"
 Write-Host "Friend ZIP: $archivePath"

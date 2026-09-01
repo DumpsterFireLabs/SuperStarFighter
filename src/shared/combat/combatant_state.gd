@@ -17,6 +17,11 @@ var cloak_charges_remaining: int = 0
 var cloak_remaining: float = 0.0
 var cloak_cooldown_remaining: float = 0.0
 var cloak_activation_latched: bool = false
+var breakaway_remaining: float = 0.0
+var breakaway_cooldown_remaining: float = 0.0
+var burst_damage_accumulator: float = 0.0
+var burst_damage_window_remaining: float = 0.0
+var kinetic_vent_feedback_remaining: float = 0.0
 var shield: ShieldState = ShieldState.new()
 var weapon: WeaponState = WeaponState.new()
 
@@ -60,6 +65,11 @@ func reset_for_heat(
 	mine_cooldown_remaining = 0.0
 	cloak_remaining = 0.0
 	cloak_activation_latched = false
+	breakaway_remaining = 0.0
+	breakaway_cooldown_remaining = 0.0
+	burst_damage_accumulator = 0.0
+	burst_damage_window_remaining = 0.0
+	kinetic_vent_feedback_remaining = 0.0
 	shield.reset(stats)
 	weapon.reset(stats)
 
@@ -75,6 +85,13 @@ func reset_match_inventory() -> void:
 	cloak_activation_latched = false
 	stats.cloak_capacity = 0
 	stats.cloak_enabled = false
+	breakaway_remaining = 0.0
+	breakaway_cooldown_remaining = 0.0
+	burst_damage_accumulator = 0.0
+	burst_damage_window_remaining = 0.0
+	kinetic_vent_feedback_remaining = 0.0
+	stats.breakaway_thrusters_enabled = false
+	stats.kinetic_vent_enabled = false
 
 
 func step(
@@ -86,14 +103,30 @@ func step(
 	if not alive:
 		velocity = Vector2.ZERO
 		return
-	aim_angle = MovementSystem.normalize_aim_angle(new_aim_angle, aim_angle)
-	shield.step(shield_held, stats, delta)
 	var safe_delta := maxf(delta, 0.0)
+	aim_angle = MovementSystem.normalize_aim_angle(new_aim_angle, aim_angle)
 	afterburner_remaining = maxf(afterburner_remaining - safe_delta, 0.0)
 	afterburner_cooldown_remaining = maxf(afterburner_cooldown_remaining - safe_delta, 0.0)
 	mine_cooldown_remaining = maxf(mine_cooldown_remaining - safe_delta, 0.0)
 	cloak_remaining = maxf(cloak_remaining - safe_delta, 0.0)
 	cloak_cooldown_remaining = maxf(cloak_cooldown_remaining - safe_delta, 0.0)
+	breakaway_remaining = maxf(breakaway_remaining - safe_delta, 0.0)
+	breakaway_cooldown_remaining = maxf(breakaway_cooldown_remaining - safe_delta, 0.0)
+	kinetic_vent_feedback_remaining = maxf(kinetic_vent_feedback_remaining - safe_delta, 0.0)
+	burst_damage_window_remaining = maxf(burst_damage_window_remaining - safe_delta, 0.0)
+	if burst_damage_window_remaining <= 0.0:
+		burst_damage_accumulator = 0.0
+	shield.step(shield_held, stats, delta)
+	if shield.consume_depletion_trigger():
+		activate_breakaway()
+	var breakaway_active := breakaway_remaining > 0.0
+	var acceleration_multiplier := (
+		stats.afterburner_acceleration_multiplier
+		if afterburner_remaining > 0.0
+		else 1.0
+	)
+	if breakaway_active:
+		acceleration_multiplier *= GameConstants.BREAKAWAY_ACCELERATION_MULTIPLIER
 	velocity = MovementSystem.step_velocity(
 		velocity,
 		input_direction,
@@ -101,7 +134,8 @@ func step(
 		delta,
 		shield.active,
 		stats.afterburner_speed_multiplier if afterburner_remaining > 0.0 else 1.0,
-		stats.afterburner_acceleration_multiplier if afterburner_remaining > 0.0 else 1.0
+		acceleration_multiplier,
+		GameConstants.BREAKAWAY_BRAKING_MULTIPLIER if breakaway_active else 1.0
 	)
 	weapon.step(stats, delta)
 	var previous_damage_time := time_since_damage
@@ -167,17 +201,40 @@ func is_cloaked() -> bool:
 	return alive and cloak_remaining > 0.0
 
 
+func activate_breakaway() -> bool:
+	if not alive or not stats.breakaway_thrusters_enabled or breakaway_cooldown_remaining > 0.0:
+		return false
+	breakaway_remaining = GameConstants.BREAKAWAY_DURATION_SECONDS
+	breakaway_cooldown_remaining = stats.breakaway_cooldown
+	return true
+
+
+func mark_kinetic_vent_release() -> void:
+	kinetic_vent_feedback_remaining = GameConstants.KINETIC_VENT_FEEDBACK_SECONDS
+
+
 func apply_damage(amount: float) -> bool:
 	if not alive or amount <= 0.0:
 		return false
 	cloak_remaining = 0.0
 	time_since_damage = 0.0
+	var applied_damage := minf(amount, health)
 	health = clampf(health - amount, 0.0, stats.max_health)
 	if health > 0.0:
+		if burst_damage_window_remaining <= 0.0:
+			burst_damage_accumulator = 0.0
+		burst_damage_window_remaining = GameConstants.BREAKAWAY_BURST_WINDOW_SECONDS
+		burst_damage_accumulator += applied_damage
+		if burst_damage_accumulator >= stats.max_health * GameConstants.BREAKAWAY_BURST_HEALTH_FRACTION:
+			activate_breakaway()
+			burst_damage_accumulator = 0.0
+			burst_damage_window_remaining = 0.0
 		return false
 	alive = false
 	velocity = Vector2.ZERO
 	shield.active = false
+	breakaway_remaining = 0.0
+	kinetic_vent_feedback_remaining = 0.0
 	cloak_remaining = 0.0
 	return true
 

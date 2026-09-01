@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/cards/card_definition.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"breakaway_thrusters"
+display_name = "Breakaway Thrusters"
+description = "Shield break or 30% burst damage triggers escape thrust. Per stack: -15% cooldown."
+category = 0
+rarity = 2
+multiplicative_modifiers = {"breakaway_cooldown": 0.85}
+special_behavior_id = &"breakaway_thrusters"

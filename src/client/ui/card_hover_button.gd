@@ -148,6 +148,10 @@ func _effect_rows() -> Array[Dictionary]:
 		rows.append({"name": "Special", "each": "5s invisibility", "total": "SHIFT / BINDING"})
 	elif card_definition.special_behavior_id == &"rebound_shield":
 		rows.append({"name": "Shield Form", "each": "Scaling return", "total": "ENABLED"})
+	elif card_definition.special_behavior_id == &"kinetic_vent":
+		rows.append({"name": "Shield Form", "each": "Release stored pulse", "total": "ENABLED"})
+	elif card_definition.special_behavior_id == &"breakaway_thrusters":
+		rows.append({"name": "Escape System", "each": "Break-triggered thrust", "total": "ENABLED"})
 	if rows.is_empty():
 		rows.append({"name": "Special", "each": "Unique behavior", "total": "ACTIVE"})
 	return rows

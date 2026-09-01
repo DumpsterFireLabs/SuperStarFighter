@@ -75,12 +75,14 @@ const EXPECTED_CARDS := {
 	&"nosferatu_shield": CardDefinition.Category.SHIELD,
 	&"rebound_shields": CardDefinition.Category.SHIELD,
 	&"mine_layer": CardDefinition.Category.WEAPON,
+	&"kinetic_vent": CardDefinition.Category.SHIELD,
+	&"breakaway_thrusters": CardDefinition.Category.SHIP,
 }
 
 
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	context.expect_equal(catalog.size(), 133, "default card catalog contains 133 differentiated cards")
+	context.expect_equal(catalog.size(), 135, "default card catalog contains 135 differentiated cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)
 	_validate_one_stack_values(context, catalog)
@@ -118,8 +120,8 @@ static func _validate_catalog_metadata(context: TestContext, catalog: CardCatalo
 		category_counts[card.category] = int(category_counts[card.category]) + 1
 		mechanical_signatures[CardCatalog.mechanical_signature(card)] = card_id
 		mechanical_shapes[CardCatalog.mechanical_shape_signature(card)] = card_id
-	context.expect_equal(category_counts[CardDefinition.Category.SHIP], 40, "catalog contains forty differentiated ship cards")
-	context.expect_equal(category_counts[CardDefinition.Category.SHIELD], 46, "catalog contains forty-six differentiated shield cards")
+	context.expect_equal(category_counts[CardDefinition.Category.SHIP], 41, "catalog contains forty-one differentiated ship cards")
+	context.expect_equal(category_counts[CardDefinition.Category.SHIELD], 47, "catalog contains forty-seven differentiated shield cards")
 	context.expect_equal(category_counts[CardDefinition.Category.WEAPON], 47, "weapon-heavy catalog contains forty-seven differentiated weapon cards")
 	context.expect_equal(mechanical_signatures.size(), catalog.size(), "catalog sanity check finds no mechanically identical cards")
 	context.expect_equal(mechanical_shapes.size(), catalog.size(), "catalog sanity check finds no same-shape magnitude swaps")
@@ -220,7 +222,7 @@ static func _validate_one_stack_values(context: TestContext, catalog: CardCatalo
 
 
 static func _validate_expanded_stat_surface(context: TestContext, catalog: CardCatalog) -> void:
-	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 38, "cards can modify thirty-eight authoritative numeric combat stats")
+	context.expect_equal(StatSystem.FLOAT_STATS.size() + StatSystem.INTEGER_STATS.size(), 40, "cards can modify forty authoritative numeric combat stats")
 	_expect_build(context, catalog, &"mine_layer", 1, {"mine_layer_enabled": true, "mine_capacity": 10})
 	_expect_build(context, catalog, &"mine_layer", 2, {"mine_layer_enabled": true, "mine_capacity": 20})
 	_expect_build(context, catalog, &"cloak", 1, {"cloak_enabled": true, "cloak_capacity": 1})
@@ -231,6 +233,10 @@ static func _validate_expanded_stat_surface(context: TestContext, catalog: CardC
 	_expect_build(context, catalog, &"repair_gel", 1, {"auto_repair_enabled": true, "auto_repair_delay": 4.6, "auto_repair_rate": 8.96})
 	_expect_build(context, catalog, &"rebound_shields", 1, {"rebound_shield_enabled": true, "rebound_damage_factor": 0.5, "rebound_range_factor": 0.5})
 	_expect_build(context, catalog, &"rebound_shields", 2, {"rebound_shield_enabled": true, "rebound_damage_factor": 0.625, "rebound_range_factor": 0.625})
+	_expect_build(context, catalog, &"kinetic_vent", 1, {"kinetic_vent_enabled": true, "kinetic_vent_impulse": 432.0})
+	_expect_build(context, catalog, &"kinetic_vent", 2, {"kinetic_vent_enabled": true, "kinetic_vent_impulse": 518.4})
+	_expect_build(context, catalog, &"breakaway_thrusters", 1, {"breakaway_thrusters_enabled": true, "breakaway_cooldown": 6.8})
+	_expect_build(context, catalog, &"breakaway_thrusters", 2, {"breakaway_thrusters_enabled": true, "breakaway_cooldown": 5.78})
 
 
 static func _validate_repeated_stack_values(context: TestContext, catalog: CardCatalog) -> void:

@@ -24,9 +24,10 @@ func predict(
 	frame: PlayerInputFrame,
 	stats: CombatStats,
 	delta: float,
-	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
+	breakaway_active: bool = false
 ) -> void:
-	var motion := _step_motion(predicted_position, predicted_velocity, frame, stats, delta, map_id)
+	var motion := _step_motion(predicted_position, predicted_velocity, frame, stats, delta, map_id, breakaway_active)
 	predicted_position = motion.position
 	predicted_velocity = motion.velocity
 	push(frame, delta)
@@ -37,7 +38,8 @@ func reconcile(
 	authoritative_velocity: Vector2,
 	acknowledged_sequence: int,
 	stats: CombatStats,
-	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
+	breakaway_active: bool = false
 ) -> Dictionary:
 	var previous_prediction := predicted_position
 	_prune_acknowledged(acknowledged_sequence)
@@ -46,7 +48,7 @@ func reconcile(
 	for item in buffered_inputs:
 		var frame := item.frame as PlayerInputFrame
 		var delta := float(item.delta)
-		var motion := _step_motion(replay_position, replay_velocity, frame, stats, delta, map_id)
+		var motion := _step_motion(replay_position, replay_velocity, frame, stats, delta, map_id, breakaway_active)
 		replay_position = motion.position
 		replay_velocity = motion.velocity
 	last_reconciliation_error = previous_prediction.distance_to(replay_position)
@@ -84,7 +86,8 @@ static func _step_motion(
 	frame: PlayerInputFrame,
 	stats: CombatStats,
 	delta: float,
-	map_id: StringName
+	map_id: StringName,
+	breakaway_active: bool
 ) -> Dictionary:
 	var safe_delta := maxf(delta, 0.0)
 	var world_movement := MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle)
@@ -93,7 +96,10 @@ static func _step_motion(
 		world_movement,
 		stats,
 		safe_delta,
-		frame.shielding
+		frame.shielding,
+		1.0,
+		GameConstants.BREAKAWAY_ACCELERATION_MULTIPLIER if breakaway_active else 1.0,
+		GameConstants.BREAKAWAY_BRAKING_MULTIPLIER if breakaway_active else 1.0
 	)
 	return ArenaCollisionSystem.move_ship(position, next_velocity, safe_delta, map_id)
 

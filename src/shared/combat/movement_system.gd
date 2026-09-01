@@ -31,12 +31,13 @@ static func step_velocity(
 	delta: float,
 	shielding: bool = false,
 	speed_multiplier: float = 1.0,
-	acceleration_multiplier: float = 1.0
+	acceleration_multiplier: float = 1.0,
+	drag_multiplier: float = 1.0
 ) -> Vector2:
 	var safe_delta := maxf(delta, 0.0)
 	var movement := sanitize_input(input_direction)
 	if movement.is_zero_approx():
-		return current_velocity.move_toward(Vector2.ZERO, stats.drag * safe_delta)
+		return current_velocity.move_toward(Vector2.ZERO, stats.drag * maxf(drag_multiplier, 0.0) * safe_delta)
 	var acceleration := stats.acceleration * maxf(acceleration_multiplier, 0.0)
 	if shielding:
 		acceleration *= stats.shield_acceleration_factor

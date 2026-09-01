@@ -36,4 +36,4 @@ The later shield-ram expansion adds five mechanically distinct cards, one at eve
 
 Nanite Reservoir moved from Epic to Legendary and gained a stacking ×0.90 maximum-speed drawback. Auto-repair plus flat hull remains a strong build-defining package, while the mobility tradeoff gives opponents a clearer way to pressure it.
 
-The 133-card catalog now contains 20 Common, 25 Uncommon, 29 Rare, 20 Epic, 20 Legendary, 11 Mythical, and 8 Unobtanium cards. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.
+The 135-card catalog now contains 20 Common, 25 Uncommon, 30 Rare, 21 Epic, 20 Legendary, 11 Mythical, and 8 Unobtanium cards. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.

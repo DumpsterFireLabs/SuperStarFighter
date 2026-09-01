@@ -5,6 +5,9 @@ var maximum_failures: int
 var window_seconds: float
 var cooldown_seconds: float
 var _states: Dictionary = {}
+var _next_prune_at: float = 0.0
+
+const PRUNE_INTERVAL_SECONDS: float = 1.0
 
 
 func _init(
@@ -31,7 +34,9 @@ func is_blocked(source: String, now_seconds: float) -> bool:
 
 
 func register_failure(source: String, now_seconds: float) -> bool:
-	_prune(now_seconds)
+	if now_seconds >= _next_prune_at:
+		_prune(now_seconds)
+		_next_prune_at = now_seconds + PRUNE_INTERVAL_SECONDS
 	var normalized := _normalize_source(source)
 	if not _states.has(normalized) and _states.size() >= NetworkProtocol.AUTH_MAX_TRACKED_SOURCES:
 		_remove_oldest_state()
@@ -53,6 +58,7 @@ func register_failure(source: String, now_seconds: float) -> bool:
 
 func clear() -> void:
 	_states.clear()
+	_next_prune_at = 0.0
 
 
 func _prune(now_seconds: float) -> void:

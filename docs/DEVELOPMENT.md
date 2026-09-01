@@ -31,9 +31,9 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.8 |
-| Protocol version | 17 |
-| Automated suite | 2,568 assertions |
+| Game version | 0.1.0-beta.9 |
+| Protocol version | 22 |
+| Automated suite | 2,923 assertions |
 | Project gate | 90 checks |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
@@ -221,7 +221,8 @@ Category values are `0` Ship, `1` Shield, and `2` Weapon. Rarity values are `0` 
 | `acceleration` | `magazine_size` | `shield_continuous_drain` |
 | `drag` | `reload_duration` | `shield_regeneration_delay` |
 | `shield_acceleration_factor` | `projectile_speed` | `shield_arc_degrees` |
-|  | `projectile_count` | `shield_block_cost` |
+| `breakaway_cooldown` | `projectile_count` | `kinetic_vent_impulse` |
+|  |  | `shield_block_cost` |
 |  | `projectile_spread_degrees` | `shield_depletion_threshold` |
 |  |  | `shield_ram_damage` |
 |  |  | `shield_ram_min_speed` |
@@ -319,12 +320,12 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 2,568 deterministic assertions | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | 2,923 deterministic assertions | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 88 project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
-| `.\tools\run-performance-benchmark.ps1` | 32 Insane NPCs, 1,024 projectile churn, p50/p95/p99 tick timings | Combat, projectile, NPC, or networking hot-path changes |
+| `.\tools\run-performance-benchmark.ps1` | 32 Insane NPCs with 1,024 projectile churn, plus a 512-mine/512-projectile spatial-query case and p50/p95/p99 timings | Combat, projectile, mine, NPC, or networking hot-path changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
 | `.\tools\verify-presentation.ps1` | 198 production captures at six resolutions | UI, map, text, theme, timing changes |
 | `.\tools\build-beta.ps1` | Full foundation gate, Windows x64 export, rendered startup and packaged-audio inventory smoke, and friend ZIP | Beta/release packaging |
@@ -372,7 +373,11 @@ Good regression coverage normally includes:
 
 The foundation script deliberately runs a forced-failure test and expects its nonzero exit. Seeing that one intentional failure in the verbose gate output is normal when the script itself ultimately reports success.
 
-The performance benchmark is an overload regression gate: it combines all 32 participants at Insane decision quality with the global ceiling of 1,024 active projectiles. It fails above 20 ms p95, 24 ms p99, or 30 ms maximum on the development machine. The ordinary 32-client soak retains the stricter 16.67 ms p95 server-simulation requirement from the specification.
+The performance benchmark is an overload regression gate: it combines all 32 participants at Insane decision quality with the global ceiling of 1,024 active projectiles, then separately holds 512 armed mines alongside 512 moving projectiles to guard the mixed spatial-query path. The main case fails above 20 ms p95, 24 ms p99, or 30 ms maximum; the mixed-mine case fails above 12 ms p95 or 20 ms maximum on the development machine. The ordinary 32-client soak retains the stricter 16.67 ms p95 server-simulation requirement from the specification.
+
+Dedicated-server metrics also report the count and percentage of ticks exceeding the 60 Hz simulation budget. Treat sustained overruns as a release blocker even when mean latency remains low. Match randomness is generated cryptographically in production and is not sent to clients; `--test-match-seed` remains available only for deterministic server test runs.
+
+Keep common-case work proportional to active features: human-only matches do not rebuild the NPC projectile-threat index, empty mine registries do not receive mine scans, empty powerup collections do not sort participant IDs, waiting lobbies do not emit combat snapshots/corrections, and ship separation ends after the first overlap-free pass. The overload benchmark intentionally enables NPCs and fills the global projectile budget so those fast paths cannot conceal a worst-case regression.
 
 ## 13. Documentation and Spec Discipline
 
@@ -408,7 +413,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 8 has Windows x64, Linux x64, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives static ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Beta 1 through Beta 7 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing/notarization, and final release-candidate artifact checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 9 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Beta 1 through Beta 8 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing/notarization, and final release-candidate artifact checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 

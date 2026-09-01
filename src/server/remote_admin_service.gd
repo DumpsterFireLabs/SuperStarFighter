@@ -1,6 +1,8 @@
 class_name RemoteAdminService
 extends Node
 
+const AuthenticationAttemptLimiterScript = preload("res://src/shared/network/authentication_attempt_limiter.gd")
+
 signal shutdown_requested
 
 var _server := TCPServer.new()
@@ -8,13 +10,18 @@ var _bridge: NetworkBridge
 var _password: String = ""
 var _clients: Dictionary = {}
 var _next_client_id: int = 1
+var _authentication_attempt_limiter := AuthenticationAttemptLimiterScript.new(
+	NetworkProtocol.ADMIN_AUTH_FAILURE_LIMIT,
+	NetworkProtocol.ADMIN_AUTH_FAILURE_WINDOW_SECONDS,
+	NetworkProtocol.ADMIN_AUTH_COOLDOWN_SECONDS
+)
 
 
 func start(port: int, password: String, bridge: NetworkBridge) -> Error:
 	stop()
 	if port == 0:
 		return OK
-	if not NetworkProtocol.is_valid_lobby_password(password) or bridge == null:
+	if not NetworkProtocol.is_valid_admin_password(password) or bridge == null:
 		return ERR_INVALID_PARAMETER
 	var error := _server.listen(port, "127.0.0.1")
 	if error != OK:
@@ -34,6 +41,7 @@ func stop() -> void:
 	_server.stop()
 	_password = ""
 	_bridge = null
+	_authentication_attempt_limiter.clear()
 
 
 func _process(_delta: float) -> void:
@@ -50,6 +58,11 @@ func _process(_delta: float) -> void:
 
 
 func _accept_client(peer: StreamPeerTCP) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if _authentication_attempt_limiter.is_blocked("loopback-admin", now):
+		_admin_log("admin_connection_rate_limited", {})
+		peer.disconnect_from_host()
+		return
 	var client_id := _next_client_id
 	_next_client_id += 1
 	var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
@@ -59,8 +72,9 @@ func _accept_client(peer: StreamPeerTCP) -> void:
 		"challenge": challenge,
 		"authenticated": false,
 		"auth_failures": 0,
-		"connected_at": Time.get_ticks_msec() / 1000.0,
-		"window_start": Time.get_ticks_msec() / 1000.0,
+		"connected_at": now,
+		"last_activity": now,
+		"window_start": now,
 		"request_count": 0,
 	}
 	_send(client_id, {"event": "challenge", "challenge": challenge})
@@ -76,6 +90,10 @@ func _poll_client(client_id: int) -> void:
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if not bool(state.authenticated) and now - float(state.connected_at) >= NetworkProtocol.ADMIN_AUTH_TIMEOUT_SECONDS:
+		_close_client(client_id)
+		return
+	if bool(state.authenticated) and now - float(state.last_activity) >= NetworkProtocol.ADMIN_IDLE_TIMEOUT_SECONDS:
+		_admin_log("admin_idle_timeout", {"client_id": client_id})
 		_close_client(client_id)
 		return
 	var available := peer.get_available_bytes()
@@ -114,6 +132,7 @@ func _handle_line(client_id: int, line: String) -> void:
 		_authenticate(client_id, request)
 		return
 	var now := Time.get_ticks_msec() / 1000.0
+	state.last_activity = now
 	if now - float(state.window_start) >= 1.0:
 		state.window_start = now
 		state.request_count = 0
@@ -146,9 +165,10 @@ func _authenticate(client_id: int, request: Dictionary) -> void:
 		return
 	state.auth_failures = int(state.auth_failures) + 1
 	_clients[client_id] = state
+	var rate_limited := _authentication_attempt_limiter.register_failure("loopback-admin", Time.get_ticks_msec() / 1000.0)
 	_admin_log("admin_auth_failed", {"client_id": client_id, "failures": int(state.auth_failures)})
 	_send(client_id, {"ok": false, "error": "Authentication failed."})
-	if int(state.auth_failures) >= 3:
+	if rate_limited or int(state.auth_failures) >= 3:
 		_close_client(client_id)
 
 
@@ -156,8 +176,10 @@ func _execute(request: Dictionary) -> Dictionary:
 	var command := String(request.get("command", ""))
 	var result: Dictionary
 	match command:
-		"status", "players":
+		"status":
 			result = _bridge.operator_status()
+		"players":
+			result = _bridge.operator_players()
 		"kick":
 			result = _bridge.operator_kick(int(request.get("peer_id", 0)), false)
 		"ban":
@@ -194,7 +216,12 @@ func _send(client_id: int, payload: Dictionary) -> void:
 	if not _clients.has(client_id):
 		return
 	var peer := (_clients[client_id] as Dictionary).peer as StreamPeerTCP
-	peer.put_data((JSON.stringify(payload) + "\n").to_utf8_buffer())
+	var encoded := (JSON.stringify(payload) + "\n").to_utf8_buffer()
+	if encoded.size() > NetworkProtocol.ADMIN_MAX_RESPONSE_BYTES:
+		_admin_log("admin_response_rejected", {"client_id": client_id, "bytes": encoded.size()})
+		encoded = (JSON.stringify({"ok": false, "error": "Admin response exceeded the safety limit."}) + "\n").to_utf8_buffer()
+	if peer.put_data(encoded) != OK:
+		_close_client(client_id)
 
 
 func _close_client(client_id: int) -> void:

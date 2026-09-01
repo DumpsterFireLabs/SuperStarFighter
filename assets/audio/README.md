@@ -12,7 +12,7 @@ Music accepts `.mp3`, `.ogg`, and `.wav`. Discovery uses the final extension, so
 
 Optional authored SFX can replace the synthesized placeholders without code changes. Put `.wav`, `.ogg`, or `.mp3` files in `sfx/` using these names:
 
-`fire`, `beam_fire`, `reload`, `shield_on`, `shield_block`, `shield_break`, `damage`, `elimination`, `card_lock`, `countdown`, `overtime`, `round_win`, `match_win`, `projectile_impact`, `ricochet`, `mine_detonated`, and `rebound`.
+`fire`, `beam_fire`, `reload`, `shield_on`, `shield_block`, `shield_break`, `damage`, `elimination`, `card_lock`, `countdown`, `overtime`, `round_win`, `match_win`, `projectile_impact`, `ricochet`, `mine_detonated`, `rebound`, `kinetic_vent`, and `breakaway`.
 
 Mine sound-design candidates can use a `mine_detonated_preview_*` prefix without being loaded by the game. Rename the selected candidate to `mine_detonated.wav` to activate it.
 

@@ -8,8 +8,8 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 
 - Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
 - Automatic weapons, directional energy shields, shield-ram melee builds, knockback rounds, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
-- 133 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Nosferatu Shield, Legendary Star Mines, and Rebound Shields.
-- 38 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, rebound shields, and active mine-layer transformations.
+- 135 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, Star Mines, and Rebound Shields.
+- 40 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, rebound shields, and active mine-layer transformations.
 - Two to 32 total participants with individual and bulk NPC difficulty controls.
 - Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, five-second objective-mode respawns, round-rotating hills, home-base flag scoring, objective-aware NPCs, live objective HUD state, and team scoring.
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
@@ -49,7 +49,7 @@ Display settings support persistent Windowed, Borderless Fullscreen, and Exclusi
 
 ## Beta Builds
 
-The main menu identifies the current release as **Beta 8**, version `0.1.0-beta.8`. Build and verify the friend-ready Windows x64 client first:
+The main menu identifies the current release as **Beta 9**, version `0.1.0-beta.9`. Build and verify the friend-ready Windows x64 client first:
 
 ```powershell
 .\tools\build-beta.ps1
@@ -61,13 +61,43 @@ Then cross-build the Linux x64 client:
 .\tools\build-linux-beta.ps1 -SkipFoundationGate
 ```
 
+Build the Linux ARM64 client for 64-bit Raspberry Pi and other AArch64 systems:
+
+```powershell
+.\tools\build-linux-beta.ps1 -Architecture arm64 -SkipFoundationGate
+```
+
 Finally, cross-build the universal macOS client for Apple Silicon and Intel Macs:
 
 ```powershell
 .\tools\build-macos-beta.ps1 -SkipFoundationGate
 ```
 
-The Windows script runs the complete foundation gate, exports a single embedded-PCK executable, launches it through its normal rendered startup path, verifies the packaged music inventory, and creates the versioned friend ZIP. The Linux script validates its embedded-PCK ELF and packaged identity. The macOS script validates the `.app` layout, metadata, embedded identity, and both `arm64` and `x86_64` Mach-O slices. Omit `-SkipFoundationGate` when building either cross-platform package independently. Every tester-facing rebuild must increment the displayed game/build version before export so packages remain distinguishable. Generated builds remain ignored by Git.
+The Windows script runs the complete foundation gate, exports a single embedded-PCK executable, launches it through its normal rendered startup path, verifies the packaged music inventory, and creates the versioned friend ZIP. The Linux script validates its embedded-PCK ELF architecture and packaged identity for either x64 or ARM64. The macOS script validates the `.app` layout, metadata, embedded identity, and both `arm64` and `x86_64` Mach-O slices. Omit `-SkipFoundationGate` when building any cross-platform package independently. Every tester-facing rebuild must increment the displayed game/build version before export so packages remain distinguishable. Generated builds remain ignored by Git.
+
+The macOS beta is not yet signed or notarized. If Gatekeeper reports that `Super Star Fighter.app` is damaged even after using Control-click → Open, verify the supplied ZIP SHA-256, open Terminal in the extracted folder, run `xattr -cr "Super Star Fighter.app"`, and then use Control-click → Open again. A signed and notarized release will not require this workaround.
+
+### Linux graphics fallbacks
+
+Linux normally uses the project's Compatibility renderer through desktop OpenGL 3.3. On Mesa systems that expose native OpenGL ES 3.0 but not desktop OpenGL 3.3, try:
+
+```bash
+./SuperStarFighter-Beta9.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+```
+
+On a Raspberry Pi or other ARM64 machine with a working Vulkan driver, the Mobile renderer is another possible fallback:
+
+```bash
+./SuperStarFighter-Beta9.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+```
+
+As a slow last resort with Mesa software rendering:
+
+```bash
+LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta9.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+```
+
+Use the `.x86_64` filename for Linux x64. These overrides are compatibility suggestions rather than native acceptance-tested configurations. Godot 4 requires at least OpenGL ES 3.0 for Compatibility; GLES 2-only systems are unsupported. Keep `--verbose` during diagnosis to confirm the selected API, renderer, and GPU.
 
 ### Keyboard and mouse
 
@@ -120,13 +150,36 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 
 ## Dedicated Server
 
+The Beta 9 friend ZIPs are client packages and do not yet include a standalone stripped server executable. The supported dedicated-server workflow currently requires a source checkout and its bootstrapped tools.
+
 Start a headless authoritative server with:
 
 ```powershell
 .\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -AdminPort 7001 -MaxPlayers 32 -RoundsToWin 3
 ```
 
-The launcher prompts securely for the lobby password and, when administration is enabled, a distinct admin password. A dedicated server never remembers or writes either password. For unattended service startup, `-PasswordFile` and `-AdminPasswordFile` are read-only startup sources supplied by the operator; keep them ACL-protected and outside the repository. The admin listener binds only to `127.0.0.1`; reach it remotely through an SSH tunnel, then use `tools/admin.ps1` for status, player lists, kicks, persistent address blocks, live lobby settings, password rotation, and graceful shutdown.
+The launcher prompts securely for the lobby password and, when administration is enabled, a distinct admin password of at least 12 characters. A dedicated server never remembers or writes either password. For unattended service startup, `-PasswordFile` and `-AdminPasswordFile` are read-only startup sources supplied by the operator; keep them ACL-protected and outside the repository. The admin listener binds only to `127.0.0.1`; reach it remotely through an SSH tunnel, then use `tools/admin.ps1` for status, player lists, kicks, persistent address blocks, live lobby settings, password rotation, and graceful shutdown. Failed admin authentication and gameplay connection churn are throttled across reconnects, inactive admin sessions expire, requests and responses are size-bounded, and the bounded address-block file is replaced atomically.
+
+An unattended launch can provide protected one-line password files and a persistent ban file:
+
+```powershell
+.\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -AdminPort 7001 -MaxPlayers 32 -RoundsToWin 3 -PasswordFile "C:\ServerSecrets\ssf-lobby.txt" -AdminPasswordFile "C:\ServerSecrets\ssf-admin.txt" -BanFile "C:\ServerData\ssf-bans.json"
+```
+
+Common management commands are:
+
+```powershell
+.\tools\admin.ps1 -Port 7001 -Command status
+.\tools\admin.ps1 -Port 7001 -Command players
+.\tools\admin.ps1 -Port 7001 -Command kick -PeerId 4
+.\tools\admin.ps1 -Port 7001 -Command ban -PeerId 7
+.\tools\admin.ps1 -Port 7001 -Command unblock -Source 203.0.113.8
+.\tools\admin.ps1 -Port 7001 -Command set -Setting rounds_to_win -Value 5
+.\tools\admin.ps1 -Port 7001 -Command set-password
+.\tools\admin.ps1 -Port 7001 -Command shutdown
+```
+
+For remote administration, first forward a local port through SSH—`ssh -N -L 7001:127.0.0.1:7001 operator@example-server`—then run `admin.ps1` locally against port `7001`. Runtime setting/password changes last only for the current process; persistent values belong in the launch configuration and protected password sources. Address blocks are persisted immediately to the configured ban file. Monitor the JSON-line `simulation_metrics`, especially p95/max latency and `over_budget_ticks`.
 
 Super Star Fighter uses ENet over UDP. LAN discovery uses UDP `7359`; gameplay uses the selected UDP port, `7000` by default. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting currently requires direct IP/hostname access and manual router/firewall configuration; UPnP traversal is not implemented.
 
@@ -152,13 +205,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 2,568 automated assertions and 90 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The current gate passes 2,815 automated assertions and 93 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
-Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 133 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
+Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 135 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
 
-The Beta 8 Windows x64, Linux x64, and universal macOS client export paths are operational, while Beta 1 through Beta 7 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
+The Beta 9 Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client export paths are operational, while Beta 1 through Beta 8 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 
 ## License and Assets
 

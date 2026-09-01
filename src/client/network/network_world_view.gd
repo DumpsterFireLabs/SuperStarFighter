@@ -64,6 +64,9 @@ var local_mine_cooldown_remaining: float = 0.0
 var local_cloak_charges_remaining: int = 0
 var local_cloak_remaining: float = 0.0
 var local_cloak_cooldown_remaining: float = 0.0
+var local_breakaway_remaining: float = 0.0
+var local_kinetic_vent_charge: float = 0.0
+var local_breakaway_cooldown_remaining: float = 0.0
 var _nearest_incoming_cache: ProjectileState
 var _nearest_incoming_revision: int = -1
 var _incoming_refresh_accumulator: float = 0.0
@@ -144,6 +147,9 @@ func reset_session() -> void:
 	local_cloak_charges_remaining = 0
 	local_cloak_remaining = 0.0
 	local_cloak_cooldown_remaining = 0.0
+	local_breakaway_remaining = 0.0
+	local_kinetic_vent_charge = 0.0
+	local_breakaway_cooldown_remaining = 0.0
 	_nearest_incoming_cache = null
 	_nearest_incoming_revision = -1
 	_incoming_refresh_accumulator = 0.0
@@ -193,6 +199,8 @@ func _physics_process(delta: float) -> void:
 	local_mine_cooldown_remaining = maxf(local_mine_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_remaining = maxf(local_cloak_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_cooldown_remaining = maxf(local_cloak_cooldown_remaining - maxf(delta, 0.0), 0.0)
+	local_breakaway_remaining = maxf(local_breakaway_remaining - maxf(delta, 0.0), 0.0)
+	local_breakaway_cooldown_remaining = maxf(local_breakaway_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	var local_ship := ships[local_peer_id] as SandboxShip
 	var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else _unshaken_mouse_world_position() - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
@@ -243,7 +251,7 @@ func _physics_process(delta: float) -> void:
 		bridge.send_input(frame)
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and controls_enabled:
-		prediction.predict(frame, local_stats, delta, arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID)
+		prediction.predict(frame, local_stats, delta, arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID, local_breakaway_remaining > 0.0)
 		if special_just_pressed and afterburner_ready:
 			prediction.predicted_velocity = (
 				prediction.predicted_velocity + Vector2.from_angle(aim_angle) * local_stats.afterburner_impulse
@@ -321,7 +329,8 @@ func _on_snapshot(decoded: Dictionary) -> void:
 					state.velocity,
 					decoded.acknowledged_input,
 					local_stats,
-					arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+					arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID,
+					local_breakaway_remaining > 0.0
 				)
 			local_weapon.ammunition = int(state.ammunition)
 		else:
@@ -525,12 +534,20 @@ func _apply_snapshot_resources(ship: SandboxShip, state: Dictionary) -> void:
 	ship.combatant.cloak_remaining = maxf(ship.combatant.cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
 	ship.combatant.cloak_charges_remaining = int(state.get("cloak_charges", 0))
 	ship.combatant.cloak_cooldown_remaining = float(state.get("cloak_cooldown", 0.0))
+	ship.combatant.shield.perfect_guard_window_remaining = 0.1 if bool(state.get("perfect_guard_active", false)) else 0.0
+	ship.combatant.breakaway_remaining = 0.1 if bool(state.get("breakaway_active", false)) else 0.0
+	ship.combatant.kinetic_vent_feedback_remaining = 0.1 if bool(state.get("kinetic_vent_active", false)) else 0.0
+	ship.combatant.shield.kinetic_vent_charge = float(state.get("kinetic_vent_charge", 0.0))
+	ship.combatant.breakaway_cooldown_remaining = float(state.get("breakaway_cooldown", 0.0))
 	if ship.combatant.peer_id == local_peer_id:
 		local_mine_charges_remaining = ship.combatant.mine_charges_remaining
 		local_mine_cooldown_remaining = ship.combatant.mine_cooldown_remaining
 		local_cloak_charges_remaining = ship.combatant.cloak_charges_remaining
 		local_cloak_remaining = maxf(local_cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
 		local_cloak_cooldown_remaining = ship.combatant.cloak_cooldown_remaining
+		local_breakaway_remaining = maxf(local_breakaway_remaining, 0.1) if bool(state.get("breakaway_active", false)) else 0.0
+		local_kinetic_vent_charge = ship.combatant.shield.kinetic_vent_charge
+		local_breakaway_cooldown_remaining = ship.combatant.breakaway_cooldown_remaining
 	if bool(state.get("afterburner_active", false)):
 		ship.flash_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
@@ -900,6 +917,11 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			if local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining > 0.05:
 				cloak_status += " (%.1fs)" % local_cloak_cooldown_remaining
 			resources += "   CLOAK %s" % cloak_status
+		if local_stats.kinetic_vent_enabled:
+			resources += "   VENT %.0f/%.0f" % [local_kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
+		if local_stats.breakaway_thrusters_enabled:
+			var breakaway_status := "ACTIVE" if local_breakaway_remaining > 0.0 else ("%.1fs" % local_breakaway_cooldown_remaining if local_breakaway_cooldown_remaining > 0.05 else "READY")
+			resources += "   BREAKAWAY %s" % breakaway_status
 		var reload_hint: String = input_profiles.binding_text(&"manual_reload") if input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
 		if local_stats.afterburner_enabled:
@@ -1076,6 +1098,15 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: SandboxShi
 	)
 	if float(previous.get("shield", 0.0)) >= depletion_threshold and float(state.get("shield", 0.0)) < depletion_threshold:
 		presentation_event.emit(&"shield_break", {"peer_id": peer_id, "server_tick": latest_server_tick})
+	if not bool(previous.get("kinetic_vent_active", false)) and bool(state.get("kinetic_vent_active", false)):
+		if effects_layer != null:
+			effects_layer.spawn_kinetic_vent(state.position)
+		presentation_event.emit(&"kinetic_vent", {"peer_id": peer_id, "server_tick": latest_server_tick})
+		if peer_id == local_peer_id:
+			trigger_camera_shake(3.0, 0.12)
+	if not bool(previous.get("breakaway_active", false)) and bool(state.get("breakaway_active", false)):
+		ship.flash_afterburner(GameConstants.BREAKAWAY_DURATION_SECONDS)
+		presentation_event.emit(&"breakaway", {"peer_id": peer_id, "server_tick": latest_server_tick})
 	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
 		if effects_layer != null:
 			effects_layer.spawn_elimination(state.position, ship.ship_color)

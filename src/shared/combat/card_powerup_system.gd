@@ -54,6 +54,8 @@ func step(server_tick: int, world: AuthoritativeWorld, players: Dictionary) -> A
 		if not spawned.is_empty():
 			events.append({"event_type": &"CARD_POWERUP_SPAWNED", "payload": spawned})
 		next_spawn_tick += roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	if active_powerups.is_empty():
+		return events
 	events.append_array(_collect_powerups(world, players))
 	return events
 

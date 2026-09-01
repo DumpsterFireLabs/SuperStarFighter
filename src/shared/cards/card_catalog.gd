@@ -128,12 +128,14 @@ const DEFAULT_CARD_PATHS: Array[String] = [
 	"res://data/cards/storm_of_one.tres",
 	"res://data/cards/supernova_array.tres",
 	"res://data/cards/afterburner.tres",
+	"res://data/cards/breakaway_thrusters.tres",
 	"res://data/cards/cloak.tres",
 	"res://data/cards/ramming_shields.tres",
 	"res://data/cards/concussion_rounds.tres",
 	"res://data/cards/repulsor_payload.tres",
 	"res://data/cards/nosferatu_shield.tres",
 	"res://data/cards/rebound_shields.tres",
+	"res://data/cards/kinetic_vent.tres",
 	"res://data/cards/mine_layer.tres",
 ]
 

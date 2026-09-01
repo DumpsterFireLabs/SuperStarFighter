@@ -15,6 +15,7 @@ var remaining_ricochets: int = 0
 var is_beam: bool = false
 var is_mine: bool = false
 var mine_activation_remaining: float = 0.0
+var kinetic_vent_displacement_remaining: float = 0.0
 var has_rebounded: bool = false
 var hit_peer_ids: Dictionary = {}
 
@@ -66,6 +67,23 @@ func is_mine_armed() -> bool:
 func step_mine_activation(delta: float) -> void:
 	if is_mine:
 		mine_activation_remaining = maxf(mine_activation_remaining - maxf(delta, 0.0), 0.0)
+
+
+func apply_kinetic_vent(direction: Vector2, speed: float) -> void:
+	if not is_mine or direction.is_zero_approx():
+		return
+	velocity = direction.normalized() * maxf(speed, 0.0)
+	kinetic_vent_displacement_remaining = GameConstants.KINETIC_VENT_MINE_DISPLACEMENT_SECONDS
+
+
+func step_kinetic_vent_displacement(delta: float) -> bool:
+	if kinetic_vent_displacement_remaining <= 0.0:
+		return false
+	kinetic_vent_displacement_remaining = maxf(
+		kinetic_vent_displacement_remaining - maxf(delta, 0.0),
+		0.0
+	)
+	return true
 
 
 func step(delta: float) -> bool:

@@ -5,6 +5,11 @@ var energy: float = 0.0
 var active: bool = false
 var depletion_locked: bool = false
 var time_since_activity: float = 0.0
+var perfect_guard_window_remaining: float = 0.0
+var perfect_guard_feedback_remaining: float = 0.0
+var kinetic_vent_charge: float = 0.0
+var kinetic_vent_release_pending: float = 0.0
+var depletion_triggered: bool = false
 
 
 func reset(stats: CombatStats) -> void:
@@ -12,19 +17,38 @@ func reset(stats: CombatStats) -> void:
 	active = false
 	depletion_locked = false
 	time_since_activity = stats.shield_regeneration_delay
+	perfect_guard_window_remaining = 0.0
+	perfect_guard_feedback_remaining = 0.0
+	kinetic_vent_charge = 0.0
+	kinetic_vent_release_pending = 0.0
+	depletion_triggered = false
 
 
 func step(held: bool, stats: CombatStats, delta: float) -> void:
 	var safe_delta := maxf(delta, 0.0)
+	var was_active := active
+	perfect_guard_window_remaining = maxf(perfect_guard_window_remaining - safe_delta, 0.0)
+	perfect_guard_feedback_remaining = maxf(perfect_guard_feedback_remaining - safe_delta, 0.0)
+	if not stats.kinetic_vent_enabled:
+		kinetic_vent_charge = 0.0
+		kinetic_vent_release_pending = 0.0
 	var may_activate := held and not depletion_locked and energy > 0.0
 	active = may_activate
+	if active and not was_active:
+		perfect_guard_window_remaining = GameConstants.PERFECT_GUARD_WINDOW_SECONDS
 	if active:
 		time_since_activity = 0.0
 		energy = maxf(energy - stats.shield_continuous_drain * safe_delta, 0.0)
 		if energy <= 0.0:
-			active = false
-			depletion_locked = true
-		return
+			_mark_depleted()
+		else:
+			return
+
+	if was_active and not active:
+		perfect_guard_window_remaining = 0.0
+		if not held and not depletion_locked and stats.kinetic_vent_enabled and kinetic_vent_charge >= GameConstants.KINETIC_VENT_MINIMUM_CHARGE:
+			kinetic_vent_release_pending = kinetic_vent_charge
+		kinetic_vent_charge = 0.0
 
 	var previous_inactivity := time_since_activity
 	time_since_activity += safe_delta
@@ -63,20 +87,65 @@ func try_block(
 ) -> bool:
 	if not can_block(aim_angle, impact_vector, stats.shield_arc_degrees):
 		return false
-	_consume_impact_energy(stats)
+	var perfect_guard := perfect_guard_window_remaining > 0.0
+	_consume_impact_energy(
+		stats,
+		GameConstants.PERFECT_GUARD_BLOCK_COST_FACTOR if perfect_guard else 1.0
+	)
+	if perfect_guard:
+		perfect_guard_window_remaining = 0.0
+		perfect_guard_feedback_remaining = GameConstants.PERFECT_GUARD_FEEDBACK_SECONDS
 	return true
 
 
 func try_absorb_contact(stats: CombatStats) -> bool:
 	if not active:
 		return false
-	_consume_impact_energy(stats)
+	_consume_impact_energy(stats, 1.0)
 	return true
 
 
-func _consume_impact_energy(stats: CombatStats) -> void:
+func register_blocked_damage(damage: float, stats: CombatStats) -> void:
+	if not stats.kinetic_vent_enabled or depletion_locked or damage <= 0.0:
+		return
+	kinetic_vent_charge = minf(
+		kinetic_vent_charge + damage,
+		GameConstants.KINETIC_VENT_MAXIMUM_CHARGE
+	)
+
+
+func consume_kinetic_vent_release() -> float:
+	var charge := kinetic_vent_release_pending
+	kinetic_vent_release_pending = 0.0
+	return charge
+
+
+func consume_depletion_trigger() -> bool:
+	var triggered := depletion_triggered
+	depletion_triggered = false
+	return triggered
+
+
+func is_perfect_guard_active() -> bool:
+	return active and perfect_guard_window_remaining > 0.0
+
+
+func has_perfect_guard_feedback() -> bool:
+	return perfect_guard_feedback_remaining > 0.0
+
+
+func _consume_impact_energy(stats: CombatStats, cost_factor: float) -> void:
 	time_since_activity = 0.0
-	energy = maxf(energy - stats.shield_block_cost, 0.0)
+	energy = maxf(energy - stats.shield_block_cost * maxf(cost_factor, 0.0), 0.0)
 	if energy <= 0.0:
-		active = false
-		depletion_locked = true
+		_mark_depleted()
+
+
+func _mark_depleted() -> void:
+	if not depletion_locked:
+		depletion_triggered = true
+	active = false
+	depletion_locked = true
+	perfect_guard_window_remaining = 0.0
+	kinetic_vent_charge = 0.0
+	kinetic_vent_release_pending = 0.0

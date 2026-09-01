@@ -73,7 +73,7 @@ The same project supplies client, server, tests, and protocol test-client entry 
 | `--password=<password>` | Server/bot client | Required fallback | Supplies the 1–64 printable-character lobby password; intended for tests because process arguments may be observable. |
 | `--password-file=<path>` / `SSF_LOBBY_PASSWORD` | Server/bot client | Preferred | Reads the lobby password from a protected one-line file or process environment. |
 | `--admin-port=<1024-65535>` | Server | Disabled | Enables the authenticated TCP admin service on loopback only; must differ from gameplay and discovery ports. |
-| `--admin-password-file=<path>` / `SSF_ADMIN_PASSWORD` | Server admin | Required when enabled | Supplies a distinct 1–64 printable-character admin secret without a process argument. |
+| `--admin-password-file=<path>` / `SSF_ADMIN_PASSWORD` | Server admin | Required when enabled | Supplies a distinct 12–64 printable-character admin secret without a process argument. |
 | `--ban-file=<path>` | Server | User-data file | Selects the persistent blocked-source JSON file. |
 | `--max-players=<2-32>` | Server | `32` | Limits admitted clients. |
 | `--rounds-to-win=<1-5>` | Server | `3` | Sets the lobby's initial round target; the lobby leader may change it. |
@@ -131,7 +131,7 @@ State transitions are reliable server events containing the new state, server ti
 - The leader may enable or disable NPC fill. Enabling it immediately creates one waiting NPC for every vacant configured seat so each can be configured before launch. Increasing the seat limit while NPC fill is enabled creates additional waiting NPCs; disabling it removes all waiting NPCs. Start Match requires two humans when NPC fill is disabled; when enabled, one human may start with the configured NPC roster. The button reads `Start Match` for ready multiplayer lobbies, `Start Match with NPCs` for a ready solo leader with NPC fill, and otherwise explains the missing requirement.
 - Every waiting NPC has an independent leader-only difficulty dropdown with `Passive`, `Easy`, `Neutral`, `Skilled`, and `Insane`; `Neutral` is the default. A second leader-only bulk dropdown applies one difficulty to every current NPC and becomes the default for newly filled NPC seats. Difficulty changes are authoritative lobby settings, clear human readiness, serialize with the lobby/NPC, and are locked after match start.
 - NPCs never become lobby leader. While the match is inactive, a joining human replaces one waiting NPC when all configured seats are occupied. Disabling NPC fill removes all waiting NPCs; lowering the participant limit removes enough waiting NPCs to meet the new limit and cannot reduce the limit below the connected human count.
-- Display names are trimmed, must contain 1–16 printable non-control Unicode characters, and are made unique for display by appending `#2`, `#3`, and so on.
+- Display names are trimmed, must contain 1–16 visible Unicode characters, reject controls, unsafe direction/formatting characters, nonstandard spaces, private-use characters, and mark-only text, and are made visually unique by appending bounded `#2`, `#3`, and later suffixes. International text and well-formed emoji sequences remain supported.
 - A client joining during `DRAFT` or any later match state becomes a spectator until the server returns to `LOBBY`.
 - Final standings remain open until the lobby leader sends the authoritative return-to-lobby request. Other players see that they are waiting for the leader.
 - When a match returns to the lobby, connected spectators become normal participants and all builds and scores are cleared.
@@ -139,7 +139,7 @@ State transitions are reliable server events containing the new state, server ti
 ### 4.3 Draft Rules
 
 - Every participant drafts before round one and before each later round. No draft occurs between heats in the same round.
-- Before round one, the server creates an offer token and samples five distinct eligible card IDs for every participant using the match PRNG. Before later rounds, the previous round winner receives a locked draft bye and no card; in team modes, every member of the round-winning team receives that bye. Every other participant receives an offer. Human offers are private and rendered for selection; each eligible NPC immediately locks a server-selected card from its own offer.
+- Before round one, the server creates an opaque 64-character offer token and samples five distinct eligible card IDs for every participant using the match PRNG. The token is derived without disclosing the server-private match seed. Before later rounds, the previous round winner receives a locked draft bye and no card; in team modes, every member of the round-winning team receives that bye. Every other participant receives an offer. Human offers are private and rendered for selection; each eligible NPC immediately locks a server-selected card from its own offer.
 - Every card remains eligible regardless of its current stack count. Card stacks have no maximum and repeated copies always apply their full additive, integer, multiplicative, or special effects.
 - Selecting a card requires the current offer token and one card ID from that offer. Invalid, stale, duplicate, or out-of-state selections are rejected without changing the build.
 - Choices lock immediately, but all chosen cards apply simultaneously when the draft ends. Other clients see only ready/not-ready status during the draft.
@@ -193,7 +193,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 - Free-for-all modes shuffle the anchor pool, then assign each next participant to the available anchor with the greatest clearance from every already-assigned spawn. This preserves seeded variation while preventing smaller lobbies from clustering in one portion of the map. Team modes first sort each team's assignments toward opposite sides of the arena, then place teammates without reusing anchors.
 - Provide exactly 32 spawn anchors distributed around two symmetric rings. Anchors must not overlap obstacles and must keep at least 160 pixels between neighboring ships.
 - Spawn anchors are assigned without replacement. Players receive no post-countdown invulnerability because all players gain control on the same server tick.
-- Ships collide with walls, obstacles, and other ships using slide response. Pair separation transfers any wall- or cover-blocked correction to the movable ship, removes inward velocity, applies an outward impulse, and searches deterministic nearby legal positions if ordinary correction cannot untangle a pair or cluster. Client prediction also excludes the local visual from remote ship circles between snapshots. Base collisions deal no damage; a card-derived shield-ram stat may turn a qualifying shield-up impact into damage.
+- Ships collide with walls, obstacles, and other ships using slide response. Pair separation transfers any wall- or cover-blocked correction to the movable ship, removes inward velocity, applies an outward impulse, and searches deterministic nearby legal positions if ordinary correction cannot untangle a pair or cluster; the bounded solver stops after the first overlap-free pass. Client prediction also excludes the local visual from remote ship circles between snapshots. Base collisions deal no damage; a card-derived shield-ram stat may turn a qualifying shield-up impact into damage.
 - Each client uses a smoothing follow camera centered on its controlled or spectated ship. The camera snaps to the local ship on every heat countdown, remains centered even near arena edges, and uses a fixed gameplay zoom at supported aspect ratios.
 - Show edge indicators for off-screen ships within 900 pixels and for the nearest incoming off-screen projectile. Indicators must use shape plus color so color alone does not carry meaning.
 - A spectator may cycle living ships with the active profile's previous/next-target actions, defaulting to A/D on keyboard and the shoulder buttons on controller. If no player is alive during a tie result, the camera returns to arena center.
@@ -251,11 +251,15 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 | Regeneration | 30 energy/s |
 | Regeneration delay | 1.25 s |
 | Depleted reactivation threshold | 25 energy |
+| Perfect Guard window | 0.25 s after raising shield |
+| Perfect Guard block cost | 20% of derived block cost for the first projectile |
 
 - Holding the active profile's shield action—right mouse or left trigger by default—activates the shield if it is not depletion-locked and has positive energy.
 - Shielding reduces acceleration by 25%, disables firing, and leaves maximum speed and drag unchanged.
 - A projectile is blockable when the vector from ship center to the projectile impact point falls inside half the current shield arc around the ship's aim direction.
 - A successful block destroys the projectile and subtracts the block cost. The current projectile is still blocked if the cost takes energy to zero; the shield then deactivates and locks until energy regenerates to the threshold.
+- Raising a shield opens a 0.25-second Perfect Guard window. The first projectile blocked in that window costs 20% of the derived block cost and consumes the window; shield rams do not receive this discount. The visible arc turns gold while the timing window or its short success feedback is active.
+- Kinetic Vent stores the damage value of blocked projectiles, capped at 100. Deliberately releasing Shield at 25 or more stored charge consumes it and emits a 240-pixel line-of-sight pulse. The pulse redirects hostile projectiles away without changing ownership, temporarily displaces armed mines, and pushes exposed non-allied ships. Depletion discards stored charge. Pulse radius and charge bounds remain fixed while the card's impulse compounds per stack.
 - A ship with positive shield-ram damage may damage another ship whenever its shield is active and relative impact speed meets the derived minimum. Damage scales from ×0.5 through ×2.0 around the 480 px/s reference speed. A successful ram spends the normal block cost and is limited by the derived per-attacker/per-target cooldown; ordinary collisions remain harmless.
 - Energy regeneration begins only after no shield activation or block has occurred for the full regeneration delay.
 - Projectiles striking outside the shield arc continue to the hull. Overtime boundary damage bypasses the shield.
@@ -265,6 +269,7 @@ Each tier also maintains a progressively tighter preferred engagement band. NPCs
 - The server applies damage once per physics tick in stable projectile-ID order.
 - Health is clamped to `[0, derived_max_health]`. Zero health eliminates the player.
 - Taking projectile or overtime damage resets the Auto-Repair grace timer. Repair never revives a dead player and never exceeds maximum health.
+- Breakaway Thrusters activates for 0.85 seconds when the shield depletes or damage accumulated within a rolling 0.35-second window reaches 30% of derived maximum hull. It multiplies acceleration by 1.80 and drag by 2.25 without adding speed or invulnerability. Its eight-second base cooldown compounds downward per stack and prevents retriggering while unavailable.
 - Death removes the ship's collision and input authority immediately, despawns all projectiles owned by that player after 0.5 seconds, emits a reliable death event, and switches that client to spectating.
 
 ### 6.5 Overtime
@@ -335,7 +340,7 @@ Every card declares one of seven visible rarity tiers. When all tiers contain el
 
 ### 7.3 Catalog
 
-The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 47 weapon cards. The weapon-heavy split gives each firing model more combinatorial space, while multiple shield cards enable distinct melee, defensive-healing, and projectile-rebound builds. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
+The launch catalog contains 135 unlimited-stack cards: 41 ship, 47 shield, and 47 weapon cards. The catalog supports distinct melee, defensive-healing, projectile-rebound, counter-pulse, breakaway, and weapon builds. Catalog validation rejects duplicate IDs, exact modifier/special-behavior signatures, and cards that touch the same stats in the same directions with only their magnitudes changed. Similar themes are permitted only when their stat interactions or tradeoffs create meaningfully different builds.
 
 | ID | Card | Category | Rarity | Effect per stack |
 | --- | --- | --- | --- | --- |
@@ -465,12 +470,14 @@ The launch catalog contains 133 unlimited-stack cards: 40 ship, 46 shield, and 4
 | `sundering_aegis` | Sundering Aegis | Shield | Mythical | +66 shield-ram damage; ×0.70 minimum ram speed |
 | `worldbreaker_prow` | Worldbreaker Prow | Shield | Unobtanium | +90 shield-ram damage; ×1.25 shield capacity; ×0.55 ram cooldown |
 | `afterburner` | Afterburner | Ship | Rare | Enable the Special-input forward burst; ×0.88 cooldown |
+| `breakaway_thrusters` | Breakaway Thrusters | Ship | Rare | Shield depletion or 30% maximum-hull damage inside 0.35 seconds triggers 0.85 seconds of ×1.80 acceleration and ×2.25 drag; ×0.85 cooldown from an eight-second base |
 | `cloak` | Cloak! | Ship | Legendary | Special cloaks for 5 seconds; damage breaks it; cannot fire; shared 20-second cooldown; +1 use per heat per stack |
 | `ramming_shields` | Ramming Shields | Shield | Epic | +44 shield-ram damage; ×0.70 ram trigger speed; ×1.12 shielded acceleration |
 | `concussion_rounds` | Concussion Rounds | Weapon | Rare | +180 projectile knockback; shields retain 20% |
 | `repulsor_payload` | Repulsor Payload | Weapon | Epic | +320 projectile knockback; ×0.90 projectile speed; shields retain 20% |
 | `nosferatu_shield` | Nosferatu Shield | Shield | Legendary | Heal hull for 25% of blocked projectile damage |
 | `rebound_shields` | Rebound Shields | Shield | Legendary | Rebound blocked shots; each stack ×1.25 return damage/range, starting at 50%; one rebound maximum |
+| `kinetic_vent` | Kinetic Vent | Shield | Epic | Blocked projectile damage stores up to 100 charge; releasing Shield at 25+ emits a 240-pixel line-of-sight pulse that redirects hostile shots and pushes exposed mines/ships; ×1.20 push impulse |
 | `mine_layer` | Star Mines | Weapon | Legendary | Special drops a magnetic proximity mine that arms after 0.25 seconds, drags toward the nearest enemy within 320 pixels at 60 pixels/second, and deals 100 damage in a 200-pixel blast; armed mines chain-react; +10 charges per stack refreshed each heat but not on respawn; 3-second placement cooldown |
 
 For multi-projectile shots, distribute projectiles evenly across the total spread and center odd projectile counts on the aim direction. All projectiles use the final derived per-projectile damage.
@@ -479,7 +486,7 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 
 ### 8.1 Authority and Timing
 
-- Use `ENetMultiplayerPeer` over UDP with protocol version `20` and a maximum of 32 admitted client peers plus eight bounded pre-admission slots. Version 20 replaces raw-password admission with fresh challenge-response proofs and adds source-scoped authentication cooldowns while retaining authoritative ship-pattern selection and the isolated gameplay streams introduced earlier.
+- Use `ENetMultiplayerPeer` over UDP with protocol version `22` and a maximum of 32 admitted client peers plus eight bounded pre-admission slots. Version 22 adds authoritative Perfect Guard, Kinetic Vent, and Breakaway presentation/resource fields while retaining challenge-response admission, source-scoped authentication cooldowns, ship-pattern selection, and isolated gameplay streams.
 - The server simulates at 60 Hz. Clients send the latest input at 30 Hz. Player snapshots are sent at 20 Hz; projectile corrections are sent at 5 Hz; replaceable objective snapshots are sent at 4 Hz.
 - Use six logical channels: reliable ordered control/state events, unreliable ordered input, unreliable ordered player snapshots, unreliable ordered projectile deltas, unreliable ordered projectile corrections, and unreliable ordered objective snapshots. Durable objective transitions use the reliable control channel.
 - The server is the only authority for admission, player IDs, simulation position, projectile creation, collision, damage, RNG, build changes, scoring, and state transitions.
@@ -553,7 +560,7 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 - Clamp accepted movement after validation. Do not clamp malformed or non-finite messages into validity.
 - Rejection reason codes are `SERVER_FULL`, `VERSION_MISMATCH`, `INVALID_NAME`, `INVALID_PASSWORD`, `AUTH_RATE_LIMITED`, `HANDSHAKE_TIMEOUT`, `MALFORMED_TRAFFIC`, `SERVER_CLOSED`, `EJECTED`, `KICKED`, and `BLOCKED`.
 - Clients display a human-readable error and return to the connection screen after rejection or network loss.
-- At most two simultaneous pending handshakes are permitted per source. Eight failed password proofs from one source within 60 seconds impose a 60-second source cooldown. The dedicated server holds its supplied lobby/admin secrets only for the running process and never writes or remembers them; password files remain operator-owned read-only startup inputs. The server provides persistent source-address blocks and a separately authenticated loopback-only admin service intended for SSH tunneling. It does not provide account identity, end-to-end gameplay encryption, a password-authenticated key exchange, or full denial-of-service protection; operators must use strong distinct secrets and host firewall controls.
+- At most two simultaneous pending handshakes are permitted per source. The 64th gameplay connection attempt from one source within 60 seconds imposes a 60-second cooldown, including attempts that fail before password validation. Eight failed password proofs from one source within 60 seconds impose a separate 60-second source cooldown. The dedicated server holds its supplied lobby/admin secrets only for the running process and never writes or remembers them; password files remain operator-owned read-only startup inputs. The server provides an atomically replaced valid-IP block list capped at 4,096 entries and a separately authenticated loopback-only admin service intended for SSH tunneling. Admin secrets require 12–64 printable characters; five failed proofs within 60 seconds impose a five-minute loopback cooldown across reconnects, unauthenticated sessions expire after 10 seconds, authenticated sessions expire after five idle minutes, and request/response sizes and request rates are bounded. It does not provide account identity, end-to-end gameplay encryption, a password-authenticated key exchange, or full denial-of-service protection; operators must use strong distinct secrets and host firewall controls.
 
 ## 9. User Experience
 
@@ -570,7 +577,7 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 
 - Use a dark space background with procedural geometric ships, bright outlines, bloom/glow, trails, shield arcs, and concise particles. Each living moving ship emits a small, bounded color-matched thruster trail opposite its travel direction; emission intensity follows speed and stops on elimination.
 - Replace the system arrow over keyboard/mouse gameplay with a high-contrast crosshair centered on the aim point. Hide the stale mouse pointer during controller-controlled combat and restore it whenever an interactive menu is visible.
-- Give every participant a stable server-serialized colour: the human's custom lobby choice or a Random high-contrast palette entry, with NPCs using that palette. Add name, outline pattern, and local-player marker so identity never depends on colour alone. In-world health and shield displays use each participant's own derived card stats, never the local player's maxima; a full authoritative resource therefore always renders full at heat start. While Afterburner is active, enlarge and brighten the bounded exhaust bloom without obscuring the ship. While Cloak! is active, show only a faint outline to its local pilot and hide the ship, nameplate, shield, and exhaust from opponents.
+- Give every participant a stable server-serialized colour: the human's custom lobby choice or a Random high-contrast palette entry, with NPCs using that palette. Add name, outline pattern, and local-player marker so identity never depends on colour alone. In-world health and shield displays use each participant's own derived card stats, never the local player's maxima; a full authoritative resource therefore always renders full at heat start. Perfect Guard uses a gold shield arc; Kinetic Vent uses a bounded expanding pulse; Breakaway Thrusters brighten exhaust and add an orange ring. While Afterburner is active, enlarge and brighten the bounded exhaust bloom without obscuring the ship. While Cloak! is active, show only a faint outline to its local pilot and hide the ship, nameplate, shield, and exhaust from opponents.
 - The local ship has a persistent chevron and stronger outline. Damage sources flash the impacted side; shield blocks and shield breaks have distinct effects.
 - Keep compact combat resources at least 17 px and secondary shortcut text at least 14 px on the virtual canvas, using bars and color to preserve scanability. Scale UI with window size. Use enlarged lobby controls, a scrollable player roster, and card body text that remains readable at 1280×720 without scrolling inside an individual card.
 - Draft cards use dark category-tinted backgrounds with at least 85% opacity so arena action cannot overpower their text.
@@ -582,8 +589,8 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 ## 10. Observability and Failure Handling
 
 - The server writes JSON-line logs to stdout with UTC timestamp, level, event name, and bounded fields.
-- Log startup configuration, match seed, joins/leaves, rejected requests, state transitions, heat/round/match results, shutdown, and fatal errors. Do not log every input frame or a client's IP address.
-- Every 10 seconds during a match, log connected peers, participant/entity counts, mean/p95/maximum simulation duration, outbound byte counts, static memory, object/node counts, and orphan-node count.
+- Log startup configuration, match-randomness initialization without the private seed, joins/leaves, rejected requests, state transitions, heat/round/match results, shutdown, and fatal errors. Do not log every input frame or a client's IP address.
+- Every 10 seconds during a match, log connected peers, participant/entity counts, mean/p95/maximum simulation duration, over-budget tick count/percentage, outbound byte counts, static memory, object/node counts, and orphan-node count.
 - A debug-only client overlay shows FPS, round-trip time and variance, ENet loss/throttle, snapshot arrival jitter and gaps, interpolation delay and extrapolation rate, reconciliation error/snaps, buffered input count, expired predicted shots, and the last acknowledged input.
 - Scene or payload decode failures must produce an error, reject the affected operation, and leave the server state valid. A single bad client message must not terminate the server.
 
@@ -603,7 +610,7 @@ Control and objective payloads may use typed Godot arrays/dictionaries because t
 - Launch one exported or headless server and 32 scripted protocol clients through the real ENet paths.
 - Run randomized movement, aim, fire, shield, and valid card selections for at least 10 minutes.
 - All 32 clients must connect; no unhandled errors, invalid state transitions, leaked participants, or ever-growing entity collections may occur.
-- The server's 95th-percentile simulation duration must remain below the 16.67 ms physics budget on the development machine.
+- The server's 95th-percentile simulation duration must remain below the 16.67 ms physics budget on the development machine. Projectile threats and armed mines use bounded spatial queries; the overload gate separately exercises 32 Insane NPCs with 1,024 projectiles and a 512-armed-mine/512-projectile mixed case so a feature-specific quadratic scan cannot hide behind the ordinary soak.
 - The test must complete at least one heat, exercise overtime, disconnect one client during combat, admit one late spectator, and finish with a clean server shutdown.
 
 ### 11.3 Manual Acceptance

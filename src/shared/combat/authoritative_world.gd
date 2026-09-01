@@ -81,7 +81,11 @@ func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
 	return true
 
 
-func step(delta: float, controls_enabled: bool = true) -> void:
+func step(
+	delta: float,
+	controls_enabled: bool = true,
+	track_projectile_threats: bool = true
+) -> void:
 	var phase_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	server_tick = SequenceMath.increment(server_tick)
 	if not controls_enabled:
@@ -109,16 +113,19 @@ func step(delta: float, controls_enabled: bool = true) -> void:
 		if frame.firing and combatant.try_fire():
 			_spawn_shot(combatant)
 	var movement_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
-	spatial_index.rebuild_ships(combatants, peer_ids)
 	for peer_id in _resolve_ship_overlaps(peer_ids):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	spatial_index.rebuild_ships(combatants, peer_ids)
+	_resolve_kinetic_vents(peer_ids)
 	var overlaps_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	_step_projectiles(delta, peer_ids)
 	var projectiles_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for projectile_id in projectile_registry.step_cleanup(delta):
 		_record_removed(projectile_id)
-	spatial_index.rebuild_projectile_threats(projectile_registry)
+	if track_projectile_threats:
+		spatial_index.rebuild_projectile_threats(projectile_registry)
+	else:
+		spatial_index.invalidate_projectile_threats()
 	if performance_profiling_enabled:
 		var completed := Time.get_ticks_usec()
 		last_step_profile_usec = {
@@ -249,6 +256,11 @@ func snapshot_states() -> Array[Dictionary]:
 			"cloaked": combatant.is_cloaked(),
 			"cloak_charges": combatant.cloak_charges_remaining,
 			"cloak_cooldown": combatant.cloak_cooldown_remaining,
+			"perfect_guard_active": combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback(),
+			"kinetic_vent_active": combatant.kinetic_vent_feedback_remaining > 0.0,
+			"breakaway_active": combatant.breakaway_remaining > 0.0,
+			"kinetic_vent_charge": combatant.shield.kinetic_vent_charge,
+			"breakaway_cooldown": combatant.breakaway_cooldown_remaining,
 		})
 	return states
 
@@ -262,13 +274,19 @@ func acknowledged_input(peer_id: int) -> int:
 
 
 func drain_projectile_batch() -> Dictionary:
+	var spawned := _spawned_since_batch
+	var removed := _removed_since_batch
+	_spawned_since_batch = []
+	_removed_since_batch = []
 	var result := {
-		"spawned": _spawned_since_batch.duplicate(),
-		"removed": _removed_since_batch.duplicate(),
+		"spawned": spawned,
+		"removed": removed,
 	}
-	_spawned_since_batch.clear()
-	_removed_since_batch.clear()
 	return result
+
+
+func has_projectile_batch() -> bool:
+	return not _spawned_since_batch.is_empty() or not _removed_since_batch.is_empty()
 
 
 func active_projectiles() -> Array[ProjectileState]:
@@ -344,9 +362,30 @@ func _spawn_mine(combatant: CombatantState) -> void:
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	var damage_events: Array[Dictionary] = []
 	var safe_delta := maxf(delta, 0.0)
-	_step_mine_magnetism(safe_delta, peer_ids)
-	_step_mine_proximity(peer_ids, damage_events)
-	for projectile_id in projectile_registry.ordered_ids_view():
+	var projectile_ids := projectile_registry.ordered_ids_view()
+	var mine_ids: Array[int] = []
+	var armed_mine_ids: Array[int] = []
+	if projectile_registry.has_mines():
+		for projectile_id in projectile_ids:
+			if projectile_id == ProjectileRegistry.REMOVED_ID:
+				continue
+			var candidate := projectile_registry.get_projectile(projectile_id)
+			if candidate == null or not candidate.is_mine:
+				continue
+			mine_ids.append(projectile_id)
+			if candidate.is_mine_armed():
+				armed_mine_ids.append(projectile_id)
+	_step_mine_magnetism(safe_delta, armed_mine_ids)
+	spatial_index.rebuild_armed_mines(projectile_registry, armed_mine_ids)
+	_step_mine_proximity(damage_events, armed_mine_ids)
+	if _projectile_geometry_normal.is_empty():
+		_projectile_geometry_normal = ArenaCollisionSystem.projectile_geometry(
+			map_id,
+			GameConstants.PROJECTILE_RADIUS
+		)
+	if _projectile_geometry_beam.is_empty():
+		_projectile_geometry_beam = ArenaCollisionSystem.projectile_geometry(map_id, 7.0)
+	for projectile_id in projectile_ids:
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
 		var projectile := projectile_registry.get_projectile(projectile_id)
@@ -369,12 +408,6 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			var start := projectile.position
 			var finish := start + direction * travel_remaining
 			var projectile_geometry := _projectile_geometry_beam if projectile.is_beam else _projectile_geometry_normal
-			if projectile_geometry.is_empty():
-				projectile_geometry = ArenaCollisionSystem.projectile_geometry(map_id, projectile.radius)
-				if projectile.is_beam:
-					_projectile_geometry_beam = projectile_geometry
-				else:
-					_projectile_geometry_normal = projectile_geometry
 			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
@@ -385,14 +418,16 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			var obstacle_fraction := clampf(float(obstacle_hit.get("fraction", INF)), 0.0, 1.0) if obstacle_hit != null else INF
 			var ship_hit: Variant = _nearest_projectile_ship_hit(projectile, start, finish, peer_ids)
 			var ship_fraction := clampf(float(ship_hit.get("fraction", INF)), 0.0, 1.0) if ship_hit != null else INF
-			var mine_hit: Variant = _nearest_projectile_mine_hit(projectile, start, finish)
+			var mine_hit: Variant = null
+			if not armed_mine_ids.is_empty():
+				mine_hit = _nearest_projectile_mine_hit(projectile, start, finish)
 			var mine_fraction := clampf(float(mine_hit.get("fraction", INF)), 0.0, 1.0) if mine_hit != null else INF
 			if mine_hit != null and mine_fraction <= obstacle_fraction and mine_fraction <= ship_fraction:
 				projectile.position = mine_hit.position as Vector2
 				var mine := projectile_registry.get_projectile(int(mine_hit.mine_id))
 				_remove_projectile(projectile.projectile_id)
 				if mine != null:
-					_detonate_mine(mine, peer_ids, damage_events)
+					_detonate_mine(mine, damage_events)
 				break
 			if ship_hit != null and ship_fraction <= obstacle_fraction:
 				projectile.position = ship_hit.position as Vector2
@@ -417,31 +452,28 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 
 	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
-	_step_mine_activation(safe_delta)
+	_step_mine_activation(safe_delta, mine_ids)
 
 
-func _step_mine_activation(delta: float) -> void:
-	for projectile_id in projectile_registry.ordered_ids_view():
-		if projectile_id == ProjectileRegistry.REMOVED_ID:
-			continue
+func _step_mine_activation(delta: float, mine_ids: Array[int]) -> void:
+	for projectile_id in mine_ids:
 		var mine := projectile_registry.get_projectile(projectile_id)
-		if mine != null and mine.is_mine:
+		if mine != null:
 			mine.step_mine_activation(delta)
 
 
-func _step_mine_magnetism(delta: float, peer_ids: Array[int]) -> void:
+func _step_mine_magnetism(delta: float, armed_mine_ids: Array[int]) -> void:
 	var target_scan_interval := maxi(
 		ceili(float(GameConstants.PHYSICS_TICKS_PER_SECOND) / GameConstants.MINE_MAGNETIC_TARGET_RATE),
 		1
 	)
-	for projectile_id in projectile_registry.ordered_ids_view():
-		if projectile_id == ProjectileRegistry.REMOVED_ID:
-			continue
+	for projectile_id in armed_mine_ids:
 		var mine := projectile_registry.get_projectile(projectile_id)
-		if mine == null or not mine.is_mine_armed():
+		if mine == null:
 			continue
-		if posmod(server_tick + projectile_id, target_scan_interval) == 0:
-			var target := _nearest_mine_target(mine, peer_ids)
+		var displaced_by_vent := mine.step_kinetic_vent_displacement(delta)
+		if not displaced_by_vent and posmod(server_tick + projectile_id, target_scan_interval) == 0:
+			var target := _nearest_mine_target(mine)
 			if target == null:
 				mine.velocity = Vector2.ZERO
 			else:
@@ -464,12 +496,16 @@ func _step_mine_magnetism(delta: float, peer_ids: Array[int]) -> void:
 		else:
 			mine.position = obstacle_hit.position as Vector2
 			mine.velocity = Vector2.ZERO
+			mine.kinetic_vent_displacement_remaining = 0.0
 
 
-func _nearest_mine_target(mine: ProjectileState, peer_ids: Array[int]) -> CombatantState:
+func _nearest_mine_target(mine: ProjectileState) -> CombatantState:
 	var nearest: CombatantState
 	var nearest_distance_squared := GameConstants.MINE_MAGNETIC_RADIUS * GameConstants.MINE_MAGNETIC_RADIUS
-	for peer_id in peer_ids:
+	for peer_id in spatial_index.query_nearby_ships(
+		mine.position,
+		GameConstants.MINE_MAGNETIC_RADIUS
+	):
 		var candidate := combatants[peer_id] as CombatantState
 		if not candidate.alive or peer_id == mine.owner_id or are_allies(mine.owner_id, peer_id):
 			continue
@@ -483,30 +519,39 @@ func _nearest_mine_target(mine: ProjectileState, peer_ids: Array[int]) -> Combat
 	return nearest
 
 
-func _step_mine_proximity(peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:
-	for projectile_id in projectile_registry.ordered_ids_view():
-		if projectile_id == ProjectileRegistry.REMOVED_ID:
-			continue
+func _step_mine_proximity(damage_events: Array[Dictionary], armed_mine_ids: Array[int]) -> void:
+	for projectile_id in armed_mine_ids:
 		var mine := projectile_registry.get_projectile(projectile_id)
-		if mine == null or not mine.is_mine_armed():
+		if mine == null:
 			continue
-		for peer_id in peer_ids:
+		for peer_id in spatial_index.query_nearby_ships(
+			mine.position,
+			GameConstants.MINE_TRIGGER_RADIUS + GameConstants.SHIP_COLLISION_RADIUS
+		):
 			var target := combatants[peer_id] as CombatantState
 			if not target.alive or peer_id == mine.owner_id or are_allies(mine.owner_id, peer_id):
 				continue
 			if target.position.distance_to(mine.position) <= GameConstants.MINE_TRIGGER_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
-				_detonate_mine(mine, peer_ids, damage_events)
+				_detonate_mine(mine, damage_events)
 				break
 
 
-func _nearest_projectile_mine_hit(projectile: ProjectileState, start: Vector2, finish: Vector2) -> Variant:
+func _nearest_projectile_mine_hit(
+	projectile: ProjectileState,
+	start: Vector2,
+	finish: Vector2
+) -> Variant:
 	var nearest_mine_id := 0
 	var nearest_fraction := INF
-	for mine_id in projectile_registry.ordered_ids_view():
-		if mine_id == ProjectileRegistry.REMOVED_ID or mine_id == projectile.projectile_id:
+	for mine_id in spatial_index.query_mines_along_segment(
+		start,
+		finish,
+		projectile.radius + GameConstants.MINE_RADIUS
+	):
+		if mine_id == projectile.projectile_id:
 			continue
 		var mine := projectile_registry.get_projectile(mine_id)
-		if mine == null or not mine.is_mine_armed():
+		if mine == null:
 			continue
 		var fraction := _segment_circle_hit_fraction(
 			start,
@@ -527,7 +572,7 @@ func _nearest_projectile_mine_hit(projectile: ProjectileState, start: Vector2, f
 	}
 
 
-func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: Array[Dictionary]) -> void:
+func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> void:
 	if mine == null or not mine.is_mine_armed() or projectile_registry.get_projectile(mine.projectile_id) == null:
 		return
 	var pending: Array[int] = [mine.projectile_id]
@@ -539,7 +584,10 @@ func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: 
 		if current == null or not current.is_mine_armed():
 			continue
 		_remove_projectile(current.projectile_id)
-		for peer_id in peer_ids:
+		for peer_id in spatial_index.query_nearby_ships(
+			current.position,
+			GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS
+		):
 			var target := combatants[peer_id] as CombatantState
 			if not target.alive or peer_id == current.owner_id or are_allies(current.owner_id, peer_id):
 				continue
@@ -553,8 +601,11 @@ func _detonate_mine(mine: ProjectileState, peer_ids: Array[int], damage_events: 
 				"target_id": peer_id,
 				"damage": current.damage,
 			})
-		for candidate_id in projectile_registry.ordered_ids_view():
-			if candidate_id == ProjectileRegistry.REMOVED_ID or queued.has(candidate_id):
+		for candidate_id in spatial_index.query_nearby_mines(
+			current.position,
+			GameConstants.MINE_BLAST_RADIUS + GameConstants.MINE_RADIUS
+		):
+			if queued.has(candidate_id):
 				continue
 			var candidate := projectile_registry.get_projectile(candidate_id)
 			if candidate == null or not candidate.is_mine_armed():
@@ -615,6 +666,7 @@ func _resolve_projectile_ship_hit(
 	if impact_vector.is_zero_approx():
 		impact_vector = -projectile.velocity.normalized()
 	if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
+		target.shield.register_blocked_damage(projectile.damage, target.stats)
 		_apply_projectile_knockback(target, projectile, 0.2)
 		if target.stats.shield_damage_heal_fraction > 0.0:
 			target.health = minf(
@@ -657,6 +709,7 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 	var minimum_distance := GameConstants.SHIP_COLLISION_RADIUS * 2.0
 	var ram_damage_events: Array[Dictionary] = []
 	for _pass in SHIP_OVERLAP_SOLVER_PASSES:
+		var overlap_found := false
 		spatial_index.rebuild_ships(combatants, peer_ids)
 		for left_peer_id in peer_ids:
 			var left := combatants[left_peer_id] as CombatantState
@@ -672,6 +725,7 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				var distance := difference.length()
 				if distance >= minimum_distance:
 					continue
+				overlap_found = true
 				var fallback_angle := float(posmod(left.peer_id * 31 + right.peer_id * 17, 360)) * PI / 180.0
 				var normal := difference / distance if distance > 0.001 else Vector2.from_angle(fallback_angle)
 				_append_ram_damage(left, right, normal, ram_damage_events)
@@ -689,7 +743,76 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				left.velocity = left_safe.velocity
 				right.position = right_safe.position
 				right.velocity = right_safe.velocity
+		if not overlap_found:
+			break
 	return _resolve_damage_events(ram_damage_events)
+
+
+func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:
+	var releases: Array[Dictionary] = []
+	for peer_id in peer_ids:
+		var source := combatants[peer_id] as CombatantState
+		if not source.alive:
+			continue
+		var charge := source.shield.consume_kinetic_vent_release()
+		if charge < GameConstants.KINETIC_VENT_MINIMUM_CHARGE:
+			continue
+		source.mark_kinetic_vent_release()
+		releases.append({"source": source, "charge": charge})
+	if releases.is_empty():
+		return
+	spatial_index.rebuild_projectile_threats(projectile_registry)
+	for release in releases:
+		var source := release.source as CombatantState
+		var charge_fraction := clampf(
+			float(release.charge) / GameConstants.KINETIC_VENT_MAXIMUM_CHARGE,
+			0.0,
+			1.0
+		)
+		var impulse := source.stats.kinetic_vent_impulse * lerpf(0.65, 1.0, charge_fraction)
+		for target_id in spatial_index.query_nearby_ships(source.position, GameConstants.KINETIC_VENT_RADIUS):
+			if target_id == source.peer_id or are_allies(source.peer_id, target_id):
+				continue
+			var target := combatants.get(target_id) as CombatantState
+			if (
+				target == null
+				or not target.alive
+				or target.position.distance_to(source.position) > GameConstants.KINETIC_VENT_RADIUS
+			):
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, target.position, map_id):
+				continue
+			var outward := target.position - source.position
+			if outward.is_zero_approx():
+				outward = Vector2.from_angle(source.aim_angle)
+			target.velocity = (target.velocity + outward.normalized() * impulse).limit_length(
+				maxf(target.stats.max_speed * 2.5, 1.0)
+			)
+		for projectile_id in spatial_index.query_projectile_threats(
+			source.position,
+			GameConstants.KINETIC_VENT_RADIUS,
+			GameConstants.MAX_PROJECTILES_GLOBAL
+		):
+			var projectile := projectile_registry.get_projectile(projectile_id)
+			if (
+				projectile == null
+				or projectile.owner_id == source.peer_id
+				or are_allies(source.peer_id, projectile.owner_id)
+			):
+				continue
+			if projectile.position.distance_to(source.position) > GameConstants.KINETIC_VENT_RADIUS:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, projectile.position, map_id):
+				continue
+			var outward := projectile.position - source.position
+			if outward.is_zero_approx():
+				outward = Vector2.from_angle(source.aim_angle)
+			if projectile.is_mine:
+				projectile.apply_kinetic_vent(outward, impulse)
+			elif not projectile.velocity.is_zero_approx():
+				projectile.velocity = outward.normalized() * projectile.velocity.length()
+			_record_projectile_update(projectile)
+	spatial_index.invalidate_projectile_threats()
 
 
 func _separate_ship_pair(

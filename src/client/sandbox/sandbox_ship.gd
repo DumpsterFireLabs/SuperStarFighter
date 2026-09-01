@@ -67,7 +67,7 @@ func _process(delta: float) -> void:
 	elimination_pulse_remaining = maxf(elimination_pulse_remaining - delta, 0.0)
 	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining - delta, 0.0)
 	_update_thruster_particles()
-	if damage_flash_remaining > 0.0 or shield_flash_remaining > 0.0 or elimination_pulse_remaining > 0.0:
+	if damage_flash_remaining > 0.0 or shield_flash_remaining > 0.0 or elimination_pulse_remaining > 0.0 or combatant != null and (combatant.breakaway_remaining > 0.0 or combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()):
 		queue_redraw()
 
 
@@ -163,7 +163,7 @@ func _update_thruster_particles() -> void:
 		thruster_particles.emitting = false
 		return
 	var travel_direction := combatant.velocity / speed
-	var afterburning := afterburner_bloom_remaining > 0.0
+	var afterburning := afterburner_bloom_remaining > 0.0 or combatant.breakaway_remaining > 0.0
 	thruster_particles.position = -travel_direction * 18.0
 	thruster_particles.rotation = travel_direction.angle()
 	thruster_particles.amount = 36 if afterburning else 10
@@ -218,8 +218,13 @@ func _draw() -> void:
 		_draw_ammo_indicator()
 	if combatant.shield.active:
 		var half_arc := deg_to_rad(combatant.stats.shield_arc_degrees) * 0.5
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color("5cf6ff", 0.22), 14.0)
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 else Color("5cf6ff"), 7.0)
+		var perfect_guard := combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()
+		var shield_color := Color("fff36a") if perfect_guard else Color("5cf6ff")
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(shield_color, 0.22), 14.0)
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 else shield_color, 7.0)
+	if combatant.breakaway_remaining > 0.0:
+		var breakaway_alpha := clampf(combatant.breakaway_remaining / GameConstants.BREAKAWAY_DURATION_SECONDS, 0.0, 1.0)
+		draw_arc(Vector2.ZERO, 38.0, 0.0, TAU, 32, Color("ff9f43", breakaway_alpha * 0.75), 3.0)
 	var health_angle := TAU * combatant.health_fraction()
 	draw_arc(Vector2.ZERO, 26.0, -PI * 0.5, -PI * 0.5 + health_angle, 24, Color("54ff8b"), 2.0)
 	_draw_nameplate(Color("fff36a") if local_control else Color("e8f5ff"))

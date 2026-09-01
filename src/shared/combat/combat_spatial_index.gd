@@ -6,6 +6,7 @@ var projectile_revision: int = -1
 var maximum_projectile_speed: float = 0.0
 var _ship_cells: Dictionary = {}
 var _projectile_threat_cells: Dictionary = {}
+var _armed_mine_cells: Dictionary = {}
 var _empty_ids: Array[int] = []
 
 
@@ -20,16 +21,40 @@ func rebuild_ships(combatants: Dictionary, ordered_peer_ids: Array[int]) -> void
 
 func rebuild_projectile_threats(registry: ProjectileRegistry) -> void:
 	_projectile_threat_cells.clear()
-	maximum_projectile_speed = 0.0
+	var maximum_speed_squared := 0.0
 	for projectile_id in registry.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
 		var projectile := registry.get_projectile(projectile_id)
 		if projectile == null:
 			continue
-		maximum_projectile_speed = maxf(maximum_projectile_speed, projectile.velocity.length())
+		maximum_speed_squared = maxf(maximum_speed_squared, projectile.velocity.length_squared())
 		_append_cell_id(_projectile_threat_cells, _cell_for(projectile.position), projectile_id)
+	maximum_projectile_speed = sqrt(maximum_speed_squared)
 	projectile_revision = registry.revision
+
+
+func invalidate_projectile_threats() -> void:
+	projectile_revision = -1
+
+
+func rebuild_armed_mines(registry: ProjectileRegistry, armed_mine_ids: Array[int]) -> void:
+	_armed_mine_cells.clear()
+	for mine_id in armed_mine_ids:
+		var mine := registry.get_projectile(mine_id)
+		if mine != null:
+			_append_cell_id(_armed_mine_cells, _cell_for(mine.position), mine_id)
+
+
+func query_mines_along_segment(start: Vector2, finish: Vector2, padding: float) -> Array[int]:
+	var minimum := Vector2(minf(start.x, finish.x) - padding, minf(start.y, finish.y) - padding)
+	var maximum := Vector2(maxf(start.x, finish.x) + padding, maxf(start.y, finish.y) + padding)
+	return _query_cells(_armed_mine_cells, minimum, maximum)
+
+
+func query_nearby_mines(position: Vector2, radius: float) -> Array[int]:
+	var extent := Vector2.ONE * maxf(radius, 0.0)
+	return _query_cells(_armed_mine_cells, position - extent, position + extent)
 
 
 func query_ships_along_segment(start: Vector2, finish: Vector2, padding: float) -> Array[int]:

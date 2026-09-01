@@ -78,6 +78,7 @@ func _physics_process(delta: float) -> void:
 			target.simulate(Vector2.ZERO, aim_at_player, targets_shielding, delta)
 			if targets_firing and not player.combatant.is_cloaked() and target.combatant.try_fire():
 				_spawn_shot(target)
+	_resolve_sandbox_kinetic_vents()
 	_simulate_projectiles(delta)
 	_apply_overtime_damage(delta)
 	projectile_registry.step_cleanup(delta)
@@ -298,6 +299,7 @@ func _simulate_projectiles(delta: float) -> void:
 		if collider is SandboxShip:
 			var target := collider as SandboxShip
 			if target.combatant.shield.try_block(target.combatant.aim_angle, impact_position - target.global_position, target.combatant.stats):
+				target.combatant.shield.register_blocked_damage(projectile.damage, target.combatant.stats)
 				_apply_projectile_knockback(target.combatant, projectile, 0.2)
 				if target.combatant.stats.shield_damage_heal_fraction > 0.0:
 					target.combatant.health = minf(
@@ -365,27 +367,29 @@ func _step_mine_magnetism(delta: float) -> void:
 	for mine in projectile_registry.all_projectiles():
 		if not mine.is_mine_armed():
 			continue
-		var nearest: SandboxShip
-		var nearest_distance_squared := GameConstants.MINE_MAGNETIC_RADIUS * GameConstants.MINE_MAGNETIC_RADIUS
-		for ship_value in ships_by_id.values():
-			var ship := ship_value as SandboxShip
-			if not ship.combatant.alive or ship.combatant.peer_id == mine.owner_id:
+		var displaced_by_vent := mine.step_kinetic_vent_displacement(delta)
+		if not displaced_by_vent:
+			var nearest: SandboxShip
+			var nearest_distance_squared := GameConstants.MINE_MAGNETIC_RADIUS * GameConstants.MINE_MAGNETIC_RADIUS
+			for ship_value in ships_by_id.values():
+				var ship := ship_value as SandboxShip
+				if not ship.combatant.alive or ship.combatant.peer_id == mine.owner_id:
+					continue
+				var distance_squared := ship.global_position.distance_squared_to(mine.position)
+				if distance_squared > nearest_distance_squared:
+					continue
+				if nearest != null and is_equal_approx(distance_squared, nearest_distance_squared) and ship.combatant.peer_id > nearest.combatant.peer_id:
+					continue
+				nearest = ship
+				nearest_distance_squared = distance_squared
+			if nearest == null:
+				mine.velocity = Vector2.ZERO
 				continue
-			var distance_squared := ship.global_position.distance_squared_to(mine.position)
-			if distance_squared > nearest_distance_squared:
+			var offset := nearest.global_position - mine.position
+			if offset.is_zero_approx():
+				mine.velocity = Vector2.ZERO
 				continue
-			if nearest != null and is_equal_approx(distance_squared, nearest_distance_squared) and ship.combatant.peer_id > nearest.combatant.peer_id:
-				continue
-			nearest = ship
-			nearest_distance_squared = distance_squared
-		if nearest == null:
-			mine.velocity = Vector2.ZERO
-			continue
-		var offset := nearest.global_position - mine.position
-		if offset.is_zero_approx():
-			mine.velocity = Vector2.ZERO
-			continue
-		mine.velocity = offset.normalized() * GameConstants.MINE_MAGNETIC_SPEED
+			mine.velocity = offset.normalized() * GameConstants.MINE_MAGNETIC_SPEED
 		var finish := mine.position + mine.velocity * maxf(delta, 0.0)
 		var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 			mine.position,
@@ -397,6 +401,53 @@ func _step_mine_magnetism(delta: float) -> void:
 		else:
 			mine.position = obstacle_hit.position as Vector2
 			mine.velocity = Vector2.ZERO
+			mine.kinetic_vent_displacement_remaining = 0.0
+
+
+func _resolve_sandbox_kinetic_vents() -> void:
+	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+	for source_value in ships_by_id.values():
+		var source := source_value as SandboxShip
+		if not source.combatant.alive:
+			continue
+		var charge := source.combatant.shield.consume_kinetic_vent_release()
+		if charge < GameConstants.KINETIC_VENT_MINIMUM_CHARGE:
+			continue
+		source.combatant.mark_kinetic_vent_release()
+		if effects_layer != null:
+			effects_layer.spawn_kinetic_vent(source.global_position)
+		presentation_event.emit(&"kinetic_vent", {
+			"peer_id": source.combatant.peer_id,
+			"position": source.global_position,
+			"listener_position": player.global_position,
+		})
+		var charge_fraction := clampf(charge / GameConstants.KINETIC_VENT_MAXIMUM_CHARGE, 0.0, 1.0)
+		var impulse := source.combatant.stats.kinetic_vent_impulse * lerpf(0.65, 1.0, charge_fraction)
+		for target_value in ships_by_id.values():
+			var target := target_value as SandboxShip
+			if target == source or not target.combatant.alive or target.global_position.distance_to(source.global_position) > GameConstants.KINETIC_VENT_RADIUS:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.global_position, target.global_position, active_map_id):
+				continue
+			var outward := target.global_position - source.global_position
+			if outward.is_zero_approx():
+				outward = Vector2.from_angle(source.combatant.aim_angle)
+			target.combatant.velocity = (target.combatant.velocity + outward.normalized() * impulse).limit_length(
+				maxf(target.combatant.stats.max_speed * 2.5, 1.0)
+			)
+			target.velocity = target.combatant.velocity
+		for projectile in projectile_registry.all_projectiles():
+			if projectile.owner_id == source.combatant.peer_id or projectile.position.distance_to(source.global_position) > GameConstants.KINETIC_VENT_RADIUS:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.global_position, projectile.position, active_map_id):
+				continue
+			var outward := projectile.position - source.global_position
+			if outward.is_zero_approx():
+				outward = Vector2.from_angle(source.combatant.aim_angle)
+			if projectile.is_mine:
+				projectile.apply_kinetic_vent(outward, impulse)
+			elif not projectile.velocity.is_zero_approx():
+				projectile.velocity = outward.normalized() * projectile.velocity.length()
 
 
 func _detonate_proximity_mines(damage_events: Array[Dictionary]) -> void:
@@ -544,7 +595,10 @@ func _update_hud() -> void:
 		cloak_text = " · Cloak %s" % ("ACTIVE" if player.combatant.is_cloaked() else str(player.combatant.cloak_charges_remaining))
 		if not player.combatant.is_cloaked() and player.combatant.cloak_cooldown_remaining > 0.05:
 			cloak_text += " (%.1fs)" % player.combatant.cloak_cooldown_remaining
-	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, cloak_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
+	var vent_text := ""
+	if player.combatant.stats.kinetic_vent_enabled:
+		vent_text = " · Vent %.0f/%.0f" % [player.combatant.shield.kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
+	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, cloak_text, vent_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
 
 
 func _update_card_label() -> void:

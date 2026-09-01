@@ -1,7 +1,7 @@
 class_name NetworkProtocol
 extends RefCounted
 
-const PACKET_VERSION: int = 8
+const PACKET_VERSION: int = 9
 const SERVER_PEER_ID: int = 1
 
 const CHANNEL_CONTROL: int = 0
@@ -25,6 +25,7 @@ const TRAFFIC_STRIKES_BEFORE_DISCONNECT: int = 3
 const MAX_OFFER_TOKEN_LENGTH: int = 64
 const MAX_CARD_ID_LENGTH: int = 64
 const MAX_LOBBY_PASSWORD_LENGTH: int = 64
+const MIN_ADMIN_PASSWORD_LENGTH: int = 12
 const AUTH_CHALLENGE_BYTES: int = 32
 const AUTH_CHALLENGE_HEX_LENGTH: int = AUTH_CHALLENGE_BYTES * 2
 const AUTH_PROOF_HEX_LENGTH: int = 64
@@ -34,10 +35,18 @@ const AUTH_FAILURE_LIMIT: int = 8
 const AUTH_FAILURE_WINDOW_SECONDS: float = 60.0
 const AUTH_COOLDOWN_SECONDS: float = 60.0
 const AUTH_MAX_TRACKED_SOURCES: int = 4096
+const CONNECTION_ATTEMPT_LIMIT: int = 64
+const CONNECTION_ATTEMPT_WINDOW_SECONDS: float = 60.0
+const CONNECTION_ATTEMPT_COOLDOWN_SECONDS: float = 60.0
 const ADMIN_MAX_MESSAGE_BYTES: int = 4096
 const ADMIN_MAX_CLIENTS: int = 4
 const ADMIN_MAX_REQUESTS_PER_SECOND: int = 20
 const ADMIN_AUTH_TIMEOUT_SECONDS: float = 10.0
+const ADMIN_IDLE_TIMEOUT_SECONDS: float = 300.0
+const ADMIN_AUTH_FAILURE_LIMIT: int = 5
+const ADMIN_AUTH_FAILURE_WINDOW_SECONDS: float = 60.0
+const ADMIN_AUTH_COOLDOWN_SECONDS: float = 300.0
+const ADMIN_MAX_RESPONSE_BYTES: int = 65536
 const MAX_BLOCKED_SOURCES: int = 4096
 const MAX_BAN_FILE_BYTES: int = 262144
 const MAX_LOG_STRING_LENGTH: int = 128
@@ -66,7 +75,7 @@ static func rejection_message(reason: StringName) -> String:
 		REJECT_VERSION_MISMATCH:
 			return "Client and server protocol versions do not match."
 		REJECT_INVALID_NAME:
-			return "Display name must contain 1–16 printable characters."
+			return "Display name must contain 1–16 visible characters without unsafe formatting."
 		REJECT_INVALID_PASSWORD:
 			return "The lobby password is incorrect."
 		REJECT_HANDSHAKE_TIMEOUT:
@@ -97,6 +106,10 @@ static func is_valid_lobby_password(password: String) -> bool:
 	return true
 
 
+static func is_valid_admin_password(password: String) -> bool:
+	return password.length() >= MIN_ADMIN_PASSWORD_LENGTH and is_valid_lobby_password(password)
+
+
 static func is_valid_auth_challenge(challenge: String) -> bool:
 	return _is_lower_hex(challenge, AUTH_CHALLENGE_HEX_LENGTH)
 
@@ -112,7 +125,7 @@ static func lobby_password_proof(challenge: String, password: String) -> String:
 
 
 static func admin_password_proof(challenge: String, password: String) -> String:
-	if not is_valid_auth_challenge(challenge) or not is_valid_lobby_password(password):
+	if not is_valid_auth_challenge(challenge) or not is_valid_admin_password(password):
 		return ""
 	return ("ssf-admin-auth-v1\u001f%s\u001f%s" % [challenge, password]).sha256_text()
 

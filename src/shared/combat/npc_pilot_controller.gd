@@ -503,8 +503,7 @@ static func _segment_intersects_circle(
 func _nearest_target(world: AuthoritativeWorld, source: CombatantState, awareness_range: float) -> CombatantState:
 	var nearest: CombatantState
 	var nearest_distance_squared := awareness_range * awareness_range
-	for peer_value in world.combatants.keys():
-		var peer_id := int(peer_value)
+	for peer_id in world.ordered_peer_ids_view():
 		if peer_id == source.peer_id or world.are_allies(source.peer_id, peer_id):
 			continue
 		var candidate := world.combatants[peer_id] as CombatantState

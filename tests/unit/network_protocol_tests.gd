@@ -133,6 +133,11 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 			"cloaked": peer_id == 2,
 			"cloak_charges": 3 if peer_id == 2 else 0,
 			"cloak_cooldown": 12.5 if peer_id == 2 else 0.0,
+			"perfect_guard_active": peer_id == 2,
+			"kinetic_vent_active": peer_id == 2,
+			"breakaway_active": peer_id == 2,
+			"kinetic_vent_charge": 75.0 if peer_id == 2 else 0.0,
+			"breakaway_cooldown": 6.25 if peer_id == 2 else 0.0,
 		})
 	var packet := PlayerSnapshotCodec.encode(900, 44, states)
 	var decoded := PlayerSnapshotCodec.decode(packet)
@@ -151,6 +156,11 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 		context.expect_true(bool(first.cloaked), "snapshot carries the authoritative cloak state")
 		context.expect_equal(int(first.cloak_charges), 3, "snapshot carries heat-scoped cloak charges")
 		context.expect_approx(float(first.cloak_cooldown), 12.5, "snapshot carries the authoritative cloak cooldown")
+		context.expect_true(bool(first.perfect_guard_active), "snapshot carries the Perfect Guard presentation window")
+		context.expect_true(bool(first.kinetic_vent_active), "snapshot carries Kinetic Vent release feedback")
+		context.expect_true(bool(first.breakaway_active), "snapshot carries Breakaway Thrusters activity")
+		context.expect_approx(float(first.kinetic_vent_charge), 75.0, "snapshot carries authoritative Kinetic Vent charge")
+		context.expect_approx(float(first.breakaway_cooldown), 6.25, "snapshot carries the Breakaway Thrusters cooldown")
 	context.expect_false(PlayerSnapshotCodec.decode(packet.slice(0, packet.size() - 1)).ok, "truncated player snapshot is rejected")
 	var oversized := PackedByteArray()
 	oversized.resize(PlayerSnapshotCodec.HEADER_SIZE)
@@ -293,11 +303,22 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_false(ServerLobby.is_valid_display_name("abcdefghijklmnopq"), "display name longer than 16 characters is invalid")
 	context.expect_false(ServerLobby.is_valid_display_name("bad\nname"), "control characters are invalid in display names")
 	context.expect_true(ServerLobby.is_valid_display_name("Nova 星"), "printable Unicode display name is valid")
+	context.expect_equal(ServerLobby.sanitize_display_name("  Nova  "), "Nova", "display-name sanitization trims ordinary edge whitespace")
+	context.expect_false(ServerLobby.is_valid_display_name(String.chr(0x200b)), "zero-width-only display names are invalid")
+	context.expect_false(ServerLobby.is_valid_display_name("A" + String.chr(0x202e) + "BC"), "bidirectional overrides are invalid in display names")
+	context.expect_false(ServerLobby.is_valid_display_name("A" + String.chr(0x2028) + "B"), "Unicode line separators are invalid in display names")
+	context.expect_false(ServerLobby.is_valid_display_name(String.chr(0x0301)), "combining-mark-only display names are invalid")
+	context.expect_false(ServerLobby.is_valid_display_name(String.chr(0x00a0)), "non-breaking-space-only display names are invalid")
+	context.expect_false(ServerLobby.is_valid_display_name(String.chr(0xe000)), "private-use display names are invalid")
+	context.expect_true(ServerLobby.is_valid_display_name("🤖"), "visible emoji display names remain valid")
+	context.expect_true(ServerLobby.is_valid_display_name("👩‍🚀"), "well-formed emoji joiner sequences remain valid")
 	context.expect_equal(NetworkProtocol.rejection_message(NetworkProtocol.REJECT_EJECTED), "You were removed from the lobby by its leader.", "ejected clients receive a clear recovery message")
 	context.expect_equal(NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_PASSWORD), "The lobby password is incorrect.", "password rejection gives a retryable message")
 	context.expect_true(NetworkProtocol.is_valid_lobby_password("friends only"), "printable lobby passwords are accepted")
 	context.expect_false(NetworkProtocol.is_valid_lobby_password(""), "empty lobby passwords are rejected")
 	context.expect_false(NetworkProtocol.is_valid_lobby_password("bad\npassword"), "control characters are rejected in lobby passwords")
+	context.expect_true(NetworkProtocol.is_valid_admin_password("operator-secret"), "admin credentials accept strong printable secrets")
+	context.expect_false(NetworkProtocol.is_valid_admin_password("too-short"), "admin credentials enforce their stronger minimum length")
 	var authentication_challenge := "ab".repeat(NetworkProtocol.AUTH_CHALLENGE_BYTES)
 	var password_proof := NetworkProtocol.lobby_password_proof(authentication_challenge, "friends only")
 	var admin_proof := NetworkProtocol.admin_password_proof(authentication_challenge, "friends only")
@@ -311,6 +332,23 @@ static func _validate_lobby_authority(context: TestContext) -> void:
 	context.expect_equal(lobby.leader_id, 2, "first admitted peer becomes leader")
 	context.expect_true(lobby.admit(3, "Nova").ok, "duplicate base name is admitted")
 	context.expect_equal((lobby.players[3] as PlayerMatchState).display_name, "Nova#2", "duplicate display name receives deterministic suffix")
+	var name_config := MatchConfig.new()
+	name_config.max_players = 8
+	var name_lobby := ServerLobby.new(name_config)
+	context.expect_true(name_lobby.admit(20, "é").ok, "composed Unicode name is admitted")
+	context.expect_true(name_lobby.admit(21, "e" + String.chr(0x0301)).ok, "canonically equivalent Unicode name is admitted with disambiguation")
+	context.expect_true((name_lobby.players[21] as PlayerMatchState).display_name.ends_with("#2"), "canonical Unicode lookalike receives a suffix")
+	context.expect_true(name_lobby.admit(22, "Ace").ok, "mixed-case collision base is admitted")
+	context.expect_true(name_lobby.admit(23, "ace").ok, "case-insensitive duplicate is admitted with disambiguation")
+	context.expect_equal((name_lobby.players[23] as PlayerMatchState).display_name, "ace#2", "case-insensitive duplicate receives a suffix")
+	context.expect_true(name_lobby.admit(24, "abcdefghijklmnop").ok, "maximum-length display name is admitted")
+	context.expect_true(name_lobby.admit(25, "abcdefghijklmnop").ok, "maximum-length duplicate is admitted")
+	context.expect_equal((name_lobby.players[25] as PlayerMatchState).display_name, "abcdefghijklmn#2", "collision suffix preserves the authoritative length limit")
+	context.expect_equal((name_lobby.players[25] as PlayerMatchState).display_name.length(), ServerLobby.MAX_DISPLAY_NAME_LENGTH, "generated display name remains bounded")
+	context.expect_true(NetworkBridge._has_valid_authoritative_player_names({"players": [{"display_name": "Pilot"}]}, true), "client accepts a safe authoritative roster name")
+	context.expect_false(NetworkBridge._has_valid_authoritative_player_names({"players": [{"display_name": String.chr(0x200b)}]}, true), "client rejects unsafe authoritative roster names")
+	context.expect_false(NetworkBridge._has_valid_authoritative_player_names({"players": [{"display_name": "Pilot"}, {"display_name": "pilot"}]}, true), "client rejects ambiguous authoritative roster names")
+	context.expect_false(NetworkBridge._has_valid_authoritative_player_names({}, true), "client requires player identities in lobby state")
 	context.expect_false(lobby.request_start(2).ok, "leader cannot start before every human is ready")
 	context.expect_true(lobby.request_ready(2, true).ok, "human leader may ready up")
 	context.expect_false(lobby.request_start(2).ok, "one unready human still blocks match start")
@@ -1207,6 +1245,68 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	context.expect_equal(chain_world.active_projectiles().size(), 1, "an armed mine blast recursively detonates other armed mines in range")
 	context.expect_equal((chain_world.active_projectiles()[0] as ProjectileState).projectile_id, 914, "an inactive mine cannot join a chain reaction")
 	context.expect_approx(chain_target.health, 0.0, "a chained mine blast applies its own 100 damage")
+
+	var breakaway_stats := StatSystem.derive({&"breakaway_thrusters": 1}, catalog)
+	var breakaway := CombatantState.create(266, breakaway_stats, Vector2(400.0, 400.0))
+	breakaway.shield.active = true
+	breakaway.shield.energy = 5.0
+	context.expect_true(breakaway.shield.try_absorb_contact(breakaway.stats), "a final shield contact is absorbed before depletion")
+	breakaway.step(Vector2.RIGHT, 0.0, true, 0.0)
+	context.expect_true(breakaway.breakaway_remaining > 0.0, "shield depletion activates Breakaway Thrusters")
+	context.expect_approx(breakaway.breakaway_cooldown_remaining, breakaway_stats.breakaway_cooldown, "Breakaway Thrusters starts its card-scaled cooldown")
+	var baseline_acceleration := CombatantState.create(271, CombatStats.create_base())
+	var boosted_acceleration := CombatantState.create(272, breakaway_stats)
+	boosted_acceleration.activate_breakaway()
+	baseline_acceleration.step(Vector2.RIGHT, 0.0, false, 0.1)
+	boosted_acceleration.step(Vector2.RIGHT, 0.0, false, 0.1)
+	context.expect_true(
+		boosted_acceleration.velocity.length() > baseline_acceleration.velocity.length(),
+		"Breakaway Thrusters increases acceleration without changing top speed"
+	)
+	var baseline_braking := CombatantState.create(273, CombatStats.create_base())
+	var boosted_braking := CombatantState.create(274, breakaway_stats)
+	baseline_braking.velocity = Vector2(200.0, 0.0)
+	boosted_braking.velocity = baseline_braking.velocity
+	boosted_braking.activate_breakaway()
+	baseline_braking.step(Vector2.ZERO, 0.0, false, 0.1)
+	boosted_braking.step(Vector2.ZERO, 0.0, false, 0.1)
+	context.expect_true(
+		boosted_braking.velocity.length() < baseline_braking.velocity.length(),
+		"Breakaway Thrusters increases braking drag during its active window"
+	)
+	var burst_breakaway := CombatantState.create(267, breakaway_stats, Vector2(400.0, 400.0))
+	burst_breakaway.apply_damage(15.0)
+	context.expect_approx(burst_breakaway.breakaway_remaining, 0.0, "sub-threshold hull damage does not trigger Breakaway Thrusters")
+	burst_breakaway.apply_damage(15.0)
+	context.expect_true(burst_breakaway.breakaway_remaining > 0.0, "30 percent hull damage inside the burst window activates Breakaway Thrusters")
+
+	var vent_stats := StatSystem.derive({&"kinetic_vent": 1}, catalog)
+	var vent_world := AuthoritativeWorld.new()
+	var vent_source := vent_world.add_peer(268)
+	var vent_pilot := vent_world.add_peer(269, vent_stats)
+	var vent_target := vent_world.add_peer(270)
+	vent_source.position = Vector2(300.0, 300.0)
+	vent_pilot.position = Vector2(500.0, 300.0)
+	vent_target.position = Vector2(650.0, 300.0)
+	vent_pilot.aim_angle = PI
+	vent_pilot.shield.step(true, vent_pilot.stats, 0.0)
+	var charging_shot := ProjectileState.create(930, vent_source.peer_id, 1, Vector2(480.0, 300.0), 0.0, CombatStats.create_base())
+	vent_world.projectile_registry.add(charging_shot)
+	var vent_damage_events: Array[Dictionary] = []
+	vent_world._resolve_projectile_ship_hit(charging_shot, vent_pilot.peer_id, vent_damage_events)
+	context.expect_approx(vent_pilot.shield.kinetic_vent_charge, 25.0, "a blocked base shot supplies the minimum Kinetic Vent charge")
+	vent_pilot.shield.step(false, vent_pilot.stats, 0.0)
+	var redirected_shot := ProjectileState.create(931, vent_source.peer_id, 2, Vector2(420.0, 300.0), 0.0, CombatStats.create_base())
+	var displaced_mine := ProjectileState.create_mine(932, vent_source.peer_id, Vector2(320.0, 300.0))
+	displaced_mine.mine_activation_remaining = 0.0
+	vent_world.projectile_registry.add(redirected_shot)
+	vent_world.projectile_registry.add(displaced_mine)
+	vent_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(redirected_shot.velocity.x < 0.0, "Kinetic Vent redirects a hostile projectile away without changing ownership")
+	context.expect_equal(redirected_shot.owner_id, vent_source.peer_id, "Kinetic Vent never claims redirected projectile damage")
+	context.expect_true(displaced_mine.velocity.x < 0.0 and displaced_mine.kinetic_vent_displacement_remaining > 0.0, "Kinetic Vent pushes an armed mine and temporarily overrides magnetism")
+	context.expect_true(vent_target.velocity.x > 0.0, "Kinetic Vent pushes an exposed hostile ship away")
+	context.expect_true(vent_pilot.kinetic_vent_feedback_remaining > 0.0, "Kinetic Vent exposes bounded snapshot feedback")
 
 	var cloak_stats := StatSystem.derive({&"cloak": 1}, catalog)
 	context.expect_true(cloak_stats.cloak_enabled, "Cloak! enables the authoritative special action")

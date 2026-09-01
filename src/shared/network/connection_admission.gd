@@ -12,7 +12,7 @@ static func validate_hello(
 ) -> StringName:
 	if protocol_version != GameConstants.PROTOCOL_VERSION:
 		return NetworkProtocol.REJECT_VERSION_MISMATCH
-	if not ServerLobby.is_valid_display_name(display_name.strip_edges()):
+	if ServerLobby.sanitize_display_name(display_name).is_empty():
 		return NetworkProtocol.REJECT_INVALID_NAME
 	if current_players >= maximum_players:
 		return NetworkProtocol.REJECT_SERVER_FULL

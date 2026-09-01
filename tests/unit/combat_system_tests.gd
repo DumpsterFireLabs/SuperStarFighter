@@ -212,7 +212,13 @@ static func _validate_shield(context: TestContext) -> void:
 		tuned_shield.try_block(0.0, Vector2.RIGHT, tuned_stats),
 		"custom block-cost shield blocks a frontal hit"
 	)
-	context.expect_approx(tuned_shield.energy, 90.0, "custom shield block cost is authoritative")
+	context.expect_approx(tuned_shield.energy, 98.0, "Perfect Guard discounts the first authoritative block cost")
+	context.expect_true(tuned_shield.has_perfect_guard_feedback(), "a successful Perfect Guard exposes feedback state")
+	context.expect_true(
+		tuned_shield.try_block(0.0, Vector2.RIGHT, tuned_stats),
+		"a second immediate frontal hit remains blockable"
+	)
+	context.expect_approx(tuned_shield.energy, 88.0, "Perfect Guard is consumed by the first projectile")
 	tuned_shield.active = false
 	tuned_shield.depletion_locked = true
 	tuned_shield.energy = 39.0
@@ -294,6 +300,13 @@ static func _validate_projectile_limits(context: TestContext) -> void:
 		ProjectileState.create(5, 30, 1, Vector2.ZERO, 0.0, stats)
 	)
 	context.expect_equal(global_removed, [2], "global limit removes the globally oldest projectile")
+	var mine_registry := ProjectileRegistry.new()
+	context.expect_false(mine_registry.has_mines(), "ordinary projectile registries skip mine-specific scans")
+	var tracked_mine := ProjectileState.create_mine(6, 30, Vector2.ZERO)
+	mine_registry.add(tracked_mine)
+	context.expect_true(mine_registry.has_mines(), "projectile registry tracks active mines without a full scan")
+	mine_registry.remove(tracked_mine.projectile_id)
+	context.expect_false(mine_registry.has_mines(), "removing the final mine restores the no-mine fast path")
 	registry.schedule_owner_cleanup(10)
 	context.expect_empty(registry.step_cleanup(0.499), "dead-owner projectiles remain for the grace period")
 	context.expect_equal(registry.step_cleanup(0.001), [3], "dead-owner projectiles despawn after 0.5 seconds")

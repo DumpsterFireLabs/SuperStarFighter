@@ -219,8 +219,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("--admin-port is only valid with --server.")
 	if int(result.admin_port) > 0 and int(result.admin_port) in [int(result.port), LanDiscoveryProtocol.DISCOVERY_PORT]:
 		return _error("--admin-port must differ from the gameplay and LAN discovery ports.")
-	if int(result.admin_port) > 0 and not NetworkProtocol.is_valid_lobby_password(String(result.admin_password)):
-		return _error("Set --admin-password-file or %s to 1–%d printable characters when remote administration is enabled." % [ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH])
+	if int(result.admin_port) > 0 and not NetworkProtocol.is_valid_admin_password(String(result.admin_password)):
+		return _error("Set --admin-password-file or %s to %d–%d printable characters when remote administration is enabled." % [ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, NetworkProtocol.MIN_ADMIN_PASSWORD_LENGTH, NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH])
 	if int(result.admin_port) > 0 and String(result.admin_password) == String(result.lobby_password):
 		return _error("The admin password must differ from the lobby password.")
 	if result.auto_start and result.mode != "server":

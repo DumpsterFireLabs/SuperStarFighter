@@ -11,6 +11,7 @@ var _owner_ordered_ids: Dictionary = {}
 var _owner_heads: Dictionary = {}
 var _owner_cleanup_remaining: Dictionary = {}
 var _active_count: int = 0
+var _mine_count: int = 0
 var _ordered_head: int = 0
 var revision: int = 0
 
@@ -26,6 +27,8 @@ func add(projectile: ProjectileState) -> Array[int]:
 	_slot_by_id[projectile.projectile_id] = _ordered_ids.size()
 	_ordered_ids.append(projectile.projectile_id)
 	_active_count += 1
+	if projectile.is_mine:
+		_mine_count += 1
 	revision += 1
 	_owner_counts[projectile.owner_id] = count_for_owner(projectile.owner_id) + 1
 	var owner_ids := _owner_ordered_ids.get(projectile.owner_id, []) as Array
@@ -54,6 +57,8 @@ func remove(projectile_id: int) -> bool:
 		return false
 	_by_id.erase(projectile_id)
 	_active_count -= 1
+	if projectile.is_mine:
+		_mine_count = maxi(_mine_count - 1, 0)
 	revision += 1
 	var slot := int(_slot_by_id.get(projectile_id, -1))
 	_slot_by_id.erase(projectile_id)
@@ -134,6 +139,14 @@ func projectile_window(start_slot: int, maximum_count: int) -> Dictionary:
 
 func size() -> int:
 	return _active_count
+
+
+func has_mines() -> bool:
+	return _mine_count > 0
+
+
+func mine_count() -> int:
+	return _mine_count
 
 
 func retained_owner_slot_count() -> int:

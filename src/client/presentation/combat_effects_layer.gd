@@ -78,6 +78,16 @@ func spawn_rebound(position: Vector2) -> void:
 	effects.append({"kind": &"rebound", "position": position, "color": Color("ff4fd8"), "remaining": 0.3, "duration": 0.3})
 
 
+func spawn_kinetic_vent(position: Vector2) -> void:
+	effects.append({
+		"kind": &"kinetic_vent",
+		"position": position,
+		"color": Color("73f7ff"),
+		"remaining": GameConstants.KINETIC_VENT_FEEDBACK_SECONDS,
+		"duration": GameConstants.KINETIC_VENT_FEEDBACK_SECONDS,
+	})
+
+
 func clear_effects() -> void:
 	effects.clear()
 	active_mine_effect_count = 0
@@ -115,6 +125,10 @@ func _draw() -> void:
 				for ray in 5:
 					var direction := Vector2.from_angle(PI + lerpf(-0.65, 0.65, ray / 4.0))
 					draw_line(position, position + direction * lerpf(14.0, 54.0, progress), Color(color, alpha), 3.0)
+			&"kinetic_vent":
+				var radius := lerpf(28.0, GameConstants.KINETIC_VENT_RADIUS, _smooth_unit(progress))
+				draw_circle(position, radius, Color(color, alpha * 0.055))
+				draw_arc(position, radius, 0.0, TAU, 64, Color(color, alpha * 0.9), lerpf(7.0, 2.0, progress), true)
 
 
 func _draw_mine_explosion(effect: Dictionary, position: Vector2) -> void:

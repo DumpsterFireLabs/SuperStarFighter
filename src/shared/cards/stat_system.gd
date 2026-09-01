@@ -32,6 +32,8 @@ const FLOAT_STATS: Array[StringName] = [
 	&"shield_damage_heal_fraction",
 	&"rebound_damage_factor",
 	&"rebound_range_factor",
+	&"kinetic_vent_impulse",
+	&"breakaway_cooldown",
 	&"auto_repair_delay",
 	&"auto_repair_rate",
 ]
@@ -83,6 +85,10 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 			stats.cloak_enabled = true
 		elif card.special_behavior_id == &"rebound_shield":
 			stats.rebound_shield_enabled = true
+		elif card.special_behavior_id == &"kinetic_vent":
+			stats.kinetic_vent_enabled = true
+		elif card.special_behavior_id == &"breakaway_thrusters":
+			stats.breakaway_thrusters_enabled = true
 
 	for property_name in FLOAT_STATS:
 		var value := (float(stats.get(property_name)) + float(additive_totals[property_name])) * float(multiplier_totals[property_name])
@@ -110,7 +116,7 @@ static func validate_card(card: CardDefinition) -> PackedStringArray:
 	for property_name in card.integer_modifiers:
 		if StringName(property_name) not in INTEGER_STATS:
 			errors.append("Card %s has unsupported integer stat %s." % [card.card_id, property_name])
-	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner", &"mine_layer", &"rebound_shield", &"cloak"]:
+	if not card.special_behavior_id.is_empty() and card.special_behavior_id not in [&"auto_repair", &"beam_weapon", &"afterburner", &"mine_layer", &"rebound_shield", &"cloak", &"kinetic_vent", &"breakaway_thrusters"]:
 		errors.append("Card %s has unsupported special behavior %s." % [card.card_id, card.special_behavior_id])
 	return errors
 
@@ -154,5 +160,7 @@ static func _apply_clamps(stats: CombatStats) -> void:
 	stats.shield_damage_heal_fraction = clampf(stats.shield_damage_heal_fraction, 0.0, 1.0)
 	stats.rebound_damage_factor = clampf(stats.rebound_damage_factor, 0.1, 1.0)
 	stats.rebound_range_factor = clampf(stats.rebound_range_factor, 0.1, 1.0)
+	stats.kinetic_vent_impulse = clampf(stats.kinetic_vent_impulse, 60.0, 1800.0)
+	stats.breakaway_cooldown = clampf(stats.breakaway_cooldown, 1.0, 30.0)
 	stats.auto_repair_delay = clampf(stats.auto_repair_delay, 0.1, 20.0)
 	stats.auto_repair_rate = clampf(stats.auto_repair_rate, 0.1, 400.0)

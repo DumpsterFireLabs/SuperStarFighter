@@ -21,6 +21,8 @@ static func _validate_seeded_offers(context: TestContext, catalog: CardCatalog) 
 		var first_offer := first.get_offer(peer_id)
 		var second_offer := second.get_offer(peer_id)
 		context.expect_equal(first_offer.token, second_offer.token, "fixed seed reproduces offer token for peer %d" % peer_id)
+		context.expect_equal(first_offer.token.length(), NetworkProtocol.AUTH_PROOF_HEX_LENGTH, "draft offer token uses a bounded opaque digest for peer %d" % peer_id)
+		context.expect_false("424242" in first_offer.token, "draft offer token does not disclose the match seed for peer %d" % peer_id)
 		context.expect_equal(first_offer.card_ids, second_offer.card_ids, "fixed seed reproduces cards for peer %d" % peer_id)
 		context.expect_equal(first_offer.card_ids.size(), GameConstants.CARD_OFFER_SIZE, "peer %d receives five eligible cards" % peer_id)
 		var unique_cards: Dictionary = {}

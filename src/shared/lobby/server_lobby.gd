@@ -5,6 +5,11 @@ const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd
 const MAX_DISPLAY_NAME_LENGTH: int = 16
 const OPERATOR_AUTHORITY_ID: int = -2_147_483_648
 
+static var _forbidden_display_name_regex := RegEx.create_from_string("[\\p{Cc}\\p{Cs}\\p{Co}\\p{Cn}\\p{Zl}\\p{Zp}]")
+static var _format_character_regex := RegEx.create_from_string("\\p{Cf}")
+static var _space_separator_regex := RegEx.create_from_string("\\p{Zs}")
+static var _visible_display_character_regex := RegEx.create_from_string("[^\\p{M}\\p{Z}]")
+
 var config: MatchConfig
 var players: Dictionary = {}
 var leader_id: int = 0
@@ -40,8 +45,8 @@ func _init(match_config: MatchConfig = null) -> void:
 func admit(peer_id: int, raw_name: String) -> Dictionary:
 	if players.has(peer_id):
 		return {"ok": false, "reason": NetworkProtocol.REJECT_MALFORMED_TRAFFIC}
-	var trimmed := raw_name.strip_edges()
-	if not is_valid_display_name(trimmed):
+	var sanitized_name := sanitize_display_name(raw_name)
+	if sanitized_name.is_empty():
 		return {"ok": false, "reason": NetworkProtocol.REJECT_INVALID_NAME}
 	var removed_npc_ids: Array[int] = []
 	if players.size() >= player_limit:
@@ -51,7 +56,7 @@ func admit(peer_id: int, raw_name: String) -> Dictionary:
 		var replaced_npc_id: int = waiting_npcs.back()
 		players.erase(replaced_npc_id)
 		removed_npc_ids.append(replaced_npc_id)
-	var unique_name := _make_unique_name(trimmed)
+	var unique_name := _make_unique_name(sanitized_name)
 	var player := PlayerMatchState.new(peer_id, unique_name, _next_join_sequence)
 	player.ship_color = _random_ship_color(peer_id, player.join_sequence)
 	_next_join_sequence += 1
@@ -496,25 +501,94 @@ func serialize() -> Dictionary:
 
 
 static func is_valid_display_name(name_value: String) -> bool:
+	return not name_value.is_empty() and sanitize_display_name(name_value) == name_value
+
+
+static func sanitize_display_name(raw_name: String) -> String:
+	var name_value := raw_name.strip_edges()
 	if name_value.length() < 1 or name_value.length() > MAX_DISPLAY_NAME_LENGTH:
-		return false
+		return ""
+	if _forbidden_display_name_regex.search(name_value) != null:
+		return ""
+	for match_value in _format_character_regex.search_all(name_value):
+		var character_index := (match_value as RegExMatch).get_start()
+		if name_value.unicode_at(character_index) != 0x200d or not _is_valid_emoji_joiner(name_value, character_index):
+			return ""
+	for match_value in _space_separator_regex.search_all(name_value):
+		if name_value.unicode_at((match_value as RegExMatch).get_start()) != 0x20:
+			return ""
 	for index in name_value.length():
 		var codepoint := name_value.unicode_at(index)
-		if codepoint < 32 or (codepoint >= 127 and codepoint <= 159):
-			return false
-	return true
+		if _is_variation_selector(codepoint) and not _has_emoji_base_before(name_value, index):
+			return ""
+	if _visible_display_character_regex.search(name_value) == null:
+		return ""
+	return name_value
 
 
 func _make_unique_name(base_name: String) -> String:
-	var used: Dictionary = {}
+	var used := PackedStringArray()
 	for player_value in players.values():
-		used[(player_value as PlayerMatchState).display_name] = true
-	if not used.has(base_name):
+		used.append((player_value as PlayerMatchState).display_name)
+	if not _display_name_conflicts(base_name, used):
 		return base_name
 	var suffix := 2
-	while used.has("%s#%d" % [base_name, suffix]):
+	while true:
+		var suffix_text := "#%d" % suffix
+		var candidate := base_name.left(MAX_DISPLAY_NAME_LENGTH - suffix_text.length()) + suffix_text
+		if not _display_name_conflicts(candidate, used):
+			return candidate
 		suffix += 1
-	return "%s#%d" % [base_name, suffix]
+	return ""
+
+
+static func _display_name_conflicts(candidate: String, used_names: PackedStringArray) -> bool:
+	for used_name in used_names:
+		if candidate.nocasecmp_to(used_name) == 0:
+			return true
+	var text_server := TextServerManager.get_primary_interface()
+	return (
+		text_server != null and
+		text_server.has_feature(TextServer.FEATURE_UNICODE_SECURITY) and
+		text_server.is_confusable(candidate, used_names) >= 0
+	)
+
+
+static func _is_valid_emoji_joiner(name_value: String, joiner_index: int) -> bool:
+	var previous_index := joiner_index - 1
+	while previous_index >= 0 and _is_variation_selector(name_value.unicode_at(previous_index)):
+		previous_index -= 1
+	var next_index := joiner_index + 1
+	while next_index < name_value.length() and _is_variation_selector(name_value.unicode_at(next_index)):
+		next_index += 1
+	return (
+		previous_index >= 0 and
+		next_index < name_value.length() and
+		_is_emoji_codepoint(name_value.unicode_at(previous_index)) and
+		_is_emoji_codepoint(name_value.unicode_at(next_index))
+	)
+
+
+static func _has_emoji_base_before(name_value: String, character_index: int) -> bool:
+	var previous_index := character_index - 1
+	while previous_index >= 0 and _is_variation_selector(name_value.unicode_at(previous_index)):
+		previous_index -= 1
+	return previous_index >= 0 and _is_emoji_codepoint(name_value.unicode_at(previous_index))
+
+
+static func _is_emoji_codepoint(codepoint: int) -> bool:
+	return (
+		(codepoint >= 0x2300 and codepoint <= 0x23ff) or
+		(codepoint >= 0x2600 and codepoint <= 0x27bf) or
+		(codepoint >= 0x1f000 and codepoint <= 0x1faff)
+	)
+
+
+static func _is_variation_selector(codepoint: int) -> bool:
+	return (
+		(codepoint >= 0xfe00 and codepoint <= 0xfe0f) or
+		(codepoint >= 0xe0100 and codepoint <= 0xe01ef)
+	)
 
 
 func _earliest_joined_peer() -> int:
