@@ -2,6 +2,7 @@ class_name OfflineSandbox
 extends Node2D
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
@@ -23,7 +24,9 @@ var status_label: Label
 var card_label: Label
 var help_label: Label
 var hud_canvas: CanvasLayer
+var kill_feed: Control
 var next_projectile_id: int = 1
+var kill_feed_event_sequence: int = 0
 var heat_elapsed: float = 0.0
 var overtime_debug_stage: int = 0
 var targets_shielding: bool = false
@@ -110,6 +113,8 @@ func set_sandbox_active(active: bool) -> void:
 		camera.enabled = active
 	if hud_canvas != null:
 		hud_canvas.visible = active
+	if not active and kill_feed != null:
+		kill_feed.clear()
 
 
 func set_input_profile_manager(profile_manager: Node) -> void:
@@ -206,6 +211,10 @@ func _create_hud() -> void:
 	_update_help_text()
 	help_label.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(help_label)
+	kill_feed = KillFeedScript.new()
+	kill_feed.name = "KillFeed"
+	hud_canvas.add_child(kill_feed)
+	kill_feed.set_match_state("ACTIVE_HEAT")
 
 
 func _update_help_text() -> void:
@@ -349,7 +358,7 @@ func _simulate_projectiles(delta: float) -> void:
 				continue
 			if projectile.can_hit(target.combatant.peer_id):
 				_apply_projectile_knockback(target.combatant, projectile, 1.0)
-				damage_events.append({"projectile_id": projectile.projectile_id, "target_id": target.combatant.peer_id, "damage": projectile.damage})
+				damage_events.append({"projectile_id": projectile.projectile_id, "attacker_id": projectile.owner_id, "target_id": target.combatant.peer_id, "damage": projectile.damage})
 				if not projectile.register_hull_hit(target.combatant.peer_id):
 					projectile_registry.remove(projectile.projectile_id)
 				else:
@@ -569,10 +578,40 @@ func _apply_damage_events(events: Array[Dictionary]) -> void:
 	for ship_value in ships_by_id.values():
 		var ship := ship_value as SandboxShip
 		combatants[ship.combatant.peer_id] = ship.combatant
-	for peer_id in DamageResolver.resolve_tick(combatants, events):
-		var eliminated := ships_by_id[peer_id] as SandboxShip
+	var eliminations: Array[Dictionary] = []
+	for death in DamageResolver.resolve_tick_with_attribution(combatants, events):
+		var victim_id := int(death.get("target_id", 0))
+		var killer_id := int(death.get("killer_id", 0))
+		var eliminated := ships_by_id[victim_id] as SandboxShip
 		eliminated.set_eliminated()
-		projectile_registry.schedule_owner_cleanup(peer_id)
+		projectile_registry.schedule_owner_cleanup(victim_id)
+		eliminations.append({
+			"killer_id": killer_id,
+			"victim_id": victim_id,
+			"reason": "combat" if killer_id != 0 else "environment",
+		})
+	if not eliminations.is_empty() and kill_feed != null:
+		kill_feed_event_sequence += 1
+		kill_feed.add_eliminations(
+			eliminations,
+			kill_feed_event_sequence,
+			player.combatant.peer_id,
+			_kill_feed_identities()
+		)
+
+
+func _kill_feed_identities() -> Array[Dictionary]:
+	var identities: Array[Dictionary] = []
+	var peer_ids := ships_by_id.keys()
+	peer_ids.sort()
+	for peer_value in peer_ids:
+		var ship := ships_by_id[peer_value] as SandboxShip
+		identities.append({
+			"peer_id": ship.combatant.peer_id,
+			"display_name": ship.display_name,
+			"ship_color": ship.ship_color.to_html(false),
+		})
+	return identities
 
 
 func _update_camera(delta: float) -> void:
@@ -672,6 +711,9 @@ func _reset_combatants() -> void:
 		projectile_registry.remove(projectile.projectile_id)
 	if effects_layer != null:
 		effects_layer.clear_effects()
+	if kill_feed != null:
+		kill_feed.clear()
+	kill_feed_event_sequence = 0
 	heat_elapsed = 0.0
 	overtime_debug_stage = 0
 

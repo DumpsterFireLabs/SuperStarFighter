@@ -76,6 +76,16 @@ func _capture_sequence() -> void:
 	client.current_resolution = capture_resolution
 	client._update_resolution_control_state()
 	client._hide_settings()
+	client._play_offline()
+	var offline_damage_events: Array[Dictionary] = [
+		{"projectile_id": 701, "attacker_id": 1, "target_id": 2, "damage": 10_000.0},
+		{"projectile_id": 702, "attacker_id": 1, "target_id": 3, "damage": 10_000.0},
+		{"projectile_id": 703, "target_id": 4, "damage": 10_000.0},
+	]
+	client.offline_sandbox._apply_damage_events(offline_damage_events)
+	await _capture(client, "offline_combat")
+	client.offline_sandbox._reset_combatants()
+	client._show_connection_screen("Ready to connect.")
 
 	var players: Array[Dictionary] = []
 	for index in 32:

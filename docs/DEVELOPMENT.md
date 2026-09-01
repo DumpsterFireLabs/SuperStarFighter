@@ -285,7 +285,7 @@ Any material UI change should be checked at minimum at:
 - 2560×1080 and 3440×1440 for ultrawide behavior.
 - 5120×1440 for 32:9 super-ultrawide behavior.
 
-`verify-presentation.ps1` captures 33 production states at all six acceptance resolutions, including 2880×1920, every built-in round map, lobby match options, the roster-opened colour wheel, ordinary settings, exclusive-fullscreen settings, arena powerups, and graphical draft/live/final card-hover presentations. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
+`verify-presentation.ps1` captures production states at all six acceptance resolutions, including 2880×1920, offline combat, every built-in round map, lobby match options, the roster-opened colour wheel, ordinary settings, exclusive-fullscreen settings, arena powerups, and graphical draft/live/final card-hover presentations. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
 
 Keep combat center space free where possible. Durable match information belongs in the compact upper-left HUD. Temporary center overlays should have precise authoritative timing and short exits.
 
