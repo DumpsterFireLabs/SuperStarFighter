@@ -798,6 +798,7 @@ func _apply_build() -> void:
 	var previous_cloak_capacity := player.combatant.stats.cloak_capacity
 	derived_stats = StatSystem.derive(build, catalog)
 	projectile_layer.set_beam_builds({player.combatant.peer_id: build}, catalog)
+	player.set_shield_build(build, catalog)
 	player.combatant.stats = derived_stats.duplicate_stats()
 	if derived_stats.mine_capacity > previous_mine_capacity:
 		player.combatant.mine_charges_remaining += derived_stats.mine_capacity - previous_mine_capacity

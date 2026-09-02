@@ -418,7 +418,7 @@ func apply_builds(builds: Dictionary) -> void:
 		var peer_id := int(peer_value)
 		var ship := ships[peer_id] as SandboxShip
 		ship.combatant.stats = _stats_for_peer(peer_id, builds).duplicate_stats()
-		ship.queue_redraw()
+		ship.set_shield_build(builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary, card_catalog)
 	local_stats = _stats_for_peer(local_peer_id, builds)
 
 
@@ -562,6 +562,7 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 	var ship := SandboxShip.new()
 	var color := _player_color(peer_id)
 	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == local_peer_id, _display_name(peer_id), _player_pattern(peer_id))
+	ship.set_shield_build(_build_for_peer(peer_id), card_catalog)
 	add_child(ship)
 	ships[peer_id] = ship
 	return ship

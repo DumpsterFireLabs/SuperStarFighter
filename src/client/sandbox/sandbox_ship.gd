@@ -3,6 +3,7 @@ extends CharacterBody2D
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
+const DEFAULT_SHIELD_COLOR: Color = Color("5cf6ff")
 const AFTERBURNER_IGNITION_SECONDS: float = 0.12
 const AFTERBURNER_ECHO_LIFETIME_SECONDS: float = 0.30
 const AFTERBURNER_ECHO_INTERVAL_SECONDS: float = 0.045
@@ -10,6 +11,7 @@ const MAX_AFTERBURNER_ECHOES: int = 6
 
 var combatant: CombatantState
 var ship_color: Color = Color("42e8ff")
+var shield_color: Color = DEFAULT_SHIELD_COLOR
 var ship_pattern: StringName = ShipAppearanceScript.SOLID
 var local_control: bool = false
 var display_name: String = "Pilot"
@@ -67,6 +69,20 @@ func set_ship_pattern(pattern: StringName) -> void:
 	if ship_pattern == normalized:
 		return
 	ship_pattern = normalized
+	queue_redraw()
+
+
+func set_shield_build(build: Dictionary, catalog: CardCatalog) -> void:
+	var highest_shield_card: CardDefinition
+	for card_value in build:
+		if int(build[card_value]) <= 0:
+			continue
+		var card := catalog.get_card(StringName(card_value))
+		if card == null or card.category != CardDefinition.Category.SHIELD:
+			continue
+		if highest_shield_card == null or card.rarity > highest_shield_card.rarity:
+			highest_shield_card = card
+	shield_color = highest_shield_card.rarity_color() if highest_shield_card != null else DEFAULT_SHIELD_COLOR
 	queue_redraw()
 
 
@@ -295,9 +311,9 @@ func _draw() -> void:
 	if combatant.shield.active:
 		var half_arc := deg_to_rad(combatant.stats.shield_arc_degrees) * 0.5
 		var perfect_guard := combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()
-		var shield_color := Color("fff36a") if perfect_guard else Color("5cf6ff")
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(shield_color, 0.22), 14.0)
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 else shield_color, 7.0)
+		var active_shield_color := Color("fff36a") if perfect_guard else shield_color
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(active_shield_color, 0.22), 14.0)
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 else active_shield_color, 7.0)
 	if combatant.breakaway_remaining > 0.0:
 		var breakaway_alpha := clampf(combatant.breakaway_remaining / GameConstants.BREAKAWAY_DURATION_SECONDS, 0.0, 1.0)
 		draw_arc(Vector2.ZERO, 38.0, 0.0, TAU, 32, Color("ff9f43", breakaway_alpha * 0.75), 3.0)
