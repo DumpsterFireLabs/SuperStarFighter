@@ -238,8 +238,8 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	if special_just_pressed:
 		# Retain one press identity until authority consumes it. Three sends can
 		# all vanish during ENet throttling, jitter or a short delivery outage.
-		# Existing snapshot corrections acknowledge consumption, so no extra RPC
-		# or reliable channel backlog is needed. Expire rather than act much later.
+		# The press also travels reliably below; ordinary samples retain the
+		# identity until a consumption correction or the retry deadline.
 		special_activation_sends_remaining = ceili(SPECIAL_ACTIVATION_RETRY_SECONDS * GameConstants.INPUT_SEND_RATE)
 		special_activation_deadline_msec = Time.get_ticks_msec() + int(SPECIAL_ACTIVATION_RETRY_SECONDS * 1000)
 		special_activation_sequence = input_sequence
@@ -267,14 +267,15 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	if _shield_press_sequence >= 0 and ((input_sequence - _shield_press_sequence) & 0xffffffff) > GameConstants.SHIELD_PRESS_RETENTION_TICKS:
 		_shield_press_sequence = -1
 	frame.shield_press_sequence = _shield_press_sequence
-	if shield_changed:
+	var action_edge := shield_changed or special_just_pressed
+	if action_edge:
 		# Edges bypass unreliable throttling. Ordinary samples still carry the
 		# press identity; shared sequence checks discard late reliable frames.
-		view.bridge.send_shield_input(frame)
+		view.bridge.send_action_input(frame)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
 		input_send_accumulator = fmod(input_send_accumulator, send_interval)
-		if not shield_changed:
+		if not action_edge:
 			view.bridge.send_input(frame)
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and view.controls_enabled:

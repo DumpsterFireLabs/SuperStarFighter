@@ -4,7 +4,7 @@ class RecordingBridge extends NetworkBridge:
 	var packets: Array[PackedByteArray] = []
 	func send_input(frame: PlayerInputFrame) -> void:
 		packets.append(InputPacketCodec.encode(frame))
-	func send_shield_input(frame: PlayerInputFrame) -> void:
+	func send_action_input(frame: PlayerInputFrame) -> void:
 		# These deterministic schedules intentionally impair even the edge copy;
 		# the ENet integration fixture verifies real reliable delivery separately.
 		packets.append(InputPacketCodec.encode(frame))

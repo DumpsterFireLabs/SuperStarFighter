@@ -38,7 +38,7 @@ func _ready() -> void:
 		return
 	_run_foundation_tests()
 	MapResourceTests.run(_context)
-	AbilityDeliveryTests.run(_context)
+	await AbilityDeliveryTests.run(_context, self)
 	StatMetadataTests.run(_context)
 	NetworkOwnershipTests.run(_context)
 	ObjectiveContractTests.run(_context)
@@ -84,7 +84,7 @@ func _ready() -> void:
 func _run_foundation_tests() -> void:
 	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.10", "game version is pinned to Beta 10")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 33, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 34, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")

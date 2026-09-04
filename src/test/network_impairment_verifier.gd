@@ -50,6 +50,7 @@ var correction_errors: Array[float] = []
 var shield_tap_attempts: int = 0
 var shield_tap_latencies_ms: Array[int] = []
 var shield_only: bool = false
+var ability_delivery: Array[Dictionary] = []
 
 
 func _initialize() -> void:
@@ -129,6 +130,11 @@ func _run() -> void:
 			view.selected_special_slot = [SpecialAbilitySelection.Slot.MINE, SpecialAbilitySelection.Slot.MISSILE, SpecialAbilitySelection.Slot.CLOAK, SpecialAbilitySelection.Slot.AFTERBURNER][phase - 4]
 			Input.action_press("special")
 		await _until(func() -> bool: return false, 1.0)
+		if phase >= 4 and phase <= 7:
+			ability_delivery.append({"phase": phase, "press": view.local_prediction.special_activation_sequence,
+				"slot": view.local_prediction.special_activation_slot, "retries": view.local_prediction.special_activation_sends_remaining,
+				"authority_consumed": ship.last_special_sequence, "server_ack": server.world.acknowledged_input(client.local_peer_id)})
+			print("IMPAIRMENT_ABILITY=%s" % JSON.stringify(ability_delivery.back()))
 		if not await _until(func() -> bool: return _phase_covered(phase, shots_before, ship), 2.0):
 			_fail("delivery coverage missing in phase %d: %s" % [phase, _comparison()])
 			return
@@ -280,6 +286,7 @@ func _delivery_diagnostics() -> Dictionary:
 	var buffered := view.prediction.buffered_inputs
 	var authority := server.world.combatants.get(client.local_peer_id) as CombatantState
 	return {"pending_count": buffered.size(),
+		"abilities": ability_delivery,
 		"final_sequence": final_input.sequence if final_input != null else -1,
 		"neutral_send_attempts": neutral_send_attempts, "final_acknowledged": final_acknowledged,
 		"oldest_sequence": buffered.front().frame.sequence if not buffered.is_empty() else -1,

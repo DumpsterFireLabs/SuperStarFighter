@@ -136,10 +136,10 @@ func send_input(frame: PlayerInputFrame) -> void:
 	submit_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, packet)
 
 
-func send_shield_input(frame: PlayerInputFrame) -> void:
+func send_action_input(frame: PlayerInputFrame) -> void:
 	if role != Role.CLIENT or local_peer_id == 0:
 		return
-	shield_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, InputPacketCodec.encode(frame))
+	action_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, InputPacketCodec.encode(frame))
 
 
 func send_lobby_config(rounds_to_win: int) -> void:
@@ -714,7 +714,7 @@ func submit_input(packet: PackedByteArray) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_INPUT)
-func shield_input(packet: PackedByteArray) -> void:
+func action_input(packet: PackedByteArray) -> void:
 	_accept_input_packet(packet)
 
 
