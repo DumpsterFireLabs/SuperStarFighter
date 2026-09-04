@@ -36,139 +36,10 @@ var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
 var input_profiles: Node
 ## Compatibility handles for existing capture/test tools. Screen state lives in its controller.
-var connection_canvas: CanvasLayer:
-	get:
-		return connection_controller.connection_canvas
 var gameplay_cursor_canvas: CanvasLayer
 var gameplay_cursor: Sprite2D
-var connection_screen: Control:
-	get:
-		return connection_controller.connection_screen
-var connection_form_panel: PanelContainer:
-	get:
-		return connection_controller.connection_form_panel
-var connection_tabs: TabContainer:
-	get:
-		return connection_controller.connection_tabs
-var lobby_panel: PanelContainer:
-	get:
-		return connection_controller.lobby_panel
-var host_field: LineEdit:
-	get:
-		return connection_controller.host_field
-var port_field: LineEdit:
-	get:
-		return connection_controller.port_field
-var host_port_field: LineEdit:
-	get:
-		return connection_controller.host_port_field
-var name_field: LineEdit:
-	get:
-		return connection_controller.name_field
-var server_name_field: LineEdit:
-	get:
-		return connection_controller.server_name_field
-var direct_password_field: LineEdit:
-	get:
-		return connection_controller.direct_password_field
-var remember_password_button: CheckButton:
-	get:
-		return connection_controller.remember_password_button
-var host_password_field: LineEdit:
-	get:
-		return connection_controller.host_password_field
-var connection_status: Label:
-	get:
-		return connection_controller.connection_status
-var lan_servers_container: VBoxContainer:
-	get:
-		return connection_controller.lan_servers_container
-
-var lan_browser: LanDiscoveryService:
-	get:
-		return connection_controller.lan_browser
-var _lan_servers: Array[Dictionary]:
-	get:
-		return connection_controller._lan_servers
-var _hosted_server_root: Node:
-	get:
-		return connection_controller._hosted_server_root
-var _hosted_server_bridge: NetworkBridge:
-	get:
-		return connection_controller._hosted_server_bridge
-var _hosted_server_multiplayer: MultiplayerAPI:
-	get:
-		return connection_controller._hosted_server_multiplayer
-
-var version_label: Label:
-	get:
-		return connection_controller.version_label
-var lobby_roster: VBoxContainer:
-	get:
-		return connection_controller.lobby_roster
 
 
-var npc_all_difficulty_control: OptionButton:
-	get:
-		return connection_controller.npc_all_difficulty_control
-
-var lobby_options_button: Button:
-	get:
-		return connection_controller.lobby_options_button
-var lobby_options_blocker: ColorRect:
-	get:
-		return connection_controller.lobby_options_blocker
-var lobby_options_popup: PanelContainer:
-	get:
-		return connection_controller.lobby_options_popup
-
-var powerups_button: CheckButton:
-	get:
-		return connection_controller.powerups_button
-var powerup_interval_control: SpinBox:
-	get:
-		return connection_controller.powerup_interval_control
-var powerups_permanent_button: CheckButton:
-	get:
-		return connection_controller.powerups_permanent_button
-var overtime_start_control: SpinBox:
-	get:
-		return connection_controller.overtime_start_control
-var game_mode_control: OptionButton:
-	get:
-		return connection_controller.game_mode_control
-var game_mode_note: Label:
-	get:
-		return connection_controller.game_mode_note
-var team_count_row: HBoxContainer:
-	get:
-		return connection_controller.team_count_row
-var team_count_control: SpinBox:
-	get:
-		return connection_controller.team_count_control
-var ship_color_popup: PanelContainer:
-	get:
-		return connection_controller.ship_color_popup
-var ship_color_blocker: ColorRect:
-	get:
-		return connection_controller.ship_color_blocker
-
-var random_color_button: Button:
-	get:
-		return connection_controller.random_color_button
-var ship_color_picker: ColorPicker:
-	get:
-		return connection_controller.ship_color_picker
-var ship_pattern_control: OptionButton:
-	get:
-		return connection_controller.ship_pattern_control
-
-var apply_ship_color_button: Button:
-	get:
-		return connection_controller.apply_ship_color_button
-var start_button: Button:
-	get:
-		return connection_controller.start_button
 var match_panel: PanelContainer
 var match_label: Label
 var heat_intro_panel: PanelContainer
@@ -321,18 +192,6 @@ var current_resolution: Vector2i:
 		return settings_controller.current_resolution
 	set(value):
 		settings_controller.current_resolution = value
-var preferred_ship_color: Color:
-	get:
-		return connection_controller.preferred_ship_color
-var pending_ship_color: Color:
-	get:
-		return connection_controller.pending_ship_color
-var preferred_ship_pattern: StringName:
-	get:
-		return connection_controller.preferred_ship_pattern
-var pending_ship_pattern: StringName:
-	get:
-		return connection_controller.pending_ship_pattern
 
 var settings_return_to_pause: bool = false
 var settings_return_to_lobby: bool = false
@@ -362,22 +221,7 @@ var interface_theme: Theme
 var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = "LOBBY"
-var connection_primary_button: Button:
-	get:
-		return connection_controller.connection_primary_button
-var direct_connect_button: Button:
-	get:
-		return connection_controller.direct_connect_button
-var host_join_button: Button:
-	get:
-		return connection_controller.host_join_button
-var lobby_settings_button: Button:
-	get:
-		return connection_controller.lobby_settings_button
 var pause_resume_button: Button
-var lobby_disconnect_button: Button:
-	get:
-		return connection_controller.lobby_disconnect_button
 var pause_disconnect_button: Button
 var f2_return_confirmation: ConfirmationDialog
 var _application_has_focus: bool = true
@@ -427,7 +271,6 @@ func _ready() -> void:
 	add_child(audio_director)
 	offline_sandbox.presentation_event.connect(_on_world_presentation_event)
 	settings_controller._load_video_settings()
-	connection_controller._load_appearance_settings()
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
@@ -479,12 +322,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_hide_credits()
 			get_viewport().set_input_as_handled()
 			return
-		if connection_controller.ship_color_popup != null and connection_controller.ship_color_popup.visible:
-			connection_controller._hide_ship_color()
-			get_viewport().set_input_as_handled()
-			return
-		if connection_controller.lobby_options_popup != null and connection_controller.lobby_options_popup.visible:
-			connection_controller._hide_lobby_options()
+		if connection_controller.dismiss_modal():
 			get_viewport().set_input_as_handled()
 			return
 		if settings_controller.settings_panel != null and settings_controller.settings_panel.visible:
@@ -688,10 +526,6 @@ func _refresh_control_prompts() -> void:
 
 func _update_resolution_control_state() -> void:
 	settings_controller._update_resolution_control_state()
-
-
-static func _password_settings_key(address: String, port: int) -> String:
-	return ConnectionControllerScript._password_settings_key(address, port)
 
 
 func _show_settings(return_to_pause: bool) -> void:
@@ -1015,7 +849,7 @@ func _request_f2_return_to_menu() -> void:
 		return
 	if f2_return_confirmation.visible:
 		return
-	var hosting := connection_controller._hosted_server_root != null and is_instance_valid(connection_controller._hosted_server_root)
+	var hosting := connection_controller.is_hosting()
 	if hosting:
 		f2_return_confirmation.dialog_text = "You are hosting this game.\n\nReturning to the main menu will stop the server and disconnect every player."
 		f2_return_confirmation.ok_button_text = "STOP SERVER"
@@ -1032,7 +866,7 @@ func _request_f2_return_to_menu() -> void:
 func _f2_would_leave_session() -> bool:
 	if offline_sandbox != null and offline_sandbox.visible:
 		return true
-	if connection_controller._hosted_server_root != null and is_instance_valid(connection_controller._hosted_server_root):
+	if connection_controller.is_hosting():
 		return true
 	return bridge != null and bridge.role == NetworkBridge.Role.CLIENT
 
@@ -1052,26 +886,6 @@ func _set_f2_confirmation_gameplay_blocked(blocked: bool) -> void:
 		offline_sandbox.set_process(not blocked)
 		offline_sandbox.set_physics_process(not blocked)
 	_update_pointer_visibility()
-
-
-func _connect_online() -> void:
-	connection_controller._connect_online()
-
-
-func _host_online() -> void:
-	connection_controller._host_online()
-
-
-func _start_hosted_server(configuration: Dictionary) -> Error:
-	return connection_controller._start_hosted_server(configuration)
-
-
-func _stop_hosted_server() -> void:
-	connection_controller._stop_hosted_server()
-
-
-func _on_lan_servers_updated(servers: Array[Dictionary]) -> void:
-	connection_controller._on_lan_servers_updated(servers)
 
 
 func _play_tutorial() -> void:
@@ -1113,23 +927,12 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 		f2_return_confirmation.hide()
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
-	connection_controller._pending_password_host = ""
-	connection_controller._pending_password_port = 0
-	connection_controller._pending_password_value = ""
-	connection_controller._pending_remember_password = false
-	connection_controller._stop_hosted_server()
+	connection_controller.reset_connection(message, is_error)
 	network_world.set_network_active(false)
 	_set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
 	latest_match_payload.clear()
 	draft_controller.clear_offer()
-	connection_controller.connection_screen.visible = true
-	connection_controller.connection_form_panel.visible = true
-	connection_controller.lobby_panel.visible = false
-	if connection_controller.lobby_options_popup != null:
-		connection_controller._hide_lobby_options(false)
-	if connection_controller.ship_color_popup != null:
-		connection_controller._hide_ship_color(false)
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_controller.clear_offer()
@@ -1138,8 +941,6 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	settings_controller.settings_panel.visible = false
 	credits_panel.visible = false
 	network_world.input_blocked = false
-	connection_controller.connection_status.text = message
-	connection_controller.connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
 	audio_director.set_context(&"menu")
 	_focus_connection_menu()
 
@@ -1157,42 +958,6 @@ func _on_lobby_state(state: Dictionary) -> void:
 		_set_scoreboard_open(false)
 		network_world.set_network_active(false, false)
 	connection_controller.render_lobby(state)
-
-
-func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
-	connection_controller._rebuild_lobby_roster(state, is_leader)
-
-
-func _show_lobby_options() -> void:
-	connection_controller._show_lobby_options()
-
-
-func _hide_lobby_options(restore_focus: bool = true) -> void:
-	connection_controller._hide_lobby_options(restore_focus)
-
-
-func _show_ship_color_popup() -> void:
-	connection_controller._show_ship_color_popup()
-
-
-func _hide_ship_color(restore_focus: bool = true) -> void:
-	connection_controller._hide_ship_color(restore_focus)
-
-
-func _on_ship_color_changed(color: Color) -> void:
-	connection_controller._on_ship_color_changed(color)
-
-
-func _on_ship_pattern_selected(index: int) -> void:
-	connection_controller._on_ship_pattern_selected(index)
-
-
-func _apply_ship_color() -> void:
-	connection_controller._apply_ship_color()
-
-
-func _on_random_color_pressed() -> void:
-	connection_controller._on_random_color_pressed()
 
 
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:

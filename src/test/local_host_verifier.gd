@@ -22,12 +22,12 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	client._dismiss_splash(true)
-	client.name_field.text = "HostVerifier"
-	client.server_name_field.text = "Verified Local Arena"
-	client.host_port_field.text = str(verification_port)
-	client.host_password_field.text = "test-lobby"
+	client.connection_controller.name_field.text = "HostVerifier"
+	client.connection_controller.server_name_field.text = "Verified Local Arena"
+	client.connection_controller.host_port_field.text = str(verification_port)
+	client.connection_controller.host_password_field.text = "test-lobby"
 	for attempt in 2:
-		client.host_password_field.text = "test-lobby"
+		client.connection_controller.host_password_field.text = "test-lobby"
 		if not await _host_once(client):
 			quit(4)
 			return
@@ -42,27 +42,27 @@ func _run() -> void:
 
 
 func _host_once(client: Node) -> bool:
-	client._host_online()
+	client.connection_controller._host_online()
 	var started_at := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
 		await process_frame
 		var connected: bool = client.bridge.local_peer_id != 0
 		var admitted: bool = (
-			client._hosted_server_bridge != null and
-			client._hosted_server_bridge.lobby != null and
-			client._hosted_server_bridge.lobby.human_count() == 1
+			client.connection_controller._hosted_server_bridge != null and
+			client.connection_controller._hosted_server_bridge.lobby != null and
+			client.connection_controller._hosted_server_bridge.lobby.human_count() == 1
 		)
 		var discovered := false
-		for server in client._lan_servers:
+		for server in client.connection_controller._lan_servers:
 			if String(server.get("server_name", "")) == "Verified Local Arena" and int(server.get("game_port", 0)) == verification_port:
 				discovered = true
 				break
 		if connected and admitted and discovered:
 			return true
 	printerr("SSF_LOCAL_HOST_ERROR=timeout status=%s connected=%s servers=%s" % [
-		client.connection_status.text,
+		client.connection_controller.connection_status.text,
 		str(client.bridge.local_peer_id != 0),
-		str(client._lan_servers),
+		str(client.connection_controller._lan_servers),
 	])
 	client._disconnect_online()
 	await process_frame

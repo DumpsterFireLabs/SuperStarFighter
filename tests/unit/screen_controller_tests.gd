@@ -2,15 +2,16 @@ extends RefCounted
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	preload("res://tests/unit/connection_preferences_tests.gd").run(context)
 	var client = (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()
 	parent.add_child(client)
 	client._dismiss_splash(true)
-	context.expect_equal(_heading_count(client.connection_canvas, "SCOREBOARD"), 1, "five draft cards construct only one scoreboard surface")
-	context.expect_equal(_heading_count(client.connection_canvas, "✦  MATCH COMPLETE  ✦"), 1, "five draft cards construct only one results overlay")
-	var canvas_children: int = client.connection_canvas.get_child_count()
+	context.expect_equal(_heading_count(client.connection_controller.connection_canvas, "SCOREBOARD"), 1, "five draft cards construct only one scoreboard surface")
+	context.expect_equal(_heading_count(client.connection_controller.connection_canvas, "✦  MATCH COMPLETE  ✦"), 1, "five draft cards construct only one results overlay")
+	var canvas_children: int = client.connection_controller.connection_canvas.get_child_count()
 	client.draft_controller.create_ui()
 	client.standings_controller.create_ui()
-	context.expect_equal(client.connection_canvas.get_child_count(), canvas_children, "controller construction is idempotent")
+	context.expect_equal(client.connection_controller.connection_canvas.get_child_count(), canvas_children, "controller construction is idempotent")
 	context.expect_equal(client.draft_buttons.size(), 5, "draft controller owns exactly five offer controls")
 	context.expect_equal(client.draft_panel, client.draft_controller.draft_panel, "legacy draft accessor exposes the owned surface")
 	context.expect_equal(client.results_panel, client.standings_controller.results_panel, "legacy results accessor exposes the owned surface")

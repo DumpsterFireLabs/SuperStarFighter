@@ -50,17 +50,17 @@ func _capture_sequence() -> void:
 		{"server_name": "Graphite's Arena", "address": "192.168.1.42", "game_port": 7000, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 3, "npc_count": 5, "player_limit": 12, "match_active": false, "ping_ms": 3},
 		{"server_name": "Battle in Progress", "address": "192.168.1.77", "game_port": 7010, "protocol_version": GameConstants.PROTOCOL_VERSION, "human_count": 6, "npc_count": 2, "player_limit": 16, "match_active": true, "ping_ms": 7},
 	]
-	client._on_lan_servers_updated(local_servers)
+	client.connection_controller._on_lan_servers_updated(local_servers)
 	await _capture(client, "menu")
 	client._show_credits()
 	await _capture(client, "credits")
 	client._hide_credits()
-	client.connection_tabs.current_tab = 2
+	client.connection_controller.connection_tabs.current_tab = 2
 	await _capture(client, "host_menu")
 	client.connection_controller.host_preset_control.select(2)
 	client.connection_controller.host_preset_control.item_selected.emit(2)
 	await _capture(client, "host_preset")
-	client.connection_tabs.current_tab = 0
+	client.connection_controller.connection_tabs.current_tab = 0
 	client._show_settings(false)
 	await _capture(client, "settings")
 	client.current_window_mode = client.WindowModeOption.EXCLUSIVE_FULLSCREEN
@@ -129,31 +129,31 @@ func _capture_sequence() -> void:
 	client.bridge.session.latest_lobby_state = {"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": true, "team_setup_error": ""}
 	client._on_lobby_state(client.bridge.latest_lobby_state)
 	await _capture(client, "lobby_32")
-	client.lobby_settings_button.pressed.emit()
+	client.connection_controller.lobby_settings_button.pressed.emit()
 	await _capture(client, "lobby_settings")
 	client._hide_settings()
 	var local_color_swatch: Button
-	for row in client.lobby_roster.get_children():
+	for row in client.connection_controller.lobby_roster.get_children():
 		var candidate := row.get_node_or_null("ShipColor") as Button
 		if candidate != null and not candidate.disabled:
 			local_color_swatch = candidate
 			break
 	local_color_swatch.pressed.emit()
-	client.ship_color_picker.color = Color("ff4ea3")
-	client.ship_pattern_control.select(3)
-	client._on_ship_pattern_selected(3)
+	client.connection_controller.ship_color_picker.color = Color("ff4ea3")
+	client.connection_controller.ship_pattern_control.select(3)
+	client.connection_controller._on_ship_pattern_selected(3)
 	await _capture(client, "lobby_color_picker")
-	client._hide_ship_color(false)
-	client._show_lobby_options()
+	client.connection_controller._hide_ship_color(false)
+	client.connection_controller._show_lobby_options()
 	await _capture(client, "lobby_options")
-	client._hide_lobby_options(false)
-	var roster_scroll := client.lobby_roster.get_parent() as ScrollContainer
+	client.connection_controller._hide_lobby_options(false)
+	var roster_scroll := client.connection_controller.lobby_roster.get_parent() as ScrollContainer
 	roster_scroll.scroll_vertical = 100000
 	await _capture(client, "lobby_npc_difficulties")
 	roster_scroll.scroll_vertical = 0
 
-	client.lobby_panel.visible = false
-	client.connection_screen.visible = false
+	client.connection_controller.lobby_panel.visible = false
+	client.connection_controller.connection_screen.visible = false
 	client.network_world.set_network_active(true)
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}
 	client.network_world.latest_server_tick = 0
@@ -416,7 +416,7 @@ func _capture_sequence() -> void:
 
 func _capture_crowded_combat(client: Node) -> void:
 	client._show_connection_screen("Stress capture")
-	client.connection_screen.hide()
+	client.connection_controller.connection_screen.hide()
 	client.bridge.session.local_peer_id = 2
 	client.network_world.set_network_active(true)
 	client.network_world.set_physics_process(false)

@@ -3,6 +3,9 @@ extends Node
 ## Owns connection forms, LAN discovery, hosted runtime, lobby options and appearance.
 ## The client coordinates navigation between gameplay and these screens.
 
+const PreferencesScript = preload("res://src/client/ui/connection_preferences.gd")
+var preferences := PreferencesScript.new()
+
 const MatchPresetsScript = preload("res://src/shared/lobby/match_presets.gd")
 
 const NavigationScript = preload("res://src/client/ui/screen_navigation.gd")
@@ -81,14 +84,11 @@ var host_join_button: Button
 var lobby_settings_button: Button
 var lobby_disconnect_button: Button
 var _applying_lobby_state: bool = false
-var _pending_password_host: String = ""
-var _pending_password_port: int = 0
-var _pending_password_value: String = ""
-var _pending_remember_password: bool = false
 
 
 func initialize(client_root: Node) -> void:
 	client = client_root
+	_load_appearance_settings()
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
@@ -690,25 +690,14 @@ func _add_compact_labeled_field(parent: VBoxContainer, label_text: String, initi
 
 
 func _load_appearance_settings() -> void:
-	var config := ConfigFile.new()
-	if config.load(AudioDirector.SETTINGS_PATH) != OK:
-		return
-	random_ship_color = bool(config.get_value("appearance", "random_ship_color", true))
-	var saved_color := String(config.get_value("appearance", "ship_color", preferred_ship_color.to_html(false)))
-	if not ServerLobby._normalized_ship_color(saved_color).is_empty():
-		preferred_ship_color = Color.from_string("#%s" % saved_color.trim_prefix("#"), preferred_ship_color)
-	var saved_pattern := ShipAppearanceScript.normalized_pattern(String(config.get_value("appearance", "ship_pattern", ShipAppearanceScript.SOLID)))
-	if not saved_pattern.is_empty():
-		preferred_ship_pattern = saved_pattern
+	preferences.load_appearance()
+	random_ship_color = preferences.random_color
+	preferred_ship_color = preferences.ship_color
+	preferred_ship_pattern = preferences.ship_pattern
 
 
 func _save_appearance_settings() -> void:
-	var config := ConfigFile.new()
-	config.load(AudioDirector.SETTINGS_PATH)
-	config.set_value("appearance", "random_ship_color", random_ship_color)
-	config.set_value("appearance", "ship_color", preferred_ship_color.to_html(false))
-	config.set_value("appearance", "ship_pattern", String(preferred_ship_pattern))
-	config.save(AudioDirector.SETTINGS_PATH)
+	preferences.save_appearance(random_ship_color, preferred_ship_color, preferred_ship_pattern)
 
 
 func _on_direct_host_changed(address: String) -> void:
@@ -722,46 +711,9 @@ func _on_direct_port_changed(_port_text: String) -> void:
 func _apply_remembered_password(address: String, port: int) -> void:
 	if direct_password_field == null or remember_password_button == null:
 		return
-	var remembered := _remembered_password_for_endpoint(address, port)
+	var remembered := preferences.password_for_endpoint(address, port)
 	direct_password_field.text = remembered
 	remember_password_button.button_pressed = not remembered.is_empty()
-
-
-func _remembered_password_for_endpoint(address: String, port: int) -> String:
-	var key := _password_settings_key(address, port)
-	if key.is_empty():
-		return ""
-	var config := ConfigFile.new()
-	if config.load(AudioDirector.SETTINGS_PATH) != OK:
-		return ""
-	var remembered := String(config.get_value("lobby_passwords", key, ""))
-	return remembered if NetworkProtocol.is_valid_lobby_password(remembered) else ""
-
-
-func _commit_pending_password_preference() -> void:
-	var key := _password_settings_key(_pending_password_host, _pending_password_port)
-	if key.is_empty():
-		return
-	var config := ConfigFile.new()
-	config.load(AudioDirector.SETTINGS_PATH)
-	if _pending_remember_password and NetworkProtocol.is_valid_lobby_password(_pending_password_value):
-		config.set_value("lobby_passwords", key, _pending_password_value)
-	elif config.has_section_key("lobby_passwords", key):
-		config.erase_section_key("lobby_passwords", key)
-	config.save(AudioDirector.SETTINGS_PATH)
-	_pending_password_host = ""
-	_pending_password_port = 0
-	_pending_password_value = ""
-	_pending_remember_password = false
-
-
-static func _password_settings_key(address: String, port: int) -> String:
-	var normalized := address.strip_edges().to_lower()
-	if normalized.begins_with("[") and normalized.ends_with("]"):
-		normalized = normalized.substr(1, normalized.length() - 2)
-	if normalized.is_empty() or port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
-		return ""
-	return ("%s:%d" % [normalized, port]).sha256_text()
 
 
 func _remembered_password_port() -> int:
@@ -787,10 +739,7 @@ func _connect_online() -> void:
 	var address := host_field.text.strip_edges()
 	client.offline_sandbox.set_sandbox_active(false)
 	client.network_world.set_network_active(false)
-	_pending_password_host = address
-	_pending_password_port = port
-	_pending_password_value = lobby_password
-	_pending_remember_password = remember_password_button.button_pressed
+	preferences.begin_attempt(address, port, lobby_password, remember_password_button.button_pressed)
 	connection_status.text = "Authenticating with %s:%d…" % [address, port]
 	var error: Error = client.bridge.start_client(address, port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:
@@ -832,10 +781,7 @@ func _host_online() -> void:
 	client.offline_sandbox.set_sandbox_active(false)
 	client.network_world.set_network_active(false)
 	connection_status.text = "Hosting %s on UDP %d and joining locally…" % [server_name, port]
-	_pending_password_host = ""
-	_pending_password_port = 0
-	_pending_password_value = ""
-	_pending_remember_password = false
+	preferences.discard_attempt()
 	error = client.bridge.start_client("127.0.0.1", port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:
 		connection_status.text = client.bridge.last_error
@@ -914,7 +860,7 @@ func _rebuild_lan_server_list() -> void:
 
 func _add_lan_server_row(server: Dictionary) -> void:
 	var compatible := int(server.get("protocol_version", 0)) == GameConstants.PROTOCOL_VERSION
-	var remembered_password := _remembered_password_for_endpoint(
+	var remembered_password := preferences.password_for_endpoint(
 		String(server.get("address", "")),
 		int(server.get("game_port", 0))
 	)
@@ -969,7 +915,7 @@ func _join_lan_server(address: String, port: int) -> void:
 
 
 func show_connected(peer_id: int) -> void:
-	_commit_pending_password_preference()
+	preferences.confirm_connected()
 	connection_screen.visible = true
 	connection_form_panel.visible = false
 	lobby_panel.visible = true
@@ -1468,3 +1414,29 @@ static func readiness_summary(state: Dictionary) -> String:
 				missing.append(String(player.get("display_name", "Pilot")))
 	var status := "All human pilots ready." if missing_count == 0 else "Waiting for: %s%s." % [", ".join(missing), " +%d more" % (missing_count - missing.size()) if missing_count > missing.size() else ""]
 	return "%s  Unready pilots appear first · scroll roster for all %d pilots." % [status, (state.get("players", []) as Array).size()]
+
+
+func is_hosting() -> bool:
+	return is_instance_valid(_hosted_server_root)
+
+
+func dismiss_modal() -> bool:
+	if ship_color_popup != null and ship_color_popup.visible:
+		_hide_ship_color()
+		return true
+	if lobby_options_popup != null and lobby_options_popup.visible:
+		_hide_lobby_options()
+		return true
+	return false
+
+
+func reset_connection(message: String, is_error: bool = false) -> void:
+	preferences.discard_attempt()
+	_stop_hosted_server()
+	connection_screen.show()
+	connection_form_panel.show()
+	lobby_panel.hide()
+	if lobby_options_popup != null: _hide_lobby_options(false)
+	if ship_color_popup != null: _hide_ship_color(false)
+	connection_status.text = message
+	connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))

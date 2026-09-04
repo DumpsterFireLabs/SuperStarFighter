@@ -25,7 +25,7 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 		"card_ids": card_ids,
 		"deadline_tick": 1800,
 	})
-	context.expect_true(client.lobby_panel.custom_minimum_size.x >= 640.0, "online lobby uses the enlarged interface width")
+	context.expect_true(client.connection_controller.lobby_panel.custom_minimum_size.x >= 640.0, "online lobby uses the enlarged interface width")
 	context.expect_true(client.draft_panel.custom_minimum_size.x >= 1200.0, "draft interface uses the enlarged readable width")
 	context.expect_true(client.draft_panel.visible, "human draft panel renders when a private offer arrives")
 	context.expect_true(client.draft_title.text.contains("30.0s"), "rendered draft countdown begins from the authoritative 30-second deadline")
