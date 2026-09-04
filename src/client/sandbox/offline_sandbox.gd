@@ -638,6 +638,8 @@ func _kill_feed_identities() -> Array[Dictionary]:
 
 
 func _update_camera(delta: float) -> void:
+	if tutorial != null and tutorial.frame_practice():
+		return
 	var focus := player.global_position if player.combatant.alive else targets[0].global_position
 	camera.position = camera.position.lerp(focus, 1.0 - exp(-8.0 * delta))
 	if camera_kick_remaining > 0.0 and not bool(accessibility.get("reduced_shake", false)):

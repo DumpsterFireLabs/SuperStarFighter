@@ -67,7 +67,7 @@ func _ready() -> void:
 	BuildLabTestsScript.run(_context, self)
 	AccessibilityTestsScript.run(_context, self)
 	PerformanceReadabilityTestsScript.run(_context, self)
-	CombatTutorialTestsScript.run(_context, self)
+	await CombatTutorialTestsScript.run(_context, self)
 	CardIdentityTestsScript.run(_context, self)
 	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)

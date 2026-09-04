@@ -4,6 +4,7 @@ const Tutorial = preload("res://src/client/sandbox/combat_tutorial.gd")
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	await _practice_layout(context, parent)
 	var lab := OfflineSandbox.new()
 	parent.add_child(lab)
 	lab.set_physics_process(false)
@@ -113,6 +114,36 @@ static func run(context: TestContext, parent: Node) -> void:
 		client._play_offline()
 		context.expect_true(client.offline_sandbox.editor_open and not client.offline_sandbox.tutorial.active, "ordinary Combat Lab entry after a lesson preserves free play")
 	client.free()
+
+
+static func _practice_layout(context: TestContext, parent: Node) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(1280, 720)
+	parent.add_child(viewport)
+	var lab := OfflineSandbox.new()
+	viewport.add_child(lab)
+	lab.set_physics_process(false)
+	lab.start_tutorial()
+	lab.tutorial._enter_step(Tutorial.Step.PERFECT_GUARD)
+	for resolution in [Vector2i(1280, 720), Vector2i(1920, 1080), Vector2i(2560, 1080), Vector2i(2880, 1920), Vector2i(3440, 1440), Vector2i(5120, 1440)]:
+		viewport.size = resolution
+		for hud_scale in [1.0, 1.25, 1.5]:
+			lab.apply_accessibility_settings({"hud_scale": hud_scale, "constrain_hud": true})
+			await parent.get_tree().process_frame
+			await parent.get_tree().process_frame
+			lab.tutorial.layout()
+			var lane: Rect2 = lab.tutorial.practice_screen_rect()
+			var player_screen := lab.player.get_global_transform_with_canvas().origin
+			var target_screen := (lab.targets[0] as CombatShipView).get_global_transform_with_canvas().origin
+			var firing_path := Rect2(player_screen, Vector2.ZERO).expand(target_screen).grow(48.0 * lab.camera.zoom.x)
+			var label := "%s at %.0f%%" % [resolution, hud_scale * 100.0]
+			context.expect_true(lane.encloses(firing_path), "player, target and full firing path remain in practice lane: " + label)
+			context.expect_false(lab.tutorial.panel.get_global_rect().intersects(firing_path), "instructions never obstruct incoming fire: " + label)
+			context.expect_true(Rect2(Vector2.ZERO, Vector2(resolution)).encloses(lab.tutorial.exit_button.get_global_rect()), "tutorial exit remains on screen: " + label)
+	lab.stop_tutorial()
+	context.expect_equal(lab.camera.zoom, Vector2.ONE, "leaving tutorial restores free-play camera zoom")
+	context.expect_equal(lab.camera.limit_right, int(GameConstants.ARENA_SIZE.x), "leaving tutorial restores arena camera limits")
+	viewport.free()
 
 
 static func _press_pad(viewport: Viewport, button: JoyButton) -> void:

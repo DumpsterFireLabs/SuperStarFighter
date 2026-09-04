@@ -23,6 +23,7 @@ var perfect_confirmed: bool = false
 var reload_started: bool = false
 var selected_ability: bool = false
 var chosen_card: StringName = &""
+var saved_camera_limits: Rect2i
 
 
 func configure(sandbox: Node, hud: Control) -> void:
@@ -59,6 +60,13 @@ func configure(sandbox: Node, hud: Control) -> void:
 func start() -> void:
 	if not active:
 		saved_setup = {"build": lab.build.duplicate(), "count": lab.target_count, "health": lab.target_health, "distance": lab.target_distance, "shield": lab.targets_shielding, "fire": lab.targets_firing, "move": lab.targets_moving}
+		saved_camera_limits = Rect2i(lab.camera.limit_left, lab.camera.limit_top, lab.camera.limit_right - lab.camera.limit_left, lab.camera.limit_bottom - lab.camera.limit_top)
+	# Framing beside a screen-space panel may put the camera center outside the
+	# arena, especially on ultrawide screens. Combat boundaries stay unchanged.
+	lab.camera.limit_left = -1000000
+	lab.camera.limit_top = -1000000
+	lab.camera.limit_right = 1000000
+	lab.camera.limit_bottom = 1000000
 	active = true
 	chosen_card = &""
 	lab.load_preset(0)
@@ -73,6 +81,11 @@ func stop() -> void:
 		return
 	active = false
 	panel.hide()
+	lab.camera.zoom = Vector2.ONE
+	lab.camera.limit_left = saved_camera_limits.position.x
+	lab.camera.limit_top = saved_camera_limits.position.y
+	lab.camera.limit_right = saved_camera_limits.end.x
+	lab.camera.limit_bottom = saved_camera_limits.end.y
 	lab.build = saved_setup.build.duplicate()
 	lab._apply_build()
 	lab.set_target_settings(saved_setup.count, saved_setup.health, saved_setup.distance, saved_setup.shield, saved_setup.fire, saved_setup.move)
@@ -211,6 +224,34 @@ func layout() -> void:
 		return
 	panel.size = Vector2(minf(540.0, lab.hud_root.size.x * 0.44), minf(460.0, maxf(lab.hud_root.size.y - 132.0, 120.0)))
 	panel.position = Vector2(lab.hud_root.size.x - panel.size.x, maxf(132.0, lab.hud_root.size.y - panel.size.y))
+	frame_practice()
+
+
+func practice_screen_rect() -> Rect2:
+	# The instruction column and top resource strip never share the firing lane.
+	var viewport_size: Vector2 = lab.get_viewport_rect().size
+	var panel_rect := panel.get_global_rect()
+	var top: float = lab.hud_root.global_position.y + 112.0 * lab.hud_root.scale.y
+	return Rect2(Vector2(24.0, top), Vector2(maxf(panel_rect.position.x - 48.0, 120.0), maxf(viewport_size.y - top - 24.0, 120.0)))
+
+
+func frame_practice() -> bool:
+	if not active or step >= Step.DRAFT or lab.targets.is_empty():
+		return false
+	var lane := practice_screen_rect()
+	var bounds := Rect2(lab.player.combatant.position, Vector2.ZERO)
+	for index in lab.target_count:
+		var target: CombatShipView = lab.targets[index]
+		bounds = bounds.expand(target.combatant.position)
+	# Include hulls, nameplates, and room to read a round before it arrives.
+	bounds = bounds.grow(96.0)
+	var zoom_value := minf(1.0, minf(lane.size.x / bounds.size.x, lane.size.y / bounds.size.y))
+	lab.camera.zoom = Vector2.ONE * zoom_value
+	lab.camera.position = bounds.get_center() - (lane.get_center() - lab.get_viewport_rect().size * 0.5) / zoom_value
+	lab.camera.offset = Vector2.ZERO
+	lab.camera.reset_smoothing()
+	lab.camera.force_update_scroll()
+	return true
 
 
 func _binding(action: StringName, fallback: String) -> String:
