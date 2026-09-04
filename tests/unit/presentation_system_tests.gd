@@ -90,9 +90,9 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	audio.set_context(&"gameplay")
 	context.expect_equal(audio.current_context, &"gameplay", "gameplay playlist context works when optional tracks are absent")
 	audio.gameplay_track_paths.clear()
-	audio.gameplay_track_paths.append("res://music/heavy_electronic-edge_main.mp3.wav")
+	audio.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
 	audio.current_gameplay_track = 0
-	context.expect_equal(audio.current_gameplay_track_name(), "Heavy Electronic Edge Main", "active gameplay track exposes a readable song name")
+	context.expect_equal(audio.current_gameplay_track_name(), "Edge", "active gameplay track exposes the renamed song title")
 	audio.current_context = &"win"
 	context.expect_equal(audio.current_gameplay_track_name(), "", "victory context never reports a gameplay song")
 	tree_parent.remove_child(audio)
@@ -109,7 +109,7 @@ static func _supported_audio_file_count(directory_path: String) -> int:
 
 static func _validate_visual_feedback(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
-	var projectile_layer := SandboxProjectileLayer.new()
+	var projectile_layer := ProjectileLayer.new()
 	projectile_layer.set_beam_builds({
 		1: {&"laser_repeater": 1},
 		2: {&"beam_emitter": 1},
@@ -124,21 +124,21 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 		11: {&"supernova_array": 0},
 		12: {&"hollow_points": 1, &"mine_layer": 1},
 	}, catalog)
-	context.expect_equal(projectile_layer.beam_color_for_owner(1), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "Epic beam weapons retain the standard beam colour")
+	context.expect_equal(projectile_layer.beam_color_for_owner(1), ProjectileLayer.DEFAULT_BEAM_COLOR, "Epic beam weapons retain the standard beam colour")
 	context.expect_equal(projectile_layer.beam_color_for_owner(2), catalog.get_card(&"beam_emitter").rarity_color(), "Legendary beam weapons render in Legendary yellow")
 	context.expect_equal(projectile_layer.beam_color_for_owner(3), catalog.get_card(&"sunbeam_core").rarity_color(), "Mythical beam weapons render in the Mythical colour")
 	context.expect_equal(projectile_layer.beam_color_for_owner(4), catalog.get_card(&"reality_shredder").rarity_color(), "Unobtanium beam weapons render in the Unobtanium colour")
 	context.expect_equal(projectile_layer.beam_color_for_owner(5), catalog.get_card(&"sunbeam_core").rarity_color(), "the highest owned beam-weapon rarity controls the beam colour")
-	context.expect_equal(projectile_layer.beam_color_for_owner(6), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "high-rarity non-beam cards do not recolour beams")
+	context.expect_equal(projectile_layer.beam_color_for_owner(6), ProjectileLayer.DEFAULT_BEAM_COLOR, "high-rarity non-beam cards do not recolour beams")
 	context.expect_equal(projectile_layer.projectile_color_for_owner(7), catalog.get_card(&"hollow_points").rarity_color(), "Common weapon cards colour ordinary projectiles with their rarity")
 	context.expect_equal(projectile_layer.projectile_color_for_owner(8), catalog.get_card(&"rail_accelerant").rarity_color(), "Rare weapon cards colour ordinary projectiles with their rarity")
 	context.expect_equal(projectile_layer.projectile_color_for_owner(9), catalog.get_card(&"causality_cannon").rarity_color(), "the highest applied weapon rarity controls ordinary projectile colour")
-	context.expect_equal(projectile_layer.projectile_color_for_owner(10), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "non-weapon cards do not recolour ordinary projectiles")
-	context.expect_equal(projectile_layer.projectile_color_for_owner(11), SandboxProjectileLayer.DEFAULT_BEAM_COLOR, "weapon cards with no applied stacks do not recolour ordinary projectiles")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(10), ProjectileLayer.DEFAULT_BEAM_COLOR, "non-weapon cards do not recolour ordinary projectiles")
+	context.expect_equal(projectile_layer.projectile_color_for_owner(11), ProjectileLayer.DEFAULT_BEAM_COLOR, "weapon cards with no applied stacks do not recolour ordinary projectiles")
 	context.expect_equal(projectile_layer.projectile_color_for_owner(12), catalog.get_card(&"hollow_points").rarity_color(), "special weapons such as Star Mines do not influence ordinary projectile colour")
 	projectile_layer.free()
 
-	var ship := SandboxShip.new()
+	var ship := CombatShipView.new()
 	ship.setup(7, CombatStats.create_base(), Vector2(300.0, 400.0), Color("ff4f78"), true, "Neon Ace")
 	context.expect_equal(ship.display_name, "Neon Ace", "ship presentation retains its public nameplate")
 	context.expect_equal(ship.identity_pattern, 1, "ship identity includes a stable non-color pattern")
@@ -161,9 +161,9 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	)
 	context.expect_true(ship.afterburner_ignition_remaining > 0.0, "Afterburner starts a distinct ignition shock phase")
 	ship.global_position += Vector2(18.0, 0.0)
-	ship._process(SandboxShip.AFTERBURNER_ECHO_INTERVAL_SECONDS)
+	ship._process(CombatShipView.AFTERBURNER_ECHO_INTERVAL_SECONDS)
 	context.expect_true(not ship.afterburner_echoes.is_empty(), "Afterburner leaves a bounded world-space ship echo wake")
-	context.expect_true(ship.afterburner_echoes.size() <= SandboxShip.MAX_AFTERBURNER_ECHOES, "Afterburner echo history remains bounded per ship")
+	context.expect_true(ship.afterburner_echoes.size() <= CombatShipView.MAX_AFTERBURNER_ECHOES, "Afterburner echo history remains bounded per ship")
 	ship.set_ship_color(Color("ff4ea3"))
 	context.expect_equal(ship.ship_color.to_html(false), "ff4ea3", "an existing ship accepts a newer authoritative lobby colour")
 	context.expect_approx(ship.thruster_particles.color_ramp.colors[1].b, Color("ff4ea3").lightened(0.18).b, "ship colour refresh also updates its thruster presentation")
@@ -229,7 +229,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view._advance_input_clock()
 	context.expect_equal(view.input_sequence, 41, "every predicted physics frame advances its replay sequence")
 	context.expect_equal(view.client_tick, 81, "prediction input time advances with its replay sequence")
-	var local_ship := SandboxShip.new()
+	var local_ship := CombatShipView.new()
 	local_ship.setup(1, CombatStats.create_base(), Vector2(100.0, 100.0), Color.WHITE, true, "Local")
 	view.ships[1] = local_ship
 	var projectile := ProjectileState.create(50, 2, 1, Vector2(900.0, 100.0), PI, CombatStats.create_base())
@@ -258,7 +258,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view._apply_snapshot_resources(local_ship, {"position": Vector2(160.0, 120.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "shielding": false, "ammunition": 8, "alive": true})
 	context.expect_true(local_ship.combatant.alive and local_ship.collision_layer == 2, "a respawn snapshot fully revives an eliminated ship visual for the next heat")
 	context.expect_true(local_ship.z_index > 0, "ships render above arena geometry")
-	var remote_ship := SandboxShip.new()
+	var remote_ship := CombatShipView.new()
 	remote_ship.setup(2, CombatStats.create_base(), Vector2(112.0, 120.0), Color.CYAN, false, "Remote")
 	remote_ship.global_position = Vector2(112.0, 120.0)
 	view.ships[2] = remote_ship
@@ -685,7 +685,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world._on_snapshot({"server_tick": 1, "acknowledged_input": 0, "states": [
 		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "position": Vector2(400.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 0.0, "shield": 0.0, "ammunition": 0, "alive": false, "shielding": false},
 	]})
-	context.expect_false((client.network_world.ships[ServerLobby.NPC_PEER_ID_BASE + 1] as SandboxShip).visible, "inactive NPC markers remain hidden during the initial draft")
+	context.expect_false((client.network_world.ships[ServerLobby.NPC_PEER_ID_BASE + 1] as CombatShipView).visible, "inactive NPC markers remain hidden during the initial draft")
 	context.expect_false(client.network_world.arena.show_spawn_anchors, "production arena never exposes internal spawn anchors")
 	client._on_match_event(&"OBJECTIVE_UPDATED", 2, {"objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(800.0, 600.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 7.5}, "target_seconds": 20.0}})
 	context.expect_equal(int(client.network_world.arena.objective_state.controller_id), 2, "live objective updates reach the arena presentation")
@@ -719,6 +719,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_title.text == "READY", "heat countdown opens the READY banner")
+	client.latest_match_payload["map_id"] = &"solar_tide"
+	client.latest_match_payload["map_name"] = "Solar Tide"
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	context.expect_true(client.heat_intro_subtitle.text.contains("SOLAR CURRENT") and client.heat_intro_subtitle.text.contains("CLOCKWISE"), "Solar Tide countdown teaches its movement field and direction")
 	client.network_world.latest_server_tick = 294
 	client._update_match_presentation()
 	context.expect_true(client.heat_intro_title.text == "BEGIN", "BEGIN replaces READY with exactly 0.10 seconds left")
@@ -746,7 +751,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 2, "position": Vector2(500.0, 500.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 		{"peer_id": 3, "position": Vector2(800.0, 500.0), "velocity": Vector2.ZERO, "aim_angle": PI, "health": npc_max_health, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 	]})
-	var npc_ship := client.network_world.ships[3] as SandboxShip
+	var npc_ship := client.network_world.ships[3] as CombatShipView
 	context.expect_approx(npc_ship.combatant.stats.max_health, npc_max_health, "remote NPC presentation derives its own card-modified maximum health")
 	context.expect_approx(npc_ship.combatant.health_fraction(), 1.0, "a full-health NPC renders a full health ring even when its build changes maximum hull")
 	client._update_match_presentation()
@@ -754,7 +759,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("ROUND 2 / HEAT 3"), "compact upper-left HUD carries match state and clearly labeled round details")
 	context.expect_equal(client.network_world.arena.map_id, &"riftline", "client rebuilds the arena from the authoritative map ID")
 	context.expect_true(client.network_world.match_status_label.text.contains("RIFTLINE"), "combat HUD identifies the active round map")
-	var local_ship := client.network_world.ships[2] as SandboxShip
+	var local_ship := client.network_world.ships[2] as CombatShipView
 	local_ship.combatant.alive = false
 	local_ship.combatant.health = 0.0
 	local_ship.combatant.shield.energy = 64.0
@@ -772,13 +777,13 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.physical_keycode = KEY_TAB
 	tab_event.pressed = true
 	client.audio_director.gameplay_track_paths.clear()
-	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Heavy Electronic Edge Main.ogg")
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
 	client._input(tab_event)
 	context.expect_true(client.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
 	context.expect_true(client.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
-	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  HEAVY ELECTRONIC EDGE MAIN"), "scoreboard identifies the active gameplay song")
+	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  EDGE"), "scoreboard identifies the active gameplay song")
 	var live_kills := client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
 	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})
@@ -880,7 +885,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 2, "position": Vector2(640.0, 440.0), "velocity": Vector2(120.0, 0.0), "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 	]})
 	context.expect_true(client.network_world.visible and client.network_world.prediction_initialized, "second match initializes local rendering and prediction from its first snapshot")
-	context.expect_true((client.network_world.ships[2] as SandboxShip).local_control, "second-match ship is recognized as the local controllable ship")
+	context.expect_true((client.network_world.ships[2] as CombatShipView).local_control, "second-match ship is recognized as the local controllable ship")
 	client.connection_screen.visible = false
 	client._toggle_pause_overlay()
 	context.expect_true(client.pause_overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")

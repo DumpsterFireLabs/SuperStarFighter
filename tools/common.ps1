@@ -16,6 +16,13 @@ function Get-SsfGodotExecutable {
     return $SsfGodotExecutable
 }
 
+function Assert-SsfShippingPolicy {
+    & python (Join-Path $SsfRepositoryRoot 'tools/update-export-policy.py') --check
+    if ($LASTEXITCODE -ne 0) { throw 'Shipping resource allowlists are stale.' }
+    & python (Join-Path $SsfRepositoryRoot 'tools/verify-attribution.py')
+    if ($LASTEXITCODE -ne 0) { throw 'Attribution inventory verification failed.' }
+}
+
 function Assert-SsfPathWithinTools {
     param(
         [Parameter(Mandatory = $true)]

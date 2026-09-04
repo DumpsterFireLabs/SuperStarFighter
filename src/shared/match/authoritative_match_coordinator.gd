@@ -5,7 +5,7 @@ const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_sy
 const RespawnPlacementScript = preload("res://src/shared/combat/respawn_placement.gd")
 const MAX_RESPAWN_ATTEMPTS_PER_TICK: int = 2
 
-var observations = preload("res://src/shared/match/match_observations.gd").new()
+var observations: MatchObservations = preload("res://src/shared/match/match_observations.gd").new()
 
 var lobby: ServerLobby
 var world: AuthoritativeWorld
@@ -19,23 +19,35 @@ var current_map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 
 var _rng := RandomNumberGenerator.new()
 var _emitted_history_count: int = 0
-var _events: Array[Dictionary] = []
+var _events: Array[MatchEvent] = []
 var _private_offers: Array[Dictionary] = []
 var _finished: bool = false
 var _next_draft_bye_peer_id: int = 0
 var _next_draft_bye_peer_ids: Array[int] = []
 var _map_rotation: Array[StringName] = []
 var _map_round_number: int = 0
-var _objective_position: Vector2 = Vector2.ZERO
-var _objective_progress: Dictionary = {}
-var _objective_controller_id: int = 0
-var _objective_contested: bool = false
-var _flag_position: Vector2 = Vector2.ZERO
-var _flag_carrier_id: int = 0
-var _flag_dropped_seconds: float = 0.0
+var _hill := HillModeHandler.new()
+var _flag := FlagModeHandler.new()
+# Private compatibility views for existing studies/fixtures; handlers own storage.
+var _objective_position: Vector2:
+	get:
+		return _mode_state().position
+var _objective_progress: Dictionary:
+	get:
+		return _hill.state.progress
+	set(value):
+		_hill.state.progress.assign(value)
+var _flag_position: Vector2:
+	get:
+		return _flag.state.flag_position
+var _flag_carrier_id: int:
+	get:
+		return _flag.state.flag_carrier_id
 var _last_objective_broadcast_tick: int = -1
 var _team_assignments_cache: Dictionary = {}
-var _capture_zones_cache: Dictionary = {}
+var _capture_zones_cache: Dictionary:
+	get:
+		return _flag.state.capture_zones
 var _objective_view_cache: Dictionary = {}
 var _spawn_assignments_cache: Dictionary = {}
 var _respawn_deadlines: Dictionary = {}
@@ -102,14 +114,10 @@ func step(delta: float) -> void:
 				if not draft.all_locked():
 					draft.resolve_timeout()
 				var applied := draft.apply_locked_selections(machine.players)
-				_events.append({
-					"event_type": &"DRAFT_RESOLVED",
-					"server_tick": tick,
-					"payload": {
-						"selections": applied,
-						"builds": _public_builds(),
-					},
-				})
+				_events.append(MatchEvent.new(&"DRAFT_RESOLVED", tick, {
+					"selections": applied,
+					"builds": _public_builds(),
+				}))
 				machine.draft_completed(tick)
 				_capture_transitions()
 		MatchStateMachine.State.ACTIVE_HEAT:
@@ -135,11 +143,7 @@ func step(delta: float) -> void:
 				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
 					observations.record_pickup(int(payload.peer_id), lobby.config.random_powerups_permanent)
 					payload["builds"] = _public_builds()
-				_events.append({
-					"event_type": powerup_event.event_type,
-					"server_tick": tick,
-					"payload": payload,
-				})
+				_events.append(MatchEvent.new(powerup_event.event_type, tick, payload))
 			_sync_combat_and_resolve(tick)
 			if machine.state == MatchStateMachine.State.ACTIVE_HEAT:
 				_step_respawns(tick)
@@ -159,11 +163,7 @@ func select_card(peer_id: int, offer_token: String, card_id: StringName) -> int:
 		return DraftManager.SelectionResult.NO_ACTIVE_DRAFT
 	var result := draft.select_card(peer_id, offer_token, card_id)
 	if result == DraftManager.SelectionResult.ACCEPTED:
-		_events.append({
-			"event_type": &"DRAFT_READY",
-			"server_tick": world.server_tick,
-			"payload": {"ready_peer_ids": _ready_peer_ids()},
-		})
+		_events.append(MatchEvent.new(&"DRAFT_READY", world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
 	return result
 
 
@@ -186,20 +186,16 @@ func disconnect_peer(peer_id: int) -> void:
 		draft.withdraw_player(peer_id)
 	machine.disconnect_player(peer_id, world.server_tick)
 	if was_active_participant:
-		_events.append({
-			"event_type": &"PLAYER_ELIMINATED",
-			"server_tick": world.server_tick,
-			"payload": {
-				"peer_ids": [peer_id],
-				"eliminations": [{
-					"killer_id": 0,
-					"victim_id": peer_id,
-					"reason": "disconnect",
-				}],
+		_events.append(MatchEvent.new(&"PLAYER_ELIMINATED", world.server_tick, {
+			"peer_ids": [peer_id],
+			"eliminations": [{
+				"killer_id": 0,
+				"victim_id": peer_id,
 				"reason": "disconnect",
-				"scores": machine.score_snapshot(),
-			},
-		})
+			}],
+			"reason": "disconnect",
+			"scores": machine.score_snapshot(),
+		}))
 	_capture_transitions()
 
 
@@ -269,7 +265,9 @@ func extend_match() -> bool:
 
 
 func drain_events() -> Array[Dictionary]:
-	var result := _events.duplicate(true)
+	var result: Array[Dictionary] = []
+	for event in _events:
+		result.append(event.to_dictionary())
 	_events.clear()
 	return result
 
@@ -296,11 +294,7 @@ func _capture_transitions() -> void:
 			_select_map_for_round(int(transition.round_number))
 		if int(transition.state) == MatchStateMachine.State.COUNTDOWN:
 			_reset_objective_for_heat()
-		_events.append({
-			"event_type": &"STATE_CHANGED",
-			"server_tick": int(transition.entered_tick),
-			"payload": _state_payload(),
-		})
+		_events.append(MatchEvent.new(&"STATE_CHANGED", int(transition.entered_tick), _state_payload()))
 		_handle_state_entry(int(transition.state))
 
 
@@ -375,11 +369,7 @@ func _start_draft() -> void:
 			"deadline_tick": machine.state_deadline_tick,
 			"build_complete": offer.build_complete,
 		})
-	_events.append({
-		"event_type": &"DRAFT_READY",
-		"server_tick": world.server_tick,
-		"payload": {"ready_peer_ids": _ready_peer_ids()},
-	})
+	_events.append(MatchEvent.new(&"DRAFT_READY", world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
 
 
 func _prepare_world_heat() -> void:
@@ -489,17 +479,13 @@ func _sync_combat_and_resolve(tick: int) -> void:
 			var respawn_ticks := lobby.config.duration_to_ticks(GameModeRules.OBJECTIVE_RESPAWN_SECONDS)
 			for peer_id in newly_eliminated:
 				_respawn_deadlines[peer_id] = tick + respawn_ticks
-		_events.append({
-			"event_type": &"PLAYER_ELIMINATED",
-			"server_tick": tick,
-			"payload": {
-				"peer_ids": newly_eliminated,
-				"eliminations": _elimination_records(newly_eliminated, kill_events),
-				"reason": "combat",
-				"scores": machine.score_snapshot(),
-				"respawn_deadlines": _respawn_deadlines.duplicate(true),
-			},
-		})
+		_events.append(MatchEvent.new(&"PLAYER_ELIMINATED", tick, {
+			"peer_ids": newly_eliminated,
+			"eliminations": _elimination_records(newly_eliminated, kill_events),
+			"reason": "combat",
+			"scores": machine.score_snapshot(),
+			"respawn_deadlines": _respawn_deadlines.duplicate(true),
+		}))
 		machine.eliminate_players(newly_eliminated, tick)
 		_capture_transitions()
 
@@ -553,16 +539,12 @@ func _step_respawns(tick: int) -> void:
 		if not world.respawn_peer(peer_id, stats, spawn_position):
 			player.eliminate()
 			continue
-		_events.append({
-			"event_type": &"PLAYER_RESPAWNED",
-			"server_tick": tick,
-			"payload": {
-				"peer_id": peer_id,
-				"position": spawn_position,
-				"alive_peer_ids": machine.alive_participant_ids(),
-				"respawn_deadlines": _respawn_deadlines.duplicate(true),
-			},
-		})
+		_events.append(MatchEvent.new(&"PLAYER_RESPAWNED", tick, {
+			"peer_id": peer_id,
+			"position": spawn_position,
+			"alive_peer_ids": machine.alive_participant_ids(),
+			"respawn_deadlines": _respawn_deadlines.duplicate(true),
+		}))
 
 
 func _safe_respawn_position(peer_id: int) -> Vector2:
@@ -574,22 +556,18 @@ func _safe_respawn_position(peer_id: int) -> Vector2:
 
 func _reset_objective_for_heat() -> void:
 	_heat_time_limit_reached = false
-	_objective_position = GameModeRules.objective_spawn(
+	var position := GameModeRules.objective_spawn(
 		current_map_id,
 		machine.round_number if GameModeRules.uses_hill(lobby.config.game_mode) else 0
 	)
+	var hill_participants: Array[int] = []
+	if GameModeRules.uses_hill(lobby.config.game_mode):
+		hill_participants = machine.participant_ids()
+	_hill.reset(position, hill_participants)
+	_flag.reset(position)
 	_rebuild_objective_static_cache()
 	_respawn_deadlines.clear()
 	_respawn_retry_ticks.clear()
-	_objective_progress.clear()
-	if GameModeRules.uses_hill(lobby.config.game_mode):
-		for peer_id in machine.participant_ids():
-			_objective_progress[peer_id] = 0.0
-	_objective_controller_id = 0
-	_objective_contested = false
-	_flag_position = _objective_position
-	_flag_carrier_id = 0
-	_flag_dropped_seconds = 0.0
 	_last_objective_broadcast_tick = -1
 
 
@@ -603,121 +581,47 @@ func _step_game_mode(delta: float, tick: int) -> void:
 		var interval := maxi(GameConstants.PHYSICS_TICKS_PER_SECOND / 4, 1)
 		if _last_objective_broadcast_tick < 0 or tick - _last_objective_broadcast_tick >= interval:
 			_last_objective_broadcast_tick = tick
-			_events.append({
-				"event_type": &"OBJECTIVE_UPDATED",
-				"server_tick": tick,
-				"payload": {"objective": _objective_snapshot()},
-			})
+			_events.append(MatchEvent.objective_event(tick, _mode_state()))
 
 
 func _step_hill(delta: float, tick: int) -> void:
-	var occupants: Array[int] = []
-	for peer_id in machine.alive_participant_ids():
-		var combatant := world.combatants.get(peer_id) as CombatantState
-		if combatant != null and combatant.position.distance_to(_objective_position) <= GameModeRules.OBJECTIVE_ZONE_RADIUS:
-			combatant.cloak_remaining = 0.0
-			occupants.append(peer_id)
-	_objective_contested = occupants.size() > 1
-	if _objective_contested:
-		for peer_id in occupants:
-			observations.add_contribution(peer_id, "hill_contest_seconds", delta)
-	if occupants.size() != 1:
-		if _objective_controller_id != 0:
-			_objective_controller_id = 0
-			_emit_objective_transition(tick, &"HILL_CONTROL_LOST")
-		return
-	var controller_id := occupants[0]
-	observations.add_contribution(controller_id, "hill_control_seconds", delta)
-	if controller_id != _objective_controller_id:
-		_objective_controller_id = controller_id
-		if not _objective_progress.has(controller_id):
-			_objective_progress[controller_id] = 0.0
-		_emit_objective_transition(tick, &"HILL_CONTROLLER_CHANGED")
-	_objective_progress[controller_id] = float(_objective_progress.get(controller_id, 0.0)) + maxf(delta, 0.0)
-	if float(_objective_progress[controller_id]) >= GameModeRules.HILL_HOLD_SECONDS:
-		machine.finish_heat(controller_id, tick)
-		_capture_transitions()
+	_sync_objective_activity()
+	_consume_objective_result(_hill.step(delta, world, machine.alive_participant_ids(), observations), tick)
 
 
 func _step_flag(delta: float, tick: int) -> void:
-	if _flag_carrier_id != 0:
-		var carrier := world.combatants.get(_flag_carrier_id) as CombatantState
-		if carrier == null or not carrier.alive:
-			if carrier != null:
-				_flag_position = carrier.position
-			_flag_carrier_id = 0
-			_flag_dropped_seconds = 0.0
-			_emit_objective_transition(tick, &"FLAG_DROPPED")
-		else:
-			observations.add_contribution(_flag_carrier_id, "flag_carry_seconds", delta)
-			carrier.cloak_remaining = 0.0
-			_flag_position = carrier.position
-			var carrier_team := int(_team_assignments_cache.get(_flag_carrier_id, 0))
-			var capture_zone_id := carrier_team if GameModeRules.is_team_mode(lobby.config.game_mode) else _flag_carrier_id
-			var capture_position := _capture_zones_cache.get(capture_zone_id, Vector2.ZERO) as Vector2
-			if carrier.position.distance_to(capture_position) <= GameModeRules.OBJECTIVE_ZONE_RADIUS:
-				observations.add_contribution(_flag_carrier_id, "flag_captures")
-				if GameModeRules.is_team_mode(lobby.config.game_mode):
-					machine.finish_team_heat(carrier_team, tick)
-				else:
-					machine.finish_heat(_flag_carrier_id, tick)
-				_capture_transitions()
-				return
-	if _flag_carrier_id == 0:
-		var pickup_id := 0
-		var nearest_distance := INF
-		for peer_id in machine.alive_participant_ids():
-			var combatant := world.combatants.get(peer_id) as CombatantState
-			if combatant == null:
-				continue
-			var distance := combatant.position.distance_to(_flag_position)
-			if distance <= GameModeRules.FLAG_PICKUP_RADIUS and distance < nearest_distance:
-				pickup_id = peer_id
-				nearest_distance = distance
-		if pickup_id != 0:
-			_flag_carrier_id = pickup_id
-			observations.add_contribution(pickup_id, "flag_pickups")
-			(world.combatants[pickup_id] as CombatantState).cloak_remaining = 0.0
-			_flag_position = (world.combatants[pickup_id] as CombatantState).position
-			_flag_dropped_seconds = 0.0
-			_emit_objective_transition(tick, &"FLAG_PICKED_UP")
-		else:
-			_flag_dropped_seconds += maxf(delta, 0.0)
-			if _flag_position != _objective_position and _flag_dropped_seconds >= GameModeRules.FLAG_RESET_SECONDS:
-				_flag_position = _objective_position
-				_flag_dropped_seconds = 0.0
-				_emit_objective_transition(tick, &"FLAG_RESET")
+	_sync_objective_activity()
+	_consume_objective_result(_flag.step(delta, world, machine.alive_participant_ids(), observations), tick)
 
 
-func _emit_objective_transition(tick: int, action: StringName) -> void:
-	_events.append({
-		"event_type": &"OBJECTIVE_TRANSITION",
-		"server_tick": tick,
-		"payload": {"action": action, "objective": _objective_snapshot()},
-	})
+func _consume_objective_result(result: ObjectiveStepResult, tick: int) -> void:
+	for transition in result.transitions:
+		_events.append(MatchEvent.objective_event(tick, transition.objective, transition.action))
+	# Handler contributions and intermediate transitions precede result payloads.
+	if result.winner_team_id != 0:
+		machine.finish_team_heat(result.winner_team_id, tick)
+		_capture_transitions()
+	elif result.winner_peer_id != 0:
+		machine.finish_heat(result.winner_peer_id, tick)
+		_capture_transitions()
+
+
+func _mode_state() -> ObjectiveState:
+	return _hill.state if GameModeRules.uses_hill(lobby.config.game_mode) else _flag.state
+
+
+func _sync_objective_activity() -> void:
+	_mode_state().active = machine.state in [MatchStateMachine.State.COUNTDOWN, MatchStateMachine.State.ACTIVE_HEAT]
 
 
 func _objective_snapshot() -> Dictionary:
-	return _objective_state_view().duplicate(true)
+	_sync_objective_activity()
+	return _mode_state().to_dictionary()
 
 
 func _objective_state_view() -> Dictionary:
-	var mode := lobby.config.game_mode
-	_objective_view_cache.active = machine.state in [MatchStateMachine.State.COUNTDOWN, MatchStateMachine.State.ACTIVE_HEAT]
-	_objective_view_cache.mode = mode
-	_objective_view_cache.mode_name = GameModeRules.mode_name(mode)
-	_objective_view_cache.position = _objective_position
-	_objective_view_cache.zone_radius = GameModeRules.OBJECTIVE_ZONE_RADIUS
-	if GameModeRules.uses_hill(mode):
-		_objective_view_cache.controller_id = _objective_controller_id
-		_objective_view_cache.contested = _objective_contested
-		_objective_view_cache.progress = _objective_progress
-		_objective_view_cache.target_seconds = GameModeRules.HILL_HOLD_SECONDS
-	elif GameModeRules.uses_flag(mode):
-		_objective_view_cache.flag_position = _flag_position
-		_objective_view_cache.flag_carrier_id = _flag_carrier_id
-		_objective_view_cache.pickup_radius = GameModeRules.FLAG_PICKUP_RADIUS
-		_objective_view_cache.capture_zones = _capture_zones_cache
+	_sync_objective_activity()
+	_mode_state().write_view(_objective_view_cache)
 	return _objective_view_cache
 
 
@@ -732,25 +636,9 @@ func _rebuild_team_assignments_cache() -> void:
 
 
 func _rebuild_objective_static_cache() -> void:
-	_capture_zones_cache.clear()
-	var mode := lobby.config.game_mode
-	if GameModeRules.uses_flag(mode):
-		if GameModeRules.is_team_mode(mode):
-			for team_id in range(1, GameModeRules.team_count_for_mode(mode, lobby.config.team_count) + 1):
-				_capture_zones_cache[team_id] = GameModeRules.capture_zone(mode, team_id, current_map_id)
-		else:
-			for peer_id in machine.participant_ids():
-				_capture_zones_cache[peer_id] = _spawn_assignments_cache.get(
-					peer_id,
-					GameModeRules.capture_zone(mode, peer_id, current_map_id)
-				)
-	_objective_view_cache = {
-		"active": false,
-		"mode": mode,
-		"mode_name": GameModeRules.mode_name(mode),
-		"position": _objective_position,
-		"zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS,
-	}
+	_flag.configure(lobby.config.game_mode, current_map_id, lobby.config.team_count,
+		machine.participant_ids(), _team_assignments_cache, _spawn_assignments_cache)
+	_objective_view_cache.clear()
 
 
 func _state_payload() -> Dictionary:

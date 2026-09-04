@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
+Assert-SsfShippingPolicy
 
 $isArm64 = $Architecture -eq 'arm64'
 $presetName = if ($isArm64) { 'Linux ARM64 Beta 10' } else { 'Linux Beta 10' }
@@ -17,6 +18,7 @@ $clientPath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta10.ar
 $archivePath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta10-Linux-arm64.zip' } else { 'SuperStarFighter-Beta10-Linux-x64.zip' })
 $friendReadme = Join-Path $buildRoot 'README-BETA-LINUX.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES-LINUX.txt'
+$engineNotices = Join-Path $buildRoot 'GODOT_COPYRIGHT.txt'
 $expectedMachineByte = if ($isArm64) { 0xb7 } else { 0x3e }
 $architectureDescription = if ($isArm64) { 'ARM64/AArch64' } else { 'x86_64' }
 
@@ -62,6 +64,8 @@ if ($exportExitCode -ne 0) {
 if (-not (Test-Path -LiteralPath $clientPath -PathType Leaf)) {
     throw "Linux export did not create $clientPath."
 }
+& python (Join-Path $PSScriptRoot 'audit-package.py') $clientPath --output (Join-Path $buildRoot "linux-$Architecture-package-audit.json")
+if ($LASTEXITCODE -ne 0) { throw 'Linux package resource audit failed.' }
 
 $stream = [System.IO.File]::OpenRead($clientPath)
 try {
@@ -87,7 +91,8 @@ if (-not $binaryText.Contains($expectedGameVersion)) {
 
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices
-Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices) -DestinationPath $archivePath -CompressionLevel Optimal -Force
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt') -Destination $engineNotices
+Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices, $engineNotices) -DestinationPath $archivePath -CompressionLevel Optimal -Force
 
 $clientHash = (Get-FileHash -LiteralPath $clientPath -Algorithm SHA256).Hash
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash

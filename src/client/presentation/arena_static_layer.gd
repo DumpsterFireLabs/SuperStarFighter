@@ -52,12 +52,7 @@ func _draw_grid() -> void:
 
 
 static func material_for_map(value: StringName) -> StringName:
-	match value:
-		&"dead_freight", &"switchyard": return &"cargo"
-		&"prism_array", &"riftline": return &"crystal"
-		&"twin_suns", &"solar_tide": return &"thermal"
-		&"broken_orbit": return &"stone"
-		_: return &"station"
+	return ArenaLayout.material_family(value)
 
 
 func _draw_rect_material(rectangle: Rect2, palette: Dictionary, index: int) -> void:

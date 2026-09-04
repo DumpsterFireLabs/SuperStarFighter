@@ -122,17 +122,17 @@ The client may predict local movement and shots for responsiveness, but it never
 
 ### Main layers
 
-- `NetworkBridge` owns ENet lifecycle, RPC direction, admission, rate limiting, serialization cadence, and logs.
+- `NetworkBridge` retains every RPC name/annotation, validation boundary, gameplay coordination, and measured outer server callback. `NetworkSessionOwner` owns transport/admission, authentication throttles, source bans, callbacks and teardown. `NetworkReplicationScheduler` owns packet cadence, correction cursors/assembly, and outbound accounting. Typed owners avoid reflective forwarding and new per-tick collections.
 - `ServerLobby` owns participant records, leadership, readiness, player limits, NPC fill, game-mode/team assignment, timed-powerup configuration, player colours, and lobby permissions.
-- `AuthoritativeMatchCoordinator` connects draft, match state, combat world, timed card powerups, map-safe hill/flag objectives, and reliable match events.
+- `AuthoritativeMatchCoordinator` connects draft, match state, combat world and powerups, and remains the sole heat-transition owner. `HillModeHandler` and `FlagModeHandler` own typed objective state and stepping, returning typed outcomes and transition snapshots. `MatchEvent` queues serialize through the existing dictionary boundary; intermediate drop/pickup snapshots cannot be overwritten by later same-tick transitions.
 - Every heat has a server-owned deadline 60 seconds after overtime begins. Unresolved Hill heats use the sole control-time leader (ties draw); other unresolved modes draw. Flag safe circles retain every base. `RespawnPlacement` scores clear positions inside the current safe circle against nearby enemies, incoming projectile paths, and mines, with a cached spatial threat index and at most two attempts per tick. Blocked respawns retry after half a second. Pickups are capped at eight, expire after 60 seconds, and leave the world through reliable removal events when they expire or fall outside overtime.
 - Player replication shares a public body without cloaked combatants; only a cloaked owner's packet includes their hidden record and private correction trailer. Client disappearance clears ship, interpolation, and feedback history. Hill occupancy and flag pickup/carrying reveal cloak. Homing missiles and magnetic mines retain their existing interactions, so their public trajectories may provide clues.
-- Static stars, grid, cover, and map labels draw through `ArenaStaticLayer`; animated objective/overtime redraws stay in `SandboxArena`. Map changes invalidate static canvas commands. Objective ownership and navigation use the authoritative objective payload and local pilot/team identity.
+- Static stars, grid, cover, and map labels draw through `ArenaStaticLayer`; animated objective/overtime redraws stay in `ArenaView`. Map changes invalidate static canvas commands. Objective ownership and navigation use the authoritative objective payload and local pilot/team identity.
 - Draft offers and manual acquisition remain unlimited. NPC and timeout choices prefer offered cards with at least one effective stat benefit or newly enabled mechanic, falling back to the full offer when none qualify. The UI flags picks with no effective benefit. This does not rebalance overflow or remove drawbacks.
 - `AuthoritativeWorld` owns deterministic per-tick combat state, including team-aware damage exclusion.
 - `OfflineSandbox` runs the same `AuthoritativeWorld` as online play. `LabPanel` provides searchable cards, stack editing, five build presets, target count/health/distance and shield/fire/strafe settings, encounter reset, and measurement reset. Editing pauses the local range. Damage and DPS come from resolved hull damage; overkill and shield blocks are excluded, while missed shots and reload time remain in the active measurement window. Targets stay down until reset.
 - `CombatFeedbackBuffer` coalesces authoritative hits, outgoing blocked shots, defender blocks, and the latest death recap into one bounded accumulator per recipient. The bridge drains it at 20 Hz over reliable private control events. Confirmations contain no target identity or position; recaps identify the source, killer and relevant mechanic, with life generation for stale-message rejection. Mine detonation visuals use separate actual-detonation events, never inferred projectile removals.
-- `NetworkWorldView` turns authoritative state into predicted/interpolated client presentation.
+- `NetworkWorldView` coordinates lifecycle, match state and snapshot ordering. Persistent `NetworkLocalPrediction`, `NetworkReplicatedVisuals`, and `NetworkHudCamera` owners hold sampled input/replay, replicated drawing/interpolation, and HUD/camera/spectating state respectively. Compatibility accessors are explicit; hot paths call owners directly. Shared `ArenaView`, `CombatShipView`, and `ProjectileLayer` live in `client/presentation` and are used online and in the lab.
 - `ClientMain` coordinates navigation, gameplay visibility/input blocking, and match presentation. `ui/settings_controller.gd` owns settings controls, accessibility/video preferences, binding capture and its timeout; `ui/connection_controller.gd` owns connection forms, LAN discovery, the embedded hosted runtime, lobby controls and appearance/password persistence. Both controllers are attached during root initialization so their lifetime follows the client. Explicit root accessors retain the existing capture/test interface without duplicating screen state. The shared `screen_navigation.gd` helper handles scoped joypad tab selection for both screens.
 - `combat_tutorial.gd` drives seven action-based exercises inside the shared offline world: movement, confirmed hull damage, a completed manual reload, a real shield block, a real Perfect Guard, selecting/activating Afterburner, and a draft choice with effective stat changes. Training uses slow, low-damage practice fire but preserves real shield geometry and Perfect Guard timing. Retry/restart remain available; skipping, returning to the lab after completion, or leaving the range restores the saved lab build and target settings.
 
@@ -271,9 +271,9 @@ Do not reintroduce a card cap in UI, resources, draft eligibility, or build stat
 A new card-modifiable stat usually requires coordinated changes:
 
 1. Define its base value in `CombatStats` or `GameConstants`.
-2. Add it to `CombatStats.get_stat_property_names()` so duplication and comparisons preserve it.
-3. Add it to `StatSystem.FLOAT_STATS` or `INTEGER_STATS`.
-4. Add a generous technical clamp in `StatSystem._apply_clamps()`.
+2. Add one descriptor in `StatMetadata.DEFINITIONS`: full/compact names, unit, lower/upper guardrails, integer flag, and higher/lower/contextual polarity. Specify a dependent upper-bound property when needed.
+3. Numeric property lists, integer/float groups, duplication, limit application and presentation are derived from that metadata. Do not add another naming or clamp table.
+4. For a new special behavior, add its enabled-property mapping to `StatMetadata.SPECIAL_FLAGS`.
 5. Consume the derived value in authoritative gameplay.
 6. Mirror it in local prediction where the same simulation runs client-side.
 7. Transport any presentation-critical derived result that clients cannot reconstruct.
@@ -284,7 +284,7 @@ Treat clamps as encoding/physics guardrails rather than quiet balance caps. The 
 
 ## 8. UI and Presentation Work
 
-The production UI is created by `ClientMain` with dedicated settings and connection/lobby controllers, and supports sixteen selectable resolutions across windowed and exclusive-fullscreen modes, including 2880×1920; borderless fullscreen follows the desktop resolution. Godot uses a 1920×1080 virtual canvas with `canvas_items` stretch and `expand` aspect, so alternate aspect ratios expose more world without nonuniform distortion.
+The production UI is created by `ClientMain` with dedicated settings, connection/lobby, draft and standings controllers, and supports sixteen selectable resolutions across windowed and exclusive-fullscreen modes, including 2880×1920; borderless fullscreen follows the desktop resolution. Godot uses a 1920×1080 virtual canvas with `canvas_items` stretch and `expand` aspect, so alternate aspect ratios expose more world without nonuniform distortion.
 
 Any material UI change should be checked at minimum at:
 
@@ -425,11 +425,11 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 10 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Only the Windows x64 Beta 10 package has been built so far; Beta 9 remains the latest Linux and macOS package set. Beta 1 through Beta 9 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing/notarization, and final release-candidate artifact checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 10 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Only the Windows x64 Beta 10 package has been built so far; Beta 9 remains the latest Linux and macOS package set. Beta 1 through Beta 9 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
-Until those pieces land, treat the repository bootstrap/start scripts as the supported distribution path for playtests.
+The review-validation client and dedicated-server artifacts are local verification builds, not a new tester-facing beta release. Bootstrap/start scripts remain available for source playtests.
 
 
 ## Gameplay observations and repeatable studies
@@ -441,3 +441,33 @@ Until those pieces land, treat the repository bootstrap/start scripts as the sup
 Run the real preset/rematch RPC acceptance with Godot `--headless --path . --script res://src/test/lobby_flow_verifier.gd`. It verifies host and guest authority, atomic presets, replicated fresh results, and build/score resets over localhost ENet. Compatibility 30 is required because the RPC surface changed (presets/rematches in 29, competitive view in 30); binary input and snapshot formats remain version 12.
 
 The same lobby-flow fixture now verifies guest rejection, host replication, midmatch locking, and rematch retention for competitive view. Run `--headless --path . --script res://src/test/competitive_view_verifier.gd` for six-resolution resize, camera-world extent, aim-center, and expanded-layout restoration checks. The production presentation gate also records `competitive_combat` at all six resolutions.
+
+## Map resources and typed comparison contracts
+
+All ten shipped maps are explicit `MapDefinition` resources under `resources/maps/`, preloaded in ordered `MapRegistry.DEFINITIONS`. Identity, geometry, all 32 full-precision spawn anchors, palette, material family and central decoration radius live in those resources. `ArenaLayout` retains the compatibility/query facade. Registry validation rejects malformed geometry, unknown material families, invalid/missing or duplicate identity, and unsafe/overlapping spawns before publishing cached read-only cover/circle/palette views. Spawn callers receive their own array for shuffle/selection. To add a map, author its resource, register it once, and pass geometry, egress/navigation, all-mode objective and capture checks. Dynamic hazards remain separate future work.
+
+`StatSystem.compare_pick_typed` returns `StatChange` values directly to card preview, lab and tutorial logic; `CardIdentity.summarize_typed` consumes them. The old dictionary comparison/summary APIs are compatibility adapters. `CardDetailsText.modifier_rows` supplies one nominal effect formatter to accessible tooltips and graphical hovers; `StatMetadata` also formats effective values and lab stats. Counts, seconds, degrees, rates, multipliers and fractional percentages have explicit units.
+
+Typed contracts deliberately focus on mutable objectives, transitions, queued event envelopes and effective stat comparisons. General match payload contents, score/build dictionaries, observation rows and existing transport decoders remain explicit compatibility boundaries; this is not a claim that every dictionary has been removed. RPC schemas, packet layouts and protocol 30 remain unchanged.
+
+Regression fixtures in `tests/fixtures/map_layout_baseline.json` and `stat_derivation_baseline.json` were captured from `bca4185` before this extraction. They preserve every shipped map coordinate/palette and full-precision hashes for all 136 cards at 1/3/20 stacks. They detect unintended geometry or gameplay drift; update them only alongside a deliberate reviewed rules/content change.
+
+## Impaired delivery and shipping verification
+
+```powershell
+python tools/verify-network-impairment.py
+python tools/update-export-policy.py --check
+python tools/verify-attribution.py
+./tools/build-server.ps1
+./tools/verify-soak.ps1 -ClientCount 32 -DurationSeconds 90 -ServerExecutable builds/server/SuperStarFighter-Server.exe
+```
+
+The impairment harness needs Python 3.11+ and the bootstrapped engine. It binds only loopback UDP, starts a hidden Godot child and changes no firewall or operating-system network rules. Baseline, latency/jitter, loss, reorder/duplication, blackout and combined profiles affect real ENet traffic in both directions, including control traffic. `.tools/network-impairment/` reports observed datagram counters, replay high-water marks, transient ammo disagreement and final resource convergence. The controlled heat uses production input sampling, prediction, authority and replication with a fixed fixture build. Full match transitions and population load have separate gates. `--profile`, `--seed` and `--port` select a bounded run.
+
+Ability presses retain their original identity/slot until the server's private correction acknowledges consumption, or at most 1.25 seconds. An input acknowledgement alone does not prove the press arrived. Server identity deduplication prevents repeated spending. Countdown, death/revival, blocked controls and disconnect cancel pending delivery. There is no new RPC, packet field or reliable backlog.
+
+`tools/update-export-policy.py` generates selected-resource lists for all presets. Run it after adding/removing runtime files. Shared roots include server/shared scripts, bootstrap/server scenes, cards and maps; clients additionally include client/gameplay scenes, client scripts and assets. Tests, tools, reports and unknown roots are excluded before compilation. Filtering only in an export callback is insufficient because a compiler plugin may already have emitted bytecode.
+
+`tools/audit-package.py` checks the actual PCK directory, per-entry MD5, allowed resource/remap targets and required content. It supports embedded Windows/Linux packs and a macOS ZIP containing one PCK. Build scripts validate allowlist freshness and attribution inventory, audit packs, and include both engine notice files. Native cross-platform acceptance remains separate. `build-server.ps1` also runs foundation and starts the executable outside the source directory without `--path` or `--server`. The export feature selects dedicated-server mode; stripped test/bot modes are unavailable in shipping builds.
+
+The Windows server uses the official engine template with about 532 KB of game resources; renderer code is not compiled out of the engine binary. `verify-soak.ps1 -ServerExecutable` uses the packaged authority with source-based load clients and records that distinction. Release templates report zero for Godot's debug static-memory monitor; treat this as unavailable, not a zero-memory claim. Representative OS memory measurement remains R25. See [the attribution inventory](./ATTRIBUTION.md) for asset-origin records and unresolved owner confirmations.

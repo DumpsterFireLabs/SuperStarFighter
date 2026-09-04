@@ -13,6 +13,7 @@ var input_ages: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
 var spatial_index := CombatSpatialIndexScript.new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+var movement_fields: Array[Resource] = []
 var team_assignments: Dictionary = {}
 var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
@@ -116,7 +117,7 @@ func step(
 			if float(input_ages[peer_id]) > float(input_timeouts[peer_id]):
 				frame = PlayerInputFrame.new(frame.sequence, server_tick, Vector2.ZERO, frame.aim_angle)
 				latest_inputs[peer_id] = frame
-		var actions := combatant.step_input(frame, delta)
+		var actions := ArenaMovementSystem.step_input_with_fields(combatant, frame, delta, movement_fields)
 		if actions & CombatantState.ACTION_MINE:
 			_spawn_mine(combatant)
 		if actions & CombatantState.ACTION_MISSILE:
@@ -199,6 +200,7 @@ func respawn_peer(peer_id: int, stats: CombatStats, spawn_position: Vector2) -> 
 
 func set_map_id(value: StringName) -> void:
 	map_id = ArenaLayout.normalized_map_id(value)
+	movement_fields = ArenaLayout.movement_fields(map_id)
 	# These dictionaries reference immutable entries owned by ArenaCollisionSystem's
 	# shared geometry cache. Detach from them instead of clearing the cache entry.
 	_projectile_geometry_normal = {}

@@ -155,14 +155,14 @@ static func _team_presentation(context: TestContext, parent: Node) -> void:
 	for id in [1, 2, 3]:
 		world.add_peer(id)
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(1, 0, world.snapshot_states(), (world.combatants[1] as CombatantState).prediction_state())))
-	var ally := view.ships[2] as SandboxShip
-	var enemy := view.ships[3] as SandboxShip
+	var ally := view.ships[2] as CombatShipView
+	var enemy := view.ships[3] as CombatShipView
 	context.expect_equal(ally.team_marker_text(), "T1 ALLY", "ally has explicit team identity independent of cosmetic color")
 	context.expect_equal(enemy.team_marker_text(), "T8 ENEMY", "eighth team retains an explicit enemy number and label")
 	context.expect_true(ally.allied_to_local and not enemy.allied_to_local, "ship marker shape follows authoritative allegiance")
 	context.expect_equal(view.projectile_layer.projectile_color_for_owner(3), GameModeRules.team_color(8), "team projectile color follows ownership rather than weapon rarity")
 	context.expect_true(view.projectile_layer.is_friendly_owner(2), "friendly ordnance uses the ally marker")
-	var local_position := (view.ships[1] as SandboxShip).global_position
+	var local_position := (view.ships[1] as CombatShipView).global_position
 	view.authoritative_projectiles.add(ProjectileState.create(1, 2, 1, local_position - Vector2(200, 0), 0.0, CombatStats.create_base()))
 	view._refresh_nearest_incoming_projectile()
 	context.expect_true(view.nearest_incoming_offscreen_projectile() == null, "friendly projectiles do not produce hostile incoming warnings")

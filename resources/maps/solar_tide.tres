@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MapDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/shared/arena/map_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/shared/arena/arena_movement_field_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Resource_solar_current"]
+script = ExtResource("2")
+field_id = &"solar_current"
+display_name = "Solar Current"
+center = Vector2(1600, 900)
+inner_radius = 245.0
+outer_radius = 455.0
+clockwise = true
+maximum_speed_multiplier = 1.18
+flow_input_strength = 0.16
+feather_width = 48.0
+
+[resource]
+script = ExtResource("1")
+map_id = &"solar_tide"
+display_name = "Solar Tide"
+cover = Array[Rect2]([Rect2(660.0, 475.0, 520.0, 90.0), Rect2(2020.0, 475.0, 520.0, 90.0), Rect2(660.0, 1235.0, 520.0, 90.0), Rect2(2020.0, 1235.0, 520.0, 90.0)])
+circles = Array[Vector3]([Vector3(1600.0, 900.0, 135.0)])
+spawns = Array[Vector2]([Vector2(400.0, 140.0), Vector2(400.0, 1660.0), Vector2(742.8571166992188, 140.0), Vector2(742.8571166992188, 1660.0), Vector2(1085.7142333984375, 140.0), Vector2(1085.7142333984375, 1660.0), Vector2(1428.5714111328125, 140.0), Vector2(1428.5714111328125, 1660.0), Vector2(1771.4285888671875, 140.0), Vector2(1771.4285888671875, 1660.0), Vector2(2114.28564453125, 140.0), Vector2(2114.28564453125, 1660.0), Vector2(2457.142822265625, 140.0), Vector2(2457.142822265625, 1660.0), Vector2(2800.0, 140.0), Vector2(2800.0, 1660.0), Vector2(180.0, 320.0), Vector2(3020.0, 320.0), Vector2(180.0, 485.71429443359375), Vector2(3020.0, 485.71429443359375), Vector2(180.0, 651.4285888671875), Vector2(3020.0, 651.4285888671875), Vector2(180.0, 817.1428833007812), Vector2(3020.0, 817.1428833007812), Vector2(180.0, 982.8571166992188), Vector2(3020.0, 982.8571166992188), Vector2(180.0, 1148.5714111328125), Vector2(3020.0, 1148.5714111328125), Vector2(180.0, 1314.2857666015625), Vector2(3020.0, 1314.2857666015625), Vector2(180.0, 1480.0), Vector2(3020.0, 1480.0)])
+movement_fields = Array[Resource]([SubResource("Resource_solar_current")])
+central_radius = 0.0
+material_family = &"thermal"
+border_color = Color(1.0, 0.4, 0.8313725490196079, 1.0)
+floor_color = Color(0.07450980392156863, 0.050980392156862744, 0.1411764705882353, 1.0)
+line_color = Color(0.4, 0.9607843137254902, 1.0, 1.0)
+obstacle_color = Color(0.2235294117647059, 0.12549019607843137, 0.30196078431372547, 1.0)

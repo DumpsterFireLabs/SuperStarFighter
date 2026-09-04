@@ -100,7 +100,7 @@ func _process(_delta: float) -> bool:
 				audio.play_weapon_shot(profiles[owner % profiles.size()], owner, volley + 100, position, Vector2.ZERO, owner == 1)
 			if volley % 4 == 0:
 				audio.play_sfx(&"mine_detonated", "mine:%d" % volley, -5, {"local": false, "position": Vector2(500, 0), "listener_position": Vector2.ZERO})
-		if cue_index < 6 and elapsed >= 2.0 + cue_index * 1.3:
+		if cue_index < cue_events.size() and elapsed >= 2.0 + cue_index * 1.3:
 			audio.play_sfx(cue_events[cue_index], "priority:%d" % cue_index, 0, {"local": true})
 			cue_index += 1
 		if elapsed >= 12.0:

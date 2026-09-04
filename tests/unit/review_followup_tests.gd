@@ -46,7 +46,7 @@ static func _cloak_replication(context: TestContext, parent: Node) -> void:
 	hidden.position = Vector2(1400, 900)
 	hidden.health = 50.0
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.assemble(13, 0, PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 1))))
-	context.expect_equal((view.ships[2] as SandboxShip).global_position, hidden.position, "reveal starts at fresh position without interpolation through hidden travel")
+	context.expect_equal((view.ships[2] as CombatShipView).global_position, hidden.position, "reveal starts at fresh position without interpolation through hidden travel")
 	context.expect_equal(float(view.presentation_states[2].health), 50.0, "reveal initializes feedback at current health")
 	client.latest_match_payload = {"game_mode": GameModeRules.Mode.KING_OF_THE_HILL, "objective": {"mode": GameModeRules.Mode.KING_OF_THE_HILL, "controller_id": 0, "progress": {1: 5.0, 2: 5.0}}}
 	context.expect_true(client._objective_status_text().contains("NEUTRAL"), "empty hill is not mislabeled contested")
@@ -119,7 +119,7 @@ static func _automatic_drafts(context: TestContext) -> void:
 
 
 static func _objective_presentation(context: TestContext, parent: Node) -> void:
-	var arena := SandboxArena.new()
+	var arena := ArenaView.new()
 	parent.add_child(arena)
 	arena.local_peer_id = 7
 	arena.local_team_id = 2

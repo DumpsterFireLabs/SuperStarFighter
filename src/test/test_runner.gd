@@ -1,5 +1,7 @@
 extends Node
 
+const AbilityDeliveryTests = preload("res://tests/unit/ability_delivery_tests.gd")
+
 const InputProfileTestsScript = preload("res://tests/unit/input_profile_tests.gd")
 const CombatCorrectnessTestsScript = preload("res://tests/unit/combat_correctness_tests.gd")
 const GameplayGapTestsScript = preload("res://tests/unit/gameplay_gap_tests.gd")
@@ -19,11 +21,29 @@ const CompetitiveViewTests = preload("res://tests/unit/competitive_view_tests.gd
 const CollisionQueryOptimizationTests = preload("res://tests/unit/collision_query_optimization_tests.gd")
 const ScreenControllerTests = preload("res://tests/unit/screen_controller_tests.gd")
 const AudioMixTests = preload("res://tests/unit/audio_mix_tests.gd")
+const MapResourceTests = preload("res://tests/unit/map_resource_tests.gd")
+const StatMetadataTests = preload("res://tests/unit/stat_metadata_tests.gd")
+const NetworkOwnershipTests = preload("res://tests/unit/network_ownership_tests.gd")
+const ObjectiveContractTests = preload("res://tests/unit/objective_contract_tests.gd")
+const NetworkViewOwnershipTests = preload("res://tests/unit/network_view_ownership_tests.gd")
+const ArenaMovementFieldTests = preload("res://tests/unit/arena_movement_field_tests.gd")
 var _context := TestContext.new()
 
 
 func _ready() -> void:
+	if "--r22-only" in OS.get_cmdline_user_args():
+		ArenaMovementFieldTests.run(_context, self)
+		print("R22_TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
+		get_tree().quit(0 if _context.failed == 0 else 1)
+		return
 	_run_foundation_tests()
+	MapResourceTests.run(_context)
+	AbilityDeliveryTests.run(_context)
+	StatMetadataTests.run(_context)
+	NetworkOwnershipTests.run(_context)
+	ObjectiveContractTests.run(_context)
+	NetworkViewOwnershipTests.run(_context, self)
+	ArenaMovementFieldTests.run(_context, self)
 	CompetitiveViewTests.run(_context, self)
 	CollisionQueryOptimizationTests.run(_context)
 	ScreenControllerTests.run(_context, self)
@@ -51,7 +71,6 @@ func _ready() -> void:
 	CardIdentityTestsScript.run(_context, self)
 	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)
-	preload("res://tests/unit/stat_metadata_tests.gd").run(_context)
 	await preload("res://tests/unit/graphical_language_tests.gd").run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):

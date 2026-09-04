@@ -10,6 +10,7 @@ const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_s
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
 const PRESET_NAMES: Array[String] = ["Base ship", "Rapid scatter", "Beam specialist", "Shield tank", "All abilities"]
+const LAB_MAP_IDS: Array[StringName] = [&"core_arena", &"solar_tide"]
 const PRESET_BUILDS: Array[Dictionary] = [
 	{}, {&"rapid_cycling": 2, &"twin_shot": 2, &"extended_magazine": 2},
 	{&"beam_emitter": 1, &"heavy_rounds": 2, &"quick_loader": 2},
@@ -24,13 +25,13 @@ var selected_card_index: int = 0
 var selected_special_slot: int = -1
 var derived_stats: CombatStats = CombatStats.create_base()
 var world := AuthoritativeWorld.new()
-var player: SandboxShip
-var targets: Array[SandboxShip] = []
+var player: CombatShipView
+var targets: Array[CombatShipView] = []
 var ships_by_id: Dictionary = {}
 var projectile_registry: ProjectileRegistry
-var projectile_layer: SandboxProjectileLayer
+var projectile_layer: ProjectileLayer
 var effects_layer: CombatEffectsLayer
-var arena: SandboxArena
+var arena: ArenaView
 var camera: Camera2D
 var status_label: Label
 var feedback_label: Label
@@ -75,11 +76,11 @@ var tutorial: RefCounted
 
 
 func _ready() -> void:
-	arena = SandboxArena.new()
+	arena = ArenaView.new()
 	arena.name = "Arena"
 	add_child(arena)
 	projectile_registry = world.projectile_registry
-	projectile_layer = SandboxProjectileLayer.new()
+	projectile_layer = ProjectileLayer.new()
 	projectile_layer.name = "Projectiles"
 	projectile_layer.registry = projectile_registry
 	add_child(projectile_layer)
@@ -169,7 +170,7 @@ func step_lab(delta: float, frame: PlayerInputFrame) -> void:
 func _presentation_states() -> Dictionary:
 	var result: Dictionary = {}
 	for peer_id in ships_by_id:
-		var ship := ships_by_id[peer_id] as SandboxShip
+		var ship := ships_by_id[peer_id] as CombatShipView
 		result[peer_id] = {"alive": ship.combatant.alive, "health": ship.combatant.health, "shot": ship.combatant.weapon.shot_sequence, "boost": ship.combatant.afterburner_remaining, "vent": ship.combatant.kinetic_vent_feedback_remaining}
 	return result
 
@@ -180,11 +181,12 @@ func _sync_presentation(before: Dictionary) -> void:
 		kills[int(event.target_id)] = int(event.killer_id)
 	var eliminations: Array[Dictionary] = []
 	for peer_id in ships_by_id:
-		var ship := ships_by_id[peer_id] as SandboxShip
+		var ship := ships_by_id[peer_id] as CombatShipView
 		var state := ship.combatant
 		var previous: Dictionary = before[peer_id]
 		ship.global_position = state.position
 		ship.velocity = state.velocity
+		ship.set_movement_field_strength(ArenaMovementSystem.influence_at(state.position, world.map_id))
 		if previous.alive and not state.alive:
 			ship.set_eliminated()
 			var killer := int(kills.get(peer_id, 0))
@@ -218,7 +220,7 @@ func _consume_feedback() -> void:
 	var recipients: Dictionary = world.drain_combat_feedback()
 	for peer_id in recipients:
 		var event: Dictionary = recipients[peer_id]
-		var ship := ships_by_id.get(int(peer_id)) as SandboxShip
+		var ship := ships_by_id.get(int(peer_id)) as CombatShipView
 		if int(event.get("guard_count", 0)) > 0 and ship != null:
 			if not bool(accessibility.get("reduced_flashes", false)):
 				ship.flash_shield_block()
@@ -312,7 +314,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _create_ships() -> void:
 	for index in TARGET_COUNT + 1:
-		var ship := SandboxShip.new()
+		var ship := CombatShipView.new()
 		var state := world.add_peer(index + 1)
 		ship.setup(index + 1, state.stats, state.position, Color("42e8ff") if index == 0 else TARGET_COLORS[index - 1], index == 0, "You" if index == 0 else "Target %d" % index)
 		ship.combatant = state
@@ -432,9 +434,8 @@ func stop_tutorial() -> void:
 func apply_accessibility_settings(values: Dictionary) -> void:
 	accessibility = values.duplicate()
 	action_latch.reset()
-	if arena != null and arena.static_layer != null:
-		arena.static_layer.high_contrast = bool(values.get("high_contrast", false))
-		arena.static_layer.queue_redraw()
+	if arena != null:
+		arena.set_high_contrast(bool(values.get("high_contrast", false)))
 	if bool(values.get("reduced_shake", false)):
 		camera_kick_remaining = 0.0
 		if camera != null:
@@ -442,9 +443,9 @@ func apply_accessibility_settings(values: Dictionary) -> void:
 	if effects_layer != null:
 		effects_layer.set("reduced_flashes", bool(values.get("reduced_flashes", false)))
 	for ship_value in ships_by_id.values():
-		(ship_value as SandboxShip).high_contrast = bool(values.get("high_contrast", false))
-		(ship_value as SandboxShip).queue_redraw()
-		(ship_value as SandboxShip).reduced_flashes = bool(values.get("reduced_flashes", false))
+		(ship_value as CombatShipView).high_contrast = bool(values.get("high_contrast", false))
+		(ship_value as CombatShipView).queue_redraw()
+		(ship_value as CombatShipView).reduced_flashes = bool(values.get("reduced_flashes", false))
 	_layout_hud()
 
 
@@ -485,7 +486,7 @@ func _update_hud() -> void:
 	if selected_special_slot >= 0:
 		special_name += " ×%d" % charges if charges >= 0 else ""
 		special_name += " (%.1fs)" % cooldown if cooldown > 0.0 else " READY" if charges != 0 else " EMPTY"
-	status_label.text = "COMBAT LAB · %s · HP %.0f/%.0f · Ammo %d/%d · Ability: %s\n%d shots · %d hull hits · %d blocked · %.1f damage / %.1fs = %.1f DPS" % ["PAUSED" if editor_open else "LIVE", state.health, state.stats.max_health, state.weapon.ammunition, state.stats.magazine_size, special_name, shots_fired, hull_hits, blocked_shots, measured_damage, measurement_seconds, measured_dps()]
+	status_label.text = "COMBAT LAB · %s · %s · HP %.0f/%.0f · Ammo %d/%d · Ability: %s\n%d shots · %d hull hits · %d blocked · %.1f damage / %.1fs = %.1f DPS" % ["PAUSED" if editor_open else "LIVE", ArenaLayout.display_name(world.map_id), state.health, state.stats.max_health, state.weapon.ammunition, state.stats.magazine_size, special_name, shots_fired, hull_hits, blocked_shots, measured_damage, measurement_seconds, measured_dps()]
 	if toggle_status_label == null and hud_root != null:
 		toggle_status_label = action_latch.create_status_label(hud_root)
 	if toggle_status_label != null:
@@ -568,12 +569,20 @@ func set_target_settings(count_value: int, health_value: float, distance_value: 
 	_reset_combatants()
 
 
+func set_lab_map(index: int) -> void:
+	if index < 0 or index >= LAB_MAP_IDS.size():
+		return
+	world.set_map_id(LAB_MAP_IDS[index])
+	arena.set_map_id(world.map_id)
+	_reset_combatants()
+
+
 func _reset_combatants() -> void:
 	action_latch.reset()
 	world.clear_projectiles()
-	# A clear firing lane beside the core map's center cover makes the initial
-	# target visible and reachable, unlike the old far-side spawn anchors.
-	var origin := Vector2(500.0, 720.0)
+	# These clear firing lanes keep targets immediately useful on both lab maps.
+	# Solar Tide starts close enough to reach the current in a few seconds.
+	var origin := Vector2(950.0, 650.0) if world.map_id == &"solar_tide" else Vector2(500.0, 720.0)
 	player.reset_ship(derived_stats, origin)
 	camera.position = origin
 	camera.offset = Vector2.ZERO
@@ -588,7 +597,7 @@ func _reset_combatants() -> void:
 		if index >= target_count:
 			world.set_spectator(index + 2)
 	for peer_id in ships_by_id:
-		var ship := ships_by_id[peer_id] as SandboxShip
+		var ship := ships_by_id[peer_id] as CombatShipView
 		ship.collision_layer = 0
 		ship.collision_mask = 0
 		world.latest_inputs[peer_id] = PlayerInputFrame.new(int(world.acknowledged_inputs.get(peer_id, 0)), world.server_tick)
@@ -620,7 +629,7 @@ func _apply_damage_events(events: Array[Dictionary]) -> void:
 func _kill_feed_identities() -> Array[Dictionary]:
 	var identities: Array[Dictionary] = []
 	for peer_id in ships_by_id:
-		var ship := ships_by_id[peer_id] as SandboxShip
+		var ship := ships_by_id[peer_id] as CombatShipView
 		identities.append({"peer_id": peer_id, "display_name": ship.display_name, "ship_color": ship.ship_color.to_html(false)})
 	return identities
 

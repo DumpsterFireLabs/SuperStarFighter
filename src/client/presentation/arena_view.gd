@@ -1,4 +1,4 @@
-class_name SandboxArena
+class_name ArenaView
 extends Node2D
 
 var overtime_visible: bool = false
@@ -17,6 +17,8 @@ var local_peer_id: int = 0
 var local_team_id: int = 0
 var pilot_names: Dictionary = {}
 var static_layer: ArenaStaticLayer
+var movement_field_layer: ArenaMovementFieldLayer
+var high_contrast: bool = false
 
 
 func _ready() -> void:
@@ -31,6 +33,14 @@ func _ready() -> void:
 	static_layer.map_id = map_id
 	static_layer.show_spawn_anchors = show_spawn_anchors
 	add_child(static_layer)
+	movement_field_layer = ArenaMovementFieldLayer.new()
+	movement_field_layer.name = "MovementFields"
+	movement_field_layer.show_behind_parent = true
+	movement_field_layer.z_as_relative = false
+	movement_field_layer.z_index = 1
+	movement_field_layer.set_map(map_id)
+	movement_field_layer.set_high_contrast(high_contrast)
+	add_child(movement_field_layer)
 	_create_outer_walls()
 	_rebuild_map_collision()
 	queue_redraw()
@@ -44,9 +54,20 @@ func set_map_id(value: StringName) -> void:
 	if static_layer != null:
 		static_layer.map_id = map_id
 		static_layer.queue_redraw()
+	if movement_field_layer != null:
+		movement_field_layer.set_map(map_id)
 	if is_inside_tree():
 		_rebuild_map_collision()
 	queue_redraw()
+
+
+func set_high_contrast(value: bool) -> void:
+	high_contrast = value
+	if static_layer != null:
+		static_layer.high_contrast = value
+		static_layer.queue_redraw()
+	if movement_field_layer != null:
+		movement_field_layer.set_high_contrast(value)
 
 
 func set_overtime(

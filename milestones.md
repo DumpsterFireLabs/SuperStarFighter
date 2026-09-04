@@ -398,9 +398,9 @@ This ledger maps the major delivered increments to their local commits. Small co
 
 ## Milestone 8 — Ten-Map Expansion
 
-**Status:** In Progress — static roster and automatic rotation completed 2026-08-26; advanced mechanics and full-capacity acceptance remain
+**Status:** In Progress — static roster and automatic rotation completed 2026-08-26; first dynamic mechanic prototyped 2026-09-04; human and full-capacity acceptance remain
 
-**Outcome:** Core Arena is now the benchmark member of a playable ten-map roster. All ten maps provide distinct static topologies and remain fixed for every heat in a round, then advance through a deterministic shuffled rotation after the round is won. Advanced map-specific mechanics and the full 32-participant acceptance matrix remain future work.
+**Outcome:** Core Arena is now the benchmark member of a playable ten-map roster. All ten maps provide distinct static topologies and remain fixed for every heat in a round, then advance through a deterministic shuffled rotation after the round is won. Solar Tide now carries the first dynamic-routing prototype, while its human validation and the full 32-participant acceptance matrix remain open.
 
 ### Delivered in 8.1
 
@@ -414,9 +414,19 @@ This ledger maps the major delivered increments to their local commits. Small co
 - Captured and visually inspected all ten maps at 1280×720, 1920×1080, 2560×1080, 3440×1440, and 5120×1440.
 - Updated the specification, map plan, README, player manual, and development guide to match the implemented behavior and remaining boundaries.
 
+### Delivered in 8.2 — Solar Current prototype
+
+- Added a validated static movement-field resource to Solar Tide: a clockwise annulus around its central sun, with a modest directional pull and up to an 18% aligned speed advantage.
+- Applied the same movement calculation to server authority, client replay, NPC-controlled ships, and the local Combat Lab while leaving projectiles and network packet/state formats unchanged.
+- Added animated directional arrows, text direction, high-contrast boundaries, ship wake feedback, and countdown teaching.
+- Added a Core Arena / Solar Current trial selector to the Offline Combat Lab for repeatable human evaluation.
+- Recorded movement fields, destructible cover, and teleporter relays as future-release priorities with explicit authority, NPC, accessibility, counterplay, and performance gates.
+- Added focused counter-steering, escape, speed-cap, ability-interaction, map-isolation, validation, authority/replay-parity, and presentation coverage.
+
 ### Remaining Work
 
-- Implement and synchronize the advanced map mechanics described in the [Ten-Map Expansion Plan](./maps.md), including hazards or dynamic geometry, without weakening server authority or deterministic tests.
+- Collect broader match telemetry for Solar Current and tune its restrained route influence only if players rarely choose it; initial human acceptance is complete.
+- Implement destructible cover and teleporter relays as explicit future-release priorities described in the [Arena Mechanics Roadmap](./docs/ARENA-MECHANICS-ROADMAP.md), without weakening server authority, prediction, accessibility, or deterministic tests.
 - Optionally add leader-controlled rotation pools or ordering while retaining automatic rotation as the default and one stable map per round.
 - Add automated two-exit and overtime-reachability validation beyond the existing spawn clearance/separation checks.
 - Run 2-, 8-, 16-, and 32-participant simulations on every map and a real-protocol 32-client rotating-map soak.
@@ -447,3 +457,19 @@ Host-controlled competitive view, lazy music residency, measured collision-query
 Foundation verification passed 143 checks with 4,465 passing assertions and the expected failing-exit-path check. All six presentation resolutions passed. The isolated 32-client, 90-second ENet soak passed with active callback p95 at most 5.902 ms and p99 at most 7.816 ms. Broken Orbit overload median p95 improved 7.6%; p99 variability remains a release-performance concern. These are development-machine checks, not release-hardware acceptance.
 
 R12 mixing implementation and recorded evidence are delivered, with actual human listening still open. See [the review](docs/REVIEW-2026-09-03.md) and [audio study](docs/AUDIO-STUDY-2026-09-04.md). Remaining review inventory: R12 and R16–R28.
+
+## Review follow-up — September 4, 2026, R12 and R16–R21
+
+Network prediction, replicated visuals, HUD/camera, session lifecycle and replication scheduling now have dedicated owners. Shared drawing classes live in presentation. Hill/flag handlers own typed objective state and transitions; the coordinator retains heat authority. Forty-one stat descriptors centralize bounds, labels, units and benefit polarity, and typed stat comparisons reach the card UI. Ten validated map resources preserve every shipped coordinate, spawn and palette. Gameplay values and compatibility 30/binary 12 remain unchanged.
+
+Foundation passed 165 checks and 5,668 assertions, plus the expected failing-exit-path check. Real network and local-host gates passed; 42 old/new objective replay checks match serialized output. All six presentation resolutions passed. The isolated 32-client, 90-second soak passed with 14 metric windows, four heat results, overtime, combat disconnect, late spectator, bounded entities and clean shutdown. Maximum active callback p95/p99 was 6.555/8.790 ms. Broken Orbit overload median p95 was 14.203 ms across three runs; its 23.048 ms worst p99 retains the need for release-performance acceptance. These measurements exclude client rendering and are not a universal 60 Hz guarantee.
+
+The user confirmed sounds were relatively easy to hear over the crowded mix. R12 still needs device, individual cue recognition and directional listening confirmation. Remaining review inventory: **8 items, R12 and R22–R28**. See [the review](docs/REVIEW-2026-09-03.md) for evidence and remaining scope. This batch has no new release export.
+
+## Review follow-up — September 4, 2026, R23/R26 and R28 inventory
+
+Real bidirectional ENet impairment profiles exposed lost short ability presses despite eventual state convergence. Bounded retries now retain one ability identity/slot until consumed by authority or 1.25 seconds expires. No packet/RPC changes or extra reliable queue are introduced. All six final fault profiles deliver each tested consumable activation once and converge weapon/resources; regression tests cover expiry, acknowledgement ordering/wrap and duplicate spending.
+
+Explicit pre-compilation resource allowlists and actual PCK audits now govern exports. The Windows dedicated server contains 445 entries and 531,638 game-resource bytes, with no client assets/code, tests, tools or reports. Standalone startup passes. The packaged-server 32-client/90-second soak passes with four heats, overtime, disconnect, late spectator and clean shutdown; active callback p95/p99 maxima are 4.970/6.604 ms. The local Windows client audit and rendered startup also pass. These are internal validation artifacts, not a new tester-facing beta; R25/R27 release acceptance remains.
+
+Final foundation passes **167 checks and 5,678 assertions**, including the expected failing-exit-path check. The source/asset inventory now covers all fourteen runtime assets with hashes and provenance dispositions; engine/component notices are generated and included in packaging. R28 is complete under the owner's recorded asset attestations. R12 is conditionally complete on the validated G733 stereo setup; ordinary-speaker coverage is deferred. At this batch-nine checkpoint, four items remained: R22, R24, R25, and R27. The subsequent Solar Current follow-up completed R22, leaving **R24, R25, and R27** in the current inventory. Details and evidence are in [the review](docs/REVIEW-2026-09-03.md) and [attribution inventory](docs/ATTRIBUTION.md).

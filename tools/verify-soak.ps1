@@ -5,12 +5,17 @@ param(
     [ValidateRange(60, 1800)]
     [int]$DurationSeconds = 600,
     [ValidateRange(1024, 65535)]
-    [int]$Port = 17349
+    [int]$Port = 17349,
+    [string]$ServerExecutable = ''
 )
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 $godot = Get-SsfGodotExecutable
+if ($ServerExecutable) {
+    $ServerExecutable = (Resolve-Path -LiteralPath $ServerExecutable).Path
+    if (-not (Test-Path -LiteralPath $ServerExecutable -PathType Leaf)) { throw 'Server executable is missing.' }
+}
 $logRoot = Join-Path $SsfToolsRoot 'soak-verification'
 Assert-SsfPathWithinTools -Path $logRoot
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
@@ -31,8 +36,19 @@ function Start-SsfSoakProcess {
     $stderr = Join-Path $logRoot "$Name.err.log"
     $godotLog = (Join-Path $logRoot "$Name.godot.log") -replace '\\', '/'
     $arguments = @('--headless', '--path', '.', '--log-file', $godotLog, '--') + $UserArguments
-    $process = Start-Process -FilePath $godot -ArgumentList $arguments -WorkingDirectory $SsfRepositoryRoot `
+    $executable = $godot
+    $workingDirectory = $SsfRepositoryRoot
+    if ($Name -eq 'server' -and $ServerExecutable) {
+        $executable = $ServerExecutable
+        $workingDirectory = Split-Path -Parent $ServerExecutable
+        $arguments = @('--headless', '--log-file', $godotLog, '--') + $UserArguments
+    }
+    $process = Start-Process -FilePath $executable -ArgumentList $arguments -WorkingDirectory $workingDirectory `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
+    # Retain the native handle from launch so ExitCode remains available after
+    # a long redirected run on Windows PowerShell.
+    $process.EnableRaisingEvents = $true
+    $null = $process.Handle
     $processes.Add($process)
     return $process
 }
@@ -129,6 +145,11 @@ try {
         }
         Start-Sleep -Seconds 1
     }
+    # Start-Process can observe HasExited before the redirected streams have
+    # finalized the process object's ExitCode property. Waiting again is
+    # immediate here and makes the exit-code gate reliable.
+    $server.WaitForExit()
+    $server.Refresh()
     Start-Sleep -Seconds 2
     $serverText = Get-SsfSoakOutput 'server'
     $events = Get-SsfJsonEvents $serverText
@@ -166,7 +187,9 @@ try {
         ($_ -match '^(SCRIPT ERROR:|ERROR:)') -and (-not $_.Contains('Failed to read the root certificate store.'))
     }
     if ($unexpectedErrors) { throw "Soak emitted unexpected errors: $($unexpectedErrors -join ' | ')" }
-    if ($server.ExitCode -ne 0) { throw "Soak server exited with code $($server.ExitCode)." }
+    $serverExitCode = $server.ExitCode
+    if ($null -eq $serverExitCode) { throw 'Soak server exit code was unavailable after handle finalization.' }
+    if ($serverExitCode -ne 0) { throw "Soak server exited with code $serverExitCode." }
 
     $shutdownDeadline = [DateTime]::UtcNow.AddSeconds(15)
     while ([DateTime]::UtcNow -lt $shutdownDeadline -and @($processes | Where-Object { -not $_.HasExited }).Count -gt 0) {
@@ -176,6 +199,7 @@ try {
     if ($remaining.Count -gt 0) { throw "$($remaining.Count) child processes remained after server shutdown." }
 
     $summary = [ordered]@{
+        server_executable = $(if ($ServerExecutable) { $ServerExecutable } else { 'source checkout' })
         client_count = $ClientCount
         duration_seconds = $DurationSeconds
         metric_windows = $metrics.Count

@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
+Assert-SsfShippingPolicy
 
 $presetName = 'macOS Beta 10'
 $releaseLabel = 'Beta 10'
@@ -160,7 +161,7 @@ try {
         throw "macOS export does not contain the expected packaged version $expectedGameVersion."
     }
 
-    foreach ($name in @('README-BETA.txt', 'THIRD-PARTY-NOTICES.txt')) {
+    foreach ($name in @('README-BETA.txt', 'THIRD-PARTY-NOTICES.txt', 'GODOT_COPYRIGHT.txt')) {
         $existing = $archive.GetEntry($name)
         if ($existing) {
             $existing.Delete()
@@ -176,6 +177,12 @@ try {
         $archive,
         (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt'),
         'THIRD-PARTY-NOTICES.txt',
+        [System.IO.Compression.CompressionLevel]::Optimal
+    ) | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive,
+        (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt'),
+        'GODOT_COPYRIGHT.txt',
         [System.IO.Compression.CompressionLevel]::Optimal
     ) | Out-Null
 } finally {
@@ -203,6 +210,8 @@ try {
     $readArchive.Dispose()
 }
 
+& python (Join-Path $PSScriptRoot 'audit-package.py') $archivePath --output (Join-Path $buildRoot 'macos-package-audit.json')
+if ($LASTEXITCODE -ne 0) { throw 'macOS package resource audit failed.' }
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
 Write-Host ''
 Write-Host "macOS $releaseLabel package passed app-bundle, metadata, universal Mach-O, embedded-version, and archive verification."

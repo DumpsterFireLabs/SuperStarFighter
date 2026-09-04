@@ -93,6 +93,10 @@ func _capture_sequence() -> void:
 	client._hide_settings()
 	client._play_offline()
 	await _capture(client, "build_lab")
+	var lab_tabs := client.offline_sandbox.lab_panel.find_child("LabTabs", true, false) as TabContainer
+	lab_tabs.current_tab = 1
+	await _capture(client, "build_lab_targets")
+	lab_tabs.current_tab = 0
 	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "build_lab_scaled")
 	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
@@ -168,7 +172,7 @@ func _capture_sequence() -> void:
 	await _capture(client, "draft_bye")
 	client.draft_panel.visible = false
 	client.draft_bye_label.visible = false
-	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 100, "deadline_tick": 280, "round_number": 1, "heat_number": 1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {}, 3: {}}}
+	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 100, "deadline_tick": 280, "round_number": 1, "heat_number": 1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {}, 3: {}}, "map_id": &"solar_tide", "map_name": "Solar Tide"}
 	client.network_world.latest_server_tick = 160
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
@@ -231,7 +235,7 @@ func _capture_sequence() -> void:
 		team_states.append({"peer_id": peer, "position": positions[peer], "velocity": Vector2.ZERO, "aim_angle": 0.0 if peer in [2, 4] else PI, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true})
 	client.network_world._on_snapshot({"server_tick": 200, "acknowledged_input": 10, "states": team_states})
 	for state in team_states:
-		(client.network_world.ships[int(state.peer_id)] as SandboxShip).global_position = state.position
+		(client.network_world.ships[int(state.peer_id)] as CombatShipView).global_position = state.position
 	var team_registry := client.network_world.authoritative_projectiles as ProjectileRegistry
 	for id in range(1, 9):
 		var owner := 4 if id % 2 == 0 else 3
@@ -293,12 +297,12 @@ func _capture_sequence() -> void:
 	team_states[1]["position"] = Vector2(980, 520)
 	client.network_world._on_snapshot({"server_tick": 200, "acknowledged_input": 10, "states": team_states})
 	for state in team_states:
-		(client.network_world.ships[int(state.peer_id)] as SandboxShip).global_position = state.position
+		(client.network_world.ships[int(state.peer_id)] as CombatShipView).global_position = state.position
 	for id in range(9001, 9012):
 		team_registry.remove(id)
 	client.network_world.projectile_layer.queue_redraw()
 	client.network_world.set_physics_process(false)
-	var afterburner_ship := client.network_world.ships[2] as SandboxShip
+	var afterburner_ship := client.network_world.ships[2] as CombatShipView
 	var before_afterburner_position := afterburner_ship.global_position
 	afterburner_ship.combatant.aim_angle = -0.18
 	afterburner_ship.combatant.velocity = Vector2(360.0, 190.0)
@@ -306,7 +310,7 @@ func _capture_sequence() -> void:
 	afterburner_ship.flash_afterburner(0.55)
 	for echo_index in 4:
 		afterburner_ship.global_position += Vector2(11.0, 6.0)
-		afterburner_ship._process(SandboxShip.AFTERBURNER_ECHO_INTERVAL_SECONDS)
+		afterburner_ship._process(CombatShipView.AFTERBURNER_ECHO_INTERVAL_SECONDS)
 	await _capture(client, "afterburner")
 	afterburner_ship.global_position = before_afterburner_position
 	afterburner_ship.afterburner_bloom_remaining = 0.0
@@ -324,6 +328,18 @@ func _capture_sequence() -> void:
 		client.network_world.apply_match_state(client.latest_match_payload)
 		client._update_match_presentation()
 		await _capture(client, "map_%s" % map_id)
+	client.latest_match_payload["map_id"] = &"solar_tide"
+	client.latest_match_payload["map_name"] = ArenaLayout.display_name(&"solar_tide")
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	client.network_world.set_physics_process(false)
+	client.network_world.camera.position = ArenaLayout.center(&"solar_tide")
+	client.accessibility_preferences.set_values({"high_contrast": true})
+	client._apply_accessibility_settings()
+	await _capture(client, "map_solar_tide_contrast")
+	client.accessibility_preferences.set_values({"high_contrast": false})
+	client._apply_accessibility_settings()
+	client.network_world.set_physics_process(true)
 	client.latest_match_payload["participant_peer_ids"] = [2, 3, 4, 5]
 	client.latest_match_payload["scores"] = {
 		2: {"heat_wins": 1, "round_wins": 1},
@@ -338,7 +354,7 @@ func _capture_sequence() -> void:
 		5: {&"inertial_dampers": 2, &"hollow_points": 9},
 	}
 	client.audio_director.gameplay_track_paths.clear()
-	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Heavy Electronic Edge Main.ogg")
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
 	client._set_scoreboard_open(true)
@@ -546,7 +562,7 @@ func _capture_ship_families(client: Node) -> void:
 			6: stats.mine_layer_enabled = true
 			7: stats.auto_repair_enabled = true
 		var position := Vector2(280 + index % 4 * 450, 350 + index / 4 * 430)
-		var ship := SandboxShip.new()
+		var ship := CombatShipView.new()
 		canvas.add_child(ship)
 		ship.setup(index + 2, stats, position, Color("42e8ff"), false, names[index])
 		ship.scale = Vector2.ONE * 2.4

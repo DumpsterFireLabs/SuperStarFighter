@@ -41,13 +41,13 @@ foreach ($resolution in @(
     if ($process.ExitCode -ne 0 -or -not $combined.Contains("PRESENTATION_CAPTURE_OK=$($resolution.Label)") -or $combined.Contains('SCRIPT ERROR:') -or $combined.Contains('ERROR:')) {
         throw "Presentation capture failed for $($resolution.Label): $combined"
     }
-    foreach ($screen in @('splash', 'game_splash', 'menu', 'credits', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'offline_combat', 'lobby_32', 'lobby_settings', 'lobby_color_picker', 'lobby_options', 'lobby_npc_difficulties', 'draft', 'draft_card_hover', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'afterburner', 'map_core_arena', 'map_riftline', 'map_prism_array', 'map_twin_suns', 'map_dead_freight', 'map_longwave_array', 'map_broken_orbit', 'map_switchyard', 'map_solar_tide', 'map_relay_zero', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
+    foreach ($screen in @('splash', 'game_splash', 'menu', 'credits', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'offline_combat', 'lobby_32', 'lobby_settings', 'lobby_color_picker', 'lobby_options', 'lobby_npc_difficulties', 'draft', 'draft_card_hover', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'afterburner', 'map_core_arena', 'map_riftline', 'map_prism_array', 'map_twin_suns', 'map_dead_freight', 'map_longwave_array', 'map_broken_orbit', 'map_switchyard', 'map_solar_tide', 'map_relay_zero', 'map_solar_tide_contrast', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Presentation capture $imagePath is missing or unexpectedly small."
         }
     }
-    foreach ($screen in @('competitive_combat', 'host_preset', 'accessibility_contrast', 'combat_contrast', 'objective_results', 'ship_families', 'draft_confirmation', 'draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled', 'tutorial_movement', 'tutorial_guard', 'tutorial_scaled', 'tutorial_draft', 'crowded_combat', 'crowded_combat_reduced')) {
+    foreach ($screen in @('competitive_combat', 'host_preset', 'accessibility_contrast', 'combat_contrast', 'objective_results', 'ship_families', 'draft_confirmation', 'draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_targets', 'build_lab_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled', 'tutorial_movement', 'tutorial_guard', 'tutorial_scaled', 'tutorial_draft', 'crowded_combat', 'crowded_combat_reduced')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Draft limit feedback capture $imagePath is missing or unexpectedly small."
@@ -55,4 +55,4 @@ foreach ($resolution in @(
     }
 }
 
-Write-Host "Presentation verification passed: all ten round maps plus both splash screens, menus, credits, settings, controller bindings, offline combat, 32-player lobby/player settings/options/colour selection, draft/card hover, READY/BEGIN alerts, combat powerups, Afterburner, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 2880x1920, 3440x1440, and 5120x1440."
+Write-Host "Presentation verification passed: all ten round maps plus Solar Current high contrast, both splash screens, menus, credits, settings, controller bindings, offline combat, 32-player lobby/player settings/options/colour selection, draft/card hover, READY/BEGIN alerts, combat powerups, Afterburner, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 2880x1920, 3440x1440, and 5120x1440."

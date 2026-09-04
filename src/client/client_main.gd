@@ -1428,7 +1428,16 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 		]
 		var beginning := seconds_left <= HEAT_BEGIN_LEAD_SECONDS + 0.0001
 		heat_intro_title.text = "BEGIN" if beginning else "READY"
-		heat_intro_subtitle.text = "WEAPONS ENGAGING" if beginning else "WEAPONS LOCKED  ·  BEGIN IN %.1f" % seconds_left
+		if beginning:
+			heat_intro_subtitle.text = "WEAPONS ENGAGING"
+		else:
+			var map_id := StringName(latest_match_payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
+			var mechanic := ArenaLayout.mechanic_prompt(map_id)
+			heat_intro_subtitle.text = (
+				"WEAPONS LOCKED  ·  BEGIN IN %.1f" % seconds_left
+				if mechanic.is_empty()
+				else "%s  ·  BEGIN IN %.1f" % [mechanic, seconds_left]
+			)
 		return
 	if state_name == "ACTIVE_HEAT":
 		var entered_tick := int(latest_match_payload.get("entered_tick", network_world.latest_server_tick))
@@ -1757,11 +1766,11 @@ func _world_audio_details(payload: Dictionary) -> Dictionary:
 	if peer_id != 0:
 		if not details.has("local"):
 			details["local"] = peer_id == bridge.local_peer_id
-		var source_ship := network_world.ships.get(peer_id) as SandboxShip
+		var source_ship := network_world.ships.get(peer_id) as CombatShipView
 		if source_ship != null and not details.has("position"):
 			details["position"] = source_ship.global_position
 	if not details.has("listener_position"):
-		var local_ship := network_world.ships.get(bridge.local_peer_id) as SandboxShip
+		var local_ship := network_world.ships.get(bridge.local_peer_id) as CombatShipView
 		if local_ship != null:
 			details["listener_position"] = local_ship.global_position
 		elif network_world.camera != null:

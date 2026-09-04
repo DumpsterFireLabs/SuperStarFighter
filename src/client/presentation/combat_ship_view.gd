@@ -1,4 +1,4 @@
-class_name SandboxShip
+class_name CombatShipView
 extends CharacterBody2D
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
@@ -33,6 +33,7 @@ var thrust_input: Vector2 = Vector2.ZERO
 var team_id: int = 0
 var allied_to_local: bool = false
 var has_local_team: bool = false
+var movement_field_strength: float = 0.0
 
 
 func set_team_identity(value: int, local_team: int) -> void:
@@ -122,6 +123,7 @@ func _process(delta: float) -> void:
 		or afterburner_ignition_remaining > 0.0
 		or not afterburner_echoes.is_empty()
 		or not thrust_input.is_zero_approx()
+		or movement_field_strength > 0.0
 		or combatant != null and (combatant.breakaway_remaining > 0.0 or combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback())
 	):
 		queue_redraw()
@@ -144,6 +146,14 @@ func set_thrust_input(ship_relative_input: Vector2) -> void:
 	queue_redraw()
 
 
+func set_movement_field_strength(value: float) -> void:
+	var normalized := clampf(value, 0.0, 1.0)
+	if is_equal_approx(movement_field_strength, normalized):
+		return
+	movement_field_strength = normalized
+	queue_redraw()
+
+
 func set_eliminated() -> void:
 	collision_layer = 0
 	collision_mask = 0
@@ -154,6 +164,7 @@ func set_eliminated() -> void:
 	afterburner_echoes.clear()
 	if thruster_particles != null:
 		thruster_particles.emitting = false
+	movement_field_strength = 0.0
 	queue_redraw()
 
 
@@ -317,6 +328,7 @@ func _draw() -> void:
 	if high_contrast:
 		draw_circle(Vector2.ZERO, 30.0, Color("02040d"))
 	_draw_team_marker()
+	_draw_movement_field_wake()
 	_draw_afterburner_echoes()
 	_draw_maneuvering_jets(forward, side)
 	_draw_afterburner_plume(forward, side)
@@ -345,6 +357,24 @@ func _draw() -> void:
 	var health_angle := TAU * combatant.health_fraction()
 	draw_arc(Vector2.ZERO, 26.0, -PI * 0.5, -PI * 0.5 + health_angle, 24, Color("54ff8b"), 2.0)
 	_draw_nameplate(Color("fff36a") if local_control else Color("e8f5ff"))
+
+
+func _draw_movement_field_wake() -> void:
+	if movement_field_strength <= 0.0 or combatant.velocity.is_zero_approx():
+		return
+	var direction := combatant.velocity.normalized()
+	var side := direction.orthogonal()
+	var color := Color("77f8ff", 0.38 + movement_field_strength * 0.42)
+	var origin := -direction * 18.0
+	for index in 3:
+		var distance := 18.0 + float(index) * 13.0
+		var half_width := 10.0 - float(index) * 2.0
+		var center := origin - direction * distance
+		draw_polyline(PackedVector2Array([
+			center - direction * 7.0 + side * half_width,
+			center + direction * 5.0,
+			center - direction * 7.0 - side * half_width,
+		]), color, 3.0 if high_contrast else 2.0, true)
 
 
 func _draw_afterburner_echoes() -> void:

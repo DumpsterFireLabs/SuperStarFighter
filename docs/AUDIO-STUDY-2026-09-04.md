@@ -49,4 +49,22 @@ Original paired measurement evidence is retained locally as `reports/review-2026
 
 Listen to the cue sequence and crowded mix on headphones and ordinary speakers at a comfortable fixed volume. Confirm shield block, shield break, and hull damage can be identified without looking; left/right direction agrees with the shot; objective gain/loss/drop can be distinguished during music and gunfire; and ducking recovers without distracting pumping. Repeat during human multiplayer play, including a high-action build and a late spectator. Record device, settings, observations, and any confusing cue before tuning further.
 
-No listening session was available to the automated review. R12 remains open for this acceptance, coordinated with the broader R24 player-readability checks. These short local measurements also do not replace R25 representative-hardware performance acceptance.
+The initial automated review did not include a listening session. Subsequent player feedback is recorded below; R12 remains open for the unconfirmed checks, coordinated with the broader R24 player-readability checks. These short local measurements also do not replace R25 representative-hardware performance acceptance.
+
+## Player feedback during batch eight
+
+The user listened to the supplied clips and reported: “I can hear the other sounds over the clutter/crowded mix relatively easily.” This is positive human evidence that important sounds remain audible in the crowded fixture. The listening device, individual shield/hull cue identification, and left/right localization were not specified. R12 therefore retains those narrower acceptance checks; no further mix tuning was inferred from this feedback.
+
+## Headset acceptance follow-up
+
+Using a **Logitech G733 headset**, the user confirmed shield block, shield break and hull damage are distinct and that no audition sound is confusing, harsh or quiet. Both directional shots initially appeared bilateral. A channel-isolation diagnostic then exposed that Windows mono audio had been enabled. After identifying that system setting, Codex's embedded audio playback still appeared mono: even a diagnostic whose first right channel and second left channel contain exactly zero samples sounded bilateral. The initial localization result is therefore invalid rather than a demonstrated game-mix failure. A provisional stronger game pan was reverted. Retry the original recording in an external stereo player with Windows mono disabled; ordinary-speaker and crowded objective-cue checks remain afterward.
+
+The external headset retry passed with Windows mono disabled and Logitech G Surround Sound turned off: left/right channels split correctly and the final weapon shots localized in the intended order. This validates the original game pan on the G733 in stereo mode. Logitech surround processing prevented reliable localization in this test; players encountering bilateral cues should check operating-system mono and headset virtualization before changing the game mix. Headset cue identity, quality and direction are accepted. Crowded objective-cue identification and an ordinary-speaker pass remain.
+
+Preparing the crowded objective acceptance exposed a fixture omission: its loop stopped after six of the seven scheduled cues, so the objective neutral/drop sound was never recorded in the crowded mix. The loop now follows the cue list length and includes gain, loss and neutral/drop before recording ends. This changes only the verification fixture, not runtime playback.
+
+On the updated G733 stereo-mode crowded mix, the user reported: “Thats crazy and chaotic. I love it. Sounds great.” This is positive acceptance of the deliberately saturated mix's character and sound quality. Explicit recognition of each gain/loss/neutral objective meaning is requested separately before closing that criterion.
+
+The user subsequently confirmed all three crowded objective meanings were distinguishable: rising gain, falling loss and short level neutral/drop. The Logitech G733 stereo-mode pass is therefore complete for combat-cue identity, left/right localization, crowded objective recognition, loudness and subjective mix quality. An ordinary-speaker pass remains before R12 can close.
+
+The user does not currently have another speaker and asked to proceed with R12 **conditionally complete**. Acceptance therefore applies to the Logitech G733 with Windows mono and G Surround disabled. Ordinary-speaker playback remains a deferred condition, to be folded into later human/native-hardware acceptance rather than blocking the current review walkthrough.

@@ -27,8 +27,17 @@ function Invoke-FoundationCheck {
     else {
         $engineArguments = @($Arguments) + @('--log-file', $logPath)
     }
-    $output = (& $godot @engineArguments 2>&1 | Out-String)
-    $exitCode = $LASTEXITCODE
+    # Expected-failure checks deliberately receive stderr and a nonzero native
+    # exit. Capture both before restoring strict PowerShell error handling.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = (& $godot @engineArguments 2>&1 | Out-String)
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     Write-Host $output.TrimEnd()
     if ($exitCode -ne $ExpectedExitCode) {
         throw "$Name exited with $exitCode; expected $ExpectedExitCode."

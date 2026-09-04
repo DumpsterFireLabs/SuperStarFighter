@@ -1574,7 +1574,7 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	context.expect_equal(view.local_peer_id, 99, "hiding the arena in a connected lobby preserves local peer identity")
 	view.set_network_active(true)
 	context.expect_equal(view.local_peer_id, 99, "match activation restores rendering with the same local peer identity")
-	var local_ship := SandboxShip.new()
+	var local_ship := CombatShipView.new()
 	local_ship.setup(99, CombatStats.create_base(), Vector2(140.0, 220.0), Color.WHITE, true)
 	view.ships[99] = local_ship
 	view.local_peer_id = 99

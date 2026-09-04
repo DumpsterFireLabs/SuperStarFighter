@@ -33,10 +33,15 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_approx(lab.targets[0].combatant.health, 200.0, "lab target HP uses actual combatant health")
 	context.expect_false(lab.targets[3].combatant.alive, "inactive lab targets cannot collide or take damage")
 	context.expect_true(lab.targets_shielding and lab.targets_moving, "lab shield and movement controls update target behavior")
+	lab.set_lab_map(1)
+	context.expect_equal(lab.world.map_id, &"solar_tide", "lab exposes the Solar Current arena for direct playtesting")
+	context.expect_equal(lab.arena.map_id, &"solar_tide", "lab presentation follows the selected authoritative map")
+	context.expect_true(lab.lab_panel.map_control.get_item_text(1).contains("Solar Current"), "arena selector names the mechanic being tested")
 	for distance in [160.0, 420.0, 900.0]:
 		lab.set_target_settings(5, 100.0, distance, false, false, false)
 		for target in lab.targets:
 			context.expect_true(ArenaCollisionSystem.is_ship_position_clear(target.combatant.position, lab.world.map_id), "lab target placement stays clear of map geometry at range %.0f" % distance)
+	lab.set_lab_map(0)
 	lab.set_target_settings(1, 100.0, 160.0, false, false, false)
 	for tick in 24:
 		lab.step_lab(1.0 / 60.0, PlayerInputFrame.new(tick + 1, tick, Vector2.ZERO, 0.0, tick == 0))

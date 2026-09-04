@@ -69,7 +69,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(client.get_viewport().gui_get_focus_owner(), client.reduced_flashes_control, "controller D-pad traverses accessibility settings")
 	_press_pad(client.get_viewport(), JOY_BUTTON_A)
 	context.expect_true(client.network_world.effects_layer.reduced_flashes, "controller flash preference reaches combat effects")
-	var ship: SandboxShip = client.network_world._ensure_ship(1, {"position": Vector2.ZERO})
+	var ship: CombatShipView = client.network_world._ensure_ship(1, {"position": Vector2.ZERO})
 	context.expect_true(ship.reduced_flashes, "ships joining after setting changes inherit reduced flashes")
 	client._change_accessibility_setting("reduced_flashes", false)
 	context.expect_false(ship.reduced_flashes, "preference changes reach ships already on screen")

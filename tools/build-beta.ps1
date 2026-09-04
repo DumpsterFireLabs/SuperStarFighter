@@ -3,6 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
+Assert-SsfShippingPolicy
 
 $presetName = 'Windows Beta 10'
 $releaseLabel = 'Beta 10'
@@ -14,6 +15,7 @@ $archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta10-Windows-x64.zip'
 $smokeLog = Join-Path $buildRoot 'beta-smoke.log'
 $friendReadme = Join-Path $buildRoot 'README-BETA.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES.txt'
+$engineNotices = Join-Path $buildRoot 'GODOT_COPYRIGHT.txt'
 $musicRoot = Join-Path $SsfRepositoryRoot 'assets\audio\music'
 $gameplayMusicRoot = Join-Path $musicRoot 'gameplay'
 $supportedAudioExtensions = @('.wav', '.ogg', '.mp3')
@@ -74,6 +76,8 @@ if ($exportExitCode -ne 0) {
 if (-not (Test-Path -LiteralPath $clientPath -PathType Leaf)) {
     throw "Windows export did not create $clientPath."
 }
+& python (Join-Path $PSScriptRoot 'audit-package.py') $clientPath --output (Join-Path $buildRoot 'client-package-audit.json')
+if ($LASTEXITCODE -ne 0) { throw 'Client package resource audit failed.' }
 $versionInfo = (Get-Item -LiteralPath $clientPath).VersionInfo
 if ($versionInfo.FileVersion -ne $expectedWindowsVersion -or $versionInfo.ProductVersion -ne $expectedWindowsVersion) {
     throw "Exported Windows metadata mismatch. Expected $expectedWindowsVersion; file=$($versionInfo.FileVersion), product=$($versionInfo.ProductVersion)."
@@ -111,7 +115,8 @@ Write-Host "Exported music inventory verified: menu=$exportedMenuMusic gameplay=
 
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices
-Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices) -DestinationPath $archivePath -CompressionLevel Optimal -Force
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt') -Destination $engineNotices
+Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices, $engineNotices) -DestinationPath $archivePath -CompressionLevel Optimal -Force
 
 $clientHash = (Get-FileHash -LiteralPath $clientPath -Algorithm SHA256).Hash
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash

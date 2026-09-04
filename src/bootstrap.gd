@@ -20,6 +20,10 @@ func _ready() -> void:
 		return
 
 	get_tree().root.set_meta("ssf_command_line", configuration)
+	if OS.has_feature("ssf_shipping") and (configuration.mode in ["tests", "bot_client"] or (OS.has_feature("dedicated_server") and configuration.mode != "server")):
+		print("SSF_STARTUP_ERROR=This mode is not included in this shipping package.")
+		get_tree().quit(2)
+		return
 	var scene_path: String = MODE_SCENES[configuration.mode]
 	_change_scene.call_deferred(scene_path)
 

@@ -23,129 +23,166 @@ enum Role {
 	CLIENT,
 }
 
-var role: Role = Role.NONE
+var session: NetworkSessionOwner
+var replication: NetworkReplicationScheduler
+
+# Typed compatibility accessors retain stable bridge APIs while owners hold state.
+var role: Role:
+	get:
+		return session.role
+	set(value):
+		session.role = value
 var lobby: ServerLobby
 var world: AuthoritativeWorld
 var match_coordinator: AuthoritativeMatchCoordinator
 var npc_controller := NpcPilotController.new()
-var local_peer_id: int = 0
-var latest_lobby_state: Dictionary = {}
-var last_error: String = ""
+var local_peer_id: int:
+	get:
+		return session.local_peer_id
+	set(value):
+		session.local_peer_id = value
+var latest_lobby_state: Dictionary:
+	get:
+		return session.latest_lobby_state
+	set(value):
+		session.latest_lobby_state = value
+var last_error: String:
+	get:
+		return session.last_error
+	set(value):
+		session.last_error = value
 
-var _configuration: Dictionary = {}
-var _enet_peer: ENetMultiplayerPeer
-var _lan_discovery: LanDiscoveryService
-var _pending_handshakes := HandshakeRegistry.new()
-var _pending_disconnects: Dictionary = {}
-var _rate_limiter := InputRateLimiter.new()
-var _control_rate_limiter := RequestRateLimiter.new()
-var _authentication_attempt_limiter := AuthenticationAttemptLimiterScript.new()
-var _connection_attempt_limiter := AuthenticationAttemptLimiterScript.new(
-	NetworkProtocol.CONNECTION_ATTEMPT_LIMIT,
-	NetworkProtocol.CONNECTION_ATTEMPT_WINDOW_SECONDS,
-	NetworkProtocol.CONNECTION_ATTEMPT_COOLDOWN_SECONDS
-)
-var _peer_auth_sources: Dictionary = {}
-var _blocked_sources: Dictionary = {}
-var _ban_file_path: String = ""
-var _malformed_control_strikes: Dictionary = {}
-var _client_name: String = "Pilot"
-var _client_protocol_version: int = GameConstants.PROTOCOL_VERSION
-var _client_password: String = ""
+var _configuration: Dictionary:
+	get:
+		return session._configuration
+	set(value):
+		session._configuration = value
+var _enet_peer: ENetMultiplayerPeer:
+	get:
+		return session._enet_peer
+	set(value):
+		session._enet_peer = value
+var _lan_discovery: LanDiscoveryService:
+	get:
+		return session._lan_discovery
+	set(value):
+		session._lan_discovery = value
+var _pending_handshakes: HandshakeRegistry:
+	get:
+		return session._pending_handshakes
+	set(value):
+		session._pending_handshakes = value
+var _pending_disconnects: Dictionary:
+	get:
+		return session._pending_disconnects
+	set(value):
+		session._pending_disconnects = value
+var _rate_limiter: InputRateLimiter:
+	get:
+		return session._rate_limiter
+	set(value):
+		session._rate_limiter = value
+var _control_rate_limiter: RequestRateLimiter:
+	get:
+		return session._control_rate_limiter
+	set(value):
+		session._control_rate_limiter = value
+var _authentication_attempt_limiter: AuthenticationAttemptLimiterScript:
+	get:
+		return session._authentication_attempt_limiter
+	set(value):
+		session._authentication_attempt_limiter = value
+var _connection_attempt_limiter: AuthenticationAttemptLimiterScript:
+	get:
+		return session._connection_attempt_limiter
+	set(value):
+		session._connection_attempt_limiter = value
+var _peer_auth_sources: Dictionary:
+	get:
+		return session._peer_auth_sources
+	set(value):
+		session._peer_auth_sources = value
+var _blocked_sources: Dictionary:
+	get:
+		return session._blocked_sources
+	set(value):
+		session._blocked_sources = value
+var _ban_file_path: String:
+	get:
+		return session._ban_file_path
+	set(value):
+		session._ban_file_path = value
+var _malformed_control_strikes: Dictionary:
+	get:
+		return session._malformed_control_strikes
+	set(value):
+		session._malformed_control_strikes = value
+var _client_name: String:
+	get:
+		return session._client_name
+	set(value):
+		session._client_name = value
+var _client_protocol_version: int:
+	get:
+		return session._client_protocol_version
+	set(value):
+		session._client_protocol_version = value
+var _client_password: String:
+	get:
+		return session._client_password
+	set(value):
+		session._client_password = value
 var _last_metrics_tick: int = 0
 var _simulation_total_usec: int = 0
 var _simulation_max_usec: int = 0
 var _simulation_samples: int = 0
 var _simulation_sample_usec: Array[int] = []
 var _simulation_over_budget_ticks: int = 0
-var _outbound_bytes: int = 0
+var _outbound_bytes: int:
+	get:
+		return replication._outbound_bytes
+	set(value):
+		replication._outbound_bytes = value
 var _phase_totals_usec: Dictionary = {"simulation": 0, "coordination": 0, "replication": 0}
 var _active_sample_usec: Array[int] = []
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
-var _discovery_instance_id: String = ""
-var _projectile_message_sequence: int = 0
-var _projectile_correction_cursor: int = 0
-var _projectile_correction_send_count: int = 0
-var _projectile_correction_assembler := ProjectileCorrectionAssemblerScript.new()
+var _discovery_instance_id: String:
+	get:
+		return session._discovery_instance_id
+	set(value):
+		session._discovery_instance_id = value
+var _projectile_message_sequence: int:
+	get:
+		return replication._projectile_message_sequence
+	set(value):
+		replication._projectile_message_sequence = value
+var _projectile_correction_cursor: int:
+	get:
+		return replication._projectile_correction_cursor
+	set(value):
+		replication._projectile_correction_cursor = value
+var _projectile_correction_send_count: int:
+	get:
+		return replication._projectile_correction_send_count
+	set(value):
+		replication._projectile_correction_send_count = value
+var _projectile_correction_assembler: ProjectileCorrectionAssemblerScript:
+	get:
+		return replication._projectile_correction_assembler
+	set(value):
+		replication._projectile_correction_assembler = value
 
 const PARTIAL_PROJECTILE_CORRECTION_COUNT: int = 40
 
 
+func _init() -> void:
+	session = NetworkSessionOwner.new(self)
+	replication = NetworkReplicationScheduler.new(self)
+
+
 func start_server(configuration: Dictionary) -> Error:
-	stop()
-	role = Role.SERVER
-	var lobby_password := String(configuration.get("lobby_password", ""))
-	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
-		last_error = "A lobby password containing 1–%d printable characters is required." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
-		role = Role.NONE
-		return ERR_INVALID_PARAMETER
-	_configuration = configuration.duplicate(true)
-	_configuration.erase("admin_password")
-	_configuration.erase("admin_password_file")
-	_configuration.erase("lobby_password_file")
-	_ban_file_path = String(configuration.get("ban_file", "user://server-bans.json"))
-	_load_blocked_sources()
-	var match_config := MatchConfig.new()
-	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
-	if match_config.port == LanDiscoveryProtocol.DISCOVERY_PORT:
-		last_error = "UDP port %d is reserved for LAN server discovery." % LanDiscoveryProtocol.DISCOVERY_PORT
-		role = Role.NONE
-		return ERR_INVALID_PARAMETER
-	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
-	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
-	match_config.competitive_view = bool(configuration.get("competitive_view", false))
-	if bool(configuration.get("test_fast_match", false)):
-		match_config.draft_duration_seconds = 0.75
-		match_config.countdown_duration_seconds = 0.25
-		match_config.heat_result_duration_seconds = 0.25
-		match_config.round_result_duration_seconds = 0.25
-	lobby = ServerLobby.new(match_config)
-	world = AuthoritativeWorld.new()
-	var preset_id := String(configuration.get("match_preset", ""))
-	if not preset_id.is_empty():
-		var preset_result := preload("res://src/shared/lobby/match_presets.gd").apply(lobby, ServerLobby.OPERATOR_AUTHORITY_ID, preset_id)
-		if not bool(preset_result.ok):
-			last_error = String(preset_result.error)
-			role = Role.NONE
-			return ERR_INVALID_PARAMETER
-		_activate_added_npcs(preset_result)
-	match_coordinator = null
-	_reset_metrics_window()
-	_metrics_window = 0
-	_logged_overtime_key = ""
-	_discovery_instance_id = "%x-%x" % [Time.get_ticks_msec(), get_instance_id()]
-	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_server(
-		match_config.port,
-		match_config.max_players + NetworkProtocol.AUTH_RESERVED_PEERS,
-		NetworkProtocol.CHANNEL_COUNT
-	)
-	if error != OK:
-		last_error = "Could not bind UDP port %d (error %d)." % [match_config.port, error]
-		_log("error", "server_bind_failed", {"port": match_config.port, "error": error})
-		role = Role.NONE
-		return error
-	multiplayer.multiplayer_peer = _enet_peer
-	if not multiplayer.peer_connected.is_connected(_on_server_peer_connected):
-		multiplayer.peer_connected.connect(_on_server_peer_connected)
-	if not multiplayer.peer_disconnected.is_connected(_on_server_peer_disconnected):
-		multiplayer.peer_disconnected.connect(_on_server_peer_disconnected)
-	_lan_discovery = LanDiscoveryService.new()
-	_lan_discovery.name = "LanDiscoveryResponder"
-	add_child(_lan_discovery)
-	var discovery_error := _lan_discovery.start_responder(_lan_discovery_payload)
-	if discovery_error != OK:
-		_log("warning", "lan_discovery_unavailable", {
-			"port": LanDiscoveryProtocol.DISCOVERY_PORT,
-			"error": discovery_error,
-		})
-	_log("info", "server_started", {
-		"port": match_config.port,
-		"max_players": match_config.max_players,
-		"rounds_to_win": match_config.rounds_to_win,
-	})
-	return OK
+	return session.start_server(configuration)
 
 
 func start_client(
@@ -155,84 +192,15 @@ func start_client(
 	protocol_version: int = GameConstants.PROTOCOL_VERSION,
 	lobby_password: String = ""
 ) -> Error:
-	stop()
-	role = Role.CLIENT
-	_client_name = display_name
-	_client_protocol_version = protocol_version
-	_client_password = lobby_password
-	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_client(host, port, NetworkProtocol.CHANNEL_COUNT)
-	if error != OK:
-		last_error = "Could not connect to %s:%d (error %d)." % [host, port, error]
-		role = Role.NONE
-		return error
-	multiplayer.multiplayer_peer = _enet_peer
-	if not multiplayer.connected_to_server.is_connected(_on_client_transport_connected):
-		multiplayer.connected_to_server.connect(_on_client_transport_connected)
-	if not multiplayer.connection_failed.is_connected(_on_client_connection_failed):
-		multiplayer.connection_failed.connect(_on_client_connection_failed)
-	if not multiplayer.server_disconnected.is_connected(_on_client_server_disconnected):
-		multiplayer.server_disconnected.connect(_on_client_server_disconnected)
-	return OK
+	return session.start_client(host, port, display_name, protocol_version, lobby_password)
 
 
 func stop() -> void:
-	# Mark teardown before closing ENet. Closing a live client can synchronously emit
-	# server_disconnected; that callback must see NONE instead of recursively
-	# entering the UI's disconnect path while this cleanup is still in progress.
-	var stopped_role := role
-	role = Role.NONE
-	if stopped_role == Role.SERVER and _enet_peer != null:
-		_log("info", "server_shutdown", {
-			"connected_peers": lobby.human_count() if lobby != null else 0,
-			"participant_records": lobby.players.size() if lobby != null else 0,
-			"active_ships": world.combatants.size() if world != null else 0,
-			"active_projectiles": world.projectile_registry.size() if world != null else 0,
-			"pending_handshakes": _pending_handshakes.size(),
-		})
-	if _enet_peer != null:
-		_enet_peer.close()
-	_enet_peer = null
-	if _lan_discovery != null:
-		_lan_discovery.stop()
-		_lan_discovery.queue_free()
-		_lan_discovery = null
-	if is_inside_tree() and multiplayer.multiplayer_peer != null:
-		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	_pending_handshakes.clear()
-	_pending_disconnects.clear()
-	_rate_limiter.clear()
-	_control_rate_limiter.clear()
-	_authentication_attempt_limiter.clear()
-	_connection_attempt_limiter.clear()
-	_peer_auth_sources.clear()
-	_blocked_sources.clear()
-	_ban_file_path = ""
-	_malformed_control_strikes.clear()
-	_projectile_message_sequence = 0
-	_projectile_correction_cursor = 0
-	_projectile_correction_send_count = 0
-	_projectile_correction_assembler.clear()
-	_client_password = ""
-	_configuration.clear()
-	local_peer_id = 0
-	latest_lobby_state.clear()
-	match_coordinator = null
-	npc_controller.clear()
+	session.stop()
 
 
 func _lan_discovery_payload() -> Dictionary:
-	return {
-		"instance_id": _discovery_instance_id,
-		"protocol_version": GameConstants.PROTOCOL_VERSION,
-		"server_name": String(_configuration.get("server_name", "Super Star Fighter Server")),
-		"game_port": int(_configuration.get("port", GameConstants.DEFAULT_PORT)),
-		"human_count": lobby.human_count() if lobby != null else 0,
-		"npc_count": lobby.npc_count() if lobby != null else 0,
-		"player_limit": lobby.player_limit if lobby != null else int(_configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS)),
-		"match_active": lobby.match_active if lobby != null else false,
-		"password_required": true,
-	}
+	return session._lan_discovery_payload()
 
 
 func flush_metrics() -> void:
@@ -245,31 +213,7 @@ func get_round_trip_time_ms() -> int:
 
 
 func get_network_statistics() -> Dictionary:
-	var unavailable := {
-		"rtt_ms": -1,
-		"rtt_variance_ms": 0,
-		"packet_loss_percent": 0.0,
-		"packet_throttle_percent": 100.0,
-	}
-	if role != Role.CLIENT or _enet_peer == null:
-		return unavailable
-	var server_peer := _enet_peer.get_peer(NetworkProtocol.SERVER_PEER_ID)
-	if server_peer == null:
-		return unavailable
-	return {
-		"rtt_ms": int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
-		"rtt_variance_ms": int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME_VARIANCE)),
-		"packet_loss_percent": (
-			float(server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS))
-			/ ENetPacketPeer.PACKET_LOSS_SCALE
-			* 100.0
-		),
-		"packet_throttle_percent": (
-			float(server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE))
-			/ ENetPacketPeer.PACKET_THROTTLE_SCALE
-			* 100.0
-		),
-	}
+	return session.get_network_statistics()
 
 
 func send_input(frame: PlayerInputFrame) -> void:
@@ -425,14 +369,7 @@ func _physics_process(delta: float) -> void:
 			_broadcast_lobby_state()
 	var coordination_done_usec := Time.get_ticks_usec()
 	var tick := world.server_tick
-	if lobby != null and lobby.match_active and tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE) == 0:
-		_send_player_snapshots()
-	_send_projectile_batch()
-	_send_mine_detonations()
-	if lobby != null and lobby.match_active and tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PROJECTILE_CORRECTION_RATE) == 0:
-		_send_projectile_correction()
-	if tick % 3 == 0:
-		_send_combat_feedback()
+	replication.replicate_tick(tick)
 	var duration_usec := Time.get_ticks_usec() - start_usec
 	_phase_totals_usec.simulation += simulation_done_usec - start_usec
 	_phase_totals_usec.coordination += coordination_done_usec - simulation_done_usec
@@ -485,37 +422,7 @@ func client_hello(protocol_version: int, display_name: String, password_proof: S
 			)
 		_reject_connection(sender_id, rejection)
 		return
-	var result := lobby.admit(sender_id, display_name)
-	if not result.ok:
-		_reject_connection(sender_id, result.reason)
-		return
-	_pending_handshakes.complete(sender_id)
-	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-	var player := result.player as PlayerMatchState
-	world.add_peer(sender_id)
-	world.input_timeouts[sender_id] = GameConstants.INPUT_STALE_SECONDS
-	if match_coordinator != null:
-		match_coordinator.add_late_spectator(player)
-	server_welcome.rpc_id(sender_id, sender_id, lobby.serialize())
-	if match_coordinator != null:
-		match_event.rpc_id(
-			sender_id,
-			&"STATE_CHANGED",
-			world.server_tick,
-			match_coordinator.current_state_payload()
-		)
-	_outbound_bytes += 64
-	_broadcast_lobby_state()
-	server_peer_admitted.emit(sender_id, player)
-	_log("info", "peer_joined", {"peer_id": sender_id, "display_name": player.display_name, "spectator": player.spectator})
-	if bool(_configuration.get("auto_start", false)) and lobby.participant_count() >= GameConstants.MIN_PLAYERS and not lobby.match_active:
-		for peer_id in lobby.human_peer_ids():
-			lobby.request_ready(peer_id, true)
-		var start_result := lobby.request_start(lobby.leader_id)
-		if start_result.ok:
-			_activate_added_npcs(start_result)
-			_broadcast_lobby_state()
-			_start_match_coordinator(lobby.leader_id)
+	session.complete_admission(sender_id, display_name)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -1049,74 +956,19 @@ func projectile_correction(packet: PackedByteArray) -> void:
 
 
 func _on_server_peer_connected(peer_id: int) -> void:
-	var source := _peer_auth_source(peer_id)
-	_peer_auth_sources[peer_id] = source
-	var now := _now_seconds()
-	if _blocked_sources.has(_normalized_source(source)):
-		_pending_handshakes.begin(peer_id, now)
-		_reject_connection(peer_id, NetworkProtocol.REJECT_BLOCKED)
-		return
-	if (
-		_connection_attempt_limiter.is_blocked(source, now) or
-		_connection_attempt_limiter.register_failure(source, now)
-	):
-		_pending_handshakes.begin(peer_id, now)
-		_reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
-		return
-	if _pending_auth_count_for_source(source, peer_id) >= NetworkProtocol.AUTH_MAX_PENDING_PER_SOURCE:
-		_pending_handshakes.begin(peer_id, now)
-		_reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
-		return
-	if _authentication_attempt_limiter.is_blocked(source, now):
-		_pending_handshakes.begin(peer_id, now)
-		_reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
-		return
-	var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
-	_pending_handshakes.begin(peer_id, now, challenge)
-	authentication_challenge.rpc_id(peer_id, challenge)
+	session._on_server_peer_connected(peer_id)
 
 
 func _on_server_peer_disconnected(peer_id: int) -> void:
-	_pending_handshakes.complete(peer_id)
-	_peer_auth_sources.erase(peer_id)
-	_pending_disconnects.erase(peer_id)
-	_rate_limiter.remove_peer(peer_id)
-	_control_rate_limiter.remove_peer(peer_id)
-	_malformed_control_strikes.erase(peer_id)
-	if match_coordinator != null:
-		match_coordinator.disconnect_peer(peer_id)
-		_drain_match_coordinator()
-	var departed := lobby.remove(peer_id) if lobby != null else null
-	var replacement_npcs: Array[PlayerMatchState] = []
-	if departed != null and match_coordinator == null:
-		replacement_npcs = lobby.restore_npc_fill()
-		_activate_added_npcs({"added_npcs": replacement_npcs})
-	if world != null:
-		world.remove_peer(peer_id)
-	if departed != null:
-		_broadcast_lobby_state()
-		server_peer_departed.emit(peer_id)
-		_log("info", "peer_left", {"peer_id": peer_id})
+	session._on_server_peer_disconnected(peer_id)
 
 
 func _peer_auth_source(peer_id: int) -> String:
-	if _enet_peer == null:
-		return "peer:%d" % peer_id
-	var packet_peer := _enet_peer.get_peer(peer_id)
-	if packet_peer == null:
-		return "peer:%d" % peer_id
-	var address := packet_peer.get_remote_address()
-	return address if not address.is_empty() else "peer:%d" % peer_id
+	return session._peer_auth_source(peer_id)
 
 
 func _pending_auth_count_for_source(source: String, excluded_peer_id: int) -> int:
-	var normalized := _normalized_source(source)
-	var count := 0
-	for peer_value in _peer_auth_sources.keys():
-		var peer_id := int(peer_value)
-		if peer_id != excluded_peer_id and _pending_handshakes.has(peer_id) and _normalized_source(String(_peer_auth_sources[peer_id])) == normalized:
-			count += 1
-	return count
+	return session._pending_auth_count_for_source(source, excluded_peer_id)
 
 
 func operator_status() -> Dictionary:
@@ -1164,58 +1016,19 @@ func operator_players() -> Dictionary:
 
 
 func operator_kick(peer_id: int, block_source: bool = false) -> Dictionary:
-	if role != Role.SERVER or lobby == null:
-		return {"ok": false, "error": "The server is not running."}
-	var player := lobby.players.get(peer_id) as PlayerMatchState
-	if player == null or player.is_npc:
-		return {"ok": false, "error": "That human player is not connected."}
-	var source := String(_peer_auth_sources.get(peer_id, ""))
-	if block_source:
-		var block_result := operator_block_source(source)
-		if not block_result.ok:
-			return block_result
-	var reason := NetworkProtocol.REJECT_BLOCKED if block_source else NetworkProtocol.REJECT_KICKED
-	connection_rejected.rpc_id(peer_id, reason, NetworkProtocol.rejection_message(reason))
-	_pending_disconnects[peer_id] = _now_seconds() + 0.1
-	_log("warning", "operator_peer_removed", {
-		"peer_id": peer_id,
-		"display_name": player.display_name,
-		"blocked": block_source,
-	})
-	return {"ok": true, "peer_id": peer_id, "source": source, "blocked": block_source}
+	return session.operator_kick(peer_id, block_source)
 
 
 func operator_block_source(source: String) -> Dictionary:
-	var normalized := _normalized_source(source)
-	if not _is_valid_block_source(normalized):
-		return {"ok": false, "error": "A bounded source address is required."}
-	if not _blocked_sources.has(normalized) and _blocked_sources.size() >= NetworkProtocol.MAX_BLOCKED_SOURCES:
-		return {"ok": false, "error": "The blocked-source limit has been reached."}
-	_blocked_sources[normalized] = true
-	var save_error := _save_blocked_sources()
-	if not save_error.is_empty():
-		_blocked_sources.erase(normalized)
-		return {"ok": false, "error": save_error}
-	return {"ok": true, "source": normalized}
+	return session.operator_block_source(source)
 
 
 func operator_unblock_source(source: String) -> Dictionary:
-	var normalized := _normalized_source(source)
-	if not _blocked_sources.erase(normalized):
-		return {"ok": false, "error": "That source is not blocked."}
-	var save_error := _save_blocked_sources()
-	if not save_error.is_empty():
-		_blocked_sources[normalized] = true
-		return {"ok": false, "error": save_error}
-	return {"ok": true, "source": normalized}
+	return session.operator_unblock_source(source)
 
 
 func operator_set_lobby_password(password: String) -> Dictionary:
-	if not NetworkProtocol.is_valid_lobby_password(password):
-		return {"ok": false, "error": "Lobby password must contain 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH}
-	_configuration.lobby_password = password
-	_log("info", "operator_setting_changed", {"setting": "lobby_password"})
-	return {"ok": true, "setting": "lobby_password"}
+	return session.operator_set_lobby_password(password)
 
 
 func operator_set_setting(setting: String, value: Variant) -> Dictionary:
@@ -1300,66 +1113,23 @@ static func _invalid_operator_setting_type(setting: String, expected: String) ->
 
 
 func _load_blocked_sources() -> void:
-	_blocked_sources.clear()
-	if _ban_file_path.is_empty() or not FileAccess.file_exists(_ban_file_path):
-		return
-	var file := FileAccess.open(_ban_file_path, FileAccess.READ)
-	if file == null:
-		_log("warning", "ban_file_read_failed", {"path": _ban_file_path})
-		return
-	if file.get_length() > NetworkProtocol.MAX_BAN_FILE_BYTES:
-		_log("warning", "ban_file_too_large", {"path": _ban_file_path})
-		return
-	var decoded: Variant = JSON.parse_string(file.get_as_text())
-	if not decoded is Array:
-		_log("warning", "ban_file_invalid", {"path": _ban_file_path})
-		return
-	for value in decoded:
-		if _blocked_sources.size() >= NetworkProtocol.MAX_BLOCKED_SOURCES:
-			break
-		var source := _normalized_source(String(value))
-		if _is_valid_block_source(source):
-			_blocked_sources[source] = true
+	session._load_blocked_sources()
 
 
 func _save_blocked_sources() -> String:
-	if _ban_file_path.is_empty():
-		return "No ban-file path is configured."
-	var target_path := ProjectSettings.globalize_path(_ban_file_path)
-	var temporary_path := target_path + ".tmp"
-	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
-	if file == null:
-		return "Could not write the temporary ban file."
-	var sources: Array = _blocked_sources.keys()
-	sources.sort()
-	file.store_string(JSON.stringify(sources, "  "))
-	file.flush()
-	var write_error := file.get_error()
-	file.close()
-	if write_error != OK:
-		DirAccess.remove_absolute(temporary_path)
-		return "Could not flush the temporary ban file."
-	var replace_error := DirAccess.rename_absolute(temporary_path, target_path)
-	if replace_error != OK:
-		DirAccess.remove_absolute(temporary_path)
-		return "Could not atomically replace the ban file."
-	return ""
+	return session._save_blocked_sources()
 
 
 static func _normalized_source(source: String) -> String:
-	var normalized := source.strip_edges().to_lower()
-	if normalized.begins_with("[") and normalized.ends_with("]"):
-		normalized = normalized.substr(1, normalized.length() - 2)
-	return normalized
+	return NetworkSessionOwner._normalized_source(source)
 
 
 static func _is_valid_block_source(source: String) -> bool:
-	return not source.is_empty() and source.length() <= 64 and source.is_valid_ip_address()
+	return NetworkSessionOwner._is_valid_block_source(source)
 
 
 func _on_client_transport_connected() -> void:
-	# The server supplies a fresh challenge before the client sends credentials.
-	pass
+	session._on_client_transport_connected()
 
 
 @rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -1377,40 +1147,19 @@ func authentication_challenge(challenge: String) -> void:
 
 
 func _on_client_connection_failed() -> void:
-	if role != Role.CLIENT:
-		return
-	last_error = "Could not reach the server."
-	client_connection_lost.emit(last_error)
+	session._on_client_connection_failed()
 
 
 func _on_client_server_disconnected() -> void:
-	if role != Role.CLIENT:
-		return
-	var message := last_error if not last_error.is_empty() else NetworkProtocol.rejection_message(NetworkProtocol.REJECT_SERVER_CLOSED)
-	local_peer_id = 0
-	client_connection_lost.emit(message)
+	session._on_client_server_disconnected()
 
 
 func _process_pending_connections() -> void:
-	var now := _now_seconds()
-	if _pending_handshakes.size() > 0:
-		for peer_id in _pending_handshakes.expired(now):
-			_reject_connection(peer_id, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT)
-	if not _pending_disconnects.is_empty():
-		for peer_value in _pending_disconnects.keys():
-			var peer_id := int(peer_value)
-			if now >= float(_pending_disconnects[peer_id]):
-				_pending_disconnects.erase(peer_id)
-				if _enet_peer != null:
-					_enet_peer.disconnect_peer(peer_id)
+	session._process_pending_connections()
 
 
 func _reject_connection(peer_id: int, reason: StringName) -> void:
-	var message := NetworkProtocol.rejection_message(reason)
-	connection_rejected.rpc_id(peer_id, reason, message)
-	_pending_handshakes.complete(peer_id)
-	_pending_disconnects[peer_id] = _now_seconds() + 0.1
-	_log("warning", "connection_rejected", {"peer_id": peer_id, "reason": String(reason)})
+	session._reject_connection(peer_id, reason)
 
 
 func _reject_request(peer_id: int, detail: String) -> void:
@@ -1419,26 +1168,11 @@ func _reject_request(peer_id: int, detail: String) -> void:
 
 
 func _accept_control_request(peer_id: int, request_name: String) -> bool:
-	if lobby == null or not lobby.players.has(peer_id):
-		_log("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "control", "detail": "request_before_handshake"})
-		_reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
-		return false
-	var decision := _control_rate_limiter.register(peer_id, _now_seconds())
-	if decision == RequestRateLimiter.Decision.DISCONNECT:
-		_log("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "control", "detail": "%s_rate_limit" % request_name})
-		_reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
-		return false
-	return decision == RequestRateLimiter.Decision.ACCEPT
+	return session._accept_control_request(peer_id, request_name)
 
 
 func _reject_malformed_control(peer_id: int, detail: String) -> void:
-	var strikes := int(_malformed_control_strikes.get(peer_id, 0)) + 1
-	_malformed_control_strikes[peer_id] = strikes
-	if strikes >= NetworkProtocol.TRAFFIC_STRIKES_BEFORE_DISCONNECT:
-		_log("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "control", "detail": detail})
-		_reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
-		return
-	_reject_request(peer_id, detail)
+	session._reject_malformed_control(peer_id, detail)
 
 
 func _send_request_rejected(peer_id: int, message_text: String) -> void:
@@ -1446,17 +1180,11 @@ func _send_request_rejected(peer_id: int, message_text: String) -> void:
 
 
 func _broadcast_lobby_state() -> void:
-	if lobby == null:
-		return
-	var state := lobby.serialize()
-	lobby_state.rpc(state)
-	_outbound_bytes += JSON.stringify(state).length() * maxi(lobby.human_count(), 1)
+	replication._broadcast_lobby_state()
 
 
 func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void:
-	var tick := world.server_tick if world != null else 0
-	match_event.rpc(event_type, tick, payload)
-	_log("info", "match_event", {"event_type": String(event_type), "server_tick": tick})
+	replication._broadcast_match_event(event_type, payload)
 
 
 func _start_match_coordinator(leader_id: int) -> void:
@@ -1549,40 +1277,15 @@ func _drain_match_coordinator() -> void:
 
 
 func _send_player_snapshots() -> void:
-	if lobby == null or lobby.players.is_empty():
-		return
-	var public_body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 0)
-	for peer_id in lobby.human_peer_ids_view():
-		var combatant := world.combatants.get(peer_id) as CombatantState
-		var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), peer_id) if combatant != null and combatant.is_cloaked() else public_body
-		var correction := combatant.prediction_state() if combatant != null else {}
-		correction["active_ordnance"] = world.projectile_registry.count_for_owner(peer_id)
-		correction["active_mines"] = world.projectile_registry.mine_count_for_owner(peer_id)
-		correction["budget_evictions"] = world.projectile_registry.budget_evictions_for_owner(peer_id)
-		var packet := PlayerSnapshotCodec.assemble(world.server_tick, world.acknowledged_input(peer_id), body, correction)
-		world_snapshot.rpc_id(peer_id, packet)
-		_outbound_bytes += packet.size()
+	replication._send_player_snapshots()
 
 
 func _send_combat_feedback() -> void:
-	var feedback := world.drain_combat_feedback()
-	if lobby == null:
-		return
-	for peer_id in lobby.human_peer_ids_view():
-		if feedback.has(peer_id):
-			var payload := feedback[peer_id] as Dictionary
-			match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", world.server_tick, payload)
-			_outbound_bytes += var_to_bytes(payload).size()
+	replication._send_combat_feedback()
 
 
 func _send_mine_detonations() -> void:
-	var events := world.drain_mine_detonations()
-	if lobby == null or lobby.human_count() == 0:
-		return
-	for start in range(0, events.size(), 8):
-		var chunk := events.slice(start, start + 8)
-		mine_detonations.rpc(world.server_tick, chunk)
-		_outbound_bytes += var_to_bytes(chunk).size() * lobby.human_count()
+	replication._send_mine_detonations()
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PROJECTILE_DELTA)
@@ -1592,61 +1295,19 @@ func mine_detonations(server_tick_value: int, events: Array) -> void:
 
 
 func _send_projectile_batch() -> void:
-	if not world.has_projectile_batch():
-		return
-	var batch := world.drain_projectile_batch()
-	if lobby == null or lobby.human_count() == 0:
-		return
-	var sequence := _next_projectile_message_sequence()
-	var packets := ProjectilePacketCodec.encode_batch_chunks(
-		world.server_tick,
-		sequence,
-		batch.spawned as Array[ProjectileState],
-		batch.removed as Array[int]
-	)
-	for packet in packets:
-		projectile_batch.rpc(packet)
-		_outbound_bytes += packet.size() * maxi(lobby.human_count(), 1)
+	replication._send_projectile_batch()
 
 
 func _send_projectile_correction() -> void:
-	if lobby == null or lobby.players.is_empty():
-		return
-	var complete_snapshot := _projectile_correction_send_count % GameConstants.PROJECTILE_CORRECTION_RATE == 0
-	_projectile_correction_send_count += 1
-	if world.projectile_registry.size() == 0 and not complete_snapshot:
-		return
-	var active: Array[ProjectileState] = []
-	if complete_snapshot:
-		active = world.active_projectiles()
-	else:
-		var window := world.projectile_registry.projectile_window(
-			_projectile_correction_cursor,
-			PARTIAL_PROJECTILE_CORRECTION_COUNT
-		)
-		active = window.projectiles as Array[ProjectileState]
-		_projectile_correction_cursor = int(window.next_slot)
-	var sequence := _next_projectile_message_sequence()
-	var packets := ProjectilePacketCodec.encode_correction_chunks(
-		world.server_tick,
-		sequence,
-		active,
-		complete_snapshot
-	)
-	for packet in packets:
-		projectile_correction.rpc(packet)
-		_outbound_bytes += packet.size() * lobby.human_count()
+	replication._send_projectile_correction()
 
 
 func _next_projectile_message_sequence() -> int:
-	_projectile_message_sequence = (_projectile_message_sequence + 1) & 0xffff
-	return _projectile_message_sequence
+	return replication._next_projectile_message_sequence()
 
 
 func _accept_projectile_correction_chunk(decoded: Dictionary) -> void:
-	var assembled := _projectile_correction_assembler.accept(decoded)
-	if not assembled.is_empty():
-		client_projectile_correction_received.emit(assembled)
+	replication._accept_projectile_correction_chunk(decoded)
 
 
 func _log_metrics() -> void:

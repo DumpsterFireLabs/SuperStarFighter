@@ -126,7 +126,8 @@ func step(
 	input_direction: Vector2,
 	new_aim_angle: float,
 	shield_held: bool,
-	delta: float
+	delta: float,
+	environment_speed_multiplier: float = 1.0
 ) -> void:
 	if not alive:
 		velocity = Vector2.ZERO
@@ -162,7 +163,7 @@ func step(
 		stats,
 		delta,
 		shield.active,
-		stats.afterburner_speed_multiplier if afterburner_remaining > 0.0 else 1.0,
+		(stats.afterburner_speed_multiplier if afterburner_remaining > 0.0 else 1.0) * maxf(environment_speed_multiplier, 0.0),
 		acceleration_multiplier,
 		GameConstants.BREAKAWAY_BRAKING_MULTIPLIER if breakaway_active else 1.0
 	)
@@ -181,9 +182,22 @@ func step(
 ## Shared input simulation for authority and client replay. Only the authority
 ## turns the returned action bits into damaging projectiles.
 func step_input(frame: PlayerInputFrame, delta: float) -> int:
+	return step_input_with_movement(
+		frame,
+		delta,
+		MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle)
+	)
+
+
+func step_input_with_movement(
+	frame: PlayerInputFrame,
+	delta: float,
+	world_movement: Vector2,
+	environment_speed_multiplier: float = 1.0
+) -> int:
 	if not alive:
 		return 0
-	step(MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle), frame.aim_angle, frame.shielding, delta)
+	step(world_movement, frame.aim_angle, frame.shielding, delta, environment_speed_multiplier)
 	var actions := 0
 	if frame.special_activated:
 		if last_special_sequence < 0 or SequenceMath.is_newer(frame.special_sequence, last_special_sequence):

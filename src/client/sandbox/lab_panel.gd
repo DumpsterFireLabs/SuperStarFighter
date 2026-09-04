@@ -18,6 +18,7 @@ var shield_control: CheckBox
 var fire_control: CheckBox
 var move_control: CheckBox
 var preset_control: OptionButton
+var map_control: OptionButton
 
 
 func configure(sandbox: OfflineSandbox) -> void:
@@ -66,6 +67,13 @@ func configure(sandbox: OfflineSandbox) -> void:
 	_button(content, "Clear build", func() -> void: lab.load_preset(0)).theme_type_variation = &"DangerButton"
 	content = _tab(tabs, "Targets")
 	_label(content, "TARGETS", DesignTokens.TEXT_SECTION_SIZE)
+	map_control = OptionButton.new()
+	map_control.name = "ArenaSelection"
+	for map_id in lab.LAB_MAP_IDS:
+		var suffix := " · Solar Current trial" if map_id == &"solar_tide" else ""
+		map_control.add_item("%s%s" % [ArenaLayout.display_name(map_id), suffix])
+	map_control.item_selected.connect(lab.set_lab_map)
+	content.add_child(map_control)
 	count_control = _spin(content, "Count", 1.0, 5.0, 1.0, lab.target_count)
 	health_control = _spin(content, "Hull HP", 10.0, 600.0, 10.0, lab.target_health)
 	distance_control = _spin(content, "Distance", 160.0, 900.0, 20.0, lab.target_distance)

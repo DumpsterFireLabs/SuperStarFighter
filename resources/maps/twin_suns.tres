@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="MapDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/shared/arena/map_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+map_id = &"twin_suns"
+display_name = "Twin Suns"
+cover = Array[Rect2]([])
+circles = Array[Vector3]([Vector3(1130.0, 900.0, 245.0), Vector3(2070.0, 900.0, 245.0)])
+spawns = Array[Vector2]([Vector2(400.0, 140.0), Vector2(400.0, 1660.0), Vector2(742.8571166992188, 140.0), Vector2(742.8571166992188, 1660.0), Vector2(1085.7142333984375, 140.0), Vector2(1085.7142333984375, 1660.0), Vector2(1428.5714111328125, 140.0), Vector2(1428.5714111328125, 1660.0), Vector2(1771.4285888671875, 140.0), Vector2(1771.4285888671875, 1660.0), Vector2(2114.28564453125, 140.0), Vector2(2114.28564453125, 1660.0), Vector2(2457.142822265625, 140.0), Vector2(2457.142822265625, 1660.0), Vector2(2800.0, 140.0), Vector2(2800.0, 1660.0), Vector2(180.0, 320.0), Vector2(3020.0, 320.0), Vector2(180.0, 485.71429443359375), Vector2(3020.0, 485.71429443359375), Vector2(180.0, 651.4285888671875), Vector2(3020.0, 651.4285888671875), Vector2(180.0, 817.1428833007812), Vector2(3020.0, 817.1428833007812), Vector2(180.0, 982.8571166992188), Vector2(3020.0, 982.8571166992188), Vector2(180.0, 1148.5714111328125), Vector2(3020.0, 1148.5714111328125), Vector2(180.0, 1314.2857666015625), Vector2(3020.0, 1314.2857666015625), Vector2(180.0, 1480.0), Vector2(3020.0, 1480.0)])
+central_radius = 0.0
+material_family = &"thermal"
+border_color = Color(1.0, 0.8, 0.3607843137254902, 1.0)
+floor_color = Color(0.08627450980392157, 0.050980392156862744, 0.07058823529411765, 1.0)
+line_color = Color(1.0, 0.44313725490196076, 0.24705882352941178, 1.0)
+obstacle_color = Color(0.26666666666666666, 0.13725490196078433, 0.11372549019607843, 1.0)

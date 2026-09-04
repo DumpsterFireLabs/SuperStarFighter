@@ -30,7 +30,7 @@ func _draw() -> void:
 		var peer_id := int(peer_value)
 		if peer_id == world_view.local_peer_id:
 			continue
-		var ship := world_view.ships[peer_id] as SandboxShip
+		var ship := world_view.ships[peer_id] as CombatShipView
 		if not ship.combatant.alive or ship.combatant.is_cloaked():
 			continue
 		var screen_position := center + (ship.global_position - world_view.camera.position) * world_view.camera.zoom

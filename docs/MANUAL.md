@@ -422,6 +422,8 @@ The built-in rotation contains Core Arena, Riftline, Prism Array, Twin Suns, Dea
 
 The active map appears in the countdown banner, combat HUD, and live scoreboard. Its synchronized ID controls server collision, projectiles, NPC sightlines/flanking, spawn assignment, overtime navigation, and client presentation.
 
+Solar Tide contains **Solar Current**, the bright clockwise stream around its central sun. Follow the moving arrows for a modest speed advantage, or steer across and out of the marked band normally. The current does not cause damage, disable controls, affect shields, or bend projectiles. The countdown names its direction, and high-contrast mode strengthens both edges of the stream.
+
 ### 7.5 Overtime
 
 After the configured 30–120 second delay (45 seconds by default), a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
@@ -553,6 +555,8 @@ Wider modes reveal additional horizontal arena space without stretching ships or
 
 Audio controls include master, music, and effects volume plus a mute toggle. Remote combat sounds pan toward their source; local damage, shields, and objective cues have priority over crowded gunfire and briefly lower the music. Rising objective notes indicate a friendly flag pickup or your hill control, falling notes indicate an enemy pickup or loss of your hill control, and a level tone marks a dropped flag. Music loads on demand when its screen or gameplay context starts.
 
+If left/right cues appear centered or identical, confirm Windows Mono audio is off and temporarily disable headset virtual-surround processing. Logitech G Surround Sound collapsed the reference left/right audition during acceptance testing; the same headset localized it correctly in stereo mode. Music and local feedback remain centered by design.
+
 The Controls tab provides:
 
 - An explicit **Keyboard & Mouse** or **Controller / Joystick** profile selector. Keyboard and mouse is the default until another selection is saved.
@@ -599,7 +603,7 @@ Use **Retry step** to reset the current combat exercise, **Restart lesson** to b
 
 The editor groups controls into **Build**, **Targets**, and **Stats** tabs. In Build, search cards by name, description, or rarity, then select a result to inspect its description and actual before/after stat changes. **+ Stack** adds the selected card, **− Stack** removes one stack, and **Clear build** restores the base ship. Stack actions remain visible beneath the scrolling Build content. Stats lists owned cards, derived hull/movement/weapon/shield/ability values, and measurements. Scrolling content follows keyboard/controller focus.
 
-The preset menu contains **Base ship**, **Rapid scatter**, **Beam specialist**, **Shield tank**, and **All abilities**. Further edits turn a preset into a custom build. The target controls select one through five targets, 10–600 hull HP, and a distance of 160–900 pixels. You can enable target shields, return fire, and strafing independently. With a controller, D-pad left / right changes a focused numeric target control.
+The preset menu contains **Base ship**, **Rapid scatter**, **Beam specialist**, **Shield tank**, and **All abilities**. Further edits turn a preset into a custom build. The Targets tab can switch between **Core Arena** and **Solar Tide · Solar Current trial** so the current can be evaluated without waiting for online map rotation. The target controls select one through five targets, 10–600 hull HP, and a distance of 160–900 pixels. You can enable target shields, return fire, and strafing independently. With a controller, D-pad left / right changes a focused numeric target control.
 
 Build and target changes reset the encounter, restoring health, ammunition, and ability resources and clearing projectiles and measurements. **Reset encounter** does the same without changing your build or target setup. **Reset measurements** clears only the counters. Targets stay destroyed until the encounter is reset; they do not silently heal or respawn. The default setup is one stationary, unshielded 100-HP target at 420 pixels.
 
@@ -728,7 +732,7 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, stable player identity, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, replays, or console/mobile/web builds. Server authority rejects invalid state-changing requests, but without stable identity and replay evidence the current build should be treated as suitable for organized semi-competitive play rather than prize-bearing tournament administration.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, stable player identity, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, online map selection/voting, destructible cover, teleporter relays, anti-DDoS infrastructure, replays, or console/mobile/web builds. Server authority rejects invalid state-changing requests, but without stable identity and replay evidence the current build should be treated as suitable for organized semi-competitive play rather than prize-bearing tournament administration.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.
 

@@ -13,10 +13,13 @@ reports/
 # Local export credentials
 export_credentials.cfg
 
+# Python tooling cache
+__pycache__/
+*.pyc
+
 # Editor and OS metadata
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 desktop.ini
-

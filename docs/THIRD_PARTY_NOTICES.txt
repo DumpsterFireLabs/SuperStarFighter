@@ -1,5 +1,9 @@
 THIRD-PARTY NOTICES
 
+The accompanying GODOT_COPYRIGHT.txt includes the copyright notices and license
+texts for Godot Engine's bundled third-party components, generated from the
+project's pinned engine. Retain both files when redistributing this package.
+
 Godot Engine
 Copyright (c) 2014-present Godot Engine contributors.
 Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.

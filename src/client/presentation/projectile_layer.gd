@@ -1,4 +1,4 @@
-class_name SandboxProjectileLayer
+class_name ProjectileLayer
 extends Node2D
 
 const DEFAULT_BEAM_COLOR: Color = Color("42e8ff")

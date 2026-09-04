@@ -113,7 +113,7 @@ func _step_simulation(
 	map_id: StringName
 ) -> int:
 	simulated_combatant.stats = stats
-	var actions := simulated_combatant.step_input(frame, delta)
+	var actions := ArenaMovementSystem.step_input(simulated_combatant, frame, delta, map_id)
 	var motion := ArenaCollisionSystem.move_ship(
 		simulated_combatant.position, simulated_combatant.velocity, delta, map_id
 	)
