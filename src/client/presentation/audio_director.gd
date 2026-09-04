@@ -894,10 +894,27 @@ func resident_music_bytes() -> int:
 	var seen := {}
 	var bytes := 0
 	for player in [menu_player, gameplay_player, win_player]:
-		if player.stream is AudioStreamWAV and not seen.has(player.stream):
+		if player.stream != null and not seen.has(player.stream):
 			seen[player.stream] = true
-			bytes += (player.stream as AudioStreamWAV).data.size()
+			bytes += _stream_data_bytes(player.stream)
 	return bytes
+
+
+func _stream_data_bytes(stream: AudioStream) -> int:
+	if stream is AudioStreamWAV:
+		return (stream as AudioStreamWAV).data.size()
+	if stream is AudioStreamMP3:
+		return (stream as AudioStreamMP3).data.size()
+	if stream is AudioStreamOggVorbis:
+		var sequence := (stream as AudioStreamOggVorbis).packet_sequence
+		if sequence == null:
+			return 0
+		var bytes := 0
+		for page in sequence.packet_data:
+			for packet in page:
+				bytes += packet.size()
+		return bytes
+	return 0
 
 
 func observe_objective(objective: Dictionary, local_peer_id: int, teams: Dictionary = {}) -> void:

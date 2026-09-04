@@ -307,7 +307,7 @@ Online Escape/settings screens must block local input without pausing the tree o
 
 Music and SFX are discovered by filename. No code edit is required for ordinary replacement assets.
 
-- Menu: `assets/audio/music/main_menu.mp3`, `.wav`, or `.ogg`.
+- Menu: `assets/audio/music/main_menu.ogg`, `.wav`, or `.mp3`.
 - Gameplay: any supported files under `assets/audio/music/gameplay/`, played in filename order.
 - Victory: `assets/audio/music/win.mp3`, `.wav`, or `.ogg`.
 - SFX: named files under `assets/audio/sfx/`.

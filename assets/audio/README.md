@@ -2,11 +2,11 @@
 
 Super Star Fighter runs safely without external audio files. When files are absent, menu/gameplay music is silent, victory music has a generated fallback, and combat uses synthesized placeholder effects generated at runtime.
 
-Add the future music files at these paths:
+Add music files at these paths:
 
-- `music/main_menu.mp3` — the singular main-menu/lobby track.
+- `music/main_menu.ogg` — the singular main-menu/lobby track.
 - `music/gameplay/*` — any number of gameplay tracks, played in filename order as a playlist.
-- `music/win.mp3` — recommended exact filename for the match-victory track; a generated victory theme is used when absent. `win.wav` and `win.ogg` are also accepted.
+- `music/win.ogg` — recommended exact filename for the match-victory track; a generated victory theme is used when absent. `win.wav` and `win.mp3` are also accepted.
 
 Music accepts `.mp3`, `.ogg`, and `.wav`. Discovery uses the final extension, so compound source names such as `main_menu.mp3.wav` also work.
 
@@ -37,7 +37,7 @@ Music is discovered by path and loaded asynchronously when its context becomes a
 
 ## Loading and mix verification
 
-Music discovery retains file paths until a context needs its track. Interactive loads run on the resource loader thread; the two menu crossfade players share one buffer, and changing contexts releases inactive music. Existing QOA WAV imports remain unchanged. Generated weapon variants use a 96-entry LRU cache.
+Music discovery retains file paths until a context needs its track. Interactive loads run on the resource loader thread; the two menu crossfade players share one buffer, and changing contexts releases inactive music. Bundled music remains Vorbis-compressed, while authored WAV effects retain their configured imports. Generated weapon variants use a 96-entry LRU cache.
 
 The 24-voice effects pool limits remote gunfire to eight concurrent voices and other remote effects to six. Local hull/shield feedback and objective alerts take priority. World effects use restrained stereo panning; critical cues briefly duck music by 7 dB. The master limiter reserves a 1 dB output ceiling.
 

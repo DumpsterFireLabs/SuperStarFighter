@@ -35,9 +35,9 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_true(has_sfx_limiter, "effects bus limits extreme overlapping weapon transients")
 	context.expect_true(FileAccess.file_exists("res://assets/audio/README.md"), "audio drop-in contract is documented beside the asset paths")
 	context.expect_equal(audio.resident_music_bytes(), 0, "startup discovers music without retaining its sample buffers")
-	if FileAccess.file_exists("res://assets/audio/music/main_menu.mp3.wav"):
+	if FileAccess.file_exists("res://assets/audio/music/main_menu.ogg"):
 		audio.prepare_music_now(&"menu")
-		context.expect_true(audio.menu_player.stream != null, "authored menu music with a compound filename is discovered")
+		context.expect_true(audio.menu_player.stream != null, "authored menu music is discovered")
 		context.expect_equal(audio.menu_crossfade_player.stream, audio.menu_player.stream, "menu music is prepared on two players for a seamless crossfade")
 		if audio.menu_player.stream is AudioStreamWAV:
 			context.expect_equal((audio.menu_player.stream as AudioStreamWAV).loop_mode, AudioStreamWAV.LOOP_DISABLED, "menu WAV avoids an abrupt literal end-to-start loop")
@@ -772,7 +772,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.physical_keycode = KEY_TAB
 	tab_event.pressed = true
 	client.audio_director.gameplay_track_paths.clear()
-	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Heavy Electronic Edge Main.wav")
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Heavy Electronic Edge Main.ogg")
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
 	client._input(tab_event)
