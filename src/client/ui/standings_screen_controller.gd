@@ -98,6 +98,7 @@ func create_ui() -> void:
 	scoreboard_hill_heading.visible = false
 	_add_results_column_heading(scoreboard_heading, "CURRENT BUILD", 0.0, true)
 	var scoreboard_scroll := ScrollContainer.new()
+	scoreboard_scroll.follow_focus = true
 	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 400.0)
 	scoreboard_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -209,7 +210,7 @@ func create_ui() -> void:
 	results_actions.add_child(results_rematch_button)
 	results_extend_button = Button.new()
 	results_extend_button.text = "PLAY 5 MORE ROUNDS"
-	results_extend_button.theme_type_variation = &"PrimaryButton"
+	results_extend_button.theme_type_variation = &"SecondaryButton"
 	results_extend_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	results_extend_button.custom_minimum_size = Vector2(300.0, 52.0)
 	results_extend_button.add_theme_font_size_override("font_size", 19)
@@ -217,6 +218,7 @@ func create_ui() -> void:
 	results_actions.add_child(results_extend_button)
 	results_return_button = Button.new()
 	results_return_button.text = "EXIT TO LOBBY"
+	results_return_button.theme_type_variation = &"QuietButton"
 	results_return_button.custom_minimum_size = Vector2(300.0, 52.0)
 	results_return_button.add_theme_font_size_override("font_size", 19)
 	results_return_button.pressed.connect(_on_results_return_pressed)
@@ -251,12 +253,27 @@ func _update_scoreboard() -> void:
 
 
 func _set_scoreboard_open(open: bool) -> void:
+	if not open and client.card_inspector != null:
+		client.card_inspector.close(false)
 	scoreboard_open = open and _scoreboard_available()
 	if scoreboard_panel != null:
 		scoreboard_panel.visible = scoreboard_open
 	if scoreboard_open:
 		_scoreboard_rows_dirty = true
 		_update_scoreboard()
+		_focus_first_card(scoreboard_rows_container)
+	else:
+		get_viewport().gui_release_focus()
+
+
+func _focus_first_card(parent: Node) -> bool:
+	for child in parent.get_children():
+		if child is CardHoverButton:
+			child.grab_focus()
+			return true
+		if _focus_first_card(child):
+			return true
+	return false
 
 
 func _add_scoreboard_row(rank: int, peer_id: int) -> void:
@@ -419,6 +436,8 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 		var card := card_catalog.get_card(card_id)
 		var stacks := int(build[card_value])
 		var chip := CardHoverButtonScript.new()
+		chip.inspection_requested.connect(client._inspect_card)
+		chip.pressed.connect(chip.request_inspection)
 		chip.focus_mode = Control.FOCUS_ALL
 		chip.mouse_default_cursor_shape = Control.CURSOR_HELP
 		chip.text = "%s ×%d" % [card.display_name if card != null else String(card_id), stacks]
@@ -551,8 +570,13 @@ func _set_win_screen_visible(visible: bool) -> void:
 		results_panel.visible = visible
 	if not visible:
 		_results_rows_dirty = true
-	elif not was_visible and results_return_button != null and not results_return_button.disabled:
-		results_return_button.grab_focus()
+	elif not was_visible:
+		if not results_rematch_button.disabled:
+			results_rematch_button.grab_focus()
+		elif not results_return_button.disabled:
+			results_return_button.grab_focus()
+		else:
+			_focus_first_card(results_standings_container)
 
 
 func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:

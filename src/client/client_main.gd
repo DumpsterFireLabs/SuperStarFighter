@@ -461,21 +461,20 @@ func _notification(what: int) -> void:
 		call_deferred("_update_pointer_visibility")
 
 
+var card_inspector: CanvasLayer
+
+
+func _inspect_card(button: CardHoverButton) -> void:
+	card_inspector.open(button)
+	network_world.input_blocked = true
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if draft_panel != null and draft_panel.visible and pending_draft_index >= 0 and (event.is_action_pressed("pause_overlay") or event.is_action_pressed(&"ui_cancel")) and not (event is InputEventKey and event.echo):
 		_cancel_draft_confirmation()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
-		if credits_panel != null and credits_panel.visible:
-			_hide_credits()
-		elif settings_controller.settings_panel != null and settings_controller.settings_panel.visible:
-			_hide_settings()
-		else:
-			_toggle_pause_overlay()
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed(&"ui_cancel") and not (event is InputEventKey and event.echo):
+	if (event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"pause_overlay")) and not (event is InputEventKey and event.echo):
 		if credits_panel != null and credits_panel.visible:
 			_hide_credits()
 			get_viewport().set_input_as_handled()
@@ -496,6 +495,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_hide_pause_overlay()
 			get_viewport().set_input_as_handled()
 			return
+		if event.is_action_pressed(&"pause_overlay"):
+			_toggle_pause_overlay()
+			get_viewport().set_input_as_handled()
+			return
 	if pause_overlay != null and pause_overlay.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
@@ -511,6 +514,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if card_inspector != null and card_inspector.visible:
+		if event.is_action_released(&"scoreboard") and scoreboard_open:
+			card_inspector.close(false)
+			_set_scoreboard_open(false)
+			get_viewport().set_input_as_handled()
+		else:
+			card_inspector.handle_input(event)
+		return
 	if settings_controller.capture_input(event):
 		return
 	if splash_screen != null and splash_screen.visible and _is_start_input(event):
@@ -535,6 +546,9 @@ func _is_start_input(event: InputEvent) -> bool:
 
 
 func _create_match_ui() -> void:
+	card_inspector = preload("res://src/client/ui/card_inspector.gd").new()
+	add_child(card_inspector)
+	card_inspector.closed.connect(func() -> void: network_world.input_blocked = pause_overlay != null and pause_overlay.visible)
 	match_panel = PanelContainer.new()
 	match_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	match_panel.position = Vector2(-380.0, 20.0)
@@ -669,7 +683,7 @@ func _refresh_input_settings_ui() -> void:
 
 func _refresh_control_prompts() -> void:
 	if scoreboard_hint_label != null:
-		scoreboard_hint_label.text = "RELEASE %s TO RETURN TO COMBAT  ·  THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
+		scoreboard_hint_label.text = "HOLD %s · ARROWS SELECT · I / Y INSPECT · THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
 
 
 func _update_resolution_control_state() -> void:
@@ -1006,7 +1020,7 @@ func _request_f2_return_to_menu() -> void:
 		f2_return_confirmation.dialog_text = "You are hosting this game.\n\nReturning to the main menu will stop the server and disconnect every player."
 		f2_return_confirmation.ok_button_text = "STOP SERVER"
 	elif offline_sandbox.visible:
-		f2_return_confirmation.dialog_text = "Return to the main menu and leave the Offline Combat Lab?"
+		f2_return_confirmation.dialog_text = "Return to the main menu and leave the Combat Lab?"
 		f2_return_confirmation.ok_button_text = "RETURN TO MAIN MENU"
 	else:
 		f2_return_confirmation.dialog_text = "Returning to the main menu will disconnect you from the current game."
@@ -1093,6 +1107,8 @@ func _disconnect_online(message: String = "Disconnected. Ready to reconnect.") -
 
 
 func _show_connection_screen(message: String, is_error: bool = false) -> void:
+	if card_inspector != null:
+		card_inspector.close(false)
 	if f2_return_confirmation != null and f2_return_confirmation.visible:
 		f2_return_confirmation.hide()
 	if bridge.role == NetworkBridge.Role.CLIENT:

@@ -17,26 +17,20 @@ const SPECIAL_FAMILIES := {
 	&"mine_layer": &"mine", &"missile_launcher": &"missile", &"cloak": &"cloak",
 	&"rebound_shield": &"rebound", &"kinetic_vent": &"vent", &"breakaway_thrusters": &"escape",
 }
-const SPECIAL_FLAGS := {
-	&"auto_repair": &"auto_repair_enabled", &"beam_weapon": &"beam_weapon",
-	&"afterburner": &"afterburner_enabled", &"mine_layer": &"mine_layer_enabled",
-	&"missile_launcher": &"missile_launcher_enabled", &"cloak": &"cloak_enabled",
-	&"rebound_shield": &"rebound_shield_enabled", &"kinetic_vent": &"kinetic_vent_enabled",
-	&"breakaway_thrusters": &"breakaway_thrusters_enabled",
+const Metadata = preload("res://src/shared/models/stat_metadata.gd")
+const SUMMARIES := {
+	&"hull": "Strengthen your hull.", &"mobility": "Change how your ship handles.",
+	&"repair": "Recover hull during combat.", &"shield": "Improve shield endurance.",
+	&"coverage": "Change your shield coverage.", &"ram": "Turn your shield into a weapon.",
+	&"damage": "Change the force of each shot.", &"cycling": "Change your weapon's firing cycle.",
+	&"velocity": "Change projectile reach.", &"scatter": "Fire multiple projectiles.",
+	&"pierce": "Shoot through targets.", &"ricochet": "Bounce shots off cover.",
+	&"beam": "Convert your weapon to a beam.", &"boost": "Activate a burst of speed.",
+	&"mine": "Deploy explosive mines.", &"missile": "Launch seeking missiles.",
+	&"cloak": "Become temporarily invisible.", &"rebound": "Return blocked projectiles.",
+	&"vent": "Release stored shield energy.", &"escape": "Boost away after heavy damage.",
 }
-const SHORT_NAMES := {
-	&"max_health": "Hull", &"max_speed": "Speed", &"acceleration": "Acceleration",
-	&"projectile_damage": "Damage", &"fire_rate": "Shots / sec", &"reload_duration": "Reload sec",
-	&"magazine_size": "Magazine", &"projectile_count": "Projectiles", &"projectile_speed": "Shot speed",
-	&"projectile_spread_degrees": "Spread deg", &"projectile_lifetime": "Lifetime sec",
-	&"projectile_knockback": "Knockback", &"pierce_count": "Pierces", &"ricochet_count": "Bounces",
-	&"shield_capacity": "Shield", &"shield_regeneration": "Shield / sec", &"shield_block_cost": "Block cost",
-	&"shield_continuous_drain": "Drain / sec", &"shield_regeneration_delay": "Regen delay",
-	&"shield_arc_degrees": "Arc deg", &"shield_acceleration_factor": "Shield thrust",
-	&"shield_depletion_threshold": "Break threshold", &"auto_repair_rate": "Repair / sec",
-	&"auto_repair_delay": "Repair delay", &"mine_capacity": "Mine charges",
-	&"missile_capacity": "Missile charges", &"cloak_capacity": "Cloak charges",
-}
+const SPECIAL_FLAGS := Metadata.SPECIAL_FLAGS
 
 
 static func family(card: CardDefinition) -> StringName:
@@ -71,6 +65,10 @@ static func role(card: CardDefinition) -> String:
 	return ROLES[family(card)]
 
 
+static func summary(card: CardDefinition) -> String:
+	return SUMMARIES[family(card)]
+
+
 static func _stat_family(property: StringName, category: int) -> StringName:
 	var value := String(property)
 	if value.begins_with("auto_repair") or property == &"shield_damage_heal_fraction":
@@ -95,12 +93,19 @@ static func _stat_family(property: StringName, category: int) -> StringName:
 static func _beneficial_modifier(card: CardDefinition, property: StringName) -> bool:
 	var additive := float(card.additive_modifiers.get(property, 0.0)) + float(card.integer_modifiers.get(property, 0))
 	var multiplier := float(card.multiplicative_modifiers.get(property, 1.0)) - 1.0
-	return additive < 0.0 or multiplier < 0.0 if property in StatSystem.LOWER_IS_BETTER else additive > 0.0 or multiplier > 0.0
+	return additive < 0.0 or multiplier < 0.0 if Metadata.descriptor(property).polarity == CombatStatDescriptor.Polarity.LOWER else additive > 0.0 or multiplier > 0.0
 
 
 ## Three headline rows: unlocking a mechanic, meaningful changes, and a visible
 ## tradeoff where present. Limits and omitted changes are reported separately.
 static func summarize(build: Dictionary, card: CardDefinition, catalog: CardCatalog, rows: Array[Dictionary]) -> Dictionary:
+	var typed: Array[StatChange] = []
+	for row in rows:
+		typed.append(StatChange.from_dictionary(row))
+	return summarize_typed(build, card, catalog, typed)
+
+
+static func summarize_typed(build: Dictionary, card: CardDefinition, catalog: CardCatalog, rows: Array[StatChange]) -> Dictionary:
 	var highlights: Array[Dictionary] = []
 	var positives: Array[Dictionary] = []
 	var downsides: Array[Dictionary] = []
@@ -114,10 +119,8 @@ static func summarize(build: Dictionary, card: CardDefinition, catalog: CardCata
 		limited = limited or bool(row.limited)
 		var property := StringName(row.property)
 		var change := float(row.after) - float(row.before)
-		var kind: StringName = &"neutral"
-		if not bool(row.unchanged) and property != &"drag":
-			kind = &"benefit" if (change < 0.0 if property in StatSystem.LOWER_IS_BETTER else change > 0.0) else &"drawback"
-		var item := {"text": "%s %s → %s%s" % [stat_name(property), stat_value(row.before), stat_value(row.after), " *" if row.limited else ""], "kind": kind, "property": property}
+		var kind: StringName = Metadata.change_kind(property, change)
+		var item := {"text": "%s %s → %s%s" % [stat_name(property), stat_value(row.before, property), stat_value(row.after, property), " *" if row.limited else ""], "kind": kind, "property": property}
 		if kind == &"drawback":
 			downsides.append(item)
 		elif kind == &"benefit":
@@ -144,8 +147,8 @@ static func summarize(build: Dictionary, card: CardDefinition, catalog: CardCata
 
 
 static func stat_name(property: StringName) -> String:
-	return SHORT_NAMES.get(property, String(property).replace("_", " ").capitalize())
+	return Metadata.label(property, true)
 
 
-static func stat_value(value: float) -> String:
-	return str(roundi(value)) if is_equal_approx(value, roundf(value)) else "%.2f" % value
+static func stat_value(value: float, property: StringName = &"") -> String:
+	return Metadata.format_value(property, value)

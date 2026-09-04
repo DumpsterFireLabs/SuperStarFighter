@@ -103,7 +103,7 @@ func _create_entry(
 	players: Array
 ) -> PanelContainer:
 	var local_involved := killer_id == local_peer_id or victim_id == local_peer_id
-	var accent := DesignTokensScript.FOCUS if local_involved else DesignTokensScript.INTERACTIVE
+	var accent := DesignTokensScript.TEXT_SECONDARY if local_involved else DesignTokensScript.DISABLED
 	var panel := PanelContainer.new()
 	panel.name = "KillFeedEntry"
 	panel.custom_minimum_size = Vector2(FEED_WIDTH, 44.0)
@@ -116,34 +116,43 @@ func _create_entry(
 	var killer_label := _entry_label(HORIZONTAL_ALIGNMENT_RIGHT)
 	var action_label := _entry_label(HORIZONTAL_ALIGNMENT_CENTER)
 	var victim_label := _entry_label(HORIZONTAL_ALIGNMENT_LEFT)
-	killer_label.custom_minimum_size.x = 133.0
 	killer_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	action_label.custom_minimum_size.x = 118.0
-	victim_label.custom_minimum_size.x = 133.0
+	killer_label.custom_minimum_size.x = 0.0
+	killer_label.size_flags_stretch_ratio = 1.0
+	action_label.name = "EventMeaning"
+	action_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	victim_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	victim_label.custom_minimum_size.x = 0.0
+	victim_label.size_flags_stretch_ratio = 1.0
 	var victim := _player_identity(victim_id, players)
 	victim_label.text = String(victim.get("display_name", "Pilot %d" % victim_id))
 	victim_label.add_theme_color_override("font_color", _identity_color(victim))
 	if reason == "disconnect":
 		killer_label.text = victim_label.text
 		killer_label.add_theme_color_override("font_color", _identity_color(victim))
-		action_label.text = "DISCONNECTED"
+		action_label.text = "left"
 		action_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 		victim_label.text = ""
+		victim_label.hide()
 	elif killer_id == 0:
-		killer_label.text = "ENVIRONMENT"
+		killer_label.text = "Arena"
 		killer_label.add_theme_color_override("font_color", DesignTokensScript.WARNING)
-		action_label.text = "ELIMINATED"
+		action_label.text = "defeated"
 		action_label.add_theme_color_override("font_color", DesignTokensScript.WARNING)
 	else:
 		var killer := _player_identity(killer_id, players)
 		killer_label.text = String(killer.get("display_name", "Pilot %d" % killer_id))
 		killer_label.add_theme_color_override("font_color", _identity_color(killer))
-		action_label.text = "ELIMINATED"
+		action_label.text = "defeated"
 		action_label.add_theme_color_override("font_color", DesignTokensScript.DANGER)
 	row.add_child(killer_label)
 	row.add_child(action_label)
 	row.add_child(victim_label)
+	if local_involved:
+		var marker := Label.new()
+		marker.text = "◆"
+		marker.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
+		row.add_child(marker)
 	panel.set_meta("killer_id", killer_id)
 	panel.set_meta("victim_id", victim_id)
 	panel.set_meta("reason", reason)
@@ -156,7 +165,7 @@ func _entry_label(alignment: HorizontalAlignment) -> Label:
 	label.horizontal_alignment = alignment
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
@@ -180,15 +189,13 @@ func _entry_style(accent: Color, emphasized: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(DesignTokensScript.SURFACE, 0.92)
 	style.border_color = Color(accent, 0.95 if emphasized else 0.62)
-	style.set_border_width_all(3 if emphasized else 2)
+	style.set_border_width_all(1)
+	style.border_width_left = 4 if emphasized else 1
 	style.set_corner_radius_all(DesignTokensScript.RADIUS_CONTROL)
 	style.content_margin_left = 10.0
 	style.content_margin_right = 10.0
 	style.content_margin_top = 7.0
 	style.content_margin_bottom = 7.0
-	if emphasized:
-		style.shadow_color = Color(accent, 0.25)
-		style.shadow_size = 8
 	return style
 
 

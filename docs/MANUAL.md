@@ -93,7 +93,7 @@ The connection screen has three online paths:
 The same screen also offers:
 
 - **Learn to play** for a guided lesson in seven combat actions, using your current input bindings.
-- **Offline Combat Lab** for solo movement, combat, card, shield, and overtime experimentation.
+- **Combat Lab** for solo movement, combat, card, shield, and overtime experimentation.
 - **Settings** for display mode, resolution, audio, controls, and accessibility.
 - **Quit** to close the game.
 
@@ -294,7 +294,7 @@ NPCs respect arena cover and overtime. They do not deliberately fire through blo
 
 Every participant drafts before round one. Before later rounds, the pilot who just won the round receives no card; in a team mode, the entire winning team receives that bye. Everyone else receives a comeback draft. This prevents the leader from automatically snowballing through extra upgrades.
 
-Human players see five private cards and have 30 seconds to choose. Hover a choice to open the same rarity-styled graphical stat card used for inspected builds; it previews the compounded build totals after taking that card. Click a card or press `1` through `5`. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
+Human players see five private cards and have 30 seconds to choose. Hover a choice, use the visible Inspect button, or focus a card and press `I` / controller `Y` to read its full effective stat comparison. Click a card or press `1` through `5`, then confirm the pick. Inspection does not select or confirm a card. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
 
 Cards with **NO EFFECTIVE BENEFIT** have no improving stat or newly unlocked mechanic in the current build; any displayed drawbacks still apply. You can still choose them. Timeout and NPC picks prefer an offered card with an effective benefit, falling back to the full offer if none qualify. Card ownership remains unlimited, and capped benefits are not converted into another bonus.
 
@@ -318,7 +318,7 @@ The HUD names the current mode and reports hill control time or flag ownership. 
 
 After a non-final round, heat-win counters clear and the next comeback draft begins. The first pilot to reach the configured round target wins the match.
 
-The final victory screen stays open. Its compact standings show rank, pilot, rounds won, and final build; heat wins are omitted because they reset when the deciding round ends. Hover any card in a final build to inspect its per-stack and compounded effects. The lobby leader selects **Exit to Lobby** when the group is ready. Everyone returns to the same connected lobby with builds, scores, and readiness cleared.
+The final victory screen stays open. Its compact standings show rank, pilot, rounds won, and final build; heat wins are omitted because they reset when the deciding round ends. Hover or activate any card in a final build to inspect its per-stack and compounded effects; focused cards also support `I` / controller `Y`. **Fresh rematch** is the primary next action, with **Play 5 more rounds** and **Exit to lobby** as alternatives for the host. Exit returns everyone to the same connected lobby with builds, scores, and readiness cleared.
 
 ## 7. Flight and Combat
 
@@ -477,12 +477,12 @@ Each draft card shows:
 
 - Its input number and title.
 - A mechanic icon and role, such as Flight Control, Piercing, Beam Weapon, or Area Denial. The icon describes the card's mechanics; its category colour distinguishes Ship, Shield, and Weapon cards.
-- Up to three prominent changes to your actual build, shown as before → after values. A newly enabled mechanic appears as an **Unlock**; another copy of an already enabled mechanic does not claim a second unlock.
+- A short description and up to two prominent changes to your actual build, shown as before → after values. A newly enabled mechanic appears as a **New mechanic**; another copy of an already enabled mechanic does not claim a second unlock.
 - A visible amber tradeoff when the pick has a numerical downside. If further tradeoffs or changes do not fit, the card explicitly counts them and directs you to the details.
 - Current stack transition, such as `STACK 2 → 3`.
 - Rarity and rarity-tier weight in smaller text at the bottom.
 
-Hover a card for its full description, category, and complete stat comparison. The compact face prioritizes a few changes; it does not replace these details. A shorter reload is an improvement even though its numerical value decreases. Roles describe the card's mechanic family, not a guarantee that it benefits every build.
+Hover a card, use Inspect, or focus it and press `I` / controller `Y` for its full description, category, and complete stat comparison. In the details panel, arrows scroll and Enter / A, Escape / mapped Back, or **Close details** returns focus to the card. The compact face prioritizes a few changes; it does not replace these details. A shorter reload is an improvement even though its numerical value decreases. Roles describe the card's mechanic family, not a guarantee that it benefits every build.
 
 Draft details show the actual whole-build values before and after the pick. `AT LIMIT` means a technical stat limit reduces or prevents that effect; any other effects, including drawbacks, still apply. An asterisk marks limited values in the compact preview, and the card and confirmation also flag limited effects. For example, another Twin Shot at six projectiles shows `6 → 6`: it cannot add a seventh projectile, but its damage reduction still applies. Inspect the comparison before confirming.
 
@@ -512,7 +512,7 @@ When destroyed, a recap identifies the credited attacker or environment and the 
 
 Busy fights automatically use quieter effects. Transient combat effects are capped at 96, and decorative impact effects stop adding to the total once it reaches 48. Damage and elimination feedback for your own ship takes priority over lower-priority effects. At 40 simultaneous effects, filled bursts become subdued outlines. At 160 active projectiles, extra glow is reduced, trails shorten, and allied bullets and beams become dimmer. Every projectile within the view continues to be drawn, including mine arming cues and team markers. Objective symbols appear above ordnance. Cover uses quieter outlines so it competes less with ships, threats, and objectives. These visual limits do not remove projectiles or change collision and damage rules.
 
-Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
+Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. Use arrows to focus build cards, then `I` / controller `Y` or activation to inspect one. Inspection blocks your gameplay controls while the online match continues. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay and any open card details close as soon as the scoreboard action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
 
 When eliminated, you immediately spectate. Use the configured previous/next-target actions (`A`/`D` or the controller bumpers by default) to move among living ships. Late joiners also spectate until the current match returns to the lobby.
 
@@ -583,7 +583,7 @@ The lab opens in a paused build editor. It runs the same authoritative combat si
 
 ### Guided introduction
 
-Choose **Learn to play** on the main menu, or **Guided introduction · learn seven combat actions** in the lab editor. The lesson displays the bindings from your selected keyboard/mouse or controller profile and progresses when you perform each action:
+Choose **Learn to play** on the main menu or in the lab editor. The lesson displays the bindings from your selected keyboard/mouse or controller profile and progresses when you perform each action:
 
 1. Move the ship while aiming toward the practice target.
 2. Land a confirmed hull hit; a missed shot does not advance the lesson.
@@ -597,7 +597,7 @@ Use **Retry step** to reset the current combat exercise, **Restart lesson** to b
 
 ### Build and target experiments
 
-Search cards by name, description, or rarity, then select a result to inspect its description and actual before/after stat changes. **+ Stack** adds the selected card, **− Stack** removes one stack, and **Clear build** restores the base ship. The build summary lists owned cards, while derived stats show the resulting hull, movement, weapon, shield, and ability values. Search and stat details are scrollable when space is limited.
+The editor groups controls into **Build**, **Targets**, and **Stats** tabs. In Build, search cards by name, description, or rarity, then select a result to inspect its description and actual before/after stat changes. **+ Stack** adds the selected card, **− Stack** removes one stack, and **Clear build** restores the base ship. Stack actions remain visible beneath the scrolling Build content. Stats lists owned cards, derived hull/movement/weapon/shield/ability values, and measurements. Scrolling content follows keyboard/controller focus.
 
 The preset menu contains **Base ship**, **Rapid scatter**, **Beam specialist**, **Shield tank**, and **All abilities**. Further edits turn a preset into a custom build. The target controls select one through five targets, 10–600 hull HP, and a distance of 160–900 pixels. You can enable target shields, return fire, and strafing independently. With a controller, D-pad left / right changes a focused numeric target control.
 

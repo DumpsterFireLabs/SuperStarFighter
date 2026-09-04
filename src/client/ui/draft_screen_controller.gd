@@ -31,6 +31,9 @@ var draft_change_button: Button
 var active_offer_token: String = ""
 var active_offer_deadline: int = -1
 var pending_draft_index: int = -1
+var inspected_index: int = 0
+var inspect_button: Button
+var comparison_hint: Label
 
 
 func initialize(client_root: Node) -> void:
@@ -59,13 +62,18 @@ func create_ui() -> void:
 	draft_title.add_theme_font_size_override("font_size", 34)
 	draft_title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(draft_title)
+	comparison_hint = Label.new()
+	comparison_hint.text = "YOUR BUILD · BEFORE → AFTER   |   Amber values show drawbacks"
+	comparison_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	comparison_hint.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+	content.add_child(comparison_hint)
 	var cards := HBoxContainer.new()
 	cards.alignment = BoxContainer.ALIGNMENT_CENTER
 	cards.add_theme_constant_override("separation", 10)
 	content.add_child(cards)
 	for index in GameConstants.CARD_OFFER_SIZE:
 		var button := CardHoverButtonScript.new()
-		button.custom_minimum_size = Vector2(224.0, 720.0)
+		button.custom_minimum_size = Vector2(224.0, 700.0)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		button.add_theme_font_size_override("font_size", 1)
@@ -75,6 +83,9 @@ func create_ui() -> void:
 		button.add_theme_color_override("font_focus_color", Color.TRANSPARENT)
 		button.add_theme_color_override("font_disabled_color", Color.TRANSPARENT)
 		button.pressed.connect(_select_draft_card.bind(index))
+		button.inspection_requested.connect(client._inspect_card)
+		button.focus_entered.connect(_set_inspected_card.bind(index))
+		button.mouse_entered.connect(_set_inspected_card.bind(index))
 		cards.add_child(button)
 		draft_buttons.append(button)
 		_create_draft_card_content(button, index)
@@ -90,6 +101,12 @@ func create_ui() -> void:
 		rarity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(rarity_label)
 		draft_rarity_labels.append(rarity_label)
+	inspect_button = Button.new()
+	inspect_button.name = "InspectDraftCard"
+	inspect_button.theme_type_variation = &"QuietButton"
+	inspect_button.custom_minimum_size.y = 48.0
+	inspect_button.pressed.connect(func() -> void: (draft_buttons[inspected_index] as CardHoverButton).request_inspection())
+	content.add_child(inspect_button)
 	draft_bye_label = Label.new()
 	draft_bye_label.text = "ROUND WINNER\n\nYou keep the build that won the round.\nEveryone else gets an upgrade this time.\n\nHold the lead."
 	draft_bye_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -149,11 +166,13 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	card_name.name = "CardName"
 	card_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_name.add_theme_font_size_override("font_size", 22)
+	card_name.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_SECTION_SIZE)
+	card_name.custom_minimum_size.y = 76.0
 	card_name.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	column.add_child(card_name)
 	var category := Label.new()
 	category.name = "Category"
+	category.custom_minimum_size.y = 60.0
 	category.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	category.add_theme_font_size_override("font_size", 13)
 	column.add_child(category)
@@ -166,7 +185,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	description.name = "Description"
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	description.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	description.custom_minimum_size.y = 54.0
 	description.add_theme_font_size_override("font_size", 16)
 	description.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	column.add_child(description)
@@ -186,6 +205,8 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	column.add_child(state)
 
 func _show_draft_offer(payload: Dictionary) -> void:
+	inspect_button.show()
+	comparison_hint.show()
 	active_offer_token = String(payload.get("offer_token", ""))
 	active_offer_deadline = int(payload.get("deadline_tick", -1))
 	pending_draft_index = -1
@@ -233,10 +254,10 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			button.configure(card, current_stacks + 1, CardDetailsText.tooltip(card, current_stacks + 1, "STACKS AFTER PICK"), "AFTER PICK")
 			button.configure_build_comparison(_local_build(), card_catalog)
 			if button.no_effective_benefit:
-				(button.get_node("CardContent/Details/Stack") as Label).text += "\nNO EFFECTIVE BENEFIT"
+				(button.get_node("CardContent/Details/Stack") as Label).text += "\nNO BENEFIT"
 				button.text += "\nNO EFFECTIVE BENEFIT"
 			elif button.has_limited_effect():
-				(button.get_node("CardContent/Details/Stack") as Label).text += "\nAT LIMIT · VIEW DETAILS"
+				(button.get_node("CardContent/Details/Stack") as Label).text += "\nAT LIMIT"
 				button.text += "\nAT LIMIT · VIEW DETAILS"
 	draft_panel.visible = true
 	for button in draft_buttons:
@@ -244,6 +265,14 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			button.grab_focus()
 			break
 	client._update_match_presentation()
+
+
+func _set_inspected_card(index: int) -> void:
+	inspected_index = index
+	if inspect_button == null:
+		return
+	var card := (draft_buttons[index] as CardHoverButton).card_definition
+	inspect_button.text = "Inspect %s · I / Y" % card.display_name if card != null else "Inspect card · I / Y"
 
 
 func _select_draft_card(index: int) -> void:
@@ -257,6 +286,7 @@ func _select_draft_card(index: int) -> void:
 		return
 	pending_draft_index = index
 	var card := card_catalog.get_card(card_id)
+	_set_inspected_card(index)
 	var card_name := card.display_name.to_upper() if card != null else String(card_id).to_upper()
 	draft_confirmation_label.text = "LOCK IN %s?" % card_name
 	if button.no_effective_benefit:
@@ -270,7 +300,9 @@ func _select_draft_card(index: int) -> void:
 			continue
 		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
 		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, button_index == index))
-		(draft_button.get_node("CardContent/Details/State") as Label).text = "AWAITING CONFIRMATION" if button_index == index else ""
+		var state := draft_button.get_node("CardContent/Details/State") as Label
+		state.text = "PENDING" if button_index == index else ""
+		state.add_theme_color_override("font_color", DesignTokensScript.WARNING)
 	draft_confirm_button.grab_focus()
 
 
@@ -289,6 +321,7 @@ func _confirm_draft_card() -> void:
 		draft_button.disabled = true
 	button.text += "\n\nSELECTED"
 	(button.get_node("CardContent/Details/State") as Label).text = "SELECTED  ✓"
+	(button.get_node("CardContent/Details/State") as Label).add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
 	var selected_color: Color = button.get_meta("rarity_color", Color("42e8ff"))
 	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
 	pending_draft_index = -1
@@ -312,6 +345,8 @@ func _cancel_draft_confirmation() -> void:
 
 
 func _show_draft_bye(deadline_tick: int) -> void:
+	inspect_button.hide()
+	comparison_hint.hide()
 	active_offer_token = ""
 	active_offer_deadline = deadline_tick
 	pending_draft_index = -1
@@ -335,7 +370,7 @@ func _draft_category_color(category: int) -> Color:
 
 func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(color.darkened(0.72), 0.94 if emphasized else 0.86)
+	style.bg_color = Color(DesignTokensScript.SURFACE_RAISED if emphasized else DesignTokensScript.SURFACE, 0.98)
 	style.border_color = Color(color, 0.95 if emphasized else 0.62)
 	style.set_border_width_all(3 if emphasized else 2)
 	style.set_corner_radius_all(12)
@@ -352,6 +387,7 @@ func _draft_card_focus_style(rarity_color: Color) -> StyleBoxFlat:
 	style.set_border_width_all(4)
 	style.shadow_color = Color(DesignTokensScript.FOCUS, 0.34)
 	style.shadow_size = 14
+	style.draw_center = false
 	return style
 
 

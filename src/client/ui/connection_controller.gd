@@ -257,6 +257,7 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	tab.add_theme_constant_override("separation", 10)
 	connection_tabs.add_child(tab)
 	var host_scroll := ScrollContainer.new()
+	host_scroll.follow_focus = true
 	host_scroll.custom_minimum_size.y = 260.0
 	host_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	host_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -277,7 +278,7 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	host_password_field.secret = true
 	host_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
 	var host_center := CenterContainer.new()
-	fields.add_child(host_center)
+	tab.add_child(host_center)
 	host_join_button = Button.new()
 	host_join_button.name = "HostJoinButton"
 	host_join_button.text = "HOST & JOIN"
@@ -1169,6 +1170,7 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		if is_leader and peer_id != client.bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false)):
 			var eject_button := Button.new()
 			eject_button.text = "EJECT"
+			eject_button.theme_type_variation = &"DangerButton"
 			eject_button.custom_minimum_size = Vector2(100.0, 38.0)
 			eject_button.tooltip_text = "Remove this player from the lobby."
 			eject_button.pressed.connect(_on_eject_pressed.bind(peer_id))

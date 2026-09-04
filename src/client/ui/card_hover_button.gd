@@ -1,6 +1,11 @@
 class_name CardHoverButton
 extends Button
 
+signal inspection_requested(button: CardHoverButton)
+
+const Metadata = preload("res://src/shared/models/stat_metadata.gd")
+const CardDetailsText = preload("res://src/client/ui/card_details_text.gd")
+
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const IdentityScript = preload("res://src/client/ui/card_identity.gd")
 const MechanicIconScript = preload("res://src/client/ui/card_mechanic_icon.gd")
@@ -8,9 +13,20 @@ const MechanicIconScript = preload("res://src/client/ui/card_mechanic_icon.gd")
 var card_definition: CardDefinition
 var stack_count: int = 1
 var footer_context: String = "CURRENT BUILD"
-var comparison_rows: Array[Dictionary] = []
+var comparison_rows: Array[StatChange] = []
 var no_effective_benefit: bool = false
 var effective_summary: Dictionary = {}
+
+
+func _gui_input(event: InputEvent) -> void:
+	if (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_I) or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_Y):
+		request_inspection()
+		accept_event()
+
+
+func request_inspection() -> void:
+	if card_definition != null:
+		inspection_requested.emit(self)
 
 
 func configure(card: CardDefinition, stacks: int, accessible_text: String, context: String = "CURRENT BUILD") -> void:
@@ -24,14 +40,14 @@ func configure(card: CardDefinition, stacks: int, accessible_text: String, conte
 
 
 func configure_build_comparison(build: Dictionary, catalog: CardCatalog) -> void:
-	comparison_rows = StatSystem.compare_pick(build, card_definition, catalog)
+	comparison_rows = StatSystem.compare_pick_typed(build, card_definition, catalog)
 	no_effective_benefit = not StatSystem.has_effective_benefit(build, card_definition, catalog)
 	tooltip_text += "\n\nACTUAL BUILD: BEFORE → AFTER"
 	if no_effective_benefit:
 		tooltip_text += "\nNO EFFECTIVE BENEFIT · Existing drawbacks still apply."
 	for row in comparison_rows:
-		tooltip_text += "\n%s: %s → %s%s" % [_stat_name(row.property), _stat_value(row.before), _stat_value(row.after), " (AT LIMIT)" if row.limited else ""]
-	effective_summary = IdentityScript.summarize(build, card_definition, catalog, comparison_rows)
+		tooltip_text += "\n%s: %s → %s%s" % [_stat_name(row.property), _stat_value(row.before, row.property), _stat_value(row.after, row.property), " (AT LIMIT)" if row.limited else ""]
+	effective_summary = IdentityScript.summarize_typed(build, card_definition, catalog, comparison_rows)
 	_update_draft_identity()
 
 
@@ -52,7 +68,8 @@ func _update_draft_identity() -> void:
 	category.text = IdentityScript.role(card_definition).to_upper()
 	category.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var description := details.get_node("Description") as Label
-	description.visible = false # Full card text remains in the detailed preview.
+	description.visible = true
+	description.text = IdentityScript.summary(card_definition)
 	var summary := details.get_node_or_null("EffectiveSummary") as VBoxContainer
 	if summary == null:
 		summary = VBoxContainer.new()
@@ -65,27 +82,44 @@ func _update_draft_identity() -> void:
 	for child in summary.get_children():
 		summary.remove_child(child)
 		child.queue_free()
-	var heading := Label.new()
-	heading.text = "YOUR BUILD AFTER PICK"
-	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	heading.add_theme_font_size_override("font_size", 11)
-	heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
-	summary.add_child(heading)
-	for row in effective_summary.rows:
-		var label := Label.new()
-		label.text = String(row.text)
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_font_size_override("font_size", 16)
-		label.add_theme_color_override("font_color", DesignTokensScript.WARNING if row.kind == &"drawback" else DesignTokensScript.TEXT_PRIMARY)
-		summary.add_child(label)
+	var headline_rows: Array = effective_summary.rows.duplicate()
+	if headline_rows.size() > 2:
+		var second: Dictionary = headline_rows[1]
+		for item in headline_rows.slice(1):
+			if item.kind == &"drawback":
+				second = item
+				break
+		headline_rows = [headline_rows[0], second]
+	for row in headline_rows:
+		var group := VBoxContainer.new()
+		group.custom_minimum_size.y = 70.0
+		group.add_theme_constant_override("separation", 2)
+		summary.add_child(group)
+		var change: StatChange = null
+		for candidate in comparison_rows:
+			if candidate.property == row.property:
+				change = candidate
+				break
+		var heading := Label.new()
+		heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+		heading.text = Metadata.label(change.property, true) if change != null else "New mechanic"
+		group.add_child(heading)
+		var after := Label.new()
+		if change != null:
+			var unit: String = Metadata.descriptor(change.property).unit
+			var before := _stat_value(change.before, change.property).trim_suffix(unit).strip_edges() if not unit.is_empty() else _stat_value(change.before, change.property)
+			after.text = before + " → " + _keep_unit_together(_stat_value(change.after, change.property)) + (" *" if change.limited else "")
+		else:
+			after.text = String(row.text).trim_prefix("Unlock: ")
+		after.autowrap_mode = TextServer.AUTOWRAP_WORD
+		after.add_theme_color_override("font_color", DesignTokensScript.WARNING if row.kind == &"drawback" else DesignTokensScript.TEXT_PRIMARY)
+		group.add_child(after)
 	var note := Label.new()
 	var note_parts := PackedStringArray()
-	if has_limited_effect():
-		note_parts.append("* AT LIMIT")
-	if String(effective_summary.note).contains("tradeoffs"):
-		note_parts.append("MORE TRADEOFFS")
-	if int(effective_summary.get("omitted", 0)) > 0:
-		note_parts.append("+%d IN DETAILS" % int(effective_summary.omitted))
+	var omitted: int = int(effective_summary.get("omitted", 0)) + effective_summary.rows.size() - headline_rows.size()
+	if omitted > 0:
+		note_parts.append("+%d IN DETAILS" % omitted)
 	note.text = "\n".join(note_parts)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_font_size_override("font_size", 11)
@@ -95,6 +129,10 @@ func _update_draft_identity() -> void:
 	tooltip_text += "\nROLE: %s" % IdentityScript.role(card_definition)
 
 
+func _keep_unit_together(value: String) -> String:
+	return value.replace(" ", "\u00a0").replace("/", "\u2060/\u2060")
+
+
 func has_limited_effect() -> bool:
 	for row in comparison_rows:
 		if row.limited:
@@ -102,8 +140,8 @@ func has_limited_effect() -> bool:
 	return false
 
 
-func _stat_value(value: float) -> String:
-	return str(roundi(value)) if is_equal_approx(value, roundf(value)) else "%.2f" % value
+func _stat_value(value: float, property: StringName = &"") -> String:
+	return Metadata.format_value(property, value)
 
 
 func _make_custom_tooltip(_for_text: String) -> Object:
@@ -206,42 +244,11 @@ func _effect_rows() -> Array[Dictionary]:
 		for comparison in comparison_rows:
 			rows.append({
 				"name": _stat_name(comparison.property),
-				"each": "%s → %s" % [_stat_value(comparison.before), _stat_value(comparison.after)],
-				"total": "AT LIMIT" if comparison.limited else ("UNCHANGED" if comparison.unchanged else "%+.2f" % (float(comparison.after) - float(comparison.before))),
+				"each": "%s → %s" % [_stat_value(comparison.before, comparison.property), _stat_value(comparison.after, comparison.property)],
+				"total": "AT LIMIT" if comparison.limited else ("UNCHANGED" if comparison.unchanged else Metadata.format_value(comparison.property, float(comparison.after) - float(comparison.before), true)),
 			})
-	var names := card_definition.additive_modifiers.keys()
-	if not comparison_rows.is_empty():
-		names = []
-	names.sort()
-	for property_value in names:
-		var per_stack := float(card_definition.additive_modifiers[property_value])
-		rows.append({
-			"name": _stat_name(String(property_value)),
-			"each": "%+.2f each" % per_stack,
-			"total": "%+.2f total" % (per_stack * stack_count),
-		})
-	names = card_definition.multiplicative_modifiers.keys()
-	if not comparison_rows.is_empty():
-		names = []
-	names.sort()
-	for property_value in names:
-		var per_stack := float(card_definition.multiplicative_modifiers[property_value])
-		rows.append({
-			"name": _stat_name(String(property_value)),
-			"each": "×%.2f each" % per_stack,
-			"total": "×%.2f total" % pow(per_stack, stack_count),
-		})
-	names = card_definition.integer_modifiers.keys()
-	if not comparison_rows.is_empty():
-		names = []
-	names.sort()
-	for property_value in names:
-		var per_stack := int(card_definition.integer_modifiers[property_value])
-		rows.append({
-			"name": _stat_name(String(property_value)),
-			"each": "%+d each" % per_stack,
-			"total": "%+d total" % (per_stack * stack_count),
-		})
+	if comparison_rows.is_empty():
+		rows.append_array(CardDetailsText.modifier_rows(card_definition, stack_count))
 	if card_definition.special_behavior_id == &"beam_weapon":
 		rows.append({"name": "Weapon Form", "each": "Pulse beam", "total": "TRANSFORMED"})
 	elif card_definition.special_behavior_id == &"auto_repair":
@@ -351,4 +358,4 @@ func _category_color(category: int) -> Color:
 
 
 func _stat_name(property_name: String) -> String:
-	return property_name.replace("_", " ").capitalize()
+	return Metadata.label(StringName(property_name))

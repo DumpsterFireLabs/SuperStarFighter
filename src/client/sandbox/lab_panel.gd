@@ -22,23 +22,18 @@ var preset_control: OptionButton
 
 func configure(sandbox: OfflineSandbox) -> void:
 	lab = sandbox
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("101b2d")
-	style.border_color = Color("39728a")
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(12.0)
-	add_theme_stylebox_override("panel", style)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	var content := VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 8)
-	scroll.add_child(content)
-	_label(content, "BUILD LABORATORY", 22)
-	_label(content, "Edit while paused, then enter the range.", 16)
-	_button(content, "Guided introduction · learn seven combat actions", lab.start_tutorial)
+	add_theme_stylebox_override("panel", DesignTokens.quiet_panel_style())
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", DesignTokens.SPACE_MEDIUM)
+	add_child(layout)
+	_label(layout, "COMBAT LAB", DesignTokens.TEXT_TITLE_SIZE)
+	_button(layout, "Learn to play", lab.start_tutorial)
+	var tabs := TabContainer.new()
+	tabs.name = "LabTabs"
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(tabs)
+	tabs.get_tab_bar().gui_input.connect(preload("res://src/client/ui/screen_navigation.gd").handle_tab_bar_input.bind(tabs))
+	var content := _tab(tabs, "Build")
 	var presets := OptionButton.new()
 	preset_control = presets
 	presets.name = "BuildPreset"
@@ -50,7 +45,8 @@ func configure(sandbox: OfflineSandbox) -> void:
 	content.add_child(presets)
 	search = LineEdit.new()
 	search.name = "CardSearch"
-	search.placeholder_text = "Search name, description or rarity…"
+	search.placeholder_text = "Search cards…"
+	search.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
 	search.clear_button_enabled = true
 	search.text_changed.connect(_refresh_cards)
 	content.add_child(search)
@@ -63,13 +59,13 @@ func configure(sandbox: OfflineSandbox) -> void:
 	card_description = _label(content, "", 16)
 	card_description.name = "CardDescription"
 	var card_actions := HBoxContainer.new()
-	content.add_child(card_actions)
+	layout.add_child(card_actions)
+	tabs.tab_changed.connect(func(index: int) -> void: card_actions.visible = index == 0)
 	add_button = _button(card_actions, "+ Stack", lab._grant_selected_card)
 	remove_button = _button(card_actions, "− Stack", lab.remove_selected_card)
-	_button(card_actions, "Clear build", func() -> void: lab.load_preset(0))
-	build_label = _label(content, "", 16)
-	stats_label = _label(content, "", 16)
-	_label(content, "TARGETS", 20)
+	_button(content, "Clear build", func() -> void: lab.load_preset(0)).theme_type_variation = &"DangerButton"
+	content = _tab(tabs, "Targets")
+	_label(content, "TARGETS", DesignTokens.TEXT_SECTION_SIZE)
 	count_control = _spin(content, "Count", 1.0, 5.0, 1.0, lab.target_count)
 	health_control = _spin(content, "Hull HP", 10.0, 600.0, 10.0, lab.target_health)
 	distance_control = _spin(content, "Distance", 160.0, 900.0, 20.0, lab.target_distance)
@@ -81,11 +77,33 @@ func configure(sandbox: OfflineSandbox) -> void:
 	for control in [shield_control, fire_control, move_control]:
 		control.toggled.connect(func(_value: bool) -> void: _targets_changed())
 	_button(content, "Reset encounter · Y", lab._reset_combatants)
+	content = _tab(tabs, "Stats")
+	_label(content, "BUILD & MEASUREMENTS", DesignTokens.TEXT_SECTION_SIZE)
+	build_label = _label(content, "", DesignTokens.TEXT_BODY_SIZE)
+	stats_label = _label(content, "", DesignTokens.TEXT_BODY_SIZE)
 	_button(content, "Reset measurements", lab.reset_measurements)
 	telemetry_label = _label(content, "", 16)
 	help_label = _label(content, "", 15)
 	_refresh_cards("")
 	refresh_build()
+
+
+func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = title
+	scroll.follow_focus = true
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(scroll)
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", DesignTokens.SPACE_MEDIUM)
+	scroll.add_child(content)
+	return content
+
+
+func focus_search() -> void:
+	(find_child("LabTabs", true, false) as TabContainer).current_tab = 0
+	search.grab_focus()
 
 
 func matching_card_ids(query: String) -> Array[StringName]:
@@ -136,7 +154,14 @@ func refresh_build() -> void:
 			names.append("%s ×%d" % [lab.catalog.get_card(card_id).display_name, lab.build[card_id]])
 	build_label.text = "BUILD · " + (", ".join(names) if not names.is_empty() else "Base ship")
 	var stats := lab.derived_stats
-	stats_label.text = "DERIVED STATS\nHull %.0f · Speed %.0f · Acceleration %.0f\nDamage %.1f × %d · %.2f shots/s\nMagazine %d · Reload %.2fs\nShield %.0f · Regen %.1f/s · Arc %.0f°\nPierce %d · Ricochet %d · %s\nMines %d · Missiles %d · Cloaks %d" % [stats.max_health, stats.max_speed, stats.acceleration, stats.projectile_damage, stats.projectile_count, stats.fire_rate, stats.magazine_size, stats.reload_duration, stats.shield_capacity, stats.shield_regeneration, stats.shield_arc_degrees, stats.pierce_count, stats.ricochet_count, "Beam" if stats.beam_weapon else "Projectile", stats.mine_capacity, stats.missile_capacity, stats.cloak_capacity]
+	var stat_lines := PackedStringArray(["DERIVED STATS"])
+	for properties in [[&"max_health", &"max_speed", &"acceleration"], [&"projectile_damage", &"projectile_count", &"fire_rate"], [&"magazine_size", &"reload_duration"], [&"shield_capacity", &"shield_regeneration", &"shield_arc_degrees"], [&"pierce_count", &"ricochet_count"], [&"mine_capacity", &"missile_capacity", &"cloak_capacity"]]:
+		var parts := PackedStringArray()
+		for property in properties:
+			parts.append("%s %s" % [StatMetadata.label(property, true), StatMetadata.format_value(property, float(stats.get(property)))])
+		stat_lines.append(" · ".join(parts))
+	stat_lines.append("Beam weapon" if stats.beam_weapon else "Projectile weapon")
+	stats_label.text = "\n".join(stat_lines)
 	_refresh_cards(search.text)
 
 
@@ -172,6 +197,9 @@ func _label(parent: Node, value: String, font_size: int) -> Label:
 func _button(parent: Node, value: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = value
+	button.theme_type_variation = &"SecondaryButton"
+	button.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(action)
 	parent.add_child(button)
 	return button
@@ -200,6 +228,7 @@ func _spin(parent: Node, title: String, minimum: float, maximum: float, step_val
 func _check(parent: Node, title: String, value: bool) -> CheckBox:
 	var check := CheckBox.new()
 	check.text = title
+	check.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
 	check.button_pressed = value
 	parent.add_child(check)
 	return check

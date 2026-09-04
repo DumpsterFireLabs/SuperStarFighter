@@ -346,6 +346,7 @@ func _create_hud() -> void:
 	hud_canvas.name = "CombatHUD"
 	add_child(hud_canvas)
 	hud_root = Control.new()
+	hud_root.theme = DesignTokens.create_interface_theme()
 	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_canvas.add_child(hud_root)
 	status_label = Label.new()
@@ -361,6 +362,8 @@ func _create_hud() -> void:
 	hud_root.add_child(feedback_label)
 	editor_button = Button.new()
 	editor_button.text = "Enter range · F2"
+	editor_button.theme_type_variation = &"PrimaryButton"
+	editor_button.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
 	editor_button.pressed.connect(func() -> void: set_editor_open(not editor_open))
 	hud_root.add_child(editor_button)
 	lab_panel = LabPanelScript.new()
@@ -394,7 +397,7 @@ func set_editor_open(value: bool) -> void:
 		if input_profiles != null and input_profiles.uses_controller():
 			editor_button.grab_focus()
 		else:
-			lab_panel.search.grab_focus()
+			lab_panel.focus_search()
 	_update_hud()
 
 
@@ -413,7 +416,7 @@ func _layout_hud() -> void:
 	feedback_label.position = Vector2(260.0, 68.0)
 	feedback_label.size = Vector2(maxf(hud_root.size.x - 260.0, 100.0), 54.0)
 	lab_panel.position = Vector2(0.0, 132.0)
-	lab_panel.size = Vector2(minf(420.0, hud_root.size.x), maxf(hud_root.size.y - 132.0, 120.0))
+	lab_panel.size = Vector2(minf(520.0, hud_root.size.x), maxf(hud_root.size.y - 132.0, 120.0))
 	if tutorial != null:
 		tutorial.layout()
 
@@ -516,7 +519,7 @@ func _update_card_label() -> void:
 	var card := catalog.get_card(card_id)
 	card_label.text = "%s · ×%d\n%s" % [card.display_name, int(build.get(card_id, 0)), card.description]
 	card_label.add_theme_color_override("font_color", card.rarity_color())
-	for row in StatSystem.compare_pick(build, card, catalog):
+	for row in StatSystem.compare_pick_typed(build, card, catalog):
 		card_label.text += "\n%s: %.2f → %.2f%s" % [String(row.property).replace("_", " "), row.before, row.after, " (limit)" if row.limited else ""]
 
 

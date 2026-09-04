@@ -51,6 +51,8 @@ func _ready() -> void:
 	CardIdentityTestsScript.run(_context, self)
 	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)
+	preload("res://tests/unit/stat_metadata_tests.gd").run(_context)
+	await preload("res://tests/unit/graphical_language_tests.gd").run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	if configuration.get("force_test_failure", false):
 		_context.expect_true(false, "forced failure proves the nonzero exit path")

@@ -1,0 +1,2042 @@
+[
+  {
+    "hash": "06546aada3e407cee2a037da1cb4339ed24495c4f0fbf88d46259bb0dc9ab776",
+    "id": "hunter_missiles",
+    "stacks": 1
+  },
+  {
+    "hash": "e2a289f88ec767832861dce5215b845037c9ad04aa89e8cb7e756db03e20012a",
+    "id": "hunter_missiles",
+    "stacks": 3
+  },
+  {
+    "hash": "54291580cd4ace905766dd600bc19738ab17fa23c5fea2bb55c5acf5b66c4821",
+    "id": "hunter_missiles",
+    "stacks": 20
+  },
+  {
+    "hash": "a04f856099ef6218b4dc909ff3e91db10b03783eef3214dceb927cd3a968b252",
+    "id": "rebound_shields",
+    "stacks": 1
+  },
+  {
+    "hash": "f893970154349c7c4e64511eccc98687968bbecf5e7afbd25a730421e7c01458",
+    "id": "rebound_shields",
+    "stacks": 3
+  },
+  {
+    "hash": "0a1523047c6bf30c2923391b781f4c74661686cfae2fa0f145589721bfa566bf",
+    "id": "rebound_shields",
+    "stacks": 20
+  },
+  {
+    "hash": "8ec90f560142660be17cd983789d13f8bcfcf5d48a90fa8978b4be7a54ab279f",
+    "id": "nosferatu_shield",
+    "stacks": 1
+  },
+  {
+    "hash": "2e49b568bac03ee907e841654777066bf7ad99dae30cec430178d72c338c7974",
+    "id": "nosferatu_shield",
+    "stacks": 3
+  },
+  {
+    "hash": "7b3db5540830b4a8200146c7b16d8ec92168de5902ec2bfd21d0001609459ce6",
+    "id": "nosferatu_shield",
+    "stacks": 20
+  },
+  {
+    "hash": "9bce9774d4b34137d24543fa214a44884ef439681599f51c8ec9b7a38e619e6c",
+    "id": "repulsor_payload",
+    "stacks": 1
+  },
+  {
+    "hash": "930ba59be34bbb64ce78673bff458fb6f7443723ba6054d1e8e6033f78ec6e08",
+    "id": "repulsor_payload",
+    "stacks": 3
+  },
+  {
+    "hash": "25006b153045c52e415301e43f0fa7744b7e084f257fb1ecc4db8c48baa96849",
+    "id": "repulsor_payload",
+    "stacks": 20
+  },
+  {
+    "hash": "9115875a69b179e600d9fec677d7b70be40c964fa4b1ae250a287dfe1c861963",
+    "id": "concussion_rounds",
+    "stacks": 1
+  },
+  {
+    "hash": "dbc29c0671ae9aa2f8a80576e5073710b55e6b9634a57ae421f4f00f877ca858",
+    "id": "concussion_rounds",
+    "stacks": 3
+  },
+  {
+    "hash": "6865d49227d43ddae859e30c175d492680b8666e44efd2a7506f154ffc23e8ea",
+    "id": "concussion_rounds",
+    "stacks": 20
+  },
+  {
+    "hash": "9ab23236c28ca804b3e91e560330e268f2ac04cf0311f17dfb3f119b725b168e",
+    "id": "ramming_shields",
+    "stacks": 1
+  },
+  {
+    "hash": "f810b23dc4a0a68dea48195b9dcfdfc7350a2eff433cbdd1e867178df6b1020f",
+    "id": "ramming_shields",
+    "stacks": 3
+  },
+  {
+    "hash": "d36c26f0f669bdf27dc5c3f4767fafe1b2afef9004a353950eb1202c2a408f5b",
+    "id": "ramming_shields",
+    "stacks": 20
+  },
+  {
+    "hash": "3243e77dad7ea45790e882a556158c4f7c626fa04b8b0c647a6eef4db3bbe456",
+    "id": "supernova_array",
+    "stacks": 1
+  },
+  {
+    "hash": "05dd1584f1c06527c70dca04e9d217e5fbfe9bb394b08acec0d37ac468f8e08d",
+    "id": "supernova_array",
+    "stacks": 3
+  },
+  {
+    "hash": "23475a918e3ed546b0f33315a7ef0a8ce167f5f0d0b0adbc5982ab4e55ccccfc",
+    "id": "supernova_array",
+    "stacks": 20
+  },
+  {
+    "hash": "927b326fcbe19202f50ef585806759f0d17d6d272c543600185b2b9c08b91011",
+    "id": "storm_of_one",
+    "stacks": 1
+  },
+  {
+    "hash": "afbcaa38440e2b7edcfad311b4fb0aa8413c08ee1161a58717e366ae0a34e0d7",
+    "id": "storm_of_one",
+    "stacks": 3
+  },
+  {
+    "hash": "a02a699bec758b559deee97b9b7afd6a2b9641b07c295dc0031dd7c554ecf426",
+    "id": "storm_of_one",
+    "stacks": 20
+  },
+  {
+    "hash": "6df9069e891d4607ae7b5e6c7ef46eb3418b0621e7d68210a318ec8677327869",
+    "id": "horizon_round",
+    "stacks": 1
+  },
+  {
+    "hash": "6e8a155b2f7b19f744c964f602972fb60dbf05274d9a3af52bce61983e5c5e2a",
+    "id": "horizon_round",
+    "stacks": 3
+  },
+  {
+    "hash": "1d129f64d009ffa32a308005efeebd0be147ba0f73d096765ff5d9186c2c1560",
+    "id": "horizon_round",
+    "stacks": 20
+  },
+  {
+    "hash": "bb912504691784b09a4630cbc78d088f0fe2180e8f06f37431ec8e0816069f3d",
+    "id": "impossible_magazine",
+    "stacks": 1
+  },
+  {
+    "hash": "91334a651ed1ccbbc44bbf071a5226d628a51b4d597a5f7cc9dd3837bbc5f45d",
+    "id": "impossible_magazine",
+    "stacks": 3
+  },
+  {
+    "hash": "9c504964236f2fadd9ee0f38c76d28eac7d873fca052a5933fb90306b8a3eccb",
+    "id": "impossible_magazine",
+    "stacks": 20
+  },
+  {
+    "hash": "60a1ab57385a9135f6835543f02ee42b530e270d551c6a102bc106b8d182d4f1",
+    "id": "annihilator_shell",
+    "stacks": 1
+  },
+  {
+    "hash": "6c9d8a495490e9e77b2c5b4ef98b0fb593320a059a07f889ce03938a3aab10a8",
+    "id": "annihilator_shell",
+    "stacks": 3
+  },
+  {
+    "hash": "f8247af538b6a523be16dce3bb4d44c156238458c7eb8f4c4104b80ad27e84d6",
+    "id": "annihilator_shell",
+    "stacks": 20
+  },
+  {
+    "hash": "909fa2421d3fce8206bb1b7006ef3eaab0923dde4b792e90b1b7d58099bf72a9",
+    "id": "needle_storm",
+    "stacks": 1
+  },
+  {
+    "hash": "867758361c00f878d8bd93164cef7cf944baae34d132d4926d8a4778751b0523",
+    "id": "needle_storm",
+    "stacks": 3
+  },
+  {
+    "hash": "41f3b40e4ee7b08fcc0f3a3523179dcadd6172f56b7ca434003ee9b70c263787",
+    "id": "needle_storm",
+    "stacks": 20
+  },
+  {
+    "hash": "8a5ef021e68d46136ca886dec7f648eb19b9ab49f927ab088706978c44ea9536",
+    "id": "chain_ricochet",
+    "stacks": 1
+  },
+  {
+    "hash": "18fbaf80eb03c450997b383c771c1f96f8933ddff53f286673c85e4db22ace42",
+    "id": "chain_ricochet",
+    "stacks": 3
+  },
+  {
+    "hash": "8db295cb7110f38b8ebb11b35520a7128e2afb65c1602631d1727b9c4d7a5b5b",
+    "id": "chain_ricochet",
+    "stacks": 20
+  },
+  {
+    "hash": "77c3d0a82c0f9322806e330ee06e42c46a97d2dc38b2f2ac9a2a8bd18d0dbae8",
+    "id": "orbital_rounds",
+    "stacks": 1
+  },
+  {
+    "hash": "9c4ffd3d2e588f0cd77b2d99ecf247c6e1328a6d5475c139d175aaf7f639efd7",
+    "id": "orbital_rounds",
+    "stacks": 3
+  },
+  {
+    "hash": "3941acd3da7e0ec5318b60b2349a97db4838c1b72b0e09e9a30775671d0d82af",
+    "id": "orbital_rounds",
+    "stacks": 20
+  },
+  {
+    "hash": "551436d108d0d1d97e292c6d298f9f82ac5ab8fd6c2d90ecab5a65217fa39a83",
+    "id": "deadeye_calibration",
+    "stacks": 1
+  },
+  {
+    "hash": "9fe4758a26b6c43f24afef909a14c700dbf66c2dd9fe52b6252cd5094802463b",
+    "id": "deadeye_calibration",
+    "stacks": 3
+  },
+  {
+    "hash": "b3fda81c42b920eeb7ef24b54ce7ebb7c63c8a17ab0dac12b55b0f2ed0025554",
+    "id": "deadeye_calibration",
+    "stacks": 20
+  },
+  {
+    "hash": "4ab64ef2bd72b98cd4a6bee5809c17d7509526b6fad231cb44b84b704ba97e40",
+    "id": "sustained_barrage",
+    "stacks": 1
+  },
+  {
+    "hash": "111edf1ba60a614c5b7d6dfd7aff6ae291b079181e4d4fc49f3d8c430d39ef02",
+    "id": "sustained_barrage",
+    "stacks": 3
+  },
+  {
+    "hash": "11810da509ca7d631cb2e69b35aa5c2c8c978b889a8ce322351d4e1033047ff6",
+    "id": "sustained_barrage",
+    "stacks": 20
+  },
+  {
+    "hash": "8741e941dd593402ec2149e9b36351536a0e6f7feba1a492e558247a14e22128",
+    "id": "overpressure_chamber",
+    "stacks": 1
+  },
+  {
+    "hash": "ec3411a3307e6c1a57d165d696a67b10586e9d3ef67adbddb0d769f7f0ce89e9",
+    "id": "overpressure_chamber",
+    "stacks": 3
+  },
+  {
+    "hash": "a871522be9d87e3d3f51bc190f1494f9c28a1c603ba30fb85ec8e0464b9bb3b6",
+    "id": "overpressure_chamber",
+    "stacks": 20
+  },
+  {
+    "hash": "fae7828b2e06398dffd49dfadcea08df41cc78812d6bf44bae1de2ed5126bc00",
+    "id": "flechette_payload",
+    "stacks": 1
+  },
+  {
+    "hash": "4b77539ddfa5c182ec5de83c570992f58ba41882311fa2bedb788aa36c836285",
+    "id": "flechette_payload",
+    "stacks": 3
+  },
+  {
+    "hash": "051a1b2d4ffc6fc0004a13feade407fd858199c9c76f25f3961e78e34ab51ff8",
+    "id": "flechette_payload",
+    "stacks": 20
+  },
+  {
+    "hash": "cf861a157ed1c5058953d375c9680494b34e9040cef66dc80e2dbbcef4f61e20",
+    "id": "bank_shot",
+    "stacks": 1
+  },
+  {
+    "hash": "b46500ad515d4f59b992d088b4185fa2ee67edd9bfc3544f85f974272c51d713",
+    "id": "bank_shot",
+    "stacks": 3
+  },
+  {
+    "hash": "344dc8abd05e17ec821612552d850c028f9083ee4a5cf4d60978f55896b06720",
+    "id": "bank_shot",
+    "stacks": 20
+  },
+  {
+    "hash": "38ba951800eefbf62947f5002fffa100d74bf9433376effd88145f329ecaebd9",
+    "id": "impact_lens",
+    "stacks": 1
+  },
+  {
+    "hash": "6d9122f327b7f6e77ec051d55ed92236dc45842ad452bcc69abcbeb94009e877",
+    "id": "impact_lens",
+    "stacks": 3
+  },
+  {
+    "hash": "2ef7ac1aa0bd446d63e4fe696a8d6ca5ab4fd7762a5cd3174b913d7b1af0b67a",
+    "id": "impact_lens",
+    "stacks": 20
+  },
+  {
+    "hash": "8eb443db28edaee96d6b208ef66b04b6dfcd564f73bfa70ebda31a3b08800806",
+    "id": "rangefinder",
+    "stacks": 1
+  },
+  {
+    "hash": "4c4b37e0fb4195c657566f39b8799a0c04b7a35382533b12911d69ab73926f5d",
+    "id": "rangefinder",
+    "stacks": 3
+  },
+  {
+    "hash": "16b3f33240f52b4dc81aba21aa1014e311eb3c252f9f1743c930233980521769",
+    "id": "rangefinder",
+    "stacks": 20
+  },
+  {
+    "hash": "7ac6af13ed74ba735c34c9e70739cbb64cf5abaf1915a9761848503f6ea2a8ed",
+    "id": "hot_load",
+    "stacks": 1
+  },
+  {
+    "hash": "b22d72a7fb1d707d1f96a6a199b1f0127a4fcc8095c82e78ca96ccb7d91c3d7e",
+    "id": "hot_load",
+    "stacks": 3
+  },
+  {
+    "hash": "71895d9d357cc450c57aee889484cd60c39791c04f6571462d294d8b08ba10ca",
+    "id": "hot_load",
+    "stacks": 20
+  },
+  {
+    "hash": "6f83127836b7cb11b8fdc9219aaeb88916519d391803d7cf3183d4d2e4969e34",
+    "id": "drum_spring",
+    "stacks": 1
+  },
+  {
+    "hash": "fb4c79fa498089a02bd4049cb12c8765a0266779c0399cd3af608b3a6b51f524",
+    "id": "drum_spring",
+    "stacks": 3
+  },
+  {
+    "hash": "4c44418cc30d703a9b5d91c2623d60bc0ac78c4531045113723f3ae87ace9246",
+    "id": "drum_spring",
+    "stacks": 20
+  },
+  {
+    "hash": "eb64ac8a15fe3a68081a585651ba489253b803ff44a9d4b92082de0d58c4c8d1",
+    "id": "tight_bore",
+    "stacks": 1
+  },
+  {
+    "hash": "eb64ac8a15fe3a68081a585651ba489253b803ff44a9d4b92082de0d58c4c8d1",
+    "id": "tight_bore",
+    "stacks": 3
+  },
+  {
+    "hash": "eb64ac8a15fe3a68081a585651ba489253b803ff44a9d4b92082de0d58c4c8d1",
+    "id": "tight_bore",
+    "stacks": 20
+  },
+  {
+    "hash": "cf766c923ba9cdc4788c4f305a2d450c391669c71895e0a00cfff1debfb4cdd0",
+    "id": "short_fuse_payload",
+    "stacks": 1
+  },
+  {
+    "hash": "c7960d32d054fe25a3c0a9d1f1d03c1ae6d4653144e3f1ecb0cfa31293413b2d",
+    "id": "short_fuse_payload",
+    "stacks": 3
+  },
+  {
+    "hash": "6f426fa9f141a5eb5bde9614620c6ce2951e6a8afb077711739f1b179baceabb",
+    "id": "short_fuse_payload",
+    "stacks": 20
+  },
+  {
+    "hash": "df72b0b7c928b503ac35738e501643cd1ce6f97c0de9946a0b70d5ea511cb06f",
+    "id": "long_fuse_rounds",
+    "stacks": 1
+  },
+  {
+    "hash": "8b102a4860d9d86f90c8b06e8f32db49a1eab130b980db4743eca5d2f043db52",
+    "id": "long_fuse_rounds",
+    "stacks": 3
+  },
+  {
+    "hash": "2a5a3deedc89061d17e78dc63f65f67cc2cefda12f41433ffa95fb5db7c050a0",
+    "id": "long_fuse_rounds",
+    "stacks": 20
+  },
+  {
+    "hash": "0e346fb1c452fa67a8b13fcf98fdf8f58a70bb021458143912b59657806ab323",
+    "id": "worldbreaker_prow",
+    "stacks": 1
+  },
+  {
+    "hash": "8d447c8c316d72f149a4ab92c2affc1ce7c176df5c3afc34de35bf5b7afd7e73",
+    "id": "worldbreaker_prow",
+    "stacks": 3
+  },
+  {
+    "hash": "3333d377a61e6a728fef1d08138ac99ca6102712e84f6d2aca1902e34c9501ec",
+    "id": "worldbreaker_prow",
+    "stacks": 20
+  },
+  {
+    "hash": "cbbb2639ea3c698d1cb2dd789d8f86f45c4c4d3a97dbdc5bf8555b2524b31736",
+    "id": "sundering_aegis",
+    "stacks": 1
+  },
+  {
+    "hash": "246c81cbf39eccc32fa4353baf85f2b8b2961a721bb0998dca17aebbf31bc9e1",
+    "id": "sundering_aegis",
+    "stacks": 3
+  },
+  {
+    "hash": "6bceb8d51ececdc0f0e24d2dcfb8a4e1909d8afc1dc6d5a81df7018b0ed47796",
+    "id": "sundering_aegis",
+    "stacks": 20
+  },
+  {
+    "hash": "da23ad345bf6cec282e10b7920d0b952ff57e65123ebbc410c3700560da04fd7",
+    "id": "breach_vector",
+    "stacks": 1
+  },
+  {
+    "hash": "819de73aada6837175850eab9fc19f78f66523b45e97901ffcb5bea2d4e3af31",
+    "id": "breach_vector",
+    "stacks": 3
+  },
+  {
+    "hash": "348cc40a7079a58297fca4088e8b48fdb64fa4e49d29ae1cac19ec2fef8ccc77",
+    "id": "breach_vector",
+    "stacks": 20
+  },
+  {
+    "hash": "3c902721df6ae56f8292ab5b548c77c1b210e53a9884ccd6162a9652ccbadb8a",
+    "id": "impact_capacitor",
+    "stacks": 1
+  },
+  {
+    "hash": "a26d138d39e081a968532808962ff85dc409a2d1ddb88e333f61dc4a8191a1d3",
+    "id": "impact_capacitor",
+    "stacks": 3
+  },
+  {
+    "hash": "9a17a9496d021164f59464e636bac24838b2d5faea9e384fde36d85d7765683e",
+    "id": "impact_capacitor",
+    "stacks": 20
+  },
+  {
+    "hash": "3cda349536b202f6d092981182c9593917ac771d0751df7b2b1d9009b187feeb",
+    "id": "kinetic_prow",
+    "stacks": 1
+  },
+  {
+    "hash": "b9b7688e814584c040eec49d831926d9c0e25b40de64c3870e461f824122e58d",
+    "id": "kinetic_prow",
+    "stacks": 3
+  },
+  {
+    "hash": "4691c9df649a448f1d44a6ad387965efbb595a8a90104808caffe430323a48e7",
+    "id": "kinetic_prow",
+    "stacks": 20
+  },
+  {
+    "hash": "76227eebdb8a41ad8354d176de4c25cdd87944cc23438165356d386db333cdcd",
+    "id": "absolute_barrier",
+    "stacks": 1
+  },
+  {
+    "hash": "33fcc644f17e021098592f98c80dd9f1b1259e0c6d8f29942741731e1831d7c0",
+    "id": "absolute_barrier",
+    "stacks": 3
+  },
+  {
+    "hash": "149c19f611622c5a238339ad9f01d08d711027126b20bf311bf248bb861e1cb8",
+    "id": "absolute_barrier",
+    "stacks": 20
+  },
+  {
+    "hash": "6bb7527a78914c184b1ae3814fb42df28c60f5551891395f52e29d64b2fe1703",
+    "id": "instant_recovery",
+    "stacks": 1
+  },
+  {
+    "hash": "b4e52078a8fcab2bd174cfcf7f8dfdfc6056a393d70faea20f29ddfb111430e1",
+    "id": "instant_recovery",
+    "stacks": 3
+  },
+  {
+    "hash": "7a2462349cb55165c726182df5832f413e5320a8b856868114550fc2fad6e092",
+    "id": "instant_recovery",
+    "stacks": 20
+  },
+  {
+    "hash": "7f565b7c250641b14ad5366a2356cfb537f826a11bf5488f313d85fe4030ab44",
+    "id": "inviolable_front",
+    "stacks": 1
+  },
+  {
+    "hash": "f280a87cb310ef991050cc5f6ca5b3e341a01ec54e86288f2258f7ad7e1a92a2",
+    "id": "inviolable_front",
+    "stacks": 3
+  },
+  {
+    "hash": "b98e83a83011111509be89fb5da4950c321db87565342cf656e092efd77f712b",
+    "id": "inviolable_front",
+    "stacks": 20
+  },
+  {
+    "hash": "284a189bb6417a94ac42089647a483a635d31f572bbf7b605a599c03edc6a5ea",
+    "id": "perpetual_field",
+    "stacks": 1
+  },
+  {
+    "hash": "73a6bab31f14569abbfdd156881cbbfbd6183c63431498ba216212a0e3fc6f2b",
+    "id": "perpetual_field",
+    "stacks": 3
+  },
+  {
+    "hash": "f0784b329db703e56270493bdcb5c9d58e72c2cec986c91e78e6c26c35b1a17b",
+    "id": "perpetual_field",
+    "stacks": 20
+  },
+  {
+    "hash": "6fd60089ad1530e29e60e4d003a0d8e434c16e8a411d9450d6de94110afee629",
+    "id": "stellar_aegis",
+    "stacks": 1
+  },
+  {
+    "hash": "796fdd1627b20ea3dffa8b99acece878851802900f778480cb89587cdd39158c",
+    "id": "stellar_aegis",
+    "stacks": 3
+  },
+  {
+    "hash": "7635d8d69949f963a19c0f032fa3e9b8b7196cdf477318f25161bd135f1d6239",
+    "id": "stellar_aegis",
+    "stacks": 20
+  },
+  {
+    "hash": "cf9365450ca6eee62e16ab376055b0295cafe88d7ab9f2e406e01fbafa2c3c4e",
+    "id": "second_wind",
+    "stacks": 1
+  },
+  {
+    "hash": "122d5dec398bc2e6c82fb7ed65d885b560a8943aa84df90cae44192a3c942352",
+    "id": "second_wind",
+    "stacks": 3
+  },
+  {
+    "hash": "7bd9dcd959517887996c646d9ac88597c003f084f42e51dbb81bdde6709d6de4",
+    "id": "second_wind",
+    "stacks": 20
+  },
+  {
+    "hash": "17c243c6b1e2c1538346dccac8ead0ecd7b155531efaeb3a346705975012bff7",
+    "id": "cascade_barrier",
+    "stacks": 1
+  },
+  {
+    "hash": "2c304d46563b04189ea206d291d01e9911a6b66065b38c7159aa017cffd9d92a",
+    "id": "cascade_barrier",
+    "stacks": 3
+  },
+  {
+    "hash": "fd60fd1e26b2d721094490259c01044465185c7130b252f709a9a7f6847307f1",
+    "id": "cascade_barrier",
+    "stacks": 20
+  },
+  {
+    "hash": "d96f4d84ea19d0df6294c2d06ee065d67c4271c29a7a85bfc8d7a51873e57e6e",
+    "id": "vacuum_insulation",
+    "stacks": 1
+  },
+  {
+    "hash": "c1cd064e45fa647cdc76cb475822eebd5e2a2688cbd3e1cd959a69b5baa99299",
+    "id": "vacuum_insulation",
+    "stacks": 3
+  },
+  {
+    "hash": "310a70a683bf0079b8f8ee95ad447ed78ceb9e702fbae87876364e9c89e71d4e",
+    "id": "vacuum_insulation",
+    "stacks": 20
+  },
+  {
+    "hash": "4206105ad25a7a690eff895822ff5acf15e6921ba16365e6a6ddfcfc4d755871",
+    "id": "mobile_bulwark",
+    "stacks": 1
+  },
+  {
+    "hash": "09ffe11828b0a446e49a57e57a7ca9df8f281706e7dcb3dc22132bb6980be2ae",
+    "id": "mobile_bulwark",
+    "stacks": 3
+  },
+  {
+    "hash": "bdb0d28acbc357a29aa692471e522ebf1a1ac95b36c57c9408175f9d448459f8",
+    "id": "mobile_bulwark",
+    "stacks": 20
+  },
+  {
+    "hash": "92c7c3a836bec91371efdbc152870aa1d87a0ada86cd4fcf95f96ff775861fd2",
+    "id": "duelist_aegis",
+    "stacks": 1
+  },
+  {
+    "hash": "5de1333af867d28280db95a42aa64586fa2882021e8948388693d9f3afa39d3b",
+    "id": "duelist_aegis",
+    "stacks": 3
+  },
+  {
+    "hash": "77faf11d3879a9bbffaae2b5ba23cc3f8e8cdc8bb6fb82df0c2469f392e6a1a4",
+    "id": "duelist_aegis",
+    "stacks": 20
+  },
+  {
+    "hash": "fb5d6fe9ecbfd85eea9e3be0fa1c0b57ebc047222a0f076bf3fa7383397744e7",
+    "id": "resilient_grid",
+    "stacks": 1
+  },
+  {
+    "hash": "91931c7080586e2a2626323239ecb37d2d0a327d85c400c212e9821e45573e7c",
+    "id": "resilient_grid",
+    "stacks": 3
+  },
+  {
+    "hash": "a4c502e9d524d1b1ea86783c2c9acb276f10ed07368bce313babdd422959f49c",
+    "id": "resilient_grid",
+    "stacks": 20
+  },
+  {
+    "hash": "ae5e7d65a212b5e72f95580bf61e0e40f15bfced831d020e6d44ad758eed7341",
+    "id": "flash_recharger",
+    "stacks": 1
+  },
+  {
+    "hash": "3464049557e8cdf8f934249e02bd3e10f5a7fd6edeaa8b58836069367e68c172",
+    "id": "flash_recharger",
+    "stacks": 3
+  },
+  {
+    "hash": "5218eb19921ee9da56640f7455d4b9792ddb2b00306f307c534338b7e4e3524d",
+    "id": "flash_recharger",
+    "stacks": 20
+  },
+  {
+    "hash": "8c8628bdcaf94416851e8e3ac50f8c07db332ba23029096c33d40ef48ac20dec",
+    "id": "deep_reserves",
+    "stacks": 1
+  },
+  {
+    "hash": "78a7c54225b77e1ab45d97d91bc47bc6d21c038ab0b91d5673d97f14b189f677",
+    "id": "deep_reserves",
+    "stacks": 3
+  },
+  {
+    "hash": "79aaf1b28b23b44d19f07d023ca4792d99fdac56bb7106432f78cbae2618f72c",
+    "id": "deep_reserves",
+    "stacks": 20
+  },
+  {
+    "hash": "496f7d76672649ea5cc1854f78b8da009a669c39b4b4225d6079eee68a25a710",
+    "id": "broadside_field",
+    "stacks": 1
+  },
+  {
+    "hash": "18baccd0896777cd14d455cfb61bbcad84488b5e271e2650a8e3fcbeeed61606",
+    "id": "broadside_field",
+    "stacks": 3
+  },
+  {
+    "hash": "043d2d23680140d4810c28c8a0dfac45c5316782bcdbff72da82ca47aaa53138",
+    "id": "broadside_field",
+    "stacks": 20
+  },
+  {
+    "hash": "b631776cdb469f7eac32b80b449743e228cc9ae7069947be804721186d55e02c",
+    "id": "pursuit_screen",
+    "stacks": 1
+  },
+  {
+    "hash": "cde81a2c407c618d5f05f9a906336645083ec834013f0f235c7220915db1a73e",
+    "id": "pursuit_screen",
+    "stacks": 3
+  },
+  {
+    "hash": "78a0fa7080ae7a35b308b4c351d4b3b5db1fbc93a0a1fc2317274b666b9f3ae0",
+    "id": "pursuit_screen",
+    "stacks": 20
+  },
+  {
+    "hash": "6909128cf67afab599617939c6ca82aae5603fb47622e305e7c339d5727fd448",
+    "id": "kinetic_converter",
+    "stacks": 1
+  },
+  {
+    "hash": "7abb7148d1805e2671dcc22dc8c110630d8bfe12aa920d401ce69482c1f49842",
+    "id": "kinetic_converter",
+    "stacks": 3
+  },
+  {
+    "hash": "001dba888d599daba1908ecd56aa177e1b6c9e459e5b6a917cfa87329a8a0fde",
+    "id": "kinetic_converter",
+    "stacks": 20
+  },
+  {
+    "hash": "a067a6afd9007832a032962c7dd75b3147ad7562a2996e0cff4c060467fd9eb1",
+    "id": "recovery_switch",
+    "stacks": 1
+  },
+  {
+    "hash": "7af9a6f9927b1bee6bf0cb37b61a33928b12fa5d073b63dcc32fbd31226c0605",
+    "id": "recovery_switch",
+    "stacks": 3
+  },
+  {
+    "hash": "9df752a0c2c26795b752d1b0f0622835f0285919c8813b7203b213191c7a38a5",
+    "id": "recovery_switch",
+    "stacks": 20
+  },
+  {
+    "hash": "438b75d5e62f43d9798cb767335832654fa2ba5797b59667efd54fa7452d5631",
+    "id": "compact_deflector",
+    "stacks": 1
+  },
+  {
+    "hash": "c2f5af62200b84ca916d9dbf3b885ed6f2c9352a0a0292cc3071ad495a99145e",
+    "id": "compact_deflector",
+    "stacks": 3
+  },
+  {
+    "hash": "e1bf6800fdd07f3a182db5c4be50c60cf150e627346f49cacb6f62ec1c1c816f",
+    "id": "compact_deflector",
+    "stacks": 20
+  },
+  {
+    "hash": "277788191988876ba73c23b53e6bea326f7cc16f37bc7769007e78f88343a9fb",
+    "id": "low_loss_coils",
+    "stacks": 1
+  },
+  {
+    "hash": "cbda46a1e1fff363e79ce58037bec259a0921344709d176ade35ad861e41781c",
+    "id": "low_loss_coils",
+    "stacks": 3
+  },
+  {
+    "hash": "1d4191681f759eb6a2d8a7c087363e3beb8ea4645939739197e63365d5227e4a",
+    "id": "low_loss_coils",
+    "stacks": 20
+  },
+  {
+    "hash": "87d7acfb61a8bdce7c0bd0091f83cddacc741000e007a9790c777fbb1326fae2",
+    "id": "pulse_capacitor",
+    "stacks": 1
+  },
+  {
+    "hash": "9ed6ccabd1b78b672c7e77b30585837a0f20d9afe2e543e5a3d4c0192a11b1b7",
+    "id": "pulse_capacitor",
+    "stacks": 3
+  },
+  {
+    "hash": "8c054fc81c832b57f67070d1a739b8885ebd7138570b392d81b952bd6b8ae599",
+    "id": "pulse_capacitor",
+    "stacks": 20
+  },
+  {
+    "hash": "e5ef2703b8f74465dd79128bcbed02f063559927891b766b7347ea5efb4aeb6b",
+    "id": "transcendent_chassis",
+    "stacks": 1
+  },
+  {
+    "hash": "980a29ec943afaff48c1b97f6e85d035b6397cd27b9e0ea3f3a0020f09e151bc",
+    "id": "transcendent_chassis",
+    "stacks": 3
+  },
+  {
+    "hash": "a354777cd32edb29cbcd1a95d850c7f1da189a898de16315b71a2f0c96e76f0c",
+    "id": "transcendent_chassis",
+    "stacks": 20
+  },
+  {
+    "hash": "d3fd5a07497b321203fbe91bccc874f1ec087a3e08bc9400ee90815e7129a40e",
+    "id": "ouroboros_hull",
+    "stacks": 1
+  },
+  {
+    "hash": "981ef254d32f48674375c82a84f7cf22cf4072b5b4e0459a7e038f6b79ca4364",
+    "id": "ouroboros_hull",
+    "stacks": 3
+  },
+  {
+    "hash": "9fe727f299bb965037fe05157bf1cd277682fae638089fe35c5cf9c46c39ec9f",
+    "id": "ouroboros_hull",
+    "stacks": 20
+  },
+  {
+    "hash": "ae4b8cc66f1bae2f49f70d5c8f94fe8ea159b558dd887e24bd153de9995e0572",
+    "id": "lightspeed_frame",
+    "stacks": 1
+  },
+  {
+    "hash": "29e2e59daef9eefd689744ae6347e3b13ee2758d5c29c666ec4fdbde76c74cd5",
+    "id": "lightspeed_frame",
+    "stacks": 3
+  },
+  {
+    "hash": "778ced2a5229b37cb5389fc0c68abb6fc9dbd0620e8998f614c7cdd7ed2fdd65",
+    "id": "lightspeed_frame",
+    "stacks": 20
+  },
+  {
+    "hash": "3029e36e6b54ccd91e59a61dd6aa2447bc117bbb73d3b189eb0549337210124a",
+    "id": "immortal_lattice",
+    "stacks": 1
+  },
+  {
+    "hash": "40fead621d2f4961f7c9cdd917aa72f9f7c0456729fa48a859191afee3457990",
+    "id": "immortal_lattice",
+    "stacks": 3
+  },
+  {
+    "hash": "d48a2783e3da88b734156e1a5aafbe7edc59ecf90517cb748741485db9b03265",
+    "id": "immortal_lattice",
+    "stacks": 20
+  },
+  {
+    "hash": "ac1a53f520b5aa21a6c524be0097872e0827efe4f70077fd93a3654b2b91b585",
+    "id": "warpshell",
+    "stacks": 1
+  },
+  {
+    "hash": "eec4bcc851217bec0d28abe22495d7af0ad2dc5abbcc949e75ebf4312293b571",
+    "id": "warpshell",
+    "stacks": 3
+  },
+  {
+    "hash": "ee7cb8af812b69a17032d6b41f4054885bb29495c5231bc19bce2dc6bc89e341",
+    "id": "warpshell",
+    "stacks": 20
+  },
+  {
+    "hash": "e339890985019044be49eb76c65ef558afaeb32600e27f382e9bde053a9ac96e",
+    "id": "phase_brakes",
+    "stacks": 1
+  },
+  {
+    "hash": "53618088861b4ce0456641573d3037ff4ab21b09530754fa72f0b247a079035d",
+    "id": "phase_brakes",
+    "stacks": 3
+  },
+  {
+    "hash": "4902b26fee11cdd15f1168c49f5bf3c35c45b11eaac6bc2eabb529209bc45afa",
+    "id": "phase_brakes",
+    "stacks": 20
+  },
+  {
+    "hash": "a98a8b79970cf3a621ad24d649849ed5e8ee0adfb68b33e79a5d94391849d4bc",
+    "id": "recursive_nanites",
+    "stacks": 1
+  },
+  {
+    "hash": "b4421f94d022940fe71db09c53b00513767b3420770ebf88242a7e58908d7e10",
+    "id": "recursive_nanites",
+    "stacks": 3
+  },
+  {
+    "hash": "cef7dad38ddd33c832469df6b606eff6fe514b2f338fff247b7591f91c2d4147",
+    "id": "recursive_nanites",
+    "stacks": 20
+  },
+  {
+    "hash": "43b84ef9c4d7d0e96a55bd15224d4d66cf61f585659a12f131aea7d5c9633ea5",
+    "id": "comet_drive",
+    "stacks": 1
+  },
+  {
+    "hash": "1bba7e5400e210a2880c484a77a3f2324de8bf9dc468b58fd089ad964ba184cf",
+    "id": "comet_drive",
+    "stacks": 3
+  },
+  {
+    "hash": "838de26a3a8926034972f46ca2e4d78b625bb9ee5f8bc4ac6db8aba94e7f7403",
+    "id": "comet_drive",
+    "stacks": 20
+  },
+  {
+    "hash": "2dae216e4da201ba27995842ca30eaaba0cb6a54123139299d52c6bb73ae2c39",
+    "id": "juggernaut_frame",
+    "stacks": 1
+  },
+  {
+    "hash": "09c3c02ede27ffa610bd3cef69d6fd863ed33d22e4ee524e7c8cd301c74d6ec6",
+    "id": "juggernaut_frame",
+    "stacks": 3
+  },
+  {
+    "hash": "0793e37d358f60b42b6f25cd3c55ecb0c0a116d1282bc36eb3de3ab6a0e36ba1",
+    "id": "juggernaut_frame",
+    "stacks": 20
+  },
+  {
+    "hash": "38738bea561cfb200eb55ff1c26fcd091badb836a0e4f4eabd862dd7d691f0d2",
+    "id": "pursuit_engine",
+    "stacks": 1
+  },
+  {
+    "hash": "c160f416c22d9adc3e7e8d3edbabfdd4a0c32ce1392504c02bc0fa3cf7676b83",
+    "id": "pursuit_engine",
+    "stacks": 3
+  },
+  {
+    "hash": "7a157e92443e00904c6a9ed1a926c29d7b582b30f68760e2b85a31d891ba4d2d",
+    "id": "pursuit_engine",
+    "stacks": 20
+  },
+  {
+    "hash": "59e0e043b433c686b6f3b518536538c376c30997b1d145c2631c352f712d9e51",
+    "id": "repair_gel",
+    "stacks": 1
+  },
+  {
+    "hash": "4c5472ac65bc6ef9852f16dabdaf99e3f02dad34faac041fd30add5cd556b2fe",
+    "id": "repair_gel",
+    "stacks": 3
+  },
+  {
+    "hash": "3444ca7b51f63aa591256caafc8fcfd7087bdef914cfb597dd49cd0d269a0a33",
+    "id": "repair_gel",
+    "stacks": 20
+  },
+  {
+    "hash": "c4b03cb845f0fd9991211c29f85f3b9c6abf6cbaabd234a70d88044601ac7c7f",
+    "id": "adaptive_chassis",
+    "stacks": 1
+  },
+  {
+    "hash": "ab784fda3943323f2e3c79c78e5bcdb9f063ae5acdda5ac7b51794a3df74eaf6",
+    "id": "adaptive_chassis",
+    "stacks": 3
+  },
+  {
+    "hash": "61a2c18a26b8e6bc3bc15b9cef9d7800beadfc9bfc87c47a6e85e39af77fa22c",
+    "id": "adaptive_chassis",
+    "stacks": 20
+  },
+  {
+    "hash": "e207a7450ea51d9b24c2824657509391bd32c2b9359da0bfde2c7deb1e07a77a",
+    "id": "damage_control",
+    "stacks": 1
+  },
+  {
+    "hash": "f0e8dad5dde8ac1b238940f72d2df62d1ca81e9cb1d401ad5913c6bd47a5ef05",
+    "id": "damage_control",
+    "stacks": 3
+  },
+  {
+    "hash": "b2889e550d410fb28e453659567ed4889db35ca9da176c17d9aa65b573422a84",
+    "id": "damage_control",
+    "stacks": 20
+  },
+  {
+    "hash": "b2a0521700a8902a7eab24b1099dffe8e1d126827976ce53cfb769e9b2ed41cf",
+    "id": "shielded_drive",
+    "stacks": 1
+  },
+  {
+    "hash": "d6536bf6227360c7082d912395134ccc75b90a14c283ce238d2de6b8ab71063a",
+    "id": "shielded_drive",
+    "stacks": 3
+  },
+  {
+    "hash": "087fe0f9fdcb46102c493d66192501d3fea9b4eb4804e644ff92c336df6baa9d",
+    "id": "shielded_drive",
+    "stacks": 20
+  },
+  {
+    "hash": "2897f112727dcd1f013bb246658828d8c6e9be06e838aa3140bb2c973b55ce22",
+    "id": "braking_foils",
+    "stacks": 1
+  },
+  {
+    "hash": "0222ec749ad2c7bab8e6857e76248b5ca02b0ee68e5bf347076ab48f86a71e9a",
+    "id": "braking_foils",
+    "stacks": 3
+  },
+  {
+    "hash": "23230fe6b96409c5bc2d65850beb00de91c3a454dfb4eebb78f86072d95dd3e9",
+    "id": "braking_foils",
+    "stacks": 20
+  },
+  {
+    "hash": "c1e3c353ee8ea086119373d52ef110135a5759f8847c04798207e697dfa37361",
+    "id": "sprint_reactor",
+    "stacks": 1
+  },
+  {
+    "hash": "6816c2a166bdd0a9ee9f7c9ae57354253d3cb94776ae449978357a65888cfca0",
+    "id": "sprint_reactor",
+    "stacks": 3
+  },
+  {
+    "hash": "70aa9583eee40e44207cb2e3e7b2c46c404a0a922c64d6d57cfbeac72ab66b95",
+    "id": "sprint_reactor",
+    "stacks": 20
+  },
+  {
+    "hash": "b0d69126b2a09ae1f9ef68d4be1be3a3cf8de3c077508a46711779dbb48e5001",
+    "id": "scar_tissue",
+    "stacks": 1
+  },
+  {
+    "hash": "204d34a65a13d3b1b2e00d61786ef611972e1c68a80e81926e3434c421fd06c2",
+    "id": "scar_tissue",
+    "stacks": 3
+  },
+  {
+    "hash": "1e8346fd10073506b349a22a8d875c5d9d0bb81eb4faabd27a3dd90035e2581e",
+    "id": "scar_tissue",
+    "stacks": 20
+  },
+  {
+    "hash": "ff5d69a3e1235b3e15c325aac69374e43cee285bdf56d3abe98490b4300dc11d",
+    "id": "combat_gyros",
+    "stacks": 1
+  },
+  {
+    "hash": "5abeb1f006903cfe738754b4727656a91dfdc4c193039a89d3abcb49c67ab683",
+    "id": "combat_gyros",
+    "stacks": 3
+  },
+  {
+    "hash": "0e8d7e9ad1e4b34b70d1f0b62ee12979fc129773d903f59406ef50c4d9c5c867",
+    "id": "combat_gyros",
+    "stacks": 20
+  },
+  {
+    "hash": "55cfeac578d2cd9487280db3742c812dfdc92e9fafffd272332acbc91bd6cbc1",
+    "id": "vectored_nozzles",
+    "stacks": 1
+  },
+  {
+    "hash": "0a08ff56f0fb8878ae2c81eaf677e6b56b1382469684ff777d8d52ef174eca15",
+    "id": "vectored_nozzles",
+    "stacks": 3
+  },
+  {
+    "hash": "eaf0e01fb0bb2f6016d78d0a73a7b1b0d1dce4a9385e247205cf63d85b3fcaaf",
+    "id": "vectored_nozzles",
+    "stacks": 20
+  },
+  {
+    "hash": "f38e7b17bcd83e2908a0b7405cb79227cbe66ad3d4ddce5b1908454d8bf887c7",
+    "id": "lightweight_frame",
+    "stacks": 1
+  },
+  {
+    "hash": "569ba4646f1d9e6d61ad15bb5e22dc77068208d539e3e15a14decfacae13627b",
+    "id": "lightweight_frame",
+    "stacks": 3
+  },
+  {
+    "hash": "eee010187d4dd6cb3352ca48f65588f9b5a2f6e67c5b22292d6b55673025fc9a",
+    "id": "lightweight_frame",
+    "stacks": 20
+  },
+  {
+    "hash": "970e47fba57d228f8b0989440448316aa230ec177c39071409c881e053c9013a",
+    "id": "reality_shredder",
+    "stacks": 1
+  },
+  {
+    "hash": "aee3e79cdca7323eec26954d7ba70f44b848a3fb756e374ef3117e6caa2f178e",
+    "id": "reality_shredder",
+    "stacks": 3
+  },
+  {
+    "hash": "681c695f1e4d6e6ebd7e624ffb728e04fe9168bcf878a4c8d096eebe39918061",
+    "id": "reality_shredder",
+    "stacks": 20
+  },
+  {
+    "hash": "cf952322c28669b36e567f1e64da9e7a9a1519ba925ffe597bf5197c9a37ad76",
+    "id": "singularity_lance",
+    "stacks": 1
+  },
+  {
+    "hash": "cbb83d2df07fe1c9d2cbafb79302ce9fcf19a2f4aa0bb37171cbba8fe8d9a140",
+    "id": "singularity_lance",
+    "stacks": 3
+  },
+  {
+    "hash": "8682ddc34dff9cce9d639791a60604d7eb2bef8499482da52da9a3e6116571b6",
+    "id": "singularity_lance",
+    "stacks": 20
+  },
+  {
+    "hash": "072002a36a87b4d8aa3500e9253ff185264a4bf4a4ea5c936c71f53694c1fc6a",
+    "id": "causality_cannon",
+    "stacks": 1
+  },
+  {
+    "hash": "5f67c158fde7d58a9c5e1d176c6dbf193d3655c5fabfc3803c4c2f2078e4539a",
+    "id": "causality_cannon",
+    "stacks": 3
+  },
+  {
+    "hash": "565359f687a5346a9cf8c53b7993d9ed16ab0e7e40a7ebd6b608bb1904e3d118",
+    "id": "causality_cannon",
+    "stacks": 20
+  },
+  {
+    "hash": "35cd801adcb42e5ebf8035547a89812398265e6c95fb3fc78b91f0a7da0a71ad",
+    "id": "sunbeam_core",
+    "stacks": 1
+  },
+  {
+    "hash": "81a8feccad7465e7d0abcbca66f832eb445221a66a0d5d0caac890cc9d174972",
+    "id": "sunbeam_core",
+    "stacks": 3
+  },
+  {
+    "hash": "bdbe40bd7e4674c5ca1189d131bd2fc29d6f180fba26830ee8f7ee32ae862091",
+    "id": "sunbeam_core",
+    "stacks": 20
+  },
+  {
+    "hash": "7d512701d984ac7523a82d6fa72a77e9866d53a700cb463b44c568e633a8affe",
+    "id": "trident_array",
+    "stacks": 1
+  },
+  {
+    "hash": "59d9168550f8700875a3f4c210aaf6b32ea5bbaec90e48bce2360b40a8a22b4b",
+    "id": "trident_array",
+    "stacks": 3
+  },
+  {
+    "hash": "eb75982b9d0df9682196bd314d1ca8200bfe8ea2aee50c60607abdab0acc0d1d",
+    "id": "trident_array",
+    "stacks": 20
+  },
+  {
+    "hash": "12a2acf8ee535033947e75c3d742bbdaafb8b84f82ea0c95498a30772c3629e6",
+    "id": "accelerator_coil",
+    "stacks": 1
+  },
+  {
+    "hash": "40136753c208a05477aebe1211ab0b8ab835895152dd65e14773659a07ab3f94",
+    "id": "accelerator_coil",
+    "stacks": 3
+  },
+  {
+    "hash": "a2b80e0bdfaf5301125e656a66a69f4fa718d863aff4a5c5a3c9ea9a96079210",
+    "id": "accelerator_coil",
+    "stacks": 20
+  },
+  {
+    "hash": "07a246447fc4700e8a3fc383ea755b39e565f989719f590fcc49dbfa38f7789a",
+    "id": "cycling_servo",
+    "stacks": 1
+  },
+  {
+    "hash": "74b4f01f801197747f9a2f423c793757741dc528673fafac05f0c99d0d545950",
+    "id": "cycling_servo",
+    "stacks": 3
+  },
+  {
+    "hash": "2e161f89167cdca115aaadaa243365e8685f000f3514f5c08febcfb63bb92048",
+    "id": "cycling_servo",
+    "stacks": 20
+  },
+  {
+    "hash": "52fe7b753f6b30405dcf2a82f74bd8a3942afd760879b2f82a1e4201260d16cc",
+    "id": "hollow_points",
+    "stacks": 1
+  },
+  {
+    "hash": "a5fce4c3a74707076db2af33c90317a0021313da6c3695bb23fe61b6110dd84c",
+    "id": "hollow_points",
+    "stacks": 3
+  },
+  {
+    "hash": "785c1f74cecc2939a7386686aded1bd2af53d43fa439de38ca45e01e49c85312",
+    "id": "hollow_points",
+    "stacks": 20
+  },
+  {
+    "hash": "eec6661e917498914cac5b43afe9885105708131ee2739494ceb1531aac80d45",
+    "id": "shield_siphon",
+    "stacks": 1
+  },
+  {
+    "hash": "286935c1e41cc68b952f1462e31b8174ae8e8d5c5808ac6258360c922817b687",
+    "id": "shield_siphon",
+    "stacks": 3
+  },
+  {
+    "hash": "c6f79db378afd280a291dbc4b1a324aca72e70ac4fef5a5946bd1914aea19914",
+    "id": "shield_siphon",
+    "stacks": 20
+  },
+  {
+    "hash": "2e15f598781029766dba7ce781d4a244d79c299e11716698592ed7c61bb968ee",
+    "id": "infinite_refraction",
+    "stacks": 1
+  },
+  {
+    "hash": "0401366e7bbed2aabf3283d4324dc99591d7637b64094531c085253e5f4ff000",
+    "id": "infinite_refraction",
+    "stacks": 3
+  },
+  {
+    "hash": "c5da3b568bf3bf01a9d1d429c9ab38c1c180b2c9b4ed4770b9bb4a23f5c0cc4e",
+    "id": "infinite_refraction",
+    "stacks": 20
+  },
+  {
+    "hash": "a3871d71e95462c75f34e733caae66fa5f65713b9f98144a95a789bc1e6e7556",
+    "id": "chronal_shield",
+    "stacks": 1
+  },
+  {
+    "hash": "ff5ef86eeedad8bef2c7c1a60a0e83ac3f213cb9890a5d3dcccd66abed495795",
+    "id": "chronal_shield",
+    "stacks": 3
+  },
+  {
+    "hash": "8ef3ff7f98fa94868c4a5f15a2510c250f94744dd34372561c626d6b40afbc09",
+    "id": "chronal_shield",
+    "stacks": 20
+  },
+  {
+    "hash": "abca86b9da10e9f12768f0d4654f2c7b0a15f1f091c346a3a1cddafc7436f7a5",
+    "id": "solar_barrier",
+    "stacks": 1
+  },
+  {
+    "hash": "a3362722f5edcca991637b8a7ab0451fc0ae78991552d2b47844aeb0c7c2b34b",
+    "id": "solar_barrier",
+    "stacks": 3
+  },
+  {
+    "hash": "f44d2f55765454e72cf50dc3d35b51ac1ee8381c2b80d89e8199b2789879e0a0",
+    "id": "solar_barrier",
+    "stacks": 20
+  },
+  {
+    "hash": "d11bc2cc7ba36a20ea47b3d76436f4055d323c2ed7a904036a1918ba97ec6ca3",
+    "id": "aegis_matrix",
+    "stacks": 1
+  },
+  {
+    "hash": "983b30e6b347e77159fe4ae4ad7b166470cf0ddd9f29cf9ddba099b529ff6252",
+    "id": "aegis_matrix",
+    "stacks": 3
+  },
+  {
+    "hash": "93ebe43104ad5a2064990f463ed95433a1dc06a64e97c2787b94cbe65a93a74a",
+    "id": "aegis_matrix",
+    "stacks": 20
+  },
+  {
+    "hash": "f48bab7fdd10c34f3745e0cf7becb3ca1cd118b28ed86a45f8699d517b845df8",
+    "id": "focused_deflector",
+    "stacks": 1
+  },
+  {
+    "hash": "6e467f7033ed2fd9088a49ec7e6bb43a91e44a7db547c75d6a227df1d59eca3d",
+    "id": "focused_deflector",
+    "stacks": 3
+  },
+  {
+    "hash": "fcd0b6f8257278679c289b4a45e47d32e59a9d2e2815d345d69729e29431fb3d",
+    "id": "focused_deflector",
+    "stacks": 20
+  },
+  {
+    "hash": "767adb78acbcbe2959615dadfe45a90ccc7d699f0d716a4af7493e110d6bb9b0",
+    "id": "regenerative_coils",
+    "stacks": 1
+  },
+  {
+    "hash": "439a7ae8139b48977bdc5ff343591f9ff740b4ac4ee48babfe84b60dc1f68940",
+    "id": "regenerative_coils",
+    "stacks": 3
+  },
+  {
+    "hash": "97bca1a80dc330ba26a02cd22c20169a32a84b09f14477495d81f0d2f0db9d39",
+    "id": "regenerative_coils",
+    "stacks": 20
+  },
+  {
+    "hash": "4bfeacf7c2ea30621175b1967939c5fcf289401ecd15993e738d629692c36c2a",
+    "id": "reserve_cell",
+    "stacks": 1
+  },
+  {
+    "hash": "c444d7937e8c055017602f8f5f2e738b01efe93a5e86d20fec68ba1ed878cca5",
+    "id": "reserve_cell",
+    "stacks": 3
+  },
+  {
+    "hash": "7b3606819bd0a679a2f3fbcb8950106fc05c7bf3a49bb29ca154d7dbebe9fedd",
+    "id": "reserve_cell",
+    "stacks": 20
+  },
+  {
+    "hash": "820d44245b7679e706620a525abd0b7d70e0f3186d3efc8ef821227c1c693741",
+    "id": "impossible_engine",
+    "stacks": 1
+  },
+  {
+    "hash": "aa430b4185dabd86f0a923ef03ccb66f0db6ed77d197f13a81dfb39de08f4d16",
+    "id": "impossible_engine",
+    "stacks": 3
+  },
+  {
+    "hash": "2ba6e2cb8c48016bb3dc51c833958887aa66a68c7702f1d39b7e3bbadff7c230",
+    "id": "impossible_engine",
+    "stacks": 20
+  },
+  {
+    "hash": "922c4b41ba3ccaff9cea41b7f8f81876257e4a5b369267a2872c4b9bca26d830",
+    "id": "quantum_reconstruction",
+    "stacks": 1
+  },
+  {
+    "hash": "f7b6f7548077236ba371e01310f51716d6718d91451cca1a5080ee368b8396d7",
+    "id": "quantum_reconstruction",
+    "stacks": 3
+  },
+  {
+    "hash": "3567e2455d172f2ac845f1ed2a0a5074aac2094a555ec6209aefdb21e0e6ecc6",
+    "id": "quantum_reconstruction",
+    "stacks": 20
+  },
+  {
+    "hash": "96878174e4387846e7b88e2fcd7495580f484b6d798932795083337c47594c9a",
+    "id": "event_horizon_drive",
+    "stacks": 1
+  },
+  {
+    "hash": "37214a3c5e5ab0869a3762d896825e58496f9706b7dff2ee2de81c7ecf16cd87",
+    "id": "event_horizon_drive",
+    "stacks": 3
+  },
+  {
+    "hash": "bebab3d6dcb54fe9639e8ed298c9c8bb38e8425b8e6afa91c2eedabcac53d49a",
+    "id": "event_horizon_drive",
+    "stacks": 20
+  },
+  {
+    "hash": "6f8fa476bace5a3c1d295d6bd6acf870c076dfc6df383e9ad39d765906eb8d3f",
+    "id": "starheart_reactor",
+    "stacks": 1
+  },
+  {
+    "hash": "f20f3e86696193595a2812aef14389d9822b6f4ef5cd29e0489f2ea5b227e170",
+    "id": "starheart_reactor",
+    "stacks": 3
+  },
+  {
+    "hash": "160097137c9ef65f6ac9bdb24bec43024a8769374c67147d48d63bf830530384",
+    "id": "starheart_reactor",
+    "stacks": 20
+  },
+  {
+    "hash": "be1bc1ac06a2a364a06316fbb183aa12a9ae7a32017002982e5242cc3df46bc2",
+    "id": "phoenix_chassis",
+    "stacks": 1
+  },
+  {
+    "hash": "d53ad2c38b60babf8a834140f0d5d2feaf9bfb2cfd1a29d5c8f18d05adb7de4a",
+    "id": "phoenix_chassis",
+    "stacks": 3
+  },
+  {
+    "hash": "b68052d74ed23a1641211ab4d25224df043eec755ee1bbc580bbb78722f6d2f2",
+    "id": "phoenix_chassis",
+    "stacks": 20
+  },
+  {
+    "hash": "b02984c07a0114901e8b29c0cdb59bb7f23458ed45fd37d00e776c50ae524687",
+    "id": "gyroscopic_core",
+    "stacks": 1
+  },
+  {
+    "hash": "8b10148c226cdfd15351854fc054d86fa0248462d0302197d657a718037d3a73",
+    "id": "gyroscopic_core",
+    "stacks": 3
+  },
+  {
+    "hash": "1787e85cbca05999dafb44d2d227630e955dba4e9c6f530b1eec70b5fbbc1a01",
+    "id": "gyroscopic_core",
+    "stacks": 20
+  },
+  {
+    "hash": "fd020ce4ae7bb8e9efba8c3b59e064c3db217c4c5e639ab105731a264fc9e541",
+    "id": "plasma_thrusters",
+    "stacks": 1
+  },
+  {
+    "hash": "2718a45c4ec77c218935e4df66698794718e232d3682cc4d3b0e1331b3af960e",
+    "id": "plasma_thrusters",
+    "stacks": 3
+  },
+  {
+    "hash": "d81da540d1e8c21eae3eccae96a4d48bf31ef0e4c38eab4e49b82adfa89e1dea",
+    "id": "plasma_thrusters",
+    "stacks": 20
+  },
+  {
+    "hash": "c0ef4e440a41416fe249d71dab7dab072811170f3e19547da64f258628af10aa",
+    "id": "ablative_shell",
+    "stacks": 1
+  },
+  {
+    "hash": "6226c86074773360cbecb7b7b3046e1192ed5974846c309fb70cf78ee910362c",
+    "id": "ablative_shell",
+    "stacks": 3
+  },
+  {
+    "hash": "f43af6ac8300337088e7bf23275bebd5855709b516cfbda126232bbf6ef00608",
+    "id": "ablative_shell",
+    "stacks": 20
+  },
+  {
+    "hash": "4a6ed0f81c070e914a36ad564609e1c10c26b1a49d07dbb469d94aeaaa78c6fd",
+    "id": "zero_point_loader",
+    "stacks": 1
+  },
+  {
+    "hash": "05e09931d8258deb7555fc200d56dfbbd119cbb6825d9a943fd299af0727b60f",
+    "id": "zero_point_loader",
+    "stacks": 3
+  },
+  {
+    "hash": "2618967d36271c034b4f90a0e9b3a6b7653bf9e7597887f9543801804e14e5bc",
+    "id": "zero_point_loader",
+    "stacks": 20
+  },
+  {
+    "hash": "0b00b4bd510ac789369fb8bd117057e1776ef8bd124719309bea6bd494582ce7",
+    "id": "endless_belt",
+    "stacks": 1
+  },
+  {
+    "hash": "a6a597e84f8620c89f1044b4cd951ce8880723d7b688d705ea7f86ecccd550c1",
+    "id": "endless_belt",
+    "stacks": 3
+  },
+  {
+    "hash": "b3b8691fbd27a09e1f01a20ebe13a30b46c0285a565f383e5704dce4f9ebe7b4",
+    "id": "endless_belt",
+    "stacks": 20
+  },
+  {
+    "hash": "d5e389a8357cc9f48de7b41e8a641a4efa5e7fed4bb8ea992c9d8d7849495354",
+    "id": "micro_barrage",
+    "stacks": 1
+  },
+  {
+    "hash": "c7e70a3645fcaf42070c02cd70b16e942ed7e906a1178f62ac0a6835216d070b",
+    "id": "micro_barrage",
+    "stacks": 3
+  },
+  {
+    "hash": "a984f4c4b9b4c35f24387edd72515ee96b989551c3db42e18f75093d4c61ff1e",
+    "id": "micro_barrage",
+    "stacks": 20
+  },
+  {
+    "hash": "e197a61adb29c70f71c3dcceecb8a155a51b901a1036e9caca4a00a357c9a107",
+    "id": "siege_cannon",
+    "stacks": 1
+  },
+  {
+    "hash": "6bc29196358f7173c0a2805d30c85d239af3c132e292fa8538e5c572167bb7c0",
+    "id": "siege_cannon",
+    "stacks": 3
+  },
+  {
+    "hash": "fdb2d9e8392e5cb84e8aaa4ecbcfd1ce0eb00f60480751bee0c251c58c3c0c51",
+    "id": "siege_cannon",
+    "stacks": 20
+  },
+  {
+    "hash": "de3f7641aa22f2dabf1fbd8b2cea351de86096feeb569cab8cc17189603d0783",
+    "id": "laser_repeater",
+    "stacks": 1
+  },
+  {
+    "hash": "71d4c85ace4d6142a5e3377936bd83ed03d1fea1f713985acfafce420cbcc107",
+    "id": "laser_repeater",
+    "stacks": 3
+  },
+  {
+    "hash": "a8ead7888b4fce899e29e1098cf3c50afbdd39ddcc49dc15ae51cfb90a23cbe7",
+    "id": "laser_repeater",
+    "stacks": 20
+  },
+  {
+    "hash": "30f88ee906bd77669811eace9dffe48d79f8d1619bc50c70ccbc3aa5d6297de4",
+    "id": "prismatic_lance",
+    "stacks": 1
+  },
+  {
+    "hash": "4f0fdf4b466a56a4cf5c264f8e6541f08d69c6644ab70a655114a63d94080355",
+    "id": "prismatic_lance",
+    "stacks": 3
+  },
+  {
+    "hash": "62e7f3b77229178863e1ac3559e9f6b3b7c0928dbb8c8f607b6f1fb16428f735",
+    "id": "prismatic_lance",
+    "stacks": 20
+  },
+  {
+    "hash": "4cddd65c495d1628500c1780eb8a73bf78ef5e49658f145593f1f8066991942d",
+    "id": "beam_emitter",
+    "stacks": 1
+  },
+  {
+    "hash": "bce84dd0dfc0f4166c9570820ae07b27a80418a0293ab110306963e17e9f5016",
+    "id": "beam_emitter",
+    "stacks": 3
+  },
+  {
+    "hash": "7f7fe2bc16b5ce74e8158cf4058d03fc88186cdf19e2c0552da9f144421d20b4",
+    "id": "beam_emitter",
+    "stacks": 20
+  },
+  {
+    "hash": "fc1ad8b8908376b9657ab9ae37cd25ecde9fd0b9ddcd707bb9ade60abaab8c71",
+    "id": "scatter_array",
+    "stacks": 1
+  },
+  {
+    "hash": "7c261a902a16872ed31cb09d58aeeaf4969ebb4568b77e2ccd3614c95baeab75",
+    "id": "scatter_array",
+    "stacks": 3
+  },
+  {
+    "hash": "1a910314dc85ea1706aa320865b960cc705b0e2b4b6bd6f6120ac41e53c056d2",
+    "id": "scatter_array",
+    "stacks": 20
+  },
+  {
+    "hash": "2a0f347d96ab65fb3da95c31c487f84cdd80e60609acbc5060b8ffd1f5639721",
+    "id": "omnidirectional_field",
+    "stacks": 1
+  },
+  {
+    "hash": "c03ed5731e422c861d3c3260585d5cd71f02816510a9a1b37c496924c0a6307b",
+    "id": "omnidirectional_field",
+    "stacks": 3
+  },
+  {
+    "hash": "aa5bf053180e00c3711291daebd1b604775b4ae8cb6c26cb9ab4edf89c7fd6b6",
+    "id": "omnidirectional_field",
+    "stacks": 20
+  },
+  {
+    "hash": "2ebb98f7dd22db72541099e329b0ca23881ed15d24dfa2c5be201bb4b210556d",
+    "id": "fortress_emitter",
+    "stacks": 1
+  },
+  {
+    "hash": "33bb8817746e29301016dcca745a752438bbe8eac7f1e5a14a37601f9f79a1de",
+    "id": "fortress_emitter",
+    "stacks": 3
+  },
+  {
+    "hash": "1b1069494e148ace8647672d9d9f23e96d08c8c498c968589cf0e02dbe4686ea",
+    "id": "fortress_emitter",
+    "stacks": 20
+  },
+  {
+    "hash": "974518b58454e0f9fefdbc70a2c018f6c8d3ede3c90ce36eae82063a429dc974",
+    "id": "mirror_field",
+    "stacks": 1
+  },
+  {
+    "hash": "25cfe75e395fef10d35cfaaad197a4792bbd73ac18cd95e658d543e52b2cf22e",
+    "id": "mirror_field",
+    "stacks": 3
+  },
+  {
+    "hash": "2ed6c365ae73b5ffc83a591e20896d57eaced4f609e355f6bf34afe7372c9f70",
+    "id": "mirror_field",
+    "stacks": 20
+  },
+  {
+    "hash": "2a87f3cb43c9fabbba38557ce48eb109d4501524ed5a328c786c82b9bb109e23",
+    "id": "flux_reservoir",
+    "stacks": 1
+  },
+  {
+    "hash": "9d63ef35e37c51565cc22d8734d2750fa473c528cffa1ffbce5a01ac73446903",
+    "id": "flux_reservoir",
+    "stacks": 3
+  },
+  {
+    "hash": "fe27b92093ea69600d68c55e2a4cd842e42fde4c5b378184d584551e76e1f533",
+    "id": "flux_reservoir",
+    "stacks": 20
+  },
+  {
+    "hash": "3a421a34f8b8270bd875856728b57a88bb0d9fef64e056577b7fabf9caa9f877",
+    "id": "breakaway_thrusters",
+    "stacks": 1
+  },
+  {
+    "hash": "6e411881943b39dbca69e13a98e905b467178060a085d794234d77a5e2215822",
+    "id": "breakaway_thrusters",
+    "stacks": 3
+  },
+  {
+    "hash": "5a33dd64c2939ef6478a4728301f98afae2d0893380dbb390136122c202cdb61",
+    "id": "breakaway_thrusters",
+    "stacks": 20
+  },
+  {
+    "hash": "ecb9039c8dd0525b0bd69946091dfe34d51a7cb18f982e58f0e186c0846e83e8",
+    "id": "kinetic_vent",
+    "stacks": 1
+  },
+  {
+    "hash": "e89e483db786d53797dd1979413180cbd7a1f592e02dd69ca2f4211859f22e73",
+    "id": "kinetic_vent",
+    "stacks": 3
+  },
+  {
+    "hash": "569cb9a16831899d133c9a93a887ca383f3bf4e396d0acf9736e05868175693e",
+    "id": "kinetic_vent",
+    "stacks": 20
+  },
+  {
+    "hash": "3c2630c84bb01b91eb4fbb63091879620d65516aa9751c22f24b7c6ec60b80dd",
+    "id": "cloak",
+    "stacks": 1
+  },
+  {
+    "hash": "bc9cd5c71dad540b86b2016c60f3e30ca92d829e578459599f6506189623d39a",
+    "id": "cloak",
+    "stacks": 3
+  },
+  {
+    "hash": "e0dea02470d03a5cfdc55e20b4a9f2725ba3eae0af70690599a254eb65243b1b",
+    "id": "cloak",
+    "stacks": 20
+  },
+  {
+    "hash": "2b1e6e0ea0c51736b3f6704b5d8d5d1c8177c5c3a090e7b4866003d330b51a15",
+    "id": "mine_layer",
+    "stacks": 1
+  },
+  {
+    "hash": "40f995d4b8796e7df941b80973cea1e32ab1f0e5ac06157cb3ae06427dec1227",
+    "id": "mine_layer",
+    "stacks": 3
+  },
+  {
+    "hash": "7582ac4a47ded822e2865500f793fe7b4c9f85d755fab974d7460a64c110b052",
+    "id": "mine_layer",
+    "stacks": 20
+  },
+  {
+    "hash": "d62c872f6c2dc4dd9e37d75ecaf38c2f015e37bc430964b41e8128fbaec70721",
+    "id": "afterburner",
+    "stacks": 1
+  },
+  {
+    "hash": "fb7e9adeb412a1bdde7dd80dfa5a1740239c3f76b5c4f8e3ce50b502316dadde",
+    "id": "afterburner",
+    "stacks": 3
+  },
+  {
+    "hash": "0ca0b2a0b2c8b79aee9c2234909f8e4db68599807f5ae46b274b180595ba78ba",
+    "id": "afterburner",
+    "stacks": 20
+  },
+  {
+    "hash": "2267b88ec8ce48b6d537395d43e8a08def32ee48cc376f43a6907d1cf943a2d9",
+    "id": "auto_repair",
+    "stacks": 1
+  },
+  {
+    "hash": "ca6c6815e6eaf131f9e462e1d9559f8c5dd1e68c78c44a5ac7178fd36f784a02",
+    "id": "auto_repair",
+    "stacks": 3
+  },
+  {
+    "hash": "4968eed2873ec458e422fcc6faa9fc16899069732d691f5659dcd4adda0cfd55",
+    "id": "auto_repair",
+    "stacks": 20
+  },
+  {
+    "hash": "67bfc585c727e8aedc040c4467f06e1b6efc578b6751518f3b2cd52dfa0b81b2",
+    "id": "inertial_dampers",
+    "stacks": 1
+  },
+  {
+    "hash": "2316341fbffc28a6bb06cd10c1384df2d958a97c915740f4047ee3f91d7f1b34",
+    "id": "inertial_dampers",
+    "stacks": 3
+  },
+  {
+    "hash": "5b388b51e97969184ff297f0bb5d6ecd4d89dd5c92a4b36a71d4609fea9ea546",
+    "id": "inertial_dampers",
+    "stacks": 20
+  },
+  {
+    "hash": "e8a5da29b8760e9d84d6ba5a19e3d1cf6c873890bd71497218b89289b98f20f1",
+    "id": "wide_emitter",
+    "stacks": 1
+  },
+  {
+    "hash": "d929d06386945672ae63aa90796964af99dab50cb912c6d37c0e7b56b2679496",
+    "id": "wide_emitter",
+    "stacks": 3
+  },
+  {
+    "hash": "db48a7a50e5ed829827808fcd20e61b07e4b6cdad8ed8b6d7cafc0806c6d8d55",
+    "id": "wide_emitter",
+    "stacks": 20
+  },
+  {
+    "hash": "fa56c5f5c33c046014a49dfd65ef85f35e072b04c93cb1f651719af1c071c82d",
+    "id": "kinetic_plating",
+    "stacks": 1
+  },
+  {
+    "hash": "4a3ddf00c39623da23c9e5f9ec932cb38ff523d9d1221b0a0179d692610a3fdb",
+    "id": "kinetic_plating",
+    "stacks": 3
+  },
+  {
+    "hash": "02bcd39d2e927ad5b6f4c3e2638c61750e7f78b3261069ad36a247216c271f80",
+    "id": "kinetic_plating",
+    "stacks": 20
+  },
+  {
+    "hash": "dae7353ee97c0a8e05b92598dfd7c5362278886cbcedb9d8b52e8508fc97eddb",
+    "id": "phase_thrusters",
+    "stacks": 1
+  },
+  {
+    "hash": "36cf6ec16b40cee0b13d716ad83ffc6909e3dec35bbe35b1229be4d26858a44e",
+    "id": "phase_thrusters",
+    "stacks": 3
+  },
+  {
+    "hash": "e239fbf7bb2acb541cd95be26b0805e9d6f2a5b338f92a4b32e37c41c92bea3b",
+    "id": "phase_thrusters",
+    "stacks": 20
+  },
+  {
+    "hash": "d8e83374d96256b702b928a87e59229abaea1097423b276f8cd1caf88dda4a9a",
+    "id": "vector_jets",
+    "stacks": 1
+  },
+  {
+    "hash": "ce651acec967cd0a20a8d69f72f29f0defeb90c672f5dc0681b86d645623b051",
+    "id": "vector_jets",
+    "stacks": 3
+  },
+  {
+    "hash": "4c46dafefd55a776b57c2e358503867ceaff03c1c662ab2ecc5aff5bdae5a8e2",
+    "id": "vector_jets",
+    "stacks": 20
+  },
+  {
+    "hash": "49ac9827655bc26070a52cf84f61aa9166b46a99d8556a8fe1adbebbdd66dd90",
+    "id": "twin_shot",
+    "stacks": 1
+  },
+  {
+    "hash": "be4be7c3ab61c58d45c6933704ed34d7b32acd307cad5d48aa2c64f726c67b6b",
+    "id": "twin_shot",
+    "stacks": 3
+  },
+  {
+    "hash": "cf19c0f801cf32a54171ea2a066fd3edd2cc92e400029834808cb0d222f229f9",
+    "id": "twin_shot",
+    "stacks": 20
+  },
+  {
+    "hash": "9cb940a3d8abb4fd2f77843d840faac4de8fae75d994dd34ba00eb967d8ef77b",
+    "id": "rapid_cycling",
+    "stacks": 1
+  },
+  {
+    "hash": "b88abe946acda1320f24d689b19d6c7e01658a2e78edc8d902bfc4deeae5add9",
+    "id": "rapid_cycling",
+    "stacks": 3
+  },
+  {
+    "hash": "8fbac037f894c8690e7fd13e49a837e4840a8d61d7bd710602570b313700be3c",
+    "id": "rapid_cycling",
+    "stacks": 20
+  },
+  {
+    "hash": "9731f19a3cf6f65a0dc8f80b713df1cf9d07dc817b59bc1dd055169b02697494",
+    "id": "reinforced_hull",
+    "stacks": 1
+  },
+  {
+    "hash": "e0b21411abfd9de5082e90dd0e80f9b5a77e1ad132d4c34719ae54f2d8c52881",
+    "id": "reinforced_hull",
+    "stacks": 3
+  },
+  {
+    "hash": "c3894cd63444e40eed362e91d672b20baa40854a8429fa3cd0550ef714ae49c3",
+    "id": "reinforced_hull",
+    "stacks": 20
+  },
+  {
+    "hash": "0eb2ae5b6a1e547526a1a547f3eb86e1f64da9fc2efacde0cf3458d6452c7827",
+    "id": "ricochet_rounds",
+    "stacks": 1
+  },
+  {
+    "hash": "bbce2bbb685ba47b37ab0b485cf881babf36e232b6797ca413efd8f6fd9a0505",
+    "id": "ricochet_rounds",
+    "stacks": 3
+  },
+  {
+    "hash": "418a5ee52854abef311e158a010ce562be1a4932dcd1aeacc32762898d579b86",
+    "id": "ricochet_rounds",
+    "stacks": 20
+  },
+  {
+    "hash": "9d70b36300b30b45f123dd840e1d1ccf492e9112a3f2e76358c3d021164697b6",
+    "id": "rail_accelerant",
+    "stacks": 1
+  },
+  {
+    "hash": "998f10d755bccf1ecd06e5811870a50b513a29f0824f1366703c70437ded2aba",
+    "id": "rail_accelerant",
+    "stacks": 3
+  },
+  {
+    "hash": "f8ed7d33ecccbaa7016be961f0028fcdac4a5d7f3b9980c1fd5472d641f8ee8e",
+    "id": "rail_accelerant",
+    "stacks": 20
+  },
+  {
+    "hash": "bfa73143200394396100638c810a756360087347134c124c11cdea932e9f272a",
+    "id": "quick_loader",
+    "stacks": 1
+  },
+  {
+    "hash": "da9583f28688130473faea436c80370794a8726ae9c5b2cb181e24ace865510a",
+    "id": "quick_loader",
+    "stacks": 3
+  },
+  {
+    "hash": "44994125aeee0f75fac9b6ccfffb05d78a5a86bc5d0ee83b053a71af4fa6d4a1",
+    "id": "quick_loader",
+    "stacks": 20
+  },
+  {
+    "hash": "0d96292467eb65b3d29fd0bb6051dad4f4f16a2190af930991b89c00ae90c3f7",
+    "id": "quick_charge",
+    "stacks": 1
+  },
+  {
+    "hash": "4b9cb57b4c672d1b0f8e29db71bc228ce9bcf07dd04083c9812ff326b0103382",
+    "id": "quick_charge",
+    "stacks": 3
+  },
+  {
+    "hash": "0bca172e8dc3f7f6a624996bef53b2e8d8c76d64a14cf6c1d576ddb5c12798e2",
+    "id": "quick_charge",
+    "stacks": 20
+  },
+  {
+    "hash": "a2eedce6ee8200f7f4be975588f68f288a1562e550fd2e9001dff785043e52ab",
+    "id": "piercing_rounds",
+    "stacks": 1
+  },
+  {
+    "hash": "42bc69bd438991a817680d194d680694bab790c1fbb3f2cd2b0b061e25d9a7cd",
+    "id": "piercing_rounds",
+    "stacks": 3
+  },
+  {
+    "hash": "9a1f901d3d80b1156225e7b9842550ae7d9e4765628769e2729ff0709eb27169",
+    "id": "piercing_rounds",
+    "stacks": 20
+  },
+  {
+    "hash": "07e287da276266ebeb1bf88eb87e545740cab4b036079f22109f7260224035a3",
+    "id": "overcharged_thrusters",
+    "stacks": 1
+  },
+  {
+    "hash": "84f46f34f9f7a5aff200b483d4e6f2368874506d6200c917848fce99bdd8b337",
+    "id": "overcharged_thrusters",
+    "stacks": 3
+  },
+  {
+    "hash": "9d8ea443acae2be0bc9ea2fe1060258ff4131d238fff6fd0ea191dff8064d544",
+    "id": "overcharged_thrusters",
+    "stacks": 20
+  },
+  {
+    "hash": "750d0a410bb70cd73d2b6d8db28094af629f9bb14d7b18a72d1b58ae68e4efa3",
+    "id": "heavy_rounds",
+    "stacks": 1
+  },
+  {
+    "hash": "3c1b8b74b05f089a05aa22fa70bddf6a732391fcfe0c64956c84f75db753d2b7",
+    "id": "heavy_rounds",
+    "stacks": 3
+  },
+  {
+    "hash": "f1a0fc89c70b8ab47aa39d320b366a1178907f2c10a7e18371aa6e33108ed3cf",
+    "id": "heavy_rounds",
+    "stacks": 20
+  },
+  {
+    "hash": "e1f94db19cea30455707b448c018fa28c67cd00d2a817d2a1481b37e45abce06",
+    "id": "efficient_field",
+    "stacks": 1
+  },
+  {
+    "hash": "eb9208fccb4d1a32d893c781fa48c0bd419bce3f6d2db147ab290fbb2ab720cd",
+    "id": "efficient_field",
+    "stacks": 3
+  },
+  {
+    "hash": "e0b52d48f42618ec8b7ed7d4eb1c4cc0a23464f4e4fab3da8bdb5a1c18d978e8",
+    "id": "efficient_field",
+    "stacks": 20
+  },
+  {
+    "hash": "6981799c9a6158bdcf0316de3bf3d708ec11b464569b9ed844045317573fbab5",
+    "id": "extended_magazine",
+    "stacks": 1
+  },
+  {
+    "hash": "206321a570f2209010917c0c5434e3616727bf8ef34fe3587ceba51a86456d9e",
+    "id": "extended_magazine",
+    "stacks": 3
+  },
+  {
+    "hash": "8363d068f18cb5bb17baf885d0ca2570b92f2308e82b24a052642962cec61915",
+    "id": "extended_magazine",
+    "stacks": 20
+  },
+  {
+    "hash": "530e51bc395760a1e7bb0a09b6a2776638e8ad9cc7840f58aa02e38f71dd75a5",
+    "id": "capacitor_bank",
+    "stacks": 1
+  },
+  {
+    "hash": "706af87c8bc4db42da01d20231f429d8c298ba87db193449e757e7507a545613",
+    "id": "capacitor_bank",
+    "stacks": 3
+  },
+  {
+    "hash": "a776b5c90897e172cba589f5866e9163f993b752b995f5a5536b88308c6289d4",
+    "id": "capacitor_bank",
+    "stacks": 20
+  },
+  {
+    "hash": "38595504242db1a8810a42433bcf682ef4a75d20068d1c6b272c126fb10cddb3",
+    "id": "reactive_barrier",
+    "stacks": 1
+  },
+  {
+    "hash": "b8278214d33df4db57a342581a2df4645be760d1f366c1938022468c30131e10",
+    "id": "reactive_barrier",
+    "stacks": 3
+  },
+  {
+    "hash": "fb0a80250c325025b1d1161e50d560d13ee87833a7045b80cc53d90f8db87f27",
+    "id": "reactive_barrier",
+    "stacks": 20
+  },
+  {
+    "hash": "868946613b28116fd280830269bf894595b53402b979a353c9e3374352711019",
+    "id": "glass_reactor",
+    "stacks": 1
+  },
+  {
+    "hash": "80d2e2d16c35d4ea28931cdef2a2071413d6e565867c6ba02fa8d2855dd60949",
+    "id": "glass_reactor",
+    "stacks": 3
+  },
+  {
+    "hash": "ae8c8cbb9161aef909b3b54b2e7719003a0c8848a83866a6d859d6367461be12",
+    "id": "glass_reactor",
+    "stacks": 20
+  },
+  {
+    "hash": "b1c8531a629bea255a5a5419c732c83d7b8d831fbd53f8f3e147866071100ae3",
+    "id": "emergency_bulkheads",
+    "stacks": 1
+  },
+  {
+    "hash": "2aea7306b11619d45691b009aca40a80de8a33b598e88678aec3c61af0607efc",
+    "id": "emergency_bulkheads",
+    "stacks": 3
+  },
+  {
+    "hash": "28ec7340e84c0ea3e089e6dfedcafb5c4badd4188e653d4fb37c1073aafd67bf",
+    "id": "emergency_bulkheads",
+    "stacks": 20
+  },
+  {
+    "hash": "df71393f91c5fc49e14b3b983cc8c2e1d9e35fd65cd033504ea915e9dae53ce3",
+    "id": "blink_capacitor",
+    "stacks": 1
+  },
+  {
+    "hash": "8a409d682d49255c1767b0b20a48c9f7ec9de022f159e0d8503e61752669ba80",
+    "id": "blink_capacitor",
+    "stacks": 3
+  },
+  {
+    "hash": "0b09ee586a753f1e041c7c12dd0c95a405d2532308310430294c4ef17fe0c287",
+    "id": "blink_capacitor",
+    "stacks": 20
+  },
+  {
+    "hash": "b1b66224e5d6dc229a1d502f412889f5c092c41d9df9aa0784cddd8f5d9ed88d",
+    "id": "nanite_reservoir",
+    "stacks": 1
+  },
+  {
+    "hash": "2fce52a53eeb2b3df9a075921fc598454149c1ec466b7279beb126f458061410",
+    "id": "nanite_reservoir",
+    "stacks": 3
+  },
+  {
+    "hash": "cac60bda2851dac40d2ecee32c0e46e6092b98d5d666b70588f4b6fef52ae23d",
+    "id": "nanite_reservoir",
+    "stacks": 20
+  }
+]

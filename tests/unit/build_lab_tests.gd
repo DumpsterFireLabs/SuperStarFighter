@@ -78,6 +78,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	lab.set_input_profile_manager(profiles)
 	lab.set_editor_open(true)
 	context.expect_equal(lab.get_viewport().gui_get_focus_owner(), lab.editor_button, "controller editor entry focuses the play button")
+	(lab.lab_panel.find_child("LabTabs", true, false) as TabContainer).current_tab = 1
 	lab.lab_panel.count_control.get_line_edit().grab_focus()
 	_press_pad(lab.get_viewport(), JOY_BUTTON_DPAD_RIGHT)
 	context.expect_equal(lab.target_count, 2, "controller D-pad changes the focused target count")

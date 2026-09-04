@@ -190,7 +190,7 @@ func all_ids() -> Array[StringName]:
 		_sorted_ids.clear()
 		for card_id in _cards:
 			_sorted_ids.append(card_id)
-		_sorted_ids.sort()
+		_sorted_ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 		_ids_dirty = false
 	# Callers may shuffle their copy; never expose the shared ordering to mutation.
 	return _sorted_ids.duplicate()

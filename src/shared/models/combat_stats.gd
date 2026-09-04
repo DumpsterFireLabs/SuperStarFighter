@@ -69,59 +69,11 @@ func duplicate_stats() -> CombatStats:
 	var copy := CombatStats.new()
 	for property_name in get_stat_property_names():
 		copy.set(property_name, get(property_name))
-	copy.auto_repair_enabled = auto_repair_enabled
-	copy.beam_weapon = beam_weapon
-	copy.afterburner_enabled = afterburner_enabled
-	copy.mine_layer_enabled = mine_layer_enabled
-	copy.missile_launcher_enabled = missile_launcher_enabled
-	copy.cloak_enabled = cloak_enabled
-	copy.rebound_shield_enabled = rebound_shield_enabled
-	copy.kinetic_vent_enabled = kinetic_vent_enabled
-	copy.breakaway_thrusters_enabled = breakaway_thrusters_enabled
+	for flag in preload("res://src/shared/models/stat_metadata.gd").special_flags():
+		copy.set(flag, get(flag))
 	return copy
 
 
 static func get_stat_property_names() -> Array[StringName]:
-	return [
-		&"max_health",
-		&"max_speed",
-		&"acceleration",
-		&"drag",
-		&"projectile_damage",
-		&"fire_rate",
-		&"magazine_size",
-		&"reload_duration",
-		&"projectile_speed",
-		&"projectile_count",
-		&"projectile_spread_degrees",
-		&"projectile_lifetime",
-		&"pierce_count",
-		&"ricochet_count",
-		&"projectile_knockback",
-		&"mine_capacity",
-		&"missile_capacity",
-		&"cloak_capacity",
-		&"afterburner_impulse",
-		&"afterburner_duration",
-		&"afterburner_cooldown",
-		&"afterburner_speed_multiplier",
-		&"afterburner_acceleration_multiplier",
-		&"shield_capacity",
-		&"shield_regeneration",
-		&"shield_continuous_drain",
-		&"shield_regeneration_delay",
-		&"shield_arc_degrees",
-		&"shield_block_cost",
-		&"shield_depletion_threshold",
-		&"shield_acceleration_factor",
-		&"shield_ram_damage",
-		&"shield_ram_min_speed",
-		&"shield_ram_cooldown",
-		&"shield_damage_heal_fraction",
-		&"rebound_damage_factor",
-		&"rebound_range_factor",
-		&"kinetic_vent_impulse",
-		&"breakaway_cooldown",
-		&"auto_repair_delay",
-		&"auto_repair_rate",
-	]
+	var metadata = preload("res://src/shared/models/stat_metadata.gd")
+	return metadata.float_names() + metadata.integer_names()

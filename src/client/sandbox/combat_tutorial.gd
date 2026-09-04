@@ -29,16 +29,12 @@ func configure(sandbox: Node, hud: Control) -> void:
 	lab = sandbox
 	panel = PanelContainer.new()
 	panel.name = "GuidedIntroduction"
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("101b2df5")
-	style.border_color = Color("42e8ff")
-	style.set_border_width_all(1)
-	style.set_content_margin_all(12.0)
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel", DesignTokens.quiet_panel_style())
 	hud.add_child(panel)
 	var layout_root := VBoxContainer.new()
 	panel.add_child(layout_root)
 	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout_root.add_child(scroll)
@@ -46,14 +42,15 @@ func configure(sandbox: Node, hud: Control) -> void:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 8)
 	scroll.add_child(content)
-	title = _label(content, 21)
+	title = _label(content, DesignTokens.TEXT_SECTION_SIZE)
 	instructions = _label(content, 16)
 	progress = _label(content, 16)
 	choices = VBoxContainer.new()
 	content.add_child(choices)
-	var actions := HBoxContainer.new()
+	var actions := HFlowContainer.new()
 	layout_root.add_child(actions)
 	retry_button = _button(actions, "Retry step", retry_step)
+	retry_button.theme_type_variation = &"SecondaryButton"
 	restart_button = _button(actions, "Restart lesson", start)
 	exit_button = _button(actions, "Skip to lab", stop)
 	panel.hide()
@@ -129,7 +126,7 @@ func _enter_step(value: Step) -> void:
 		for card_id in DRAFT_CARDS:
 			var card: CardDefinition = lab.catalog.get_card(card_id)
 			var changes := PackedStringArray()
-			for row in StatSystem.compare_pick(lab.build, card, lab.catalog):
+			for row in StatSystem.compare_pick_typed(lab.build, card, lab.catalog):
 				changes.append("%s %.2f → %.2f" % [String(row.property).replace("_", " "), row.before, row.after])
 			_button(choices, card.display_name, choose_card.bind(card_id))
 			_label(choices, 15).text = ", ".join(changes)
@@ -190,7 +187,7 @@ func choose_card(card_id: StringName) -> void:
 func refresh() -> void:
 	if not active:
 		return
-	title.text = "GUIDED INTRODUCTION · %d/7 · %s" % [mini(step + 1, 7), TITLES[step]]
+	title.text = "LEARN TO PLAY · %d/7 · %s" % [mini(step + 1, 7), TITLES[step]]
 	var movement := "WASD"
 	if lab.input_profiles != null:
 		movement = lab.input_profiles.binding_text(&"move_up") + " / " + lab.input_profiles.binding_text(&"move_left") + " / " + lab.input_profiles.binding_text(&"move_down") + " / " + lab.input_profiles.binding_text(&"move_right")
@@ -212,7 +209,7 @@ func refresh() -> void:
 func layout() -> void:
 	if panel == null:
 		return
-	panel.size = Vector2(minf(480.0, lab.hud_root.size.x * 0.44), minf(360.0, maxf(lab.hud_root.size.y - 132.0, 120.0)))
+	panel.size = Vector2(minf(540.0, lab.hud_root.size.x * 0.44), minf(460.0, maxf(lab.hud_root.size.y - 132.0, 120.0)))
 	panel.position = Vector2(lab.hud_root.size.x - panel.size.x, maxf(132.0, lab.hud_root.size.y - panel.size.y))
 
 
@@ -231,6 +228,8 @@ func _label(parent: Node, font_size: int) -> Label:
 func _button(parent: Node, text: String, action: Callable) -> Button:
 	var result := Button.new()
 	result.text = text
+	result.theme_type_variation = &"QuietButton"
+	result.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
 	result.pressed.connect(action)
 	parent.add_child(result)
 	return result

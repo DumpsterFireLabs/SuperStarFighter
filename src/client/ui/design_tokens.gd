@@ -33,14 +33,28 @@ const RADIUS_PANEL: int = 16
 const BORDER_SUBTLE: int = 1
 const BORDER_CONTROL: int = 2
 const BORDER_FOCUS: int = 3
+const TEXT_BODY_SIZE: int = 21
+const TEXT_SECTION_SIZE: int = 24
+const TEXT_TITLE_SIZE: int = 34
+const SPACE_SMALL: int = 8
+const SPACE_MEDIUM: int = 12
+const CONTROL_HEIGHT: float = 48.0
 
 
 static func create_interface_theme() -> Theme:
 	var theme := Theme.new()
-	theme.default_font_size = 20
+	theme.default_font_size = TEXT_BODY_SIZE
 	_configure_button_type(theme, &"Button", INTERACTIVE, 0.16)
 	_configure_button_type(theme, &"OptionButton", INTERACTIVE, 0.16)
 	_configure_button_type(theme, &"CheckButton", INTERACTIVE, 0.12)
+	_configure_button_type(theme, &"CheckBox", INTERACTIVE, 0.12)
+	theme.set_stylebox(&"panel", &"ItemList", input_style())
+	theme.set_stylebox(&"focus", &"ItemList", focus_style())
+	theme.set_stylebox(&"selected", &"ItemList", inset_style(INTERACTIVE, 0.6))
+	theme.set_stylebox(&"selected_focus", &"ItemList", input_style(FOCUS))
+	theme.set_color(&"font_color", &"ItemList", TEXT_PRIMARY)
+	theme.set_color(&"font_selected_color", &"ItemList", TEXT_PRIMARY)
+	theme.set_constant(&"v_separation", &"ItemList", SPACE_SMALL)
 
 	_register_button_variation(theme, &"PrimaryButton", INTERACTIVE, 0.32)
 	_register_button_variation(theme, &"SecondaryButton", BRAND_MAGENTA, 0.17)
@@ -107,7 +121,17 @@ static func input_style(accent: Color = DISABLED, border_width: int = BORDER_CON
 
 
 static func focus_style(accent: Color = FOCUS) -> StyleBoxFlat:
-	return _button_style(accent, 0.18, 1.0, BORDER_FOCUS, 12)
+	var style := _button_style(accent, 0.0, 1.0, BORDER_FOCUS, 6)
+	style.draw_center = false
+	return style
+
+
+static func quiet_panel_style() -> StyleBoxFlat:
+	var style := panel_style(DISABLED, 0.98)
+	style.set_border_width_all(BORDER_SUBTLE)
+	style.shadow_size = 0
+	style.set_content_margin_all(SPACE_MEDIUM)
+	return style
 
 
 static func _register_button_variation(theme: Theme, variation: StringName, accent: Color, fill_alpha: float) -> void:
@@ -137,6 +161,11 @@ static func _configure_tabs(theme: Theme) -> void:
 	theme.set_stylebox(&"tab_hovered", &"TabBar", _tab_style(INTERACTIVE, 0.12, false))
 	theme.set_stylebox(&"tab_selected", &"TabBar", _tab_style(INTERACTIVE, 0.2, true))
 	theme.set_stylebox(&"tab_focus", &"TabBar", focus_style())
+	# TabContainer exposes its own tab theme items rather than inheriting TabBar's.
+	for key in [&"tab_unselected", &"tab_hovered", &"tab_selected", &"tab_focus"]:
+		theme.set_stylebox(key, &"TabContainer", theme.get_stylebox(key, &"TabBar"))
+	for key in [&"font_unselected_color", &"font_hovered_color", &"font_selected_color"]:
+		theme.set_color(key, &"TabContainer", theme.get_color(key, &"TabBar"))
 	var panel := inset_style(INTERACTIVE, 0.16)
 	panel.content_margin_top = 10.0
 	theme.set_stylebox(&"panel", &"TabContainer", panel)

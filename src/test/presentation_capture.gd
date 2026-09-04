@@ -493,13 +493,31 @@ func _capture(_client: Node, screen_name: String) -> void:
 
 
 func _capture_card_hover(client: Node, button: Button, screen_name: String) -> void:
-	var preview := button._make_custom_tooltip(button.tooltip_text) as Control
-	client.connection_canvas.add_child(preview)
-	var canvas_width := float(capture_resolution.x) * 1080.0 / float(capture_resolution.y)
-	preview.position = Vector2(canvas_width * 0.5 - 195.0, 120.0)
+	button.grab_focus()
+	var inspection_focus := root.gui_get_focus_owner()
+	var inspect := InputEventKey.new()
+	inspect.keycode = KEY_I
+	inspect.physical_keycode = KEY_I
+	inspect.pressed = true
+	root.push_input(inspect)
+	var opened_on_press: bool = client.card_inspector.visible
+	inspect = inspect.duplicate()
+	inspect.pressed = false
+	root.push_input(inspect)
+	await process_frame
+	if not client.card_inspector.visible:
+		printerr("PRESENTATION_CAPTURE_ERROR=card_inspection_not_open:%s focused=%s expected=%s opened_on_press=%s source_visible=%s" % [screen_name, inspection_focus, button, opened_on_press, button.is_visible_in_tree()])
+		quit(5)
+		return
 	await _capture(client, screen_name)
-	client.connection_canvas.remove_child(preview)
-	preview.free()
+	var cancel := InputEventKey.new()
+	cancel.keycode = KEY_ESCAPE
+	cancel.physical_keycode = KEY_ESCAPE
+	cancel.pressed = true
+	root.push_input(cancel)
+	cancel = cancel.duplicate()
+	cancel.pressed = false
+	root.push_input(cancel)
 
 
 func _capture_ship_families(client: Node) -> void:

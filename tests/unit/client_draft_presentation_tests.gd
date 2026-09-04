@@ -84,7 +84,7 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	client._show_draft_offer({"offer_token": "cap-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
 	var capped := client.draft_buttons[0] as CardHoverButton
 	context.expect_true(capped.has_limited_effect(), "sixth Twin Shot detects the projectile count limit")
-	context.expect_true((capped.get_node("CardContent/Details/Stack") as Label).text.contains("NO EFFECTIVE BENEFIT"), "draft exposes drawback-only pick without requiring hover")
+	context.expect_true((capped.get_node("CardContent/Details/Stack") as Label).text.contains("NO BENEFIT"), "draft exposes drawback-only pick without requiring hover")
 	context.expect_true(capped.tooltip_text.contains("ACTUAL BUILD: BEFORE → AFTER"), "draft accessible details include actual derived build comparison")
 	var before := StatSystem.derive({&"twin_shot": 5, &"heavy_rounds": 2}, client.card_catalog)
 	var after := StatSystem.derive({&"twin_shot": 6, &"heavy_rounds": 2}, client.card_catalog)

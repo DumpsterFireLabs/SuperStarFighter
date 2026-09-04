@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Metadata = preload("res://src/shared/models/stat_metadata.gd")
+
 
 static func tooltip(card: CardDefinition, stacks: int, stack_heading: String = "OWNED STACKS") -> String:
 	var lines := PackedStringArray([
@@ -12,24 +14,8 @@ static func tooltip(card: CardDefinition, stacks: int, stack_heading: String = "
 		"CARD STATS",
 	])
 	var stat_lines := PackedStringArray()
-	var additive_names := card.additive_modifiers.keys()
-	additive_names.sort()
-	for property_value in additive_names:
-		var property_name := String(property_value)
-		var per_stack := float(card.additive_modifiers[property_value])
-		stat_lines.append("%s  %+.2f each · %+.2f total" % [_card_stat_name(property_name), per_stack, per_stack * stacks])
-	var multiplier_names := card.multiplicative_modifiers.keys()
-	multiplier_names.sort()
-	for property_value in multiplier_names:
-		var property_name := String(property_value)
-		var per_stack := float(card.multiplicative_modifiers[property_value])
-		stat_lines.append("%s  ×%.2f each · ×%.2f total" % [_card_stat_name(property_name), per_stack, pow(per_stack, stacks)])
-	var integer_names := card.integer_modifiers.keys()
-	integer_names.sort()
-	for property_value in integer_names:
-		var property_name := String(property_value)
-		var per_stack := int(card.integer_modifiers[property_value])
-		stat_lines.append("%s  %+d each · %+d total" % [_card_stat_name(property_name), per_stack, per_stack * stacks])
+	for row in modifier_rows(card, stacks):
+		stat_lines.append("%s  %s · %s" % [row.name, row.each, row.total])
 	if card.special_behavior_id == &"beam_weapon":
 		stat_lines.append("Weapon Form  Pulse beam")
 	elif card.special_behavior_id == &"auto_repair":
@@ -55,4 +41,19 @@ static func tooltip(card: CardDefinition, stacks: int, stack_heading: String = "
 
 
 static func _card_stat_name(property_name: String) -> String:
-	return property_name.replace("_", " ").capitalize()
+	return Metadata.label(StringName(property_name))
+
+
+static func modifier_rows(card: CardDefinition, stacks: int) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for group in [card.additive_modifiers, card.multiplicative_modifiers, card.integer_modifiers]:
+		var names: Array = group.keys()
+		names.sort()
+		for key in names:
+			var property := StringName(key)
+			var value := float(group[key])
+			var multiplier: bool = is_same(group, card.multiplicative_modifiers)
+			var each: String = "×%.2f" % value if multiplier else Metadata.format_value(property, value, true)
+			var total: String = "×%.2f" % pow(value, stacks) if multiplier else Metadata.format_value(property, value * stacks, true)
+			rows.append({"name": Metadata.label(property), "each": each + " each", "total": total + " total"})
+	return rows
