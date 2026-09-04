@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('all', 'pacing', 'balance', 'fairness')][string]$Section = 'all',
+    [ValidateSet('all', 'pacing', 'balance', 'fairness', 'shield')][string]$Section = 'all',
     [ValidateRange(1, 100)][int]$Seeds = 3,
     [string]$OutputPath = 'reports/gameplay-study.json'
 )

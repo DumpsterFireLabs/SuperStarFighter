@@ -86,11 +86,13 @@ static func _reliable_press_delivery(context: TestContext, parent: Node) -> void
 		view.local_prediction.step(1.0 / 60.0, ship)
 		view.local_prediction.input_send_accumulator = 0.0
 		Input.action_press("special")
-		Input.action_press("shield")
+		# Exercise standalone ability presses as well as a simultaneous edge;
+		# shield reliability must not accidentally hide an ability regression.
+		if slot == SpecialAbilitySelection.Slot.CLOAK: Input.action_press("shield")
 		view.local_prediction.step(1.0 / 60.0, ship)
 		Input.action_release("special")
 		Input.action_release("shield")
-		context.expect_equal(bridge.edges.size(), 1, "simultaneous shield and ability press sends one immediate reliable frame")
+		context.expect_equal(bridge.edges.size(), 1, "standalone or combined ability edge sends one immediate reliable frame")
 		if not bridge.edges.is_empty():
 			var decoded := InputPacketCodec.decode(bridge.edges[0])
 			context.expect_true(decoded.ok and decoded.frame.special_activated and decoded.frame.special_slot == slot, "selected ability survives reliable edge codec")

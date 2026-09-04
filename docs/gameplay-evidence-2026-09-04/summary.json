@@ -1,0 +1,447 @@
+{
+  "protocol": 34,
+  "seed_count": 3,
+  "shield_matchups": [
+    {
+      "left": "base",
+      "right": "multishot",
+      "outcomes": {
+        "right": 16,
+        "draw": 2
+      },
+      "duration_seconds": {
+        "samples": 18,
+        "minimum": 4.7,
+        "median": 8.758333333333335,
+        "maximum": 60.0
+      },
+      "left_blocks": 122,
+      "left_breaks": 32,
+      "left_locked_fraction": 0.13673822362396967
+    },
+    {
+      "left": "shield",
+      "right": "multishot",
+      "outcomes": {
+        "right": 16,
+        "draw": 2
+      },
+      "duration_seconds": {
+        "samples": 18,
+        "minimum": 5.31666666666667,
+        "median": 10.5,
+        "maximum": 60.0
+      },
+      "left_blocks": 164,
+      "left_breaks": 37,
+      "left_locked_fraction": 0.1487151982056655
+    },
+    {
+      "left": "shield",
+      "right": "shield",
+      "outcomes": {
+        "right": 7,
+        "left": 7,
+        "draw": 4
+      },
+      "duration_seconds": {
+        "samples": 18,
+        "minimum": 7.68333333333333,
+        "median": 15.6333333333333,
+        "maximum": 60.0
+      },
+      "left_blocks": 120,
+      "left_breaks": 20,
+      "left_locked_fraction": 0.06988033416121017
+    }
+  ],
+  "pacing": [
+    {
+      "mode": "Capture the Flag",
+      "players": 2,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 6.41666666666667,
+        "median": 9.08333333333333,
+        "maximum": 15.4
+      },
+      "first_contact_seconds": {
+        "samples": 8,
+        "minimum": 2.7,
+        "median": 3.85833333333333,
+        "maximum": 7.91666666666667
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Capture the Flag",
+      "players": 8,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 4.31666666666667,
+        "median": 15.1,
+        "maximum": 39.1166666666667
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.933333333333333,
+        "median": 1.56666666666667,
+        "maximum": 2.41666666666667
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Capture the Flag",
+      "players": 32,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 3,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 4.45,
+        "median": 53.8833333333333,
+        "maximum": 105.0
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.0333333333333333,
+        "median": 0.116666666666667,
+        "maximum": 0.133333333333333
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Death Match",
+      "players": 2,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "longwave_array",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 9.91666666666667,
+        "median": 16.4833333333333,
+        "maximum": 77.0833333333333
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 2.9,
+        "median": 6.35,
+        "maximum": 69.7666666666667
+      },
+      "eliminated_wait_seconds": {
+        "samples": 18,
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.0
+      }
+    },
+    {
+      "mode": "Death Match",
+      "players": 8,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 20.55,
+        "median": 29.0,
+        "maximum": 85.2166666666667
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.85,
+        "median": 0.933333333333333,
+        "maximum": 1.28333333333333
+      },
+      "eliminated_wait_seconds": {
+        "samples": 72,
+        "minimum": 0.0,
+        "median": 13.08333333333335,
+        "maximum": 77.45
+      }
+    },
+    {
+      "mode": "Death Match",
+      "players": 32,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 19.8,
+        "median": 32.2166666666667,
+        "maximum": 71.2166666666667
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.0333333333333333,
+        "median": 0.133333333333333,
+        "maximum": 0.133333333333333
+      },
+      "eliminated_wait_seconds": {
+        "samples": 288,
+        "minimum": 0.0,
+        "median": 23.4333333333333,
+        "maximum": 69.6166666666667
+      }
+    },
+    {
+      "mode": "King of the Hill",
+      "players": 2,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 23.95,
+        "median": 34.8666666666667,
+        "maximum": 51.9
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 3.21666666666667,
+        "median": 4.8,
+        "maximum": 10.6833333333333
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "King of the Hill",
+      "players": 8,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 9,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 105.0,
+        "median": 105.0,
+        "maximum": 105.0
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 1.08333333333333,
+        "median": 1.68333333333333,
+        "maximum": 2.6
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "King of the Hill",
+      "players": 32,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 9,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 105.0,
+        "median": 105.0,
+        "maximum": 105.0
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.0333333333333333,
+        "median": 0.133333333333333,
+        "maximum": 0.133333333333333
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Team Capture the Flag",
+      "players": 2,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "longwave_array",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 4.88333333333333,
+        "median": 6.98333333333333,
+        "maximum": 9.66666666666667
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 2.83333333333333,
+        "median": 3.56666666666667,
+        "maximum": 4.53333333333333
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Team Capture the Flag",
+      "players": 8,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "longwave_array",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 4.7,
+        "median": 7.15,
+        "maximum": 14.8333333333333
+      },
+      "first_contact_seconds": {
+        "samples": 8,
+        "minimum": 2.11666666666667,
+        "median": 2.65,
+        "maximum": 3.66666666666667
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Team Capture the Flag",
+      "players": 32,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "longwave_array",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 4.3,
+        "median": 7.63333333333333,
+        "maximum": 50.2333333333333
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.166666666666667,
+        "median": 0.316666666666667,
+        "maximum": 1.56666666666667
+      },
+      "eliminated_wait_seconds": null
+    },
+    {
+      "mode": "Team Death Match",
+      "players": 2,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "prism_array",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 12.9333333333333,
+        "median": 14.9333333333333,
+        "maximum": 19.4
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 3.01666666666667,
+        "median": 4.51666666666667,
+        "maximum": 7.68333333333333
+      },
+      "eliminated_wait_seconds": {
+        "samples": 18,
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 0.0
+      }
+    },
+    {
+      "mode": "Team Death Match",
+      "players": 8,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 13.15,
+        "median": 16.55,
+        "maximum": 23.25
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 2.61666666666667,
+        "median": 2.73333333333333,
+        "maximum": 4.1
+      },
+      "eliminated_wait_seconds": {
+        "samples": 72,
+        "minimum": 0.0,
+        "median": 0.0,
+        "maximum": 16.2666666666667
+      }
+    },
+    {
+      "mode": "Team Death Match",
+      "players": 32,
+      "heats": 9,
+      "maps": [
+        "dead_freight",
+        "solar_tide"
+      ],
+      "timeouts": 0,
+      "duration_seconds": {
+        "samples": 9,
+        "minimum": 17.6,
+        "median": 25.2,
+        "maximum": 34.0333333333333
+      },
+      "first_contact_seconds": {
+        "samples": 9,
+        "minimum": 0.166666666666667,
+        "median": 0.683333333333333,
+        "maximum": 1.06666666666667
+      },
+      "eliminated_wait_seconds": {
+        "samples": 288,
+        "minimum": 0.0,
+        "median": 11.0083333333333,
+        "maximum": 32.3166666666667
+      }
+    }
+  ],
+  "limitations": "Exploratory deterministic bots, not human win rates or physical LAN acceptance. Objective deaths can recur; eliminated wait is reported only for elimination modes."
+}

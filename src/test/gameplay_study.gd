@@ -27,12 +27,12 @@ func _run() -> void:
 		if arg.begins_with("--seeds="): seed_count = clampi(int(arg.trim_prefix("--seeds=")), 1, 100)
 		if arg.begins_with("--section="): section = arg.trim_prefix("--section=")
 		if arg.begins_with("--output="): output_path = arg.trim_prefix("--output=")
-	if section not in ["all", "pacing", "balance", "fairness"]:
-		push_error("Study section must be all, pacing, balance, or fairness")
+	if section not in ["all", "pacing", "balance", "fairness", "shield"]:
+		push_error("Study section must be all, pacing, balance, fairness, or shield")
 		quit(1)
 		return
 	catalog = CardCatalog.create_default()
-	var report := {"schema": 1, "protocol": GameConstants.PROTOCOL_VERSION,
+	var report := {"schema": 2, "protocol": GameConstants.PROTOCOL_VERSION,
 		"seed_count": seed_count, "builds": BUILDS,
 		"limitations": "Deterministic skilled bots; seeded maps/spawns and both sides. Censored bouts are draws, not wins. Draft timing is automatic, not human decision time. Three-card matchup builds are prescribed; availability is measured separately. No population fairness inference."}
 	if section in ["all", "balance"]:
@@ -44,6 +44,9 @@ func _run() -> void:
 		report["pacing"] = _pacing()
 	if section in ["all", "fairness"]:
 		report["natural_pickups"] = _natural_pickups()
+	if section in ["all", "shield"]:
+		report["shield_matchups"] = _shield_matchups()
+		report["shield_volleys"] = _shield_volleys()
 	var file := FileAccess.open(output_path, FileAccess.WRITE)
 	if file == null:
 		push_error("Cannot write study: %s" % output_path)
@@ -158,6 +161,8 @@ func _bout(left: Dictionary, right: Dictionary, map_id: StringName, seed_index: 
 	var difficulties := {2: NpcPilotController.Difficulty.SKILLED, 3: NpcPilotController.Difficulty.SKILLED}
 	var first_contact: Variant = null
 	var elapsed := 0.0
+	var defense := {2: {"active_seconds": 0.0, "locked_seconds": 0.0, "blocks": 0, "breaks": 0},
+		3: {"active_seconds": 0.0, "locked_seconds": 0.0, "blocks": 0, "breaks": 0}}
 	for tick in 3600:
 		npc.submit_inputs(world, ids, difficulties)
 		world.step(1.0 / 60.0)
@@ -165,7 +170,14 @@ func _bout(left: Dictionary, right: Dictionary, map_id: StringName, seed_index: 
 		if first_contact == null and world.combat_contact_serial > 0:
 			first_contact = elapsed
 		world.drain_projectile_batch()
-		world.drain_combat_feedback()
+		var feedback := world.drain_combat_feedback()
+		for peer_id in ids:
+			var pilot := world.combatants[peer_id] as CombatantState
+			if pilot.shield.active: defense[peer_id].active_seconds += 1.0 / 60.0
+			if pilot.shield.depletion_locked: defense[peer_id].locked_seconds += 1.0 / 60.0
+			var shield_events: Dictionary = feedback.get(peer_id, {}).get("shield", {})
+			defense[peer_id].blocks += int(shield_events.get("blocks", 0))
+			defense[peer_id].breaks += int(shield_events.get("breaks", 0))
 		if not (world.combatants[2] as CombatantState).alive or not (world.combatants[3] as CombatantState).alive:
 			break
 	var left_alive := (world.combatants[left_id] as CombatantState).alive
@@ -173,7 +185,46 @@ func _bout(left: Dictionary, right: Dictionary, map_id: StringName, seed_index: 
 	return {"map": String(map_id), "seed": seed_index, "swapped": swap, "seconds": elapsed,
 		"first_contact_seconds": first_contact, "hull_damage": world.combat_hull_damage,
 		"winner": "left" if left_alive and not right_alive else ("right" if right_alive and not left_alive else "draw"),
-		"censored": left_alive and right_alive, "left_build": left, "right_build": right}
+		"censored": left_alive and right_alive, "left_build": left, "right_build": right,
+		"left_defense": defense[left_id], "right_defense": defense[right_id]}
+
+
+func _shield_matchups() -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for pair in [["base", "multishot"], ["shield", "multishot"], ["shield", "shield"]]:
+		for map_id in [&"core_arena", &"prism_array", &"solar_tide"]:
+			for seed_index in seed_count:
+				for swap in [false, true]:
+					var row := _bout(BUILDS.get(pair[0], {}), BUILDS[pair[1]], map_id, seed_index, swap)
+					row.merge({"left": pair[0], "right": pair[1]})
+					rows.append(row)
+			print("SSF_STUDY_PROGRESS shield=%s map=%s" % [str(pair), map_id])
+	return rows
+
+
+func _shield_volleys() -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for build in ["base", "shield"]:
+		var defender_stats := StatSystem.derive(BUILDS.get(build, {}), catalog)
+		for fresh_guard in [true, false]:
+			for projectiles in [1, 3, 5]:
+				for bearing in [0.0, defender_stats.shield_arc_degrees * 0.5, defender_stats.shield_arc_degrees * 0.5 + 1.0, 180.0]:
+					var world := AuthoritativeWorld.new()
+					var defender := world.add_peer(2, defender_stats)
+					defender.position = Vector2(500, 720)
+					defender.shield.step(true, defender_stats, 0.0)
+					if not fresh_guard: defender.shield.perfect_guard_window_remaining = 0.0
+					var damage_events: Array[Dictionary] = []
+					for index in projectiles:
+						var angle := deg_to_rad(bearing)
+						var shot := ProjectileState.create(index + 1, 1, index, defender.position + Vector2.from_angle(angle) * 20.0, angle + PI, CombatStats.create_base())
+						world.projectile_registry.add(shot)
+						world._resolve_projectile_ship_hit(shot, 2, damage_events)
+					rows.append({"build": build, "fresh_guard": fresh_guard, "projectiles": projectiles,
+						"bearing_degrees": bearing, "arc_degrees": defender_stats.shield_arc_degrees,
+						"capacity": defender_stats.shield_capacity, "energy_cost": defender_stats.shield_capacity - defender.shield.energy,
+						"hull_hits": damage_events.size(), "depleted": defender.shield.depletion_locked})
+	return rows
 
 
 func _pacing() -> Array[Dictionary]:
@@ -225,7 +276,9 @@ func _pacing_case(mode: int, count: int, seed_index: int, pickups: bool = false,
 		coordinator.step(1.0 / 60.0)
 		world.drain_projectile_batch()
 		world.drain_combat_feedback()
-		coordinator.drain_events()
+		for event in coordinator.drain_events():
+			if event.event_type == &"STATE_CHANGED" and event.payload.get("state_name", "") == "HEAT_RESULT" and not coordinator.observations.heats.is_empty():
+				coordinator.observations.heats.back()["time_limit_reached"] = bool(event.payload.get("heat_time_limit_reached", false))
 		if coordinator.observations.heats.size() >= target_heats:
 			break
 	return {"seed": 7100 + seed_index, "mode": GameModeRules.mode_name(mode), "players": count,

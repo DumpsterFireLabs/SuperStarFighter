@@ -1,0 +1,2344 @@
+{
+	"builds": {
+		"burst": {
+			"extended_magazine": 1,
+			"heavy_rounds": 1,
+			"twin_shot": 1
+		},
+		"cover": {
+			"quick_loader": 1,
+			"reinforced_hull": 1,
+			"ricochet_rounds": 1
+		},
+		"mobility": {
+			"afterburner": 1,
+			"lightweight_frame": 1,
+			"vector_jets": 1
+		},
+		"multishot": {
+			"rapid_cycling": 1,
+			"scatter_array": 1,
+			"twin_shot": 1
+		},
+		"ram": {
+			"capacitor_bank": 1,
+			"phase_thrusters": 1,
+			"ramming_shields": 1
+		},
+		"range": {
+			"heavy_rounds": 1,
+			"long_fuse_rounds": 1,
+			"rangefinder": 1
+		},
+		"shield": {
+			"capacitor_bank": 1,
+			"quick_charge": 1,
+			"wide_emitter": 1
+		},
+		"sustain": {
+			"auto_repair": 1,
+			"quick_loader": 1,
+			"reinforced_hull": 1
+		}
+	},
+	"limitations": "Deterministic skilled bots; seeded maps/spawns and both sides. Censored bouts are draws, not wins. Draft timing is automatic, not human decision time. Three-card matchup builds are prescribed; availability is measured separately. No population fairness inference.",
+	"protocol": 34,
+	"schema": 2,
+	"seed_count": 3,
+	"shield_matchups": [
+		{
+			"censored": false,
+			"first_contact_seconds": 1.01666666666667,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 1.6,
+				"blocks": 7,
+				"breaks": 2,
+				"locked_seconds": 2.81666666666666
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.8,
+				"blocks": 2,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 5.78333333333333,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.866666666666667,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.55,
+				"blocks": 11,
+				"breaks": 3,
+				"locked_seconds": 5.38333333333332
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.11666666666666,
+				"blocks": 7,
+				"breaks": 1,
+				"locked_seconds": 1.2
+			},
+			"seconds": 9.81666666666667,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.11666666666667,
+			"hull_damage": 125.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 9.25000000000004,
+				"blocks": 8,
+				"breaks": 1,
+				"locked_seconds": 0.733333333333334
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 9.38333333333338,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 52.9833333333333,
+			"seed": 1,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": 3.56666666666667,
+			"hull_damage": 50.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 10.6666666666668,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 8.61666666666667,
+				"blocks": 1,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 1,
+			"swapped": true,
+			"winner": "draw"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.03333333333333,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 1.61666666666667,
+				"blocks": 5,
+				"breaks": 2,
+				"locked_seconds": 2.58333333333333
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.81666666666667,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.2
+			},
+			"seconds": 4.76666666666667,
+			"seed": 2,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.883333333333333,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 1.8,
+				"blocks": 6,
+				"breaks": 2,
+				"locked_seconds": 3.01666666666666
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.11666666666666,
+				"blocks": 6,
+				"breaks": 1,
+				"locked_seconds": 1.4
+			},
+			"seconds": 5.76666666666667,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.2,
+				"blocks": 6,
+				"breaks": 2,
+				"locked_seconds": 2.41666666666666
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.88333333333333,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.75
+			},
+			"seconds": 5.3,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.0,
+				"blocks": 4,
+				"breaks": 1,
+				"locked_seconds": 1.61666666666667
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.03333333333333,
+				"blocks": 3,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 4.7,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 17.1833333333333,
+			"hull_damage": 125.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 3.11666666666666,
+				"blocks": 8,
+				"breaks": 2,
+				"locked_seconds": 3.01666666666666
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.99999999999999,
+				"blocks": 6,
+				"breaks": 1,
+				"locked_seconds": 1.0
+			},
+			"seconds": 21.6333333333333,
+			"seed": 1,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 17.2,
+			"hull_damage": 150.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 5.26666666666665,
+				"blocks": 11,
+				"breaks": 3,
+				"locked_seconds": 4.44999999999999
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 5.33333333333332,
+				"blocks": 8,
+				"breaks": 1,
+				"locked_seconds": 0.750000000000001
+			},
+			"seconds": 24.8666666666667,
+			"seed": 1,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.3,
+			"hull_damage": 150.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 3.99999999999999,
+				"blocks": 11,
+				"breaks": 2,
+				"locked_seconds": 4.18333333333332
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 4.24999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 2.08333333333333
+			},
+			"seconds": 18.75,
+			"seed": 2,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.3,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.68333333333333,
+				"blocks": 7,
+				"breaks": 2,
+				"locked_seconds": 2.66666666666666
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.66666666666666,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 14.3,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.2,
+				"blocks": 6,
+				"breaks": 2,
+				"locked_seconds": 2.41666666666666
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.88333333333333,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.75
+			},
+			"seconds": 5.3,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.0,
+				"blocks": 4,
+				"breaks": 1,
+				"locked_seconds": 1.61666666666667
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.03333333333333,
+				"blocks": 3,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 4.7,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.1,
+			"hull_damage": 125.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 2.25,
+				"blocks": 7,
+				"breaks": 2,
+				"locked_seconds": 2.68333333333333
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.83333333333333,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 13.5666666666667,
+			"seed": 1,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 3.05,
+			"hull_damage": 125.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 1.66666666666667,
+				"blocks": 7,
+				"breaks": 2,
+				"locked_seconds": 2.5
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.41666666666666,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 7.7,
+			"seed": 1,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": 41.1,
+			"hull_damage": 35.85,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 9.01666666666669,
+				"blocks": 7,
+				"breaks": 1,
+				"locked_seconds": 0.2
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 11.2000000000001,
+				"blocks": 5,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 2,
+			"swapped": false,
+			"winner": "draw"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 3.05,
+			"hull_damage": 125.0,
+			"left": "base",
+			"left_build": {},
+			"left_defense": {
+				"active_seconds": 1.66666666666667,
+				"blocks": 7,
+				"breaks": 2,
+				"locked_seconds": 2.5
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.41666666666666,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 7.7,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.01666666666667,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 1.63333333333333,
+				"blocks": 8,
+				"breaks": 2,
+				"locked_seconds": 2.96666666666666
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.8,
+				"blocks": 2,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 5.96666666666667,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.866666666666667,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.41666666666666,
+				"blocks": 11,
+				"breaks": 3,
+				"locked_seconds": 4.89999999999999
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.16666666666666,
+				"blocks": 9,
+				"breaks": 1,
+				"locked_seconds": 1.16666666666667
+			},
+			"seconds": 8.83333333333333,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.11666666666667,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 9.65000000000006,
+				"blocks": 13,
+				"breaks": 2,
+				"locked_seconds": 2.31666666666666
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 10.5500000000001,
+				"blocks": 2,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 55.2333333333333,
+			"seed": 1,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": 3.56666666666667,
+			"hull_damage": 50.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 10.6666666666668,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 8.61666666666667,
+				"blocks": 1,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 1,
+			"swapped": true,
+			"winner": "draw"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.03333333333333,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 1.78333333333333,
+				"blocks": 7,
+				"breaks": 2,
+				"locked_seconds": 3.16666666666666
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.98333333333333,
+				"blocks": 4,
+				"breaks": 1,
+				"locked_seconds": 1.95
+			},
+			"seconds": 5.6,
+			"seed": 2,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.883333333333333,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 1.86666666666666,
+				"blocks": 6,
+				"breaks": 2,
+				"locked_seconds": 3.18333333333333
+			},
+			"map": "core_arena",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.86666666666666,
+				"blocks": 3,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 5.31666666666667,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.75,
+				"blocks": 6,
+				"breaks": 1,
+				"locked_seconds": 1.0
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.88333333333333,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.95
+			},
+			"seconds": 5.5,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.15,
+				"blocks": 11,
+				"breaks": 3,
+				"locked_seconds": 3.96666666666666
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.06666666666666,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 7.06666666666667,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 17.1833333333333,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.44999999999999,
+				"blocks": 10,
+				"breaks": 2,
+				"locked_seconds": 2.89999999999999
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.99999999999999,
+				"blocks": 6,
+				"breaks": 1,
+				"locked_seconds": 1.5
+			},
+			"seconds": 22.1333333333333,
+			"seed": 1,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 17.2,
+			"hull_damage": 150.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 5.79999999999998,
+				"blocks": 12,
+				"breaks": 3,
+				"locked_seconds": 4.13333333333332
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 5.49999999999999,
+				"blocks": 7,
+				"breaks": 1,
+				"locked_seconds": 1.83333333333333
+			},
+			"seconds": 25.5333333333333,
+			"seed": 1,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.3,
+			"hull_damage": 150.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.93333333333332,
+				"blocks": 14,
+				"breaks": 2,
+				"locked_seconds": 3.76666666666666
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 4.08333333333332,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 2.08333333333333
+			},
+			"seconds": 18.7166666666667,
+			"seed": 2,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.3,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.84999999999999,
+				"blocks": 8,
+				"breaks": 2,
+				"locked_seconds": 2.61666666666666
+			},
+			"map": "prism_array",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.66666666666666,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 14.4666666666667,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.75,
+				"blocks": 6,
+				"breaks": 1,
+				"locked_seconds": 1.0
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 1.88333333333333,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.95
+			},
+			"seconds": 5.5,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.15,
+				"blocks": 11,
+				"breaks": 3,
+				"locked_seconds": 3.96666666666666
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.06666666666666,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 7.06666666666667,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.1,
+			"hull_damage": 125.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.46666666666666,
+				"blocks": 9,
+				"breaks": 2,
+				"locked_seconds": 2.78333333333333
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 2.83333333333333,
+				"blocks": 4,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 13.8833333333333,
+			"seed": 1,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 3.05,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.01666666666666,
+				"blocks": 12,
+				"breaks": 3,
+				"locked_seconds": 3.98333333333332
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.46666666666666,
+				"blocks": 5,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 10.5,
+			"seed": 1,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": 41.1,
+			"hull_damage": 25.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 9.01666666666669,
+				"blocks": 8,
+				"breaks": 1,
+				"locked_seconds": 0.2
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 11.2000000000001,
+				"blocks": 5,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 2,
+			"swapped": false,
+			"winner": "draw"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 3.05,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 2.01666666666666,
+				"blocks": 12,
+				"breaks": 3,
+				"locked_seconds": 3.98333333333332
+			},
+			"map": "solar_tide",
+			"right": "multishot",
+			"right_build": {
+				"rapid_cycling": 1,
+				"scatter_array": 1,
+				"twin_shot": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.46666666666666,
+				"blocks": 5,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 10.5,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 2.3,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.64999999999999,
+				"blocks": 10,
+				"breaks": 2,
+				"locked_seconds": 2.83333333333333
+			},
+			"map": "core_arena",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.76666666666666,
+				"blocks": 11,
+				"breaks": 1,
+				"locked_seconds": 1.88333333333333
+			},
+			"seconds": 11.6333333333333,
+			"seed": 0,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 2.3,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.76666666666666,
+				"blocks": 11,
+				"breaks": 1,
+				"locked_seconds": 1.88333333333333
+			},
+			"map": "core_arena",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.64999999999999,
+				"blocks": 10,
+				"breaks": 2,
+				"locked_seconds": 2.83333333333333
+			},
+			"seconds": 11.6333333333333,
+			"seed": 0,
+			"swapped": true,
+			"winner": "left"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": null,
+			"hull_damage": 0.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 8.53333333333334,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "core_arena",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 10.0833333333334,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 1,
+			"swapped": false,
+			"winner": "draw"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": null,
+			"hull_damage": 0.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 10.0833333333334,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "core_arena",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 8.53333333333334,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 1,
+			"swapped": true,
+			"winner": "draw"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.58333333333333,
+			"hull_damage": 175.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 4.91666666666665,
+				"blocks": 18,
+				"breaks": 3,
+				"locked_seconds": 4.51666666666666
+			},
+			"map": "core_arena",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 5.66666666666665,
+				"blocks": 9,
+				"breaks": 3,
+				"locked_seconds": 5.24999999999999
+			},
+			"seconds": 15.6333333333333,
+			"seed": 2,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 1.58333333333333,
+			"hull_damage": 175.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 5.66666666666665,
+				"blocks": 9,
+				"breaks": 3,
+				"locked_seconds": 5.24999999999999
+			},
+			"map": "core_arena",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 4.91666666666665,
+				"blocks": 18,
+				"breaks": 3,
+				"locked_seconds": 4.51666666666666
+			},
+			"seconds": 15.6333333333333,
+			"seed": 2,
+			"swapped": true,
+			"winner": "left"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.28333333333333,
+				"blocks": 8,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "prism_array",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.04999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.46666666666667
+			},
+			"seconds": 7.68333333333333,
+			"seed": 0,
+			"swapped": false,
+			"winner": "left"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.04999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.46666666666667
+			},
+			"map": "prism_array",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.28333333333333,
+				"blocks": 8,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 7.68333333333333,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 17.2,
+			"hull_damage": 175.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 5.94999999999998,
+				"blocks": 11,
+				"breaks": 1,
+				"locked_seconds": 1.86666666666666
+			},
+			"map": "prism_array",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 5.99999999999998,
+				"blocks": 10,
+				"breaks": 2,
+				"locked_seconds": 3.76666666666666
+			},
+			"seconds": 27.6833333333333,
+			"seed": 1,
+			"swapped": false,
+			"winner": "left"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 17.2,
+			"hull_damage": 175.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 5.99999999999998,
+				"blocks": 10,
+				"breaks": 2,
+				"locked_seconds": 3.76666666666666
+			},
+			"map": "prism_array",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 5.94999999999998,
+				"blocks": 11,
+				"breaks": 1,
+				"locked_seconds": 1.86666666666666
+			},
+			"seconds": 27.6833333333333,
+			"seed": 1,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.3,
+			"hull_damage": 175.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 4.16666666666666,
+				"blocks": 8,
+				"breaks": 2,
+				"locked_seconds": 2.55
+			},
+			"map": "prism_array",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 4.49999999999999,
+				"blocks": 9,
+				"breaks": 2,
+				"locked_seconds": 2.65
+			},
+			"seconds": 19.8833333333333,
+			"seed": 2,
+			"swapped": false,
+			"winner": "left"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 9.3,
+			"hull_damage": 175.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 4.49999999999999,
+				"blocks": 9,
+				"breaks": 2,
+				"locked_seconds": 2.65
+			},
+			"map": "prism_array",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 4.16666666666666,
+				"blocks": 8,
+				"breaks": 2,
+				"locked_seconds": 2.55
+			},
+			"seconds": 19.8833333333333,
+			"seed": 2,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.28333333333333,
+				"blocks": 8,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "solar_tide",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.04999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.46666666666667
+			},
+			"seconds": 7.68333333333333,
+			"seed": 0,
+			"swapped": false,
+			"winner": "left"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 0.6,
+			"hull_damage": 100.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.04999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.46666666666667
+			},
+			"map": "solar_tide",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.28333333333333,
+				"blocks": 8,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 7.68333333333333,
+			"seed": 0,
+			"swapped": true,
+			"winner": "right"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": null,
+			"hull_damage": 0.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 8.08333333333331,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "solar_tide",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 9.53333333333339,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 1,
+			"swapped": false,
+			"winner": "draw"
+		},
+		{
+			"censored": true,
+			"first_contact_seconds": null,
+			"hull_damage": 0.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 9.53333333333339,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"map": "solar_tide",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 8.08333333333331,
+				"blocks": 0,
+				"breaks": 0,
+				"locked_seconds": 0.0
+			},
+			"seconds": 60.0,
+			"seed": 1,
+			"swapped": true,
+			"winner": "draw"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 4.73333333333333,
+			"hull_damage": 150.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.09999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.7
+			},
+			"map": "solar_tide",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.36666666666666,
+				"blocks": 3,
+				"breaks": 1,
+				"locked_seconds": 1.0
+			},
+			"seconds": 11.25,
+			"seed": 2,
+			"swapped": false,
+			"winner": "right"
+		},
+		{
+			"censored": false,
+			"first_contact_seconds": 4.73333333333333,
+			"hull_damage": 150.0,
+			"left": "shield",
+			"left_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"left_defense": {
+				"active_seconds": 3.36666666666666,
+				"blocks": 3,
+				"breaks": 1,
+				"locked_seconds": 1.0
+			},
+			"map": "solar_tide",
+			"right": "shield",
+			"right_build": {
+				"capacitor_bank": 1,
+				"quick_charge": 1,
+				"wide_emitter": 1
+			},
+			"right_defense": {
+				"active_seconds": 3.09999999999999,
+				"blocks": 5,
+				"breaks": 1,
+				"locked_seconds": 1.7
+			},
+			"seconds": 11.25,
+			"seed": 2,
+			"swapped": true,
+			"winner": "left"
+		}
+	],
+	"shield_volleys": [
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 0.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 5.0,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 60.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 5.0,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 61.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 180.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 0.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 55.0,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 60.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 55.0,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 61.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 180.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 0.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": true,
+			"energy_cost": 100.0,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 60.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": true,
+			"energy_cost": 100.0,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 61.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 180.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 0.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 25.0,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 60.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 25.0,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 61.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 180.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 0.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 75.0,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 60.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 75.0,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 61.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 180.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 0.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": true,
+			"energy_cost": 100.0,
+			"fresh_guard": false,
+			"hull_hits": 1,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 60.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": true,
+			"energy_cost": 100.0,
+			"fresh_guard": false,
+			"hull_hits": 1,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 61.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 120.0,
+			"bearing_degrees": 180.0,
+			"build": "base",
+			"capacity": 100.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 0.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 4.75,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 80.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 4.75,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 81.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 180.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 0.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 52.25,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 80.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 52.25,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 81.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 180.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 0.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 99.75,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 80.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 99.75,
+			"fresh_guard": true,
+			"hull_hits": 0,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 81.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 180.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": true,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 0.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 23.75,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 80.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 23.75,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 81.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 180.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 1,
+			"projectiles": 1
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 0.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 71.25,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 80.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 71.25,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 81.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 180.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 3,
+			"projectiles": 3
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 0.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 118.75,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 80.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 118.75,
+			"fresh_guard": false,
+			"hull_hits": 0,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 81.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 5,
+			"projectiles": 5
+		},
+		{
+			"arc_degrees": 160.0,
+			"bearing_degrees": 180.0,
+			"build": "shield",
+			"capacity": 130.0,
+			"depleted": false,
+			"energy_cost": 0.0,
+			"fresh_guard": false,
+			"hull_hits": 5,
+			"projectiles": 5
+		}
+	]
+}

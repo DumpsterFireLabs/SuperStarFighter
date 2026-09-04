@@ -1,0 +1,14 @@
+Gameplay follow-up, compatibility 34 / packet 14
+Shield: 54 bouts, 48 controlled impact cases; strict wrapper exit 0.
+Pacing: 45 complete cases, 135 heats; strict wrapper exit 0.
+Coverage summarizer: 15 mode/population groups verified.
+Unit suite: TEST_SUMMARY passed=6322 failed=0
+Human LAN playtest: not executed.
+
+Source SHA-256:
+d9d08222649fc98c6a7fa88c7c651567e16cec515d1afed3b847eee96c1353af  src/test/gameplay_study.gd
+325f6340a52d1c61dd27823ecbcda5d3ee167f06e34c41aee731ab8a168772a5  src/shared/combat/authoritative_world.gd
+109cadacea09cfc90a3d51e7fdbb840b713c25c3865f5b8044cecfa2d5bfc264  src/shared/combat/npc_pilot_controller.gd
+28178bde50db8c24a4bd285469588340ba3c883fcacf6c9d61a031f3615f371f  src/shared/combat/shield_state.gd
+b79e5347dc817b74e1710bbf84bcb5457c4dbf9d1ea72c719568ded160b452ba  src/shared/match/authoritative_match_coordinator.gd
+8f424fcad9de248ef8434a795daee64c5b6465f9889ef39ccb25bf7953bf32bd  tools/summarize-gameplay-followup.py
