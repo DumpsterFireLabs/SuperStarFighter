@@ -1,6 +1,13 @@
 extends Node
 
 const InputProfileTestsScript = preload("res://tests/unit/input_profile_tests.gd")
+const CombatCorrectnessTestsScript = preload("res://tests/unit/combat_correctness_tests.gd")
+const GameplayGapTestsScript = preload("res://tests/unit/gameplay_gap_tests.gd")
+const ReviewFollowupTestsScript = preload("res://tests/unit/review_followup_tests.gd")
+const AbilityBudgetTestsScript = preload("res://tests/unit/ability_budget_tests.gd")
+const CombatFeedbackTestsScript = preload("res://tests/unit/combat_feedback_tests.gd")
+const BuildLabTestsScript = preload("res://tests/unit/build_lab_tests.gd")
+const AccessibilityTestsScript = preload("res://tests/unit/accessibility_tests.gd")
 var _context := TestContext.new()
 
 
@@ -11,8 +18,15 @@ func _ready() -> void:
 	DraftManagerTests.run(_context)
 	MatchStateMachineTests.run(_context)
 	CombatSystemTests.run(_context)
+	CombatCorrectnessTestsScript.run(_context)
 	NetworkProtocolTests.run(_context)
 	MatchCoordinatorTests.run(_context)
+	GameplayGapTestsScript.run(_context, self)
+	ReviewFollowupTestsScript.run(_context, self)
+	AbilityBudgetTestsScript.run(_context, self)
+	CombatFeedbackTestsScript.run(_context)
+	BuildLabTestsScript.run(_context, self)
+	AccessibilityTestsScript.run(_context, self)
 	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
@@ -24,9 +38,9 @@ func _ready() -> void:
 
 
 func _run_foundation_tests() -> void:
-	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.9", "game version is pinned to Beta 9")
+	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.10", "game version is pinned to Beta 10")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 24, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 28, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")

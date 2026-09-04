@@ -12,6 +12,19 @@ var smoothing_offset: Vector2 = Vector2.ZERO
 var smoothing_remaining: float = 0.0
 var snap_count: int = 0
 var last_reconciliation_error: float = 0.0
+var simulated_combatant: CombatantState
+var last_actions: int = 0
+
+
+func reset_to_snapshot(state: Dictionary, stats: CombatStats) -> void:
+	buffered_inputs.clear()
+	smoothing_offset = Vector2.ZERO
+	smoothing_remaining = 0.0
+	simulated_combatant = CombatantState.new()
+	simulated_combatant.restore_prediction_state(state, stats)
+	predicted_position = simulated_combatant.position
+	predicted_velocity = simulated_combatant.velocity
+	last_actions = 0
 
 
 func push(frame: PlayerInputFrame, delta: float) -> void:
@@ -27,9 +40,12 @@ func predict(
 	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
 	breakaway_active: bool = false
 ) -> void:
-	var motion := _step_motion(predicted_position, predicted_velocity, frame, stats, delta, map_id, breakaway_active)
-	predicted_position = motion.position
-	predicted_velocity = motion.velocity
+	_ensure_simulation(stats, breakaway_active)
+	simulated_combatant.position = predicted_position
+	simulated_combatant.velocity = predicted_velocity
+	last_actions = _step_simulation(frame, stats, delta, map_id)
+	predicted_position = simulated_combatant.position
+	predicted_velocity = simulated_combatant.velocity
 	push(frame, delta)
 
 
@@ -39,34 +55,36 @@ func reconcile(
 	acknowledged_sequence: int,
 	stats: CombatStats,
 	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
-	breakaway_active: bool = false
+	breakaway_active: bool = false,
+	authoritative_state: Dictionary = {}
 ) -> Dictionary:
 	var previous_prediction := predicted_position
 	_prune_acknowledged(acknowledged_sequence)
-	var replay_position := authoritative_position
-	var replay_velocity := authoritative_velocity
+	_ensure_simulation(stats, breakaway_active)
+	if not authoritative_state.is_empty():
+		simulated_combatant.restore_prediction_state(authoritative_state, stats)
+	simulated_combatant.position = authoritative_position
+	simulated_combatant.velocity = authoritative_velocity
 	for item in buffered_inputs:
 		var frame := item.frame as PlayerInputFrame
 		var delta := float(item.delta)
-		var motion := _step_motion(replay_position, replay_velocity, frame, stats, delta, map_id, breakaway_active)
-		replay_position = motion.position
-		replay_velocity = motion.velocity
-	last_reconciliation_error = previous_prediction.distance_to(replay_position)
-	predicted_position = replay_position
-	predicted_velocity = replay_velocity
+		_step_simulation(frame, stats, delta, map_id)
+	last_reconciliation_error = previous_prediction.distance_to(simulated_combatant.position)
+	predicted_position = simulated_combatant.position
+	predicted_velocity = simulated_combatant.velocity
 	var snapped := last_reconciliation_error > SMOOTHING_THRESHOLD_PIXELS
 	if snapped:
 		smoothing_offset = Vector2.ZERO
 		smoothing_remaining = 0.0
 		snap_count += 1
 	else:
-		smoothing_offset = previous_prediction - replay_position
+		smoothing_offset = previous_prediction - predicted_position
 		smoothing_remaining = SMOOTHING_DURATION_SECONDS
 	return {
 		"snapped": snapped,
 		"error": last_reconciliation_error,
-		"position": replay_position,
-		"velocity": replay_velocity,
+		"position": predicted_position,
+		"velocity": predicted_velocity,
 	}
 
 
@@ -80,28 +98,28 @@ func visual_position(delta: float) -> Vector2:
 	return predicted_position + smoothing_offset
 
 
-static func _step_motion(
-	position: Vector2,
-	velocity: Vector2,
+func _ensure_simulation(stats: CombatStats, breakaway_active: bool) -> void:
+	if simulated_combatant == null:
+		simulated_combatant = CombatantState.create(0, stats, predicted_position)
+		simulated_combatant.velocity = predicted_velocity
+		if breakaway_active:
+			simulated_combatant.breakaway_remaining = GameConstants.BREAKAWAY_DURATION_SECONDS
+
+
+func _step_simulation(
 	frame: PlayerInputFrame,
 	stats: CombatStats,
 	delta: float,
-	map_id: StringName,
-	breakaway_active: bool
-) -> Dictionary:
-	var safe_delta := maxf(delta, 0.0)
-	var world_movement := MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle)
-	var next_velocity := MovementSystem.step_velocity(
-		velocity,
-		world_movement,
-		stats,
-		safe_delta,
-		frame.shielding,
-		1.0,
-		GameConstants.BREAKAWAY_ACCELERATION_MULTIPLIER if breakaway_active else 1.0,
-		GameConstants.BREAKAWAY_BRAKING_MULTIPLIER if breakaway_active else 1.0
+	map_id: StringName
+) -> int:
+	simulated_combatant.stats = stats
+	var actions := simulated_combatant.step_input(frame, delta)
+	var motion := ArenaCollisionSystem.move_ship(
+		simulated_combatant.position, simulated_combatant.velocity, delta, map_id
 	)
-	return ArenaCollisionSystem.move_ship(position, next_velocity, safe_delta, map_id)
+	simulated_combatant.position = motion.position
+	simulated_combatant.velocity = motion.velocity
+	return actions
 
 
 func _prune_acknowledged(acknowledged_sequence: int) -> void:

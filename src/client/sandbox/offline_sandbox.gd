@@ -1,46 +1,80 @@
 class_name OfflineSandbox
 extends Node2D
 
-const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const LabPanelScript = preload("res://src/client/sandbox/lab_panel.gd")
+const AbilitySelection = preload("res://src/shared/combat/special_ability_selection.gd")
+const FeedbackPresentation = preload("res://src/client/presentation/combat_feedback_presentation.gd")
 const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
+const PRESET_NAMES: Array[String] = ["Base ship", "Rapid scatter", "Beam specialist", "Shield tank", "All abilities"]
+const PRESET_BUILDS: Array[Dictionary] = [
+	{}, {&"rapid_cycling": 2, &"twin_shot": 2, &"extended_magazine": 2},
+	{&"beam_emitter": 1, &"heavy_rounds": 2, &"quick_loader": 2},
+	{&"reinforced_hull": 2, &"capacitor_bank": 2, &"quick_charge": 2},
+	{&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1, &"cloak": 1},
+]
 signal presentation_event(event_name: StringName, payload: Dictionary)
 
 var catalog: CardCatalog = CardCatalog.create_default()
 var build: Dictionary = {}
 var selected_card_index: int = 0
+var selected_special_slot: int = -1
 var derived_stats: CombatStats = CombatStats.create_base()
+var world := AuthoritativeWorld.new()
 var player: SandboxShip
 var targets: Array[SandboxShip] = []
 var ships_by_id: Dictionary = {}
-var projectile_registry := ProjectileRegistry.new()
+var projectile_registry: ProjectileRegistry
 var projectile_layer: SandboxProjectileLayer
 var effects_layer: CombatEffectsLayer
 var arena: SandboxArena
 var camera: Camera2D
 var status_label: Label
+var feedback_label: Label
 var card_label: Label
 var help_label: Label
 var hud_canvas: CanvasLayer
+var hud_root: Control
+var lab_panel: Control
+var editor_button: Button
 var kill_feed: Control
-var next_projectile_id: int = 1
 var kill_feed_event_sequence: int = 0
 var heat_elapsed: float = 0.0
 var overtime_debug_stage: int = 0
+var overtime_enabled: bool = false
 var targets_shielding: bool = false
 var targets_firing: bool = false
+var targets_moving: bool = false
+var target_health: float = 100.0
+var target_count: int = 1
+var target_distance: float = 420.0
 var input_profiles: Node
+var editor_open: bool = true
+var combat_input_armed: bool = false
+var input_sequence: int = 0
+var special_sequence: int = 0
+var shots_fired: int = 0
+var hull_hits: int = 0
+var blocked_shots: int = 0
+var measured_damage: float = 0.0
+var measurement_seconds: float = 0.0
+var measurement_started: bool = false
+var last_damage_source: String = "none"
+var feedback_remaining: float = 0.0
+var hud_refresh_remaining: float = 0.0
 var camera_kick_remaining: float = 0.0
 var camera_kick_duration: float = 0.0
 var camera_kick_offset: Vector2 = Vector2.ZERO
+var accessibility: Dictionary = {}
 
 
 func _ready() -> void:
 	arena = SandboxArena.new()
 	arena.name = "Arena"
 	add_child(arena)
+	projectile_registry = world.projectile_registry
 	projectile_layer = SandboxProjectileLayer.new()
 	projectile_layer.name = "Projectiles"
 	projectile_layer.registry = projectile_registry
@@ -52,60 +86,162 @@ func _ready() -> void:
 	_create_ships()
 	_create_camera()
 	_create_hud()
+	_reset_combatants()
 	_update_card_label()
+	get_viewport().size_changed.connect(_layout_hud)
 	print("SSF_SANDBOX_READY=offline_combat")
 
 
 func _physics_process(delta: float) -> void:
-	heat_elapsed += delta
-	if player.combatant.alive:
-		var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else get_global_mouse_position() - player.global_position
-		var aim_angle := player.combatant.aim_angle
-		if not aim_vector.is_zero_approx():
-			aim_angle = aim_vector.angle()
-		var ship_movement: Vector2 = input_profiles.movement_input_for_aim(aim_angle) if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
-		var movement := MovementSystem.ship_relative_to_world(ship_movement, aim_angle)
-		player.set_thrust_input(ship_movement)
-		player.simulate(movement, aim_angle, Input.is_action_pressed("shield"), delta)
-		if Input.is_action_just_pressed("special"):
-			if player.combatant.activate_special():
-				player.velocity = player.combatant.velocity
-				player.flash_afterburner(player.combatant.stats.afterburner_duration)
-				_trigger_afterburner_feedback(Vector2.from_angle(aim_angle))
-				presentation_event.emit(&"afterburner", {
-					"peer_id": player.combatant.peer_id,
-					"server_tick": roundi(heat_elapsed * GameConstants.PHYSICS_TICKS_PER_SECOND),
-					"position": player.global_position,
-					"listener_position": player.global_position,
-					"local": true,
-				})
-			if player.combatant.deploy_mine():
-				_spawn_mine(player.combatant)
-			if player.combatant.launch_missile():
-				_spawn_missile(player.combatant)
-			player.combatant.activate_cloak()
-		elif not Input.is_action_pressed("special"):
-			player.combatant.release_special_activation()
-		if Input.is_action_pressed("manual_reload"):
-			player.combatant.request_reload()
-		if Input.is_action_pressed("fire") and player.combatant.try_fire():
-			_spawn_shot(player)
-	else:
-		player.set_thrust_input(Vector2.ZERO)
-	for target in targets:
-		if target.combatant.alive:
-			var aim_at_player := (player.global_position - target.global_position).angle()
-			target.simulate(Vector2.ZERO, aim_at_player, targets_shielding, delta)
-			if targets_firing and not player.combatant.is_cloaked() and target.combatant.try_fire():
-				_spawn_shot(target)
-	_resolve_sandbox_kinetic_vents()
-	_simulate_projectiles(delta)
-	_apply_overtime_damage(delta)
-	projectile_registry.step_cleanup(delta)
-	projectile_layer.queue_redraw()
+	if editor_open:
+		_update_camera(delta)
+		return
+	if not combat_input_armed:
+		if Input.is_action_pressed("fire") or Input.is_action_pressed("special"):
+			return
+		combat_input_armed = true
+	var aim_vector: Vector2 = input_profiles.aim_vector() if input_profiles != null and input_profiles.uses_controller() else get_global_mouse_position() - player.global_position
+	var aim_angle := player.combatant.aim_angle if aim_vector.is_zero_approx() else aim_vector.angle()
+	var movement: Vector2 = input_profiles.movement_input_for_aim(aim_angle) if input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	input_sequence = SequenceMath.increment(input_sequence)
+	var pressed := Input.is_action_just_pressed("special")
+	if pressed:
+		special_sequence = SequenceMath.increment(special_sequence)
+	var frame := PlayerInputFrame.new(input_sequence, world.server_tick, movement, aim_angle, Input.is_action_pressed("fire"), Input.is_action_pressed("shield"), Input.is_action_pressed("manual_reload"), pressed, special_sequence)
+	# Selection is shared with the network client; the authoritative step activates
+	# exactly the selected ability, including its inventory and cooldown rules.
+	if InputMap.has_action("special_previous") and Input.is_action_just_pressed("special_previous"):
+		_cycle_special(-1)
+	if InputMap.has_action("special_next") and Input.is_action_just_pressed("special_next"):
+		_cycle_special(1)
+	frame.special_slot = selected_special_slot
+	step_lab(delta, frame)
 	_update_camera(delta)
-	_update_hud()
-	arena.set_overtime(OvertimeSystem.is_active(heat_elapsed), OvertimeSystem.radius_at(heat_elapsed))
+	hud_refresh_remaining -= delta
+	if hud_refresh_remaining <= 0.0:
+		_update_hud()
+		hud_refresh_remaining = 0.1
+
+
+## The live lab and regression fixtures use the same server simulation entry point.
+func step_lab(delta: float, frame: PlayerInputFrame) -> void:
+	if feedback_remaining > 0.0:
+		feedback_remaining = maxf(feedback_remaining - delta, 0.0)
+		if feedback_remaining == 0.0:
+			feedback_label.text = ""
+	var before := _presentation_states()
+	world.submit_input(1, frame)
+	player.set_thrust_input(frame.movement)
+	for index in targets.size():
+		var target := targets[index].combatant
+		var angle := (player.combatant.position - target.position).angle()
+		var movement := Vector2(0.55 * sin(heat_elapsed * 1.6 + index), 0.0) if targets_moving else Vector2.ZERO
+		world.submit_input(target.peer_id, PlayerInputFrame.new(frame.sequence, world.server_tick, movement, angle, targets_firing and not player.combatant.is_cloaked(), targets_shielding))
+	world.step(delta)
+	heat_elapsed += maxf(delta, 0.0)
+	if overtime_enabled:
+		world.apply_overtime(heat_elapsed, delta)
+	_sync_presentation(before)
+	_consume_feedback()
+	var batch := world.drain_projectile_batch()
+	for projectile_value in batch.spawned:
+		var projectile := projectile_value as ProjectileState
+		if projectile.is_missile and not projectile.has_rebounded:
+			_emit_effect(&"missile_launch", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id}, projectile.position)
+	for detonation in world.drain_mine_detonations():
+		effects_layer.spawn_mine_explosion(detonation.position)
+		_emit_effect(&"mine_detonated", detonation, detonation.position)
+	if measurement_started:
+		measurement_seconds += maxf(delta, 0.0)
+	projectile_layer.queue_redraw()
+	arena.set_overtime(overtime_enabled and OvertimeSystem.is_active(heat_elapsed), OvertimeSystem.radius_at(heat_elapsed))
+
+
+func _presentation_states() -> Dictionary:
+	var result: Dictionary = {}
+	for peer_id in ships_by_id:
+		var ship := ships_by_id[peer_id] as SandboxShip
+		result[peer_id] = {"alive": ship.combatant.alive, "health": ship.combatant.health, "shot": ship.combatant.weapon.shot_sequence, "boost": ship.combatant.afterburner_remaining, "vent": ship.combatant.kinetic_vent_feedback_remaining}
+	return result
+
+
+func _sync_presentation(before: Dictionary) -> void:
+	var kills: Dictionary = {}
+	for event in world.drain_kill_events():
+		kills[int(event.target_id)] = int(event.killer_id)
+	var eliminations: Array[Dictionary] = []
+	for peer_id in ships_by_id:
+		var ship := ships_by_id[peer_id] as SandboxShip
+		var state := ship.combatant
+		var previous: Dictionary = before[peer_id]
+		ship.global_position = state.position
+		ship.velocity = state.velocity
+		if previous.alive and not state.alive:
+			ship.set_eliminated()
+			var killer := int(kills.get(peer_id, 0))
+			eliminations.append({"killer_id": killer, "victim_id": peer_id, "reason": "combat" if killer > 0 else "environment"})
+			if not bool(accessibility.get("reduced_flashes", false)):
+				effects_layer.spawn_elimination(state.position, ship.ship_color)
+		elif state.health < float(previous.health) and not bool(accessibility.get("reduced_flashes", false)):
+			ship.flash_damage()
+		if state.weapon.shot_sequence != int(previous.shot):
+			if peer_id == 1:
+				shots_fired += 1
+				measurement_started = true
+			_emit_effect(&"weapon_fire", {"owner_id": peer_id, "shot_sequence": state.weapon.shot_sequence, "profile": WeaponSoundProfileScript.from_stats(state.stats, build if peer_id == 1 else {}, catalog)}, state.position)
+		if state.afterburner_remaining > float(previous.boost):
+			ship.flash_afterburner(state.afterburner_remaining)
+			if peer_id == 1:
+				_trigger_afterburner_feedback(Vector2.from_angle(state.aim_angle))
+			_emit_effect(&"afterburner", {"peer_id": peer_id}, state.position)
+		if state.kinetic_vent_feedback_remaining > float(previous.vent):
+			effects_layer.spawn_kinetic_vent(state.position)
+			_emit_effect(&"kinetic_vent", {"peer_id": peer_id}, state.position)
+		ship.queue_redraw()
+	if not eliminations.is_empty():
+		kill_feed_event_sequence += 1
+		kill_feed.add_eliminations(eliminations, kill_feed_event_sequence, 1, _kill_feed_identities())
+
+
+func _consume_feedback() -> void:
+	# This feedback is damage actually resolved by the world, after shields,
+	# overkill and attribution. It is not estimated from weapon stats or HP deltas.
+	var recipients: Dictionary = world.drain_combat_feedback()
+	for peer_id in recipients:
+		var event: Dictionary = recipients[peer_id]
+		var ship := ships_by_id.get(int(peer_id)) as SandboxShip
+		if int(event.get("guard_count", 0)) > 0 and ship != null:
+			if not bool(accessibility.get("reduced_flashes", false)):
+				ship.flash_shield_block()
+			_emit_effect(&"shield_block", {"peer_id": peer_id}, ship.global_position)
+		if int(peer_id) == 1:
+			hull_hits += int(event.get("hit_count", 0))
+			blocked_shots += int(event.get("blocked_count", 0))
+			measured_damage += float(event.get("hit_damage", 0.0))
+			if int(event.get("hit_count", 0)) > 0:
+				measurement_started = true
+				last_damage_source = String(event.get("last_hit_source", "projectile")).replace("_", " ")
+			var messages := PackedStringArray()
+			for value in [FeedbackPresentation.hit_text(event), FeedbackPresentation.block_text(event), FeedbackPresentation.guard_text(event)]:
+				if not value.is_empty():
+					messages.append(value)
+			if event.has("death"):
+				var names: Dictionary = {}
+				for identity in _kill_feed_identities():
+					names[identity.peer_id] = identity.display_name
+				feedback_label.text = FeedbackPresentation.death_text(event.death, 1, names)
+				feedback_remaining = 0.0
+			elif not messages.is_empty() and player.combatant.alive:
+				feedback_label.text = " · ".join(messages)
+				feedback_remaining = 2.0
+
+
+func _emit_effect(event_name: StringName, payload: Dictionary, origin: Vector2) -> void:
+	payload["position"] = origin
+	payload["listener_position"] = player.global_position
+	payload["local"] = int(payload.get("owner_id", payload.get("peer_id", 0))) == 1
+	payload["server_tick"] = world.server_tick
+	presentation_event.emit(event_name, payload)
 
 
 func set_sandbox_active(active: bool) -> void:
@@ -117,59 +253,55 @@ func set_sandbox_active(active: bool) -> void:
 		hud_canvas.visible = active
 	if not active and kill_feed != null:
 		kill_feed.clear()
+	if active and editor_open and input_profiles != null and input_profiles.uses_controller():
+		editor_button.grab_focus()
 
 
 func set_input_profile_manager(profile_manager: Node) -> void:
 	input_profiles = profile_manager
 	if not input_profiles.scheme_changed.is_connected(_on_input_profile_changed):
 		input_profiles.scheme_changed.connect(_on_input_profile_changed)
-	if not input_profiles.bindings_changed.is_connected(_on_input_bindings_changed):
-		input_profiles.bindings_changed.connect(_on_input_bindings_changed)
+	if not input_profiles.bindings_changed.is_connected(_update_help_text):
+		input_profiles.bindings_changed.connect(_update_help_text)
 	_update_help_text()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not editor_open and event.is_action_pressed("ui_accept"):
+		set_editor_open(true)
+		get_viewport().set_input_as_handled()
+		return
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
-	match event.physical_keycode:
-		KEY_Q:
-			selected_card_index = wrapi(selected_card_index - 1, 0, catalog.size())
-			_update_card_label()
-		KEY_E:
-			selected_card_index = wrapi(selected_card_index + 1, 0, catalog.size())
-			_update_card_label()
-		KEY_G:
-			_grant_selected_card()
-		KEY_C:
-			build.clear()
-			_apply_build()
-		KEY_T:
-			targets_shielding = not targets_shielding
-		KEY_B:
-			targets_firing = not targets_firing
-		KEY_Y:
-			_reset_combatants()
-		KEY_O:
-			if event.shift_pressed:
-				_cycle_overtime_debug()
-			else:
-				_toggle_overtime_debug()
-		KEY_F1:
-			help_label.visible = not help_label.visible
+	if event.physical_keycode == KEY_F2:
+		set_editor_open(not editor_open)
+		get_viewport().set_input_as_handled()
+	elif not editor_open:
+		match event.physical_keycode:
+			KEY_Y: _reset_combatants()
+			KEY_O:
+				if event.shift_pressed:
+					_cycle_overtime_debug()
+				else:
+					_toggle_overtime_debug()
+			KEY_F1: help_label.visible = not help_label.visible
 
 
 func _create_ships() -> void:
-	var anchors := ArenaLayout.spawn_anchors()
-	player = SandboxShip.new()
-	player.setup(1, derived_stats, anchors[0], Color("42e8ff"), true)
-	add_child(player)
-	ships_by_id[player.combatant.peer_id] = player
-	for index in TARGET_COUNT:
-		var target := SandboxShip.new()
-		target.setup(index + 2, CombatStats.create_base(), anchors[12 + index * 3], TARGET_COLORS[index])
-		add_child(target)
-		targets.append(target)
-		ships_by_id[target.combatant.peer_id] = target
+	for index in TARGET_COUNT + 1:
+		var ship := SandboxShip.new()
+		var state := world.add_peer(index + 1)
+		ship.setup(index + 1, state.stats, state.position, Color("42e8ff") if index == 0 else TARGET_COLORS[index - 1], index == 0, "You" if index == 0 else "Target %d" % index)
+		ship.combatant = state
+		# The shared world owns collisions; these nodes only draw its state.
+		ship.collision_layer = 0
+		ship.collision_mask = 0
+		add_child(ship)
+		ships_by_id[index + 1] = ship
+		if index == 0:
+			player = ship
+		else:
+			targets.append(ship)
 
 
 func _create_camera() -> void:
@@ -183,7 +315,6 @@ func _create_camera() -> void:
 	camera.limit_right = int(GameConstants.ARENA_SIZE.x)
 	camera.limit_bottom = int(GameConstants.ARENA_SIZE.y)
 	camera.limit_smoothed = true
-	camera.enabled = true
 	add_child(camera)
 
 
@@ -191,542 +322,263 @@ func _create_hud() -> void:
 	hud_canvas = CanvasLayer.new()
 	hud_canvas.name = "CombatHUD"
 	add_child(hud_canvas)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(26.0, 24.0)
-	panel.custom_minimum_size = Vector2(620.0, 0.0)
-	hud_canvas.add_child(panel)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 8)
-	panel.add_child(content)
-	var title := Label.new()
-	title.text = "SUPER STAR FIGHTER · OFFLINE COMBAT LAB"
-	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 28)
-	content.add_child(title)
+	hud_root = Control.new()
+	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_canvas.add_child(hud_root)
 	status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", 20)
-	content.add_child(status_label)
-	card_label = Label.new()
-	card_label.add_theme_font_size_override("font_size", 20)
-	content.add_child(card_label)
-	help_label = Label.new()
-	_update_help_text()
-	help_label.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(help_label)
+	status_label.add_theme_font_size_override("font_size", 18)
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_root.add_child(status_label)
+	feedback_label = Label.new()
+	feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	feedback_label.add_theme_font_size_override("font_size", 18)
+	feedback_label.add_theme_color_override("font_color", Color("ffd95a"))
+	feedback_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_root.add_child(feedback_label)
+	editor_button = Button.new()
+	editor_button.text = "Enter range · F2"
+	editor_button.pressed.connect(func() -> void: set_editor_open(not editor_open))
+	hud_root.add_child(editor_button)
+	lab_panel = LabPanelScript.new()
+	lab_panel.name = "BuildEditor"
+	hud_root.add_child(lab_panel)
+	lab_panel.configure(self)
+	card_label = lab_panel.card_description
+	help_label = lab_panel.help_label
 	kill_feed = KillFeedScript.new()
 	kill_feed.name = "KillFeed"
 	hud_canvas.add_child(kill_feed)
 	kill_feed.set_match_state("ACTIVE_HEAT")
+	_update_help_text()
+	_layout_hud()
+
+
+func set_editor_open(value: bool) -> void:
+	editor_open = value
+	combat_input_armed = false
+	lab_panel.visible = value
+	editor_button.text = "Enter range · F2" if value else "Edit build · F2"
+	# Release focused text/buttons before combat resumes. A click on the editor
+	# never becomes a held shot in the same input frame.
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null:
+		focused.release_focus()
+	if value:
+		if input_profiles != null and input_profiles.uses_controller():
+			editor_button.grab_focus()
+		else:
+			lab_panel.search.grab_focus()
+	_update_hud()
+
+
+func _layout_hud() -> void:
+	if hud_root == null:
+		return
+	var viewport := get_viewport_rect().size
+	var hud_scale := clampf(float(accessibility.get("hud_scale", 1.0)), 1.0, 1.5)
+	var safe_width := minf(viewport.x, 1920.0) if bool(accessibility.get("constrain_hud", true)) else viewport.x
+	hud_root.position = Vector2((viewport.x - safe_width) * 0.5 + 20.0, 16.0)
+	hud_root.scale = Vector2.ONE * hud_scale
+	hud_root.size = Vector2((safe_width - 40.0) / hud_scale, (viewport.y - 32.0) / hud_scale)
+	status_label.position = Vector2.ZERO
+	status_label.size = Vector2(hud_root.size.x, 62.0)
+	editor_button.position = Vector2(0.0, 68.0)
+	feedback_label.position = Vector2(260.0, 68.0)
+	feedback_label.size = Vector2(maxf(hud_root.size.x - 260.0, 100.0), 54.0)
+	lab_panel.position = Vector2(0.0, 132.0)
+	lab_panel.size = Vector2(minf(420.0, hud_root.size.x), maxf(hud_root.size.y - 132.0, 120.0))
+
+
+func apply_accessibility_settings(values: Dictionary) -> void:
+	accessibility = values.duplicate()
+	if bool(values.get("reduced_shake", false)):
+		camera_kick_remaining = 0.0
+		if camera != null:
+			camera.offset = Vector2.ZERO
+	if effects_layer != null:
+		effects_layer.set("reduced_flashes", bool(values.get("reduced_flashes", false)))
+	for ship_value in ships_by_id.values():
+		(ship_value as SandboxShip).reduced_flashes = bool(values.get("reduced_flashes", false))
+	_layout_hud()
 
 
 func _update_help_text() -> void:
 	if help_label == null:
 		return
-	var combat_help := "W/S forward/back · A/D strafe · Mouse aim · LMB fire · RMB shield"
-	if input_profiles != null:
-		var aim_help := "Mouse"
-		if input_profiles.uses_controller():
-			aim_help = "%s/%s/%s/%s" % [
-				input_profiles.binding_text(&"aim_up"),
-				input_profiles.binding_text(&"aim_down"),
-				input_profiles.binding_text(&"aim_left"),
-				input_profiles.binding_text(&"aim_right"),
-			]
-		combat_help = "%s/%s forward/back · %s/%s strafe · %s aim · %s fire · %s shield" % [
-			input_profiles.binding_text(&"move_up"),
-			input_profiles.binding_text(&"move_down"),
-			input_profiles.binding_text(&"move_left"),
-			input_profiles.binding_text(&"move_right"),
-			aim_help,
-			input_profiles.binding_text(&"fire"),
-			input_profiles.binding_text(&"shield"),
-		]
-	var special_help: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
-	help_label.text = "%s · %s special\nQ/E select card · G grant stack · C clear build\nT target shields · B target fire · Y reset heat · O start/reset overtime · Shift+O cycle · F1 help" % [combat_help, special_help]
+	var special := input_profiles.binding_text(&"special") as String if input_profiles != null else "Shift"
+	help_label.text = "F2 edit / fly · Enter or controller A opens editor\nY reset encounter\nQ/E or D-pad select ability · %s activate\nO toggle overtime · Shift+O cycle stages\nBuild and target changes reset the encounter.\nRange stays untimed until overtime is enabled." % special
 
 
 func _on_input_profile_changed(_scheme: int) -> void:
 	_update_help_text()
 
 
-func _on_input_bindings_changed() -> void:
-	_update_help_text()
+func _cycle_special(direction: int) -> void:
+	selected_special_slot = AbilitySelection.cycle(selected_special_slot, derived_stats, direction)
+	_update_hud()
 
 
-func _spawn_shot(ship: SandboxShip) -> void:
-	var muzzle := ship.global_position + Vector2.from_angle(ship.combatant.aim_angle) * 31.0
-	var audio_sequence := next_projectile_id
-	var spawned_any := false
-	for angle in MovementSystem.spread_angles(ship.combatant.aim_angle, ship.combatant.stats.projectile_count, ship.combatant.stats.projectile_spread_degrees):
-		var projectile := ProjectileState.create(next_projectile_id, ship.combatant.peer_id, ship.combatant.weapon.shot_sequence, muzzle, angle, ship.combatant.stats)
-		next_projectile_id += 1
-		var spawn_normal := ArenaCollisionSystem.projectile_obstacle_normal(
-			projectile.position,
-			projectile.radius
-		)
-		if not spawn_normal.is_zero_approx():
-			if not projectile.ricochet(spawn_normal):
-				continue
-			projectile.position = ship.global_position + spawn_normal * (
-				GameConstants.SHIP_COLLISION_RADIUS + projectile.radius + 1.0
-			)
-		projectile_registry.add(projectile)
-		spawned_any = true
-	if spawned_any:
-		var source_build := build if ship == player else {}
-		presentation_event.emit(&"weapon_fire", {
-			"profile": WeaponSoundProfileScript.from_stats(ship.combatant.stats, source_build, catalog),
-			"owner_id": ship.combatant.peer_id,
-			"shot_sequence": audio_sequence,
-			"position": muzzle,
-			"listener_position": player.global_position,
-			"local": ship == player,
-		})
-
-
-func _spawn_mine(combatant: CombatantState) -> void:
-	var mine := ProjectileState.create_mine(next_projectile_id, combatant.peer_id, combatant.position)
-	next_projectile_id += 1
-	projectile_registry.add(mine)
-
-
-func _spawn_missile(combatant: CombatantState) -> void:
-	var muzzle := combatant.position + Vector2.from_angle(combatant.aim_angle) * 34.0
-	var missile := ProjectileState.create_missile(
-		next_projectile_id,
-		combatant.peer_id,
-		muzzle,
-		combatant.aim_angle,
-		_acquire_sandbox_missile_target(
-			combatant.peer_id,
-			muzzle,
-			Vector2.from_angle(combatant.aim_angle),
-			GameConstants.MISSILE_RANGE
-		)
-	)
-	next_projectile_id += 1
-	projectile_registry.add(missile)
-	presentation_event.emit(&"missile_launch", {
-		"projectile_id": missile.projectile_id,
-		"owner_id": missile.owner_id,
-		"position": missile.position,
-		"listener_position": player.global_position,
-		"server_tick": roundi(heat_elapsed * GameConstants.PHYSICS_TICKS_PER_SECOND),
-	})
-
-
-func _acquire_sandbox_missile_target(
-	owner_id: int,
-	origin: Vector2,
-	forward: Vector2,
-	maximum_range: float
-) -> int:
-	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
-	var best_id := 0
-	var best_distance_squared := maxf(maximum_range, 0.0) * maxf(maximum_range, 0.0)
-	for ship_value in ships_by_id.values():
-		var ship := ship_value as SandboxShip
-		if not ship.combatant.alive or ship.combatant.peer_id == owner_id:
-			continue
-		var offset := ship.global_position - origin
-		var distance_squared := offset.length_squared()
-		if distance_squared > best_distance_squared or offset.is_zero_approx():
-			continue
-		if absf(forward.angle_to(offset.normalized())) > GameConstants.MISSILE_ACQUISITION_HALF_ANGLE:
-			continue
-		if not ArenaCollisionSystem.has_clear_line_of_sight(origin, ship.global_position, active_map_id):
-			continue
-		if best_id != 0 and is_equal_approx(distance_squared, best_distance_squared) and ship.combatant.peer_id > best_id:
-			continue
-		best_id = ship.combatant.peer_id
-		best_distance_squared = distance_squared
-	return best_id
-
-
-func _simulate_projectiles(delta: float) -> void:
-	var damage_events: Array[Dictionary] = []
-	_step_mine_magnetism(delta)
-	_detonate_proximity_mines(damage_events)
-	for projectile in projectile_registry.all_projectiles():
-		if projectile.is_mine:
-			continue
-		_step_sandbox_missile_guidance(projectile, delta)
-		var start := projectile.position
-		if not projectile.step(delta):
-			projectile_registry.remove(projectile.projectile_id)
-			continue
-		var mine := _nearest_sandbox_mine(start, projectile.position, projectile)
-		if mine != null:
-			projectile_registry.remove(projectile.projectile_id)
-			_detonate_sandbox_mine(mine, damage_events)
-			continue
-		var query := PhysicsRayQueryParameters2D.create(start, projectile.position, 3)
-		var exclusions: Array[RID] = []
-		var owner_ship := ships_by_id.get(projectile.owner_id) as SandboxShip
-		if owner_ship != null:
-			exclusions.append(owner_ship.get_rid())
-		for hit_value in projectile.hit_peer_ids:
-			var hit_ship := ships_by_id.get(int(hit_value)) as SandboxShip
-			if hit_ship != null:
-				exclusions.append(hit_ship.get_rid())
-		query.exclude = exclusions
-		var hit := get_world_2d().direct_space_state.intersect_ray(query)
-		if hit.is_empty():
-			continue
-		var impact_position: Vector2 = hit["position"]
-		projectile.position = impact_position
-		var collider := hit["collider"] as CollisionObject2D
-		if collider is SandboxShip:
-			var target := collider as SandboxShip
-			if target.combatant.shield.try_block(target.combatant.aim_angle, impact_position - target.global_position, target.combatant.stats):
-				target.combatant.shield.register_blocked_damage(projectile.damage, target.combatant.stats)
-				_apply_projectile_knockback(target.combatant, projectile, 0.2)
-				if target.combatant.stats.shield_damage_heal_fraction > 0.0:
-					target.combatant.health = minf(
-						target.combatant.health + projectile.damage * target.combatant.stats.shield_damage_heal_fraction,
-						target.combatant.stats.max_health
-					)
-				var rebounded := false
-				if target.combatant.stats.rebound_shield_enabled and not projectile.has_rebounded:
-					var source_position := owner_ship.global_position if owner_ship != null else projectile.position - projectile.velocity
-					var old_owner_id := projectile.owner_id
-					if projectile.rebound_toward(target.combatant.peer_id, source_position):
-						projectile.owner_id = old_owner_id
-						projectile_registry.transfer_owner(projectile.projectile_id, target.combatant.peer_id)
-						rebounded = projectile_registry.get_projectile(projectile.projectile_id) != null
-				if rebounded:
-					projectile.position += projectile.velocity.normalized() * 2.0
-				else:
-					projectile_registry.remove(projectile.projectile_id)
-				presentation_event.emit(&"shield_block", {
-					"peer_id": target.combatant.peer_id,
-					"projectile_id": projectile.projectile_id,
-					"position": impact_position,
-					"listener_position": player.global_position,
-				})
-				if rebounded:
-					presentation_event.emit(&"rebound", {
-						"projectile_id": projectile.projectile_id,
-						"owner_id": projectile.owner_id,
-						"position": impact_position,
-						"listener_position": player.global_position,
-					})
-				continue
-			if projectile.can_hit(target.combatant.peer_id):
-				_apply_projectile_knockback(target.combatant, projectile, 1.0)
-				damage_events.append({"projectile_id": projectile.projectile_id, "attacker_id": projectile.owner_id, "target_id": target.combatant.peer_id, "damage": projectile.damage})
-				if not projectile.register_hull_hit(target.combatant.peer_id):
-					projectile_registry.remove(projectile.projectile_id)
-				else:
-					projectile.position += projectile.velocity.normalized() * 2.0
-		else:
-			var collision_normal: Vector2 = hit["normal"]
-			if projectile.ricochet(collision_normal):
-				presentation_event.emit(&"ricochet", {
-					"projectile_id": projectile.projectile_id,
-					"owner_id": projectile.owner_id,
-					"ricochets_remaining": projectile.remaining_ricochets,
-					"position": impact_position,
-					"listener_position": player.global_position,
-				})
-				projectile.position += projectile.velocity.normalized() * 2.0
-			else:
-				presentation_event.emit(&"projectile_impact", {
-					"projectile_id": projectile.projectile_id,
-					"owner_id": projectile.owner_id,
-					"position": impact_position,
-					"listener_position": player.global_position,
-				})
-				projectile_registry.remove(projectile.projectile_id)
-	_apply_damage_events(damage_events)
-	for projectile in projectile_registry.all_projectiles():
-		projectile.step_mine_activation(delta)
-
-
-func _step_sandbox_missile_guidance(missile: ProjectileState, delta: float) -> void:
-	if not missile.is_missile or missile.velocity.is_zero_approx():
+func _update_hud() -> void:
+	if status_label == null or player == null:
 		return
-	var target := ships_by_id.get(missile.missile_target_id) as SandboxShip
-	if target != null and (
-		not target.combatant.alive
-		or not _sandbox_missile_target_is_visible_in_cone(missile, target, GameConstants.MISSILE_GUIDANCE_HALF_ANGLE)
-	):
-		missile.missile_target_id = 0
-		target = null
-	if target == null:
-		missile.missile_target_id = _acquire_sandbox_missile_target(
-			missile.owner_id,
-			missile.position,
-			missile.velocity.normalized(),
-			missile.lifetime_remaining * GameConstants.MISSILE_SPEED
-		)
-		target = ships_by_id.get(missile.missile_target_id) as SandboxShip
-		if target == null:
-			return
-	var offset := target.global_position - missile.position
-	if offset.is_zero_approx():
+	var state := player.combatant
+	var special_name := AbilitySelection.label(selected_special_slot)
+	var cooldown := 0.0
+	var charges := -1
+	match selected_special_slot:
+		0: cooldown = state.afterburner_cooldown_remaining
+		1:
+			cooldown = state.mine_cooldown_remaining
+			charges = state.mine_charges_remaining
+		2:
+			cooldown = state.missile_cooldown_remaining
+			charges = state.missile_charges_remaining
+		3:
+			cooldown = state.cloak_cooldown_remaining
+			charges = state.cloak_charges_remaining
+	if selected_special_slot >= 0:
+		special_name += " ×%d" % charges if charges >= 0 else ""
+		special_name += " (%.1fs)" % cooldown if cooldown > 0.0 else " READY" if charges != 0 else " EMPTY"
+	status_label.text = "COMBAT LAB · %s · HP %.0f/%.0f · Ammo %d/%d · Ability: %s\n%d shots · %d hull hits · %d blocked · %.1f damage / %.1fs = %.1f DPS" % ["PAUSED" if editor_open else "LIVE", state.health, state.stats.max_health, state.weapon.ammunition, state.stats.magazine_size, special_name, shots_fired, hull_hits, blocked_shots, measured_damage, measurement_seconds, measured_dps()]
+	if lab_panel != null:
+		lab_panel.refresh_telemetry()
+
+
+func measured_dps() -> float:
+	return measured_damage / measurement_seconds if measurement_seconds > 0.0 else 0.0
+
+
+func reset_measurements() -> void:
+	shots_fired = 0
+	hull_hits = 0
+	blocked_shots = 0
+	measured_damage = 0.0
+	measurement_seconds = 0.0
+	measurement_started = false
+	last_damage_source = "none"
+	feedback_label.text = ""
+	feedback_remaining = 0.0
+	_update_hud()
+
+
+func _update_card_label() -> void:
+	if card_label == null:
 		return
-	var angular_error := angle_difference(missile.velocity.angle(), offset.angle())
-	var maximum_turn := GameConstants.MISSILE_TURN_RATE * maxf(delta, 0.0)
-	missile.velocity = Vector2.from_angle(
-		missile.velocity.angle() + clampf(angular_error, -maximum_turn, maximum_turn)
-	) * GameConstants.MISSILE_SPEED
+	selected_card_index = wrapi(selected_card_index, 0, catalog.size())
+	var card_id := catalog.all_ids()[selected_card_index]
+	var card := catalog.get_card(card_id)
+	card_label.text = "%s · ×%d\n%s" % [card.display_name, int(build.get(card_id, 0)), card.description]
+	card_label.add_theme_color_override("font_color", card.rarity_color())
+	for row in StatSystem.compare_pick(build, card, catalog):
+		card_label.text += "\n%s: %.2f → %.2f%s" % [String(row.property).replace("_", " "), row.before, row.after, " (limit)" if row.limited else ""]
 
 
-func _sandbox_missile_target_is_visible_in_cone(
-	missile: ProjectileState,
-	target: SandboxShip,
-	half_angle: float
-) -> bool:
-	var offset := target.global_position - missile.position
-	if offset.is_zero_approx():
-		return true
-	if absf(missile.velocity.normalized().angle_to(offset.normalized())) > half_angle:
-		return false
-	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
-	return ArenaCollisionSystem.has_clear_line_of_sight(missile.position, target.global_position, active_map_id)
+func _grant_selected_card() -> void:
+	var card_id := catalog.all_ids()[selected_card_index]
+	build[card_id] = int(build.get(card_id, 0)) + 1
+	_apply_build()
 
 
-func _step_mine_magnetism(delta: float) -> void:
-	for mine in projectile_registry.all_projectiles():
-		if not mine.is_mine_armed():
-			continue
-		var displaced_by_vent := mine.step_kinetic_vent_displacement(delta)
-		if not displaced_by_vent:
-			var nearest: SandboxShip
-			var nearest_distance_squared := GameConstants.MINE_MAGNETIC_RADIUS * GameConstants.MINE_MAGNETIC_RADIUS
-			for ship_value in ships_by_id.values():
-				var ship := ship_value as SandboxShip
-				if not ship.combatant.alive or ship.combatant.peer_id == mine.owner_id:
-					continue
-				var distance_squared := ship.global_position.distance_squared_to(mine.position)
-				if distance_squared > nearest_distance_squared:
-					continue
-				if nearest != null and is_equal_approx(distance_squared, nearest_distance_squared) and ship.combatant.peer_id > nearest.combatant.peer_id:
-					continue
-				nearest = ship
-				nearest_distance_squared = distance_squared
-			if nearest == null:
-				mine.velocity = Vector2.ZERO
-				continue
-			var offset := nearest.global_position - mine.position
-			if offset.is_zero_approx():
-				mine.velocity = Vector2.ZERO
-				continue
-			mine.velocity = offset.normalized() * GameConstants.MINE_MAGNETIC_SPEED
-		var finish := mine.position + mine.velocity * maxf(delta, 0.0)
-		var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
-			mine.position,
-			finish,
-			mine.radius
-		)
-		if obstacle_hit == null:
-			mine.position = finish
-		else:
-			mine.position = obstacle_hit.position as Vector2
-			mine.velocity = Vector2.ZERO
-			mine.kinetic_vent_displacement_remaining = 0.0
+func remove_selected_card() -> void:
+	var card_id := catalog.all_ids()[selected_card_index]
+	var stacks := int(build.get(card_id, 0)) - 1
+	if stacks > 0:
+		build[card_id] = stacks
+	else:
+		build.erase(card_id)
+	_apply_build()
 
 
-func _resolve_sandbox_kinetic_vents() -> void:
-	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
-	for source_value in ships_by_id.values():
-		var source := source_value as SandboxShip
-		if not source.combatant.alive:
-			continue
-		var charge := source.combatant.shield.consume_kinetic_vent_release()
-		if charge < GameConstants.KINETIC_VENT_MINIMUM_CHARGE:
-			continue
-		source.combatant.mark_kinetic_vent_release()
-		if effects_layer != null:
-			effects_layer.spawn_kinetic_vent(source.global_position)
-		presentation_event.emit(&"kinetic_vent", {
-			"peer_id": source.combatant.peer_id,
-			"position": source.global_position,
-			"listener_position": player.global_position,
-		})
-		var charge_fraction := clampf(charge / GameConstants.KINETIC_VENT_MAXIMUM_CHARGE, 0.0, 1.0)
-		var impulse := source.combatant.stats.kinetic_vent_impulse * lerpf(0.65, 1.0, charge_fraction)
-		for target_value in ships_by_id.values():
-			var target := target_value as SandboxShip
-			if target == source or not target.combatant.alive or target.global_position.distance_to(source.global_position) > GameConstants.KINETIC_VENT_RADIUS:
-				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(source.global_position, target.global_position, active_map_id):
-				continue
-			var outward := target.global_position - source.global_position
-			if outward.is_zero_approx():
-				outward = Vector2.from_angle(source.combatant.aim_angle)
-			target.combatant.velocity = (target.combatant.velocity + outward.normalized() * impulse).limit_length(
-				maxf(target.combatant.stats.max_speed * 2.5, 1.0)
-			)
-			target.velocity = target.combatant.velocity
-		for projectile in projectile_registry.all_projectiles():
-			if projectile.owner_id == source.combatant.peer_id or projectile.position.distance_to(source.global_position) > GameConstants.KINETIC_VENT_RADIUS:
-				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(source.global_position, projectile.position, active_map_id):
-				continue
-			var outward := projectile.position - source.global_position
-			if outward.is_zero_approx():
-				outward = Vector2.from_angle(source.combatant.aim_angle)
-			if projectile.is_mine:
-				projectile.apply_kinetic_vent(outward, impulse)
-			elif not projectile.velocity.is_zero_approx():
-				projectile.velocity = outward.normalized() * projectile.velocity.length()
-				if projectile.is_missile:
-					projectile.missile_target_id = 0
-
-
-func _detonate_proximity_mines(damage_events: Array[Dictionary]) -> void:
-	for projectile in projectile_registry.all_projectiles():
-		if not projectile.is_mine_armed():
-			continue
-		for ship_value in ships_by_id.values():
-			var ship := ship_value as SandboxShip
-			if not ship.combatant.alive or ship.combatant.peer_id == projectile.owner_id:
-				continue
-			if ship.global_position.distance_to(projectile.position) <= GameConstants.MINE_TRIGGER_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
-				_detonate_sandbox_mine(projectile, damage_events)
-				break
-
-
-func _nearest_sandbox_mine(start: Vector2, finish: Vector2, projectile: ProjectileState) -> ProjectileState:
-	var nearest: ProjectileState
-	var nearest_fraction := INF
-	for candidate in projectile_registry.all_projectiles():
-		if not candidate.is_mine_armed():
-			continue
-		var fraction := AuthoritativeWorld._segment_circle_hit_fraction(
-			start,
-			finish,
-			candidate.position,
-			candidate.radius + projectile.radius
-		)
-		if fraction >= 0.0 and fraction < nearest_fraction:
-			nearest = candidate
-			nearest_fraction = fraction
-	return nearest
-
-
-func _detonate_sandbox_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> void:
-	if mine == null or not mine.is_mine_armed() or projectile_registry.get_projectile(mine.projectile_id) == null:
+func load_preset(index: int) -> void:
+	if index < 0 or index >= PRESET_BUILDS.size():
 		return
-	var active_map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
-	var pending: Array[int] = [mine.projectile_id]
-	var queued: Dictionary = {}
-	queued[mine.projectile_id] = true
-	while not pending.is_empty():
-		var current_id: int = pending.pop_front()
-		var current := projectile_registry.get_projectile(current_id)
-		if current == null or not current.is_mine_armed():
-			continue
-		projectile_registry.remove(current.projectile_id)
-		if effects_layer != null:
-			effects_layer.spawn_mine_explosion(current.position)
-		presentation_event.emit(&"mine_detonated", {
-			"projectile_id": current.projectile_id,
-			"owner_id": current.owner_id,
-			"position": current.position,
-			"listener_position": player.global_position,
-		})
-		for ship_value in ships_by_id.values():
-			var ship := ship_value as SandboxShip
-			if not ship.combatant.alive or ship.combatant.peer_id == current.owner_id:
-				continue
-			if ship.global_position.distance_to(current.position) <= GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
-				if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, ship.global_position, active_map_id):
-					continue
-				damage_events.append({
-					"projectile_id": current.projectile_id,
-					"attacker_id": current.owner_id,
-					"target_id": ship.combatant.peer_id,
-					"damage": current.damage,
-				})
-		for candidate in projectile_registry.all_projectiles():
-			if queued.has(candidate.projectile_id) or not candidate.is_mine_armed():
-				continue
-			if candidate.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + candidate.radius:
-				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, candidate.position, active_map_id):
-				continue
-			queued[candidate.projectile_id] = true
-			pending.append(candidate.projectile_id)
+	build = PRESET_BUILDS[index].duplicate()
+	_apply_build()
 
 
-func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
-	if projectile.knockback <= 0.0 or projectile.velocity.is_zero_approx():
-		return
-	target.velocity = (
-		target.velocity + projectile.velocity.normalized() * projectile.knockback * maxf(factor, 0.0)
-	).limit_length(maxf(target.stats.max_speed * 2.5, 1.0))
+func _apply_build() -> void:
+	derived_stats = StatSystem.derive(build, catalog)
+	selected_special_slot = -1
+	_cycle_special(1)
+	projectile_layer.set_beam_builds({1: build}, catalog)
+	player.set_shield_build(build, catalog)
+	_reset_combatants()
+	_update_card_label()
+	lab_panel.refresh_build()
 
 
-func _apply_overtime_damage(delta: float) -> void:
-	if not OvertimeSystem.is_active(heat_elapsed):
-		return
-	var damage_events: Array[Dictionary] = []
-	for ship_value in ships_by_id.values():
-		var ship := ship_value as SandboxShip
-		if ship.combatant.alive:
-			var damage := OvertimeSystem.damage_for_position(ship.global_position, heat_elapsed, delta)
-			if damage > 0.0:
-				damage_events.append({"projectile_id": 2_000_000_000 + ship.combatant.peer_id, "target_id": ship.combatant.peer_id, "damage": damage})
-	_apply_damage_events(damage_events)
+func set_target_settings(count_value: int, health_value: float, distance_value: float, shields_value: bool, firing_value: bool, moving_value: bool) -> void:
+	target_count = clampi(count_value, 1, TARGET_COUNT)
+	target_health = clampf(health_value, 10.0, 600.0)
+	target_distance = clampf(distance_value, 160.0, 900.0)
+	targets_shielding = shields_value
+	targets_firing = firing_value
+	targets_moving = moving_value
+	lab_panel.sync_target_controls()
+	_reset_combatants()
 
 
+func _reset_combatants() -> void:
+	world.clear_projectiles()
+	# A clear firing lane beside the core map's center cover makes the initial
+	# target visible and reachable, unlike the old far-side spawn anchors.
+	var origin := Vector2(500.0, 720.0)
+	player.reset_ship(derived_stats, origin)
+	camera.position = origin
+	camera.offset = Vector2.ZERO
+	camera_kick_remaining = 0.0
+	camera.reset_smoothing()
+	for index in targets.size():
+		var stats := CombatStats.create_base()
+		stats.max_health = target_health
+		targets[index].reset_ship(stats, origin + Vector2(target_distance, index * 110.0))
+		targets[index].combatant.aim_angle = PI
+		targets[index].visible = index < target_count
+		if index >= target_count:
+			world.set_spectator(index + 2)
+	for peer_id in ships_by_id:
+		var ship := ships_by_id[peer_id] as SandboxShip
+		ship.collision_layer = 0
+		ship.collision_mask = 0
+		world.latest_inputs[peer_id] = PlayerInputFrame.new(int(world.acknowledged_inputs.get(peer_id, 0)), world.server_tick)
+	world.drain_kill_events()
+	world.drain_combat_feedback()
+	world.drain_mine_detonations()
+	world.drain_projectile_batch()
+	effects_layer.clear_effects()
+	kill_feed.clear()
+	kill_feed_event_sequence = 0
+	heat_elapsed = 0.0
+	overtime_debug_stage = 0
+	overtime_enabled = false
+	arena.set_overtime(false, OvertimeSystem.initial_radius())
+	reset_measurements()
+	_update_hud()
+
+
+## Test/capture helper also delegates damage resolution to the authoritative world.
 func _apply_damage_events(events: Array[Dictionary]) -> void:
-	if events.is_empty():
-		return
-	var combatants: Dictionary = {}
-	for ship_value in ships_by_id.values():
-		var ship := ship_value as SandboxShip
-		combatants[ship.combatant.peer_id] = ship.combatant
-	var eliminations: Array[Dictionary] = []
-	for death in DamageResolver.resolve_tick_with_attribution(combatants, events):
-		var victim_id := int(death.get("target_id", 0))
-		var killer_id := int(death.get("killer_id", 0))
-		var eliminated := ships_by_id[victim_id] as SandboxShip
-		eliminated.set_eliminated()
-		projectile_registry.schedule_owner_cleanup(victim_id)
-		eliminations.append({
-			"killer_id": killer_id,
-			"victim_id": victim_id,
-			"reason": "combat" if killer_id != 0 else "environment",
-		})
-	if not eliminations.is_empty() and kill_feed != null:
-		kill_feed_event_sequence += 1
-		kill_feed.add_eliminations(
-			eliminations,
-			kill_feed_event_sequence,
-			player.combatant.peer_id,
-			_kill_feed_identities()
-		)
+	var before := _presentation_states()
+	for peer_id in world._resolve_damage_events(events):
+		projectile_registry.schedule_owner_cleanup(peer_id)
+	_sync_presentation(before)
+	_consume_feedback()
+	_update_hud()
 
 
 func _kill_feed_identities() -> Array[Dictionary]:
 	var identities: Array[Dictionary] = []
-	var peer_ids := ships_by_id.keys()
-	peer_ids.sort()
-	for peer_value in peer_ids:
-		var ship := ships_by_id[peer_value] as SandboxShip
-		identities.append({
-			"peer_id": ship.combatant.peer_id,
-			"display_name": ship.display_name,
-			"ship_color": ship.ship_color.to_html(false),
-		})
+	for peer_id in ships_by_id:
+		var ship := ships_by_id[peer_id] as SandboxShip
+		identities.append({"peer_id": peer_id, "display_name": ship.display_name, "ship_color": ship.ship_color.to_html(false)})
 	return identities
 
 
 func _update_camera(delta: float) -> void:
-	var target_position := ArenaLayout.center()
-	if player.combatant.alive:
-		target_position = player.global_position
-	else:
-		for target in targets:
-			if target.combatant.alive:
-				target_position = target.global_position
-				break
-	camera.position = camera.position.lerp(target_position, 1.0 - exp(-8.0 * delta))
-	if camera_kick_remaining > 0.0:
+	var focus := player.global_position if player.combatant.alive else targets[0].global_position
+	camera.position = camera.position.lerp(focus, 1.0 - exp(-8.0 * delta))
+	if camera_kick_remaining > 0.0 and not bool(accessibility.get("reduced_shake", false)):
 		var fraction := clampf(camera_kick_remaining / maxf(camera_kick_duration, 0.001), 0.0, 1.0)
 		camera.offset = camera_kick_offset * fraction * fraction
 		camera_kick_remaining = maxf(camera_kick_remaining - maxf(delta, 0.0), 0.0)
@@ -735,103 +587,16 @@ func _update_camera(delta: float) -> void:
 
 
 func _trigger_afterburner_feedback(forward: Vector2) -> void:
-	var direction := forward.normalized()
-	if direction.is_zero_approx():
-		direction = Vector2.RIGHT
+	if bool(accessibility.get("reduced_shake", false)):
+		return
 	camera_kick_duration = 0.18
 	camera_kick_remaining = camera_kick_duration
-	camera_kick_offset = -direction * 5.5
-
-
-func _update_hud() -> void:
-	var weapon := player.combatant.weapon
-	var reload_text := " · RELOAD %.2fs" % weapon.reload_remaining if weapon.reloading else ""
-	var overtime_text := ""
-	if OvertimeSystem.is_warning(heat_elapsed):
-		overtime_text = "\nOVERTIME IN %.1fs" % (GameConstants.OVERTIME_START_SECONDS - heat_elapsed)
-	elif OvertimeSystem.is_active(heat_elapsed):
-		overtime_text = "\nOVERTIME · radius %.0f · damage %.0f/s" % [OvertimeSystem.radius_at(heat_elapsed), OvertimeSystem.damage_rate_at(heat_elapsed)]
-	var alive_count := 0
-	for ship_value in ships_by_id.values():
-		if (ship_value as SandboxShip).combatant.alive:
-			alive_count += 1
-	var sound_profile = WeaponSoundProfileScript.from_stats(derived_stats, build, catalog)
-	var mine_text := ""
-	if player.combatant.stats.mine_layer_enabled:
-		mine_text = " · Mines %d" % player.combatant.mine_charges_remaining
-		if player.combatant.mine_cooldown_remaining > 0.05:
-			mine_text += " (%.1fs)" % player.combatant.mine_cooldown_remaining
-	var missile_text := ""
-	if player.combatant.stats.missile_launcher_enabled:
-		missile_text = " · Missiles %d" % player.combatant.missile_charges_remaining
-		if player.combatant.missile_cooldown_remaining > 0.05:
-			missile_text += " (%.1fs)" % player.combatant.missile_cooldown_remaining
-	var cloak_text := ""
-	if player.combatant.stats.cloak_enabled:
-		cloak_text = " · Cloak %s" % ("ACTIVE" if player.combatant.is_cloaked() else str(player.combatant.cloak_charges_remaining))
-		if not player.combatant.is_cloaked() and player.combatant.cloak_cooldown_remaining > 0.05:
-			cloak_text += " (%.1fs)" % player.combatant.cloak_cooldown_remaining
-	var vent_text := ""
-	if player.combatant.stats.kinetic_vent_enabled:
-		vent_text = " · Vent %.0f/%.0f" % [player.combatant.shield.kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
-	status_label.text = ("HP %.1f/%.1f · Shield %.1f/%.1f%s\n" + "Ammo %d/%d%s%s%s%s%s · Projectiles %d · Alive %d/%d · %.1fs%s\n" + "Weapon Audio · %s / %s") % [player.combatant.health, player.combatant.stats.max_health, player.combatant.shield.energy, player.combatant.stats.shield_capacity, " LOCKED" if player.combatant.shield.depletion_locked else "", weapon.ammunition, player.combatant.stats.magazine_size, reload_text, mine_text, missile_text, cloak_text, vent_text, projectile_registry.size(), alive_count, ships_by_id.size(), heat_elapsed, overtime_text, sound_profile.display_name(), sound_profile.power_tier_name()]
-
-
-func _update_card_label() -> void:
-	var card_id := catalog.all_ids()[selected_card_index]
-	var card := catalog.get_card(card_id)
-	card_label.text = "Selected: %s [STACK %d] — %s" % [card.display_name, int(build.get(card_id, 0)), card.description]
-	card_label.add_theme_color_override("font_color", card.rarity_color())
-
-
-func _grant_selected_card() -> void:
-	var card_id := catalog.all_ids()[selected_card_index]
-	var card := catalog.get_card(card_id)
-	build[card_id] = int(build.get(card_id, 0)) + 1
-	_apply_build()
-
-
-func _apply_build() -> void:
-	var health_fraction := player.combatant.health_fraction()
-	var previous_mine_capacity := player.combatant.stats.mine_capacity
-	var previous_missile_capacity := player.combatant.stats.missile_capacity
-	var previous_cloak_capacity := player.combatant.stats.cloak_capacity
-	derived_stats = StatSystem.derive(build, catalog)
-	projectile_layer.set_beam_builds({player.combatant.peer_id: build}, catalog)
-	player.set_shield_build(build, catalog)
-	player.combatant.stats = derived_stats.duplicate_stats()
-	if derived_stats.mine_capacity > previous_mine_capacity:
-		player.combatant.mine_charges_remaining += derived_stats.mine_capacity - previous_mine_capacity
-	if derived_stats.missile_capacity > previous_missile_capacity:
-		player.combatant.missile_charges_remaining += derived_stats.missile_capacity - previous_missile_capacity
-	player.combatant.missile_charges_remaining = mini(player.combatant.missile_charges_remaining, derived_stats.missile_capacity)
-	if derived_stats.cloak_capacity > previous_cloak_capacity:
-		player.combatant.cloak_charges_remaining += derived_stats.cloak_capacity - previous_cloak_capacity
-	player.combatant.cloak_charges_remaining = mini(player.combatant.cloak_charges_remaining, derived_stats.cloak_capacity)
-	player.combatant.health = derived_stats.max_health * health_fraction
-	player.combatant.shield.energy = minf(player.combatant.shield.energy, derived_stats.shield_capacity)
-	player.combatant.weapon.ammunition = mini(player.combatant.weapon.ammunition, derived_stats.magazine_size)
-	_update_card_label()
-
-
-func _reset_combatants() -> void:
-	var anchors := ArenaLayout.spawn_anchors()
-	player.reset_ship(derived_stats, anchors[0])
-	for index in targets.size():
-		targets[index].reset_ship(CombatStats.create_base(), anchors[12 + index * 3])
-	for projectile in projectile_registry.all_projectiles():
-		projectile_registry.remove(projectile.projectile_id)
-	if effects_layer != null:
-		effects_layer.clear_effects()
-	if kill_feed != null:
-		kill_feed.clear()
-	kill_feed_event_sequence = 0
-	heat_elapsed = 0.0
-	overtime_debug_stage = 0
+	camera_kick_offset = -forward.normalized() * 5.5
 
 
 func _cycle_overtime_debug() -> void:
 	overtime_debug_stage = (overtime_debug_stage + 1) % 4
+	overtime_enabled = overtime_debug_stage > 0
 	match overtime_debug_stage:
 		0: heat_elapsed = 0.0
 		1: heat_elapsed = GameConstants.OVERTIME_START_SECONDS - GameConstants.OVERTIME_WARNING_SECONDS
@@ -840,12 +605,11 @@ func _cycle_overtime_debug() -> void:
 
 
 func _toggle_overtime_debug() -> void:
-	heat_elapsed = next_overtime_toggle_time(heat_elapsed)
+	heat_elapsed = next_overtime_toggle_time(heat_elapsed if overtime_enabled else 0.0)
 	overtime_debug_stage = 0 if heat_elapsed == 0.0 else 2
+	overtime_enabled = overtime_debug_stage > 0
 
 
 static func next_overtime_toggle_time(current_heat_elapsed: float) -> float:
-	var warning_start := (
-		GameConstants.OVERTIME_START_SECONDS - GameConstants.OVERTIME_WARNING_SECONDS
-	)
+	var warning_start := GameConstants.OVERTIME_START_SECONDS - GameConstants.OVERTIME_WARNING_SECONDS
 	return 0.0 if current_heat_elapsed >= warning_start else GameConstants.OVERTIME_START_SECONDS

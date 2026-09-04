@@ -6,12 +6,12 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-$presetName = 'macOS Beta 9'
-$releaseLabel = 'Beta 9'
-$expectedGameVersion = '0.1.0-beta.9'
-$expectedBundleVersion = '0.1.0.9'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-9'
-$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta9-macOS-universal.zip'
+$presetName = 'macOS Beta 10'
+$releaseLabel = 'Beta 10'
+$expectedGameVersion = '0.1.0-beta.10'
+$expectedBundleVersion = '0.1.0.10'
+$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-10'
+$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta10-macOS-universal.zip'
 
 function Assert-BetaBuildPath {
     param([Parameter(Mandatory = $true)][string]$Path)

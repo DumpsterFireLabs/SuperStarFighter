@@ -6,10 +6,19 @@ const PLAYER_RECORD_SIZE: int = 35
 const POSITION_SCALE: float = 16.0
 const VELOCITY_SCALE: float = 8.0
 const RESOURCE_SCALE: float = 100.0
+const LOCAL_FIELDS: Array[StringName] = [
+	&"afterburner_remaining", &"afterburner_cooldown_remaining",
+	&"breakaway_remaining", &"breakaway_cooldown_remaining",
+	&"cloak_remaining", &"cloak_cooldown_remaining",
+	&"burst_damage_window_remaining", &"time_since_damage", &"kinetic_vent_feedback_remaining",
+	&"weapon_cooldown", &"reload_remaining", &"cadence_remainder",
+	&"shield_inactivity", &"guard_window", &"guard_feedback", &"vent_release", &"burst_damage",
+]
+const LOCAL_STATE_SIZE: int = 57 # Combat correction plus private ordnance usage/counter.
 
 
-static func encode(server_tick: int, acknowledged_input: int, states: Array[Dictionary]) -> PackedByteArray:
-	return assemble(server_tick, acknowledged_input, encode_state_body(states))
+static func encode(server_tick: int, acknowledged_input: int, states: Array[Dictionary], local_state: Dictionary = {}) -> PackedByteArray:
+	return assemble(server_tick, acknowledged_input, encode_state_body(states), local_state)
 
 
 static func encode_state_body(states: Array[Dictionary]) -> PackedByteArray:
@@ -21,24 +30,52 @@ static func encode_state_body(states: Array[Dictionary]) -> PackedByteArray:
 	return body
 
 
-static func encode_combatant_body(combatants: Dictionary, ordered_peer_ids: Array[int]) -> PackedByteArray:
+static func encode_combatant_body(combatants: Dictionary, ordered_peer_ids: Array[int], recipient_id: int = -1) -> PackedByteArray:
 	var body := PackedByteArray()
-	var count := mini(ordered_peer_ids.size(), NetworkProtocol.MAX_SNAPSHOT_PLAYERS)
-	ByteCodec.append_u8(body, count)
-	for index in count:
-		var peer_id := ordered_peer_ids[index]
+	ByteCodec.append_u8(body, 0)
+	for peer_id in ordered_peer_ids:
 		var combatant := combatants[peer_id] as CombatantState
+		# -1 is the full authority/debug view. Network callers always provide a
+		# recipient: even allies and spectators receive no hidden ship record.
+		if recipient_id >= 0 and peer_id != recipient_id and combatant.is_cloaked():
+			continue
+		if body[0] >= NetworkProtocol.MAX_SNAPSHOT_PLAYERS:
+			break
 		_append_combatant(body, peer_id, combatant)
+		body[0] += 1
 	return body
 
 
-static func assemble(server_tick: int, acknowledged_input: int, body: PackedByteArray) -> PackedByteArray:
+static func assemble(server_tick: int, acknowledged_input: int, body: PackedByteArray, local_state: Dictionary = {}) -> PackedByteArray:
 	var bytes := PackedByteArray()
 	ByteCodec.append_u8(bytes, NetworkProtocol.PACKET_VERSION)
 	ByteCodec.append_u32(bytes, server_tick)
 	ByteCodec.append_u32(bytes, acknowledged_input)
 	bytes.append_array(body)
+	_append_local_state(bytes, local_state)
 	return bytes
+
+
+static func _local_scale(field: StringName) -> float:
+	if field in [&"weapon_cooldown", &"cadence_remainder"]:
+		return 10000.0
+	return 100.0 if field in [&"burst_damage", &"vent_release"] else 1000.0
+
+
+static func _append_local_state(bytes: PackedByteArray, state: Dictionary) -> void:
+	for field in [&"peer_id", &"life_generation", &"last_special_sequence", &"shot_sequence"]:
+		ByteCodec.append_u32(bytes, maxi(int(state.get(field, 0)), 0))
+	var flags := (1 if bool(state.get("reloading", false)) else 0)
+	flags |= 2 if bool(state.get("shield_locked", false)) else 0
+	flags |= 4 if bool(state.get("shield_active", false)) else 0
+	flags |= 8 if bool(state.get("shield_depleted", false)) else 0
+	flags |= 16 if int(state.get("last_special_sequence", -1)) >= 0 else 0
+	ByteCodec.append_u8(bytes, flags)
+	for field in LOCAL_FIELDS:
+		ByteCodec.append_u16(bytes, clampi(roundi(float(state.get(field, 0.0)) * _local_scale(field)), 0, 65535))
+	ByteCodec.append_u8(bytes, clampi(int(state.get("active_ordnance", 0)), 0, 255))
+	ByteCodec.append_u8(bytes, clampi(int(state.get("active_mines", 0)), 0, 255))
+	ByteCodec.append_u32(bytes, int(state.get("budget_evictions", 0)) & 0xffffffff)
 
 
 static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
@@ -165,7 +202,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	var count := ByteCodec.read_u8(bytes, 9)
 	if count > NetworkProtocol.MAX_SNAPSHOT_PLAYERS:
 		return _error("Player snapshot count exceeds the protocol bound.")
-	var expected_size := HEADER_SIZE + count * PLAYER_RECORD_SIZE
+	var expected_size := HEADER_SIZE + count * PLAYER_RECORD_SIZE + LOCAL_STATE_SIZE
 	if bytes.size() != expected_size:
 		return _error("Player snapshot payload size does not match its count.")
 	var states: Array[Dictionary] = []
@@ -199,7 +236,24 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 			"missile_cooldown": ByteCodec.read_u16(bytes, offset + 33) / 1000.0,
 		})
 		offset += PLAYER_RECORD_SIZE
-	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states}
+	var local_flags := ByteCodec.read_u8(bytes, offset + 16)
+	if local_flags & ~31:
+		return _error("Player snapshot contains unsupported local correction flags.")
+	var local_state := {
+		"peer_id": ByteCodec.read_u32(bytes, offset),
+		"life_generation": ByteCodec.read_u32(bytes, offset + 4),
+		"last_special_sequence": ByteCodec.read_u32(bytes, offset + 8) if local_flags & 16 else -1,
+		"shot_sequence": ByteCodec.read_u32(bytes, offset + 12),
+		"reloading": bool(local_flags & 1), "shield_locked": bool(local_flags & 2),
+		"shield_active": bool(local_flags & 4), "shield_depleted": bool(local_flags & 8),
+	}
+	for index in LOCAL_FIELDS.size():
+		var field := LOCAL_FIELDS[index]
+		local_state[field] = ByteCodec.read_u16(bytes, offset + 17 + index * 2) / _local_scale(field)
+	local_state["active_ordnance"] = ByteCodec.read_u8(bytes, offset + 51)
+	local_state["active_mines"] = ByteCodec.read_u8(bytes, offset + 52)
+	local_state["budget_evictions"] = ByteCodec.read_u32(bytes, offset + 53)
+	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states, "local_state": local_state}
 
 
 static func _error(message: String) -> Dictionary:

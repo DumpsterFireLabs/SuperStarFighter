@@ -8,6 +8,26 @@ var registry: ProjectileRegistry
 var visible_world_rect: Rect2 = Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
 var projectile_colors_by_owner: Dictionary = {}
 var high_tier_beam_colors_by_owner: Dictionary = {}
+var teams: Dictionary = {}
+var local_team_id: int = 0
+var team_mode: bool = false
+
+
+func set_team_identity(assignments: Dictionary, local_team: int, enabled: bool) -> void:
+	teams.clear()
+	for peer in assignments:
+		teams[int(peer)] = int(assignments[peer])
+	local_team_id = local_team
+	team_mode = enabled
+	queue_redraw()
+
+
+func has_team_marker(owner_id: int) -> bool:
+	return team_mode and int(teams.get(owner_id, 0)) > 0
+
+
+func is_friendly_owner(owner_id: int) -> bool:
+	return has_team_marker(owner_id) and local_team_id > 0 and int(teams[owner_id]) == local_team_id
 
 
 func set_beam_builds(builds: Dictionary, catalog: CardCatalog) -> void:
@@ -40,14 +60,20 @@ func set_beam_builds(builds: Dictionary, catalog: CardCatalog) -> void:
 
 
 func beam_color_for_owner(owner_id: int) -> Color:
+	if has_team_marker(owner_id):
+		return GameModeRules.team_color(int(teams[owner_id]))
 	return high_tier_beam_colors_by_owner.get(owner_id, DEFAULT_BEAM_COLOR) as Color
 
 
 func projectile_color_for_owner(owner_id: int) -> Color:
+	if has_team_marker(owner_id):
+		return GameModeRules.team_color(int(teams[owner_id]))
 	return projectile_colors_by_owner.get(owner_id, DEFAULT_BEAM_COLOR) as Color
 
 
 func _beam_color(projectile: ProjectileState) -> Color:
+	if has_team_marker(projectile.owner_id):
+		return projectile_color_for_owner(projectile.owner_id)
 	if high_tier_beam_colors_by_owner.has(projectile.owner_id):
 		return high_tier_beam_colors_by_owner[projectile.owner_id] as Color
 	return REBOUNDED_BEAM_COLOR if projectile.has_rebounded else DEFAULT_BEAM_COLOR
@@ -64,31 +90,34 @@ func _draw() -> void:
 		if projectile == null or not cull_rect.has_point(projectile.position):
 			continue
 		if projectile.is_mine:
+			var mine_color := projectile_color_for_owner(projectile.owner_id) if has_team_marker(projectile.owner_id) else Color("ff4f78")
 			var pulse := 0.5 + sin(Time.get_ticks_msec() * 0.008 + projectile.projectile_id) * 0.5
 			var armed := projectile.is_mine_armed()
 			if armed:
-				draw_circle(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, Color(1.0, 0.31, 0.47, 0.035 + pulse * 0.025))
-				draw_arc(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, 0.0, TAU, 40, Color(1.0, 0.31, 0.47, 0.18 + pulse * 0.12), 2.0)
+				draw_circle(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, Color(mine_color, 0.035 + pulse * 0.025))
+				draw_arc(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, 0.0, TAU, 40, Color(mine_color, 0.18 + pulse * 0.12), 2.0)
 			draw_circle(projectile.position, projectile.radius + 7.0, Color(1.0, 0.95, 0.42, 0.12 + pulse * 0.08))
-			draw_circle(projectile.position, projectile.radius, Color("ff4f78") if armed else Color("7b8496"))
+			draw_circle(projectile.position, projectile.radius, mine_color if armed else Color("7b8496"))
 			draw_circle(projectile.position, 5.0, Color("fff36a"))
 			for spoke in 4:
 				var direction := Vector2.from_angle(TAU * spoke / 4.0 + PI * 0.25)
 				draw_line(projectile.position + direction * 7.0, projectile.position + direction * 20.0, Color("ff9f43"), 4.0)
+			_draw_team_marker(projectile)
 			continue
 		var direction := projectile.velocity.normalized()
-		var trail_color := REBOUNDED_BEAM_COLOR if projectile.has_rebounded else projectile_color_for_owner(projectile.owner_id)
+		var trail_color := projectile_color_for_owner(projectile.owner_id) if has_team_marker(projectile.owner_id) else (REBOUNDED_BEAM_COLOR if projectile.has_rebounded else projectile_color_for_owner(projectile.owner_id))
 		if projectile.is_missile:
 			var side := direction.orthogonal()
 			var tail := projectile.position - direction * 52.0
 			draw_line(projectile.position - direction * 9.0, tail, Color(0.75, 0.82, 0.92, 0.12), 17.0)
-			draw_line(projectile.position - direction * 9.0, tail, Color("ff9f43"), 7.0)
+			draw_line(projectile.position - direction * 9.0, tail, trail_color if has_team_marker(projectile.owner_id) else Color("ff9f43"), 7.0)
 			draw_line(projectile.position - direction * 7.0, tail + direction * 12.0, Color("fff36a"), 3.0)
 			var nose := projectile.position + direction * 13.0
 			var rear := projectile.position - direction * 11.0
 			var body := PackedVector2Array([nose, rear + side * 7.0, rear - side * 7.0])
 			draw_colored_polygon(body, Color("e8f2ff"))
 			draw_polyline(PackedVector2Array([nose, rear + side * 7.0, rear - side * 7.0, nose]), Color("42e8ff"), 2.0)
+			_draw_team_marker(projectile)
 			continue
 		if projectile.is_beam:
 			trail_color = _beam_color(projectile)
@@ -97,8 +126,22 @@ func _draw() -> void:
 			draw_line(projectile.position, tail, Color(trail_color, 0.68), 10.0)
 			draw_line(projectile.position, tail, Color(trail_color.lightened(0.82), 0.98), 3.0)
 			draw_circle(projectile.position, 12.0, Color(trail_color, 0.35))
+			_draw_team_marker(projectile)
 			continue
 		draw_line(projectile.position, projectile.position - direction * 32.0, Color(trail_color, 0.16), 9.0)
 		draw_circle(projectile.position, projectile.radius + 7.0, Color(trail_color, 0.12))
 		draw_circle(projectile.position, projectile.radius, trail_color.lightened(0.72))
 		draw_line(projectile.position, projectile.position - direction * 25.0, Color(trail_color, 0.82), 3.0)
+		_draw_team_marker(projectile)
+
+
+func _draw_team_marker(projectile: ProjectileState) -> void:
+	if not has_team_marker(projectile.owner_id):
+		return
+	var point := projectile.position
+	var radius := projectile.radius + 5.0
+	var color := projectile_color_for_owner(projectile.owner_id)
+	if is_friendly_owner(projectile.owner_id) or local_team_id == 0:
+		draw_arc(point, radius, 0.0, TAU, 16, color, 2.0)
+	else:
+		draw_polyline(PackedVector2Array([point + Vector2(0, -radius), point + Vector2(radius, 0), point + Vector2(0, radius), point + Vector2(-radius, 0), point + Vector2(0, -radius)]), color, 2.0)

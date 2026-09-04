@@ -136,6 +136,10 @@ try {
     $minimumMetricWindows = [Math]::Floor($DurationSeconds / 10)
     if ($metrics.Count -lt $minimumMetricWindows) { throw "Only $($metrics.Count) metric windows were captured; expected at least $minimumMetricWindows." }
     $maxP95 = ($metrics | Measure-Object -Property p95_simulation_usec -Maximum).Maximum
+    $activeMetrics = @($metrics | Where-Object { $_.active_samples -gt 0 })
+    if ($activeMetrics.Count -eq 0) { throw 'No active-combat frame timings were recorded.' }
+    $maxActiveP95 = ($activeMetrics | Measure-Object -Property active_p95_usec -Maximum).Maximum
+    if ($maxActiveP95 -ge 16667) { throw "Active full-server p95 exceeded 16.67 ms: $maxActiveP95 microseconds." }
     if ($maxP95 -ge 16667) { throw "Simulation p95 exceeded the 16.67 ms budget: $maxP95 microseconds." }
     if (@($metrics | Where-Object { $_.connected_peers -eq $ClientCount }).Count -eq 0) { throw "No metric window observed all $ClientCount connected clients." }
     if (@($metrics | Where-Object { $_.participant_records -gt $ClientCount -or $_.active_ships -gt $ClientCount -or $_.active_projectiles -gt 1024 }).Count -gt 0) {
@@ -176,6 +180,15 @@ try {
         duration_seconds = $DurationSeconds
         metric_windows = $metrics.Count
         maximum_p95_simulation_usec = $maxP95
+        maximum_p99_simulation_usec = ($metrics | Measure-Object -Property p99_simulation_usec -Maximum).Maximum
+        maximum_active_p95_usec = $maxActiveP95
+        maximum_active_p99_usec = ($activeMetrics | Measure-Object -Property active_p99_usec -Maximum).Maximum
+        maximum_over_budget_percent = ($metrics | Measure-Object -Property over_budget_percent -Maximum).Maximum
+        maximum_outbound_payload_bytes_per_window = ($metrics | Measure-Object -Property outbound_bytes -Maximum).Maximum
+        mean_world_and_npc_usec = ($metrics | Measure-Object -Property mean_world_and_npc_usec -Average).Average
+        mean_coordination_usec = ($metrics | Measure-Object -Property mean_coordination_usec -Average).Average
+        mean_replication_usec = ($metrics | Measure-Object -Property mean_replication_usec -Average).Average
+        timing_scope = 'Server physics callback including coordination, encoding and ENet enqueue/fan-out; excludes engine transport polling, OS delivery and client rendering.'
         maximum_active_projectiles = ($metrics | Measure-Object -Property active_projectiles -Maximum).Maximum
         maximum_object_count = ($metrics | Measure-Object -Property object_count -Maximum).Maximum
         maximum_static_memory_bytes = ($metrics | Measure-Object -Property static_memory_bytes -Maximum).Maximum

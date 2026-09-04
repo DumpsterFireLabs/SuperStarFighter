@@ -12,10 +12,15 @@ const MIXED_MINE_P95_BUDGET_USEC: int = 12_000
 const MIXED_MINE_MAXIMUM_BUDGET_USEC: int = 20_000
 
 var _next_projectile_id: int = 1
+var benchmark_map: StringName = ArenaLayout.DEFAULT_MAP_ID
 
 
 func _ready() -> void:
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--benchmark-map="):
+			benchmark_map = StringName(argument.trim_prefix("--benchmark-map="))
 	var world := AuthoritativeWorld.new()
+	world.set_map_id(benchmark_map)
 	var npc_controller := NpcPilotController.new()
 	world.performance_profiling_enabled = true
 	var npc_ids: Array[int] = []
@@ -31,6 +36,7 @@ func _ready() -> void:
 	var samples: Array[int] = []
 	var phase_totals := {"npc": 0, "movement": 0, "overlaps": 0, "projectiles": 0, "cleanup_and_threats": 0}
 	var maximum_projectiles := world.projectile_registry.size()
+	var collision_totals: Dictionary = {}
 	for tick in SAMPLE_TICKS + WARMUP_TICKS:
 		var started_usec := Time.get_ticks_usec()
 		npc_controller.submit_inputs(world, npc_ids, difficulties)
@@ -41,11 +47,17 @@ func _ready() -> void:
 		_fill_projectiles(world, npc_ids)
 		maximum_projectiles = maxi(maximum_projectiles, world.projectile_registry.size())
 		if tick >= WARMUP_TICKS:
+			for phase in world.last_projectile_profile_usec:
+				collision_totals[phase] = int(collision_totals.get(phase, 0)) + int(world.last_projectile_profile_usec[phase])
 			samples.append(elapsed_usec)
 			phase_totals.npc = int(phase_totals.npc) + npc_complete_usec - started_usec
 			for phase in ["movement", "overlaps", "projectiles", "cleanup_and_threats"]:
 				phase_totals[phase] = int(phase_totals[phase]) + int(world.last_step_profile_usec.get(phase, 0))
 	samples.sort()
+	var collision_means: Dictionary = {}
+	for phase in collision_totals:
+		collision_means[phase] = float(collision_totals[phase]) / SAMPLE_TICKS
+	print("SSF_COLLISION_PROFILE map=%s phases=%s" % [benchmark_map, JSON.stringify(collision_means)])
 	var p50 := _percentile(samples, 0.50)
 	var p95 := _percentile(samples, 0.95)
 	var p99 := _percentile(samples, 0.99)

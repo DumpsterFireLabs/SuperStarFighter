@@ -48,8 +48,39 @@ const INTEGER_STATS: Array[StringName] = [
 	&"cloak_capacity",
 ]
 
+# Used only to identify an automatic pick with no effective upside. Contextual
+# changes (such as drag) remain eligible rather than imposing a build preference.
+const LOWER_IS_BETTER: Array[StringName] = [
+	&"reload_duration", &"projectile_spread_degrees", &"afterburner_cooldown",
+	&"shield_continuous_drain", &"shield_regeneration_delay", &"shield_block_cost",
+	&"shield_depletion_threshold", &"shield_ram_min_speed", &"shield_ram_cooldown",
+	&"breakaway_cooldown", &"auto_repair_delay",
+]
+const SPECIAL_FLAGS: Array[StringName] = [
+	&"auto_repair_enabled", &"beam_weapon", &"afterburner_enabled",
+	&"mine_layer_enabled", &"missile_launcher_enabled", &"cloak_enabled",
+	&"rebound_shield_enabled", &"kinetic_vent_enabled", &"breakaway_thrusters_enabled",
+]
 
-static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
+
+static func has_effective_benefit(build: Dictionary, card: CardDefinition, catalog: CardCatalog) -> bool:
+	var next_build := build.duplicate()
+	next_build[card.card_id] = int(next_build.get(card.card_id, 0)) + 1
+	var before := derive(build, catalog)
+	var after := derive(next_build, catalog)
+	for property_name in SPECIAL_FLAGS:
+		if bool(after.get(property_name)) and not bool(before.get(property_name)):
+			return true
+	for property_name in FLOAT_STATS + INTEGER_STATS:
+		var change := float(after.get(property_name)) - float(before.get(property_name))
+		if is_zero_approx(change):
+			continue
+		if property_name == &"drag" or (change < 0.0 if property_name in LOWER_IS_BETTER else change > 0.0):
+			return true
+	return false
+
+
+static func derive(build: Dictionary, catalog: CardCatalog, apply_limits: bool = true) -> CombatStats:
 	var stats := CombatStats.create_base()
 	var additive_totals: Dictionary = {}
 	var multiplier_totals: Dictionary = {}
@@ -101,8 +132,32 @@ static func derive(build: Dictionary, catalog: CardCatalog) -> CombatStats:
 		value += int(integer_totals[property_name])
 		stats.set(property_name, roundi(value))
 
-	_apply_clamps(stats)
+	if apply_limits:
+		_apply_clamps(stats)
 	return stats
+
+
+## Actual full-build values for one proposed pick, including limits and
+## interactions with other cards. Nominal per-stack multipliers are insufficient.
+static func compare_pick(build: Dictionary, card: CardDefinition, catalog: CardCatalog) -> Array[Dictionary]:
+	var next_build := build.duplicate()
+	next_build[card.card_id] = int(next_build.get(card.card_id, 0)) + 1
+	var before := derive(build, catalog)
+	var after := derive(next_build, catalog)
+	var raw_after := derive(next_build, catalog, false)
+	var rows: Array[Dictionary] = []
+	for property_name in FLOAT_STATS + INTEGER_STATS:
+		var previous := float(before.get(property_name))
+		var next := float(after.get(property_name))
+		var declared := card.additive_modifiers.has(property_name) or card.multiplicative_modifiers.has(property_name) or card.integer_modifiers.has(property_name)
+		if not declared and is_equal_approx(previous, next):
+			continue
+		rows.append({
+			"property": property_name, "before": previous, "after": next,
+			"limited": not is_equal_approx(next, float(raw_after.get(property_name))),
+			"unchanged": is_equal_approx(previous, next),
+		})
+	return rows
 
 
 static func validate_card(card: CardDefinition) -> PackedStringArray:

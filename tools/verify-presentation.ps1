@@ -47,6 +47,12 @@ foreach ($resolution in @(
             throw "Presentation capture $imagePath is missing or unexpectedly small."
         }
     }
+    foreach ($screen in @('draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled')) {
+        $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
+        if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
+            throw "Draft limit feedback capture $imagePath is missing or unexpectedly small."
+        }
+    }
 }
 
 Write-Host "Presentation verification passed: all ten round maps plus both splash screens, menus, credits, settings, controller bindings, offline combat, 32-player lobby/player settings/options/colour selection, draft/card hover, READY/BEGIN alerts, combat powerups, Afterburner, scoreboard/card hover, spectator, pause, results/card hover, and error screens rendered at 1280x720, 1920x1080, 2560x1080, 2880x1920, 3440x1440, and 5120x1440."

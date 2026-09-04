@@ -126,6 +126,17 @@ static func projectile_obstacle_sweep_hit(
 	var rectangle_cells := geometry.rectangle_cells as Dictionary
 	var circle_cells := geometry.circle_cells as Dictionary
 	var start_cell := _projectile_obstacle_cell(start)
+	# Most moving bullets remain in a single empty broad-phase cell. Expanded
+	# obstacle cells include the projectile radius, so this convex segment cannot
+	# hit cover; check arena bounds before skipping the detailed sweep.
+	if (
+		start_cell == _projectile_obstacle_cell(end)
+		and not rectangle_cells.has(start_cell) and not circle_cells.has(start_cell)
+		and end.x > radius and end.y > radius
+		and end.x < GameConstants.ARENA_SIZE.x - radius
+		and end.y < GameConstants.ARENA_SIZE.y - radius
+	):
+		return null
 	for rectangle_index in rectangle_cells.get(start_cell, _empty_obstacle_indices) as Array:
 		var rectangle := rectangles[int(rectangle_index)] as Rect2
 		if rectangle.has_point(start):

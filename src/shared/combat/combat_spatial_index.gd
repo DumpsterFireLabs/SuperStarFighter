@@ -2,12 +2,39 @@ class_name CombatSpatialIndex
 extends RefCounted
 
 const CELL_SIZE: float = 200.0
+const RESPAWN_THREAT_LOOKAHEAD_SECONDS: float = 0.6
 var projectile_revision: int = -1
 var maximum_projectile_speed: float = 0.0
 var _ship_cells: Dictionary = {}
 var _projectile_threat_cells: Dictionary = {}
 var _armed_mine_cells: Dictionary = {}
 var _empty_ids: Array[int] = []
+var _respawn_threat_cells: Dictionary = {}
+var _respawn_threat_tick: int = -1
+var _respawn_threat_revision: int = -1
+
+
+func respawn_threats_at(position: Vector2, registry: ProjectileRegistry, tick: int) -> Array:
+	if _respawn_threat_tick != tick or _respawn_threat_revision != registry.revision:
+		_respawn_threat_tick = tick
+		_respawn_threat_revision = registry.revision
+		_respawn_threat_cells.clear()
+		for id in registry.ordered_ids_view():
+			if id == ProjectileRegistry.REMOVED_ID:
+				continue
+			var projectile := registry.get_projectile(id)
+			var finish := projectile.position if projectile.is_mine else projectile.position + projectile.velocity * minf(RESPAWN_THREAT_LOOKAHEAD_SECONDS, projectile.lifetime_remaining)
+			var radius := GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS if projectile.is_mine else projectile.radius + GameConstants.SHIP_COLLISION_RADIUS + 35.0
+			var threat := {"owner_id": projectile.owner_id, "start": projectile.position, "finish": finish, "radius": radius}
+			var minimum := _cell_for(Vector2(minf(projectile.position.x, finish.x) - radius, minf(projectile.position.y, finish.y) - radius))
+			var maximum := _cell_for(Vector2(maxf(projectile.position.x, finish.x) + radius, maxf(projectile.position.y, finish.y) + radius))
+			for y in range(minimum.y, maximum.y + 1):
+				for x in range(minimum.x, maximum.x + 1):
+					var cell := Vector2i(x, y)
+					if not _respawn_threat_cells.has(cell):
+						_respawn_threat_cells[cell] = []
+					(_respawn_threat_cells[cell] as Array).append(threat)
+	return _respawn_threat_cells.get(_cell_for(position), []) as Array
 
 
 func rebuild_ships(combatants: Dictionary, ordered_peer_ids: Array[int]) -> void:

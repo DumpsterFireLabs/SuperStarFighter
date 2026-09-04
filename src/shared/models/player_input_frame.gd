@@ -9,6 +9,8 @@ var firing: bool = false
 var shielding: bool = false
 var manual_reload: bool = false
 var special_activated: bool = false
+var special_sequence: int = 0
+var special_slot: int = -1
 
 
 func _init(
@@ -19,7 +21,9 @@ func _init(
 	firing_value: bool = false,
 	shielding_value: bool = false,
 	manual_reload_value: bool = false,
-	special_activated_value: bool = false
+	special_activated_value: bool = false,
+	special_sequence_value: int = -1,
+	special_slot_value: int = -1
 ) -> void:
 	sequence = sequence_value
 	client_tick = client_tick_value
@@ -29,12 +33,16 @@ func _init(
 	shielding = shielding_value
 	manual_reload = manual_reload_value
 	special_activated = special_activated_value
+	special_sequence = special_sequence_value if special_sequence_value >= 0 else sequence_value
+	special_slot = special_slot_value
 
 
 func is_valid() -> bool:
 	return (
 		sequence >= 0
 		and client_tick >= 0
+		and special_sequence >= 0 and special_sequence <= 0xffffffff
+		and special_slot >= -1 and special_slot <= SpecialAbilitySelection.Slot.CLOAK
 		and is_finite(movement.x)
 		and is_finite(movement.y)
 		and movement.length_squared() <= 1.0002

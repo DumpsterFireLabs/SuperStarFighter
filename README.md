@@ -17,7 +17,9 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 - One-click local hosting, LAN server discovery, and direct-IP joining.
 - Ten authoritative arena layouts in a shuffled no-repeat rotation, changing between rounds while every heat stays on the same map.
 - Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
-- Persistent display, audio, control-profile, deadzone, and per-action binding settings, plus ultrawide support, spectating, live standings, and rematches.
+- Independent active-ability selection, confirmed hull-hit and shield-block feedback, and authoritative death explanations.
+- A searchable offline build lab with presets, configurable targets, and measured combat results using the server's simulation.
+- Persistent display, audio, control-profile, deadzone, and per-action binding settings, plus HUD scaling, reduced shake/flashes, an ultrawide HUD safe area, spectating, live standings, and rematches.
 
 ## Quick Start
 
@@ -45,11 +47,13 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 
 Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, select Newtonian ship-facing or Relative screen-aligned flight, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
+Select an owned active ability with **Q/E** or **D-pad left/right**, then activate it with **Shift** or **left-stick click**. In the offline lab, **F2** switches between the paused build editor and the firing range. **Settings → Accessibility** adjusts HUD scale, shake, flashes, and the centered HUD safe area.
+
 Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Sixteen selectable resolutions cover common 16:9, 16:10, 3:2, 21:9, and 32:9 displays through 5120×2160, including 2880×1920 and 5120×1440 super-ultrawide.
 
 ## Beta Builds
 
-The main menu identifies the current release as **Beta 9**, version `0.1.0-beta.9`. Build and verify the friend-ready Windows x64 client first:
+The main menu identifies the current release as **Beta 10**, version `0.1.0-beta.10`. Build and verify the friend-ready Windows x64 client first:
 
 ```powershell
 .\tools\build-beta.ps1
@@ -82,19 +86,19 @@ The macOS beta is not yet signed or notarized. If Gatekeeper reports that `Super
 Linux normally uses the project's Compatibility renderer through desktop OpenGL 3.3. On Mesa systems that expose native OpenGL ES 3.0 but not desktop OpenGL 3.3, try:
 
 ```bash
-./SuperStarFighter-Beta9.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+./SuperStarFighter-Beta10.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
 ```
 
 On a Raspberry Pi or other ARM64 machine with a working Vulkan driver, the Mobile renderer is another possible fallback:
 
 ```bash
-./SuperStarFighter-Beta9.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+./SuperStarFighter-Beta10.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
 ```
 
 As a slow last resort with Mesa software rendering:
 
 ```bash
-LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta9.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta10.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
 ```
 
 Use the `.x86_64` filename for Linux x64. These overrides are compatibility suggestions rather than native acceptance-tested configurations. Godot 4 requires at least OpenGL ES 3.0 for Compatibility; GLES 2-only systems are unsupported. Keep `--verbose` during diagnosis to confirm the selected API, renderer, and GPU.
@@ -150,7 +154,7 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 
 ## Dedicated Server
 
-The Beta 9 friend ZIPs are client packages and do not yet include a standalone stripped server executable. The supported dedicated-server workflow currently requires a source checkout and its bootstrapped tools.
+The Beta 10 friend ZIPs are client packages and do not yet include a standalone stripped server executable. The supported dedicated-server workflow currently requires a source checkout and its bootstrapped tools.
 
 Start a headless authoritative server with:
 
@@ -205,13 +209,13 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The current gate passes 2,815 automated assertions and 93 project checks. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The test and foundation commands report their actual assertion and check counts. See the [dated review and implementation evidence](./docs/REVIEW-2026-09-03.md) for recorded results and their limits. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 136 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
 
-The Beta 9 Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client export paths are operational, while Beta 1 through Beta 8 remain archived separately. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
+The Beta 10 Windows x64 client export path is operational; Beta 10 Linux and macOS packages have not yet been built. Beta 1 through Beta 9 remain archived separately, with Beta 9 still providing the latest Linux x64, Linux ARM64/Raspberry Pi, and universal macOS packages. Dedicated-server export, clean-machine friend testing, release-mode 32-client soak validation, code signing/notarization, and final release-candidate acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 
 ## License and Assets
 

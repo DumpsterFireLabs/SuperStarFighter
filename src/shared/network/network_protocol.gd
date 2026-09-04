@@ -1,7 +1,7 @@
 class_name NetworkProtocol
 extends RefCounted
 
-const PACKET_VERSION: int = 10
+const PACKET_VERSION: int = 12
 const SERVER_PEER_ID: int = 1
 
 const CHANNEL_CONTROL: int = 0

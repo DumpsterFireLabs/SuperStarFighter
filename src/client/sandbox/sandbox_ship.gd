@@ -17,6 +17,7 @@ var local_control: bool = false
 var display_name: String = "Pilot"
 var identity_pattern: int = 0
 var damage_flash_remaining: float = 0.0
+var reduced_flashes: bool = false
 var shield_flash_remaining: float = 0.0
 var elimination_pulse_remaining: float = 0.0
 var thruster_particles: CPUParticles2D
@@ -27,6 +28,23 @@ var afterburner_ignition_remaining: float = 0.0
 var afterburner_echo_accumulator: float = 0.0
 var afterburner_echoes: Array[Dictionary] = []
 var thrust_input: Vector2 = Vector2.ZERO
+var team_id: int = 0
+var allied_to_local: bool = false
+var has_local_team: bool = false
+
+
+func set_team_identity(value: int, local_team: int) -> void:
+	team_id = value
+	has_local_team = local_team > 0
+	allied_to_local = team_id > 0 and team_id == local_team
+	queue_redraw()
+
+
+func team_marker_text() -> String:
+	if team_id <= 0:
+		return ""
+	var relation := "YOU" if local_control else ("ALLY" if allied_to_local else "ENEMY")
+	return "T%d %s" % [team_id, relation] if has_local_team else "TEAM %d" % team_id
 
 
 func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Color, is_local: bool = false, pilot_name: String = "", pattern: StringName = ShipAppearanceScript.SOLID) -> void:
@@ -270,7 +288,8 @@ func _draw() -> void:
 		return
 	if not combatant.alive:
 		var pulse_radius := 24.0 + elimination_pulse_remaining * 48.0
-		draw_circle(Vector2.ZERO, pulse_radius, Color(1.0, 0.2, 0.35, 0.1 + elimination_pulse_remaining * 0.14))
+		if not reduced_flashes:
+			draw_circle(Vector2.ZERO, pulse_radius, Color(1.0, 0.2, 0.35, 0.1 + elimination_pulse_remaining * 0.14))
 		draw_line(Vector2(-15.0, -15.0), Vector2(15.0, 15.0), Color("ff315f"), 5.0)
 		draw_line(Vector2(-15.0, 15.0), Vector2(15.0, -15.0), Color("ff315f"), 5.0)
 		_draw_nameplate(Color("ff7994"))
@@ -293,13 +312,14 @@ func _draw() -> void:
 	var forward := Vector2.from_angle(combatant.aim_angle)
 	var side := forward.orthogonal()
 	var points := PackedVector2Array([forward * 29.0, -forward * 19.0 + side * 17.0, -forward * 11.0, -forward * 19.0 - side * 17.0])
+	_draw_team_marker()
 	_draw_afterburner_echoes()
 	_draw_maneuvering_jets(forward, side)
 	_draw_afterburner_plume(forward, side)
 	draw_polyline(points + PackedVector2Array([points[0]]), Color(ship_color, 0.18), 12.0)
 	draw_colored_polygon(points, Color(ship_color.darkened(0.45), 0.82))
 	_draw_cosmetic_pattern(forward, side)
-	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 else ship_color, 6.0 if local_control else 4.0)
+	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 and not reduced_flashes else ship_color, 6.0 if local_control else 4.0)
 	draw_circle(Vector2.ZERO, 6.0, Color("ffffff"))
 	for mark in identity_pattern + 1:
 		var offset := (float(mark) - identity_pattern * 0.5) * 8.0
@@ -313,7 +333,7 @@ func _draw() -> void:
 		var perfect_guard := combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()
 		var active_shield_color := Color("fff36a") if perfect_guard else shield_color
 		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(active_shield_color, 0.22), 14.0)
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 else active_shield_color, 7.0)
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 and not reduced_flashes else active_shield_color, 7.0)
 	if combatant.breakaway_remaining > 0.0:
 		var breakaway_alpha := clampf(combatant.breakaway_remaining / GameConstants.BREAKAWAY_DURATION_SECONDS, 0.0, 1.0)
 		draw_arc(Vector2.ZERO, 38.0, 0.0, TAU, 32, Color("ff9f43", breakaway_alpha * 0.75), 3.0)
@@ -363,7 +383,7 @@ func _draw_jet(nozzle: Vector2, exhaust_direction: Vector2, intensity: float, ma
 	var strength := clampf(intensity, 0.0, 1.0)
 	var direction := exhaust_direction.normalized()
 	var cross := direction.orthogonal()
-	var pulse := 0.86 + sin(Time.get_ticks_msec() * 0.024 + float(combatant.peer_id)) * 0.14
+	var pulse := 0.86 if reduced_flashes else 0.86 + sin(Time.get_ticks_msec() * 0.024 + float(combatant.peer_id)) * 0.14
 	var length := maximum_length * strength * pulse
 	var width := half_width * (0.55 + strength * 0.45)
 	var tip := nozzle + direction * length
@@ -378,6 +398,9 @@ func _draw_jet(nozzle: Vector2, exhaust_direction: Vector2, intensity: float, ma
 
 func _draw_afterburner_plume(forward: Vector2, side: Vector2) -> void:
 	if afterburner_bloom_remaining <= 0.0:
+		return
+	if reduced_flashes:
+		draw_line(-forward * 18.0, -forward * 86.0, Color(ship_color, 0.42), 7.0, true)
 		return
 	var elapsed := maxf(afterburner_duration - afterburner_bloom_remaining, 0.0)
 	var ignition_mix := clampf(elapsed / 0.055, 0.0, 1.0)
@@ -442,6 +465,19 @@ func _draw_pattern_polygons(polygons: Array, forward: Vector2, side: Vector2, co
 		for point in polygon:
 			transformed.append(_ship_local(point, forward, side))
 		draw_colored_polygon(transformed, color)
+
+
+func _draw_team_marker() -> void:
+	if team_id <= 0:
+		return
+	var color := GameModeRules.team_color(team_id)
+	if allied_to_local or not has_local_team:
+		draw_arc(Vector2.ZERO, 43.0, 0.0, TAU, 40, Color(color, 0.9), 2.5, true)
+	else:
+		draw_polyline(PackedVector2Array([Vector2(0, -43), Vector2(43, 0), Vector2(0, 43), Vector2(-43, 0), Vector2(0, -43)]), color, 2.5, true)
+	draw_rect(Rect2(-49, 49, 98, 22), Color("071024"))
+	draw_rect(Rect2(-49, 49, 98, 22), color, false, 1.0)
+	draw_string(ThemeDB.fallback_font, Vector2(-47, 65), team_marker_text(), HORIZONTAL_ALIGNMENT_CENTER, 94.0, 14, color.lightened(0.25))
 
 
 func _draw_nameplate(color: Color) -> void:

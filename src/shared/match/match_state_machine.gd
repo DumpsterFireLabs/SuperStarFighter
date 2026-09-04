@@ -175,6 +175,34 @@ func finish_team_heat(winner_team_id: int, at_tick: int) -> bool:
 	return true
 
 
+## A timed hill result uses accumulated control, including a leader currently
+## awaiting respawn. Other unresolved modes draw; survival is not a flag score.
+func finish_timed_heat(at_tick: int, objective_progress: Dictionary = {}) -> bool:
+	if state != State.ACTIVE_HEAT:
+		return false
+	var winner_id := 0
+	var best_ticks := 0
+	if GameModeRules.uses_hill(config.game_mode):
+		for peer_id in participant_ids():
+			var player := players[peer_id] as PlayerMatchState
+			if not player.connected:
+				continue
+			var held_ticks := roundi(float(objective_progress.get(peer_id, 0.0)) * GameConstants.PHYSICS_TICKS_PER_SECOND)
+			if held_ticks > best_ticks:
+				best_ticks = held_ticks
+				winner_id = peer_id
+			elif held_ticks == best_ticks:
+				winner_id = 0
+	for peer_id in participant_ids():
+		if peer_id != winner_id:
+			(players[peer_id] as PlayerMatchState).eliminate()
+	if GameModeRules.is_team_mode(config.game_mode):
+		_resolve_team_heat(0, at_tick)
+	else:
+		_resolve_heat(winner_id, at_tick)
+	return true
+
+
 func eliminate_players(peer_ids: Array[int], at_tick: int) -> bool:
 	if state != State.ACTIVE_HEAT:
 		return false

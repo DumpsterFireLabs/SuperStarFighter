@@ -2,6 +2,8 @@ class_name AuthoritativeMatchCoordinator
 extends RefCounted
 
 const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_system.gd")
+const RespawnPlacementScript = preload("res://src/shared/combat/respawn_placement.gd")
+const MAX_RESPAWN_ATTEMPTS_PER_TICK: int = 2
 
 var lobby: ServerLobby
 var world: AuthoritativeWorld
@@ -25,6 +27,7 @@ var _map_round_number: int = 0
 var _objective_position: Vector2 = Vector2.ZERO
 var _objective_progress: Dictionary = {}
 var _objective_controller_id: int = 0
+var _objective_contested: bool = false
 var _flag_position: Vector2 = Vector2.ZERO
 var _flag_carrier_id: int = 0
 var _flag_dropped_seconds: float = 0.0
@@ -34,6 +37,8 @@ var _capture_zones_cache: Dictionary = {}
 var _objective_view_cache: Dictionary = {}
 var _spawn_assignments_cache: Dictionary = {}
 var _respawn_deadlines: Dictionary = {}
+var _respawn_retry_ticks: Dictionary = {}
+var _heat_time_limit_reached: bool = false
 
 
 func _init(
@@ -122,7 +127,8 @@ func step(delta: float) -> void:
 					_overtime_center(),
 					_overtime_minimum_radius()
 				)
-			for powerup_event in powerups.step(tick, world, machine.players):
+			var safe_radius := OvertimeSystem.radius_at(npc_overtime_elapsed(), _overtime_center(), _overtime_minimum_radius())
+			for powerup_event in powerups.step(tick, world, machine.players, _overtime_center(), safe_radius):
 				var payload := (powerup_event.payload as Dictionary).duplicate(true)
 				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
 					payload["builds"] = _public_builds()
@@ -135,6 +141,10 @@ func step(delta: float) -> void:
 			if machine.state == MatchStateMachine.State.ACTIVE_HEAT:
 				_step_respawns(tick)
 				_step_game_mode(delta, tick)
+			if machine.state == MatchStateMachine.State.ACTIVE_HEAT and tick >= heat_end_tick():
+				_heat_time_limit_reached = true
+				machine.finish_timed_heat(tick, _objective_progress)
+				_capture_transitions()
 		_:
 			machine.advance_time(tick)
 			_capture_transitions()
@@ -224,7 +234,16 @@ func _overtime_center() -> Vector2:
 func _overtime_minimum_radius() -> float:
 	if GameModeRules.uses_hill(lobby.config.game_mode):
 		return GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
+	if GameModeRules.uses_flag(lobby.config.game_mode):
+		var radius := GameConstants.OVERTIME_MINIMUM_RADIUS
+		for zone in _capture_zones_cache.values():
+			radius = maxf(radius, _overtime_center().distance_to(zone as Vector2) + GameModeRules.OBJECTIVE_ZONE_RADIUS)
+		return minf(radius, OvertimeSystem.initial_radius(_overtime_center()))
 	return GameConstants.OVERTIME_MINIMUM_RADIUS
+
+
+func heat_end_tick() -> int:
+	return machine.state_entered_tick + roundi((overtime_start_seconds + GameConstants.OVERTIME_TIME_LIMIT_SECONDS) * GameConstants.PHYSICS_TICKS_PER_SECOND)
 
 
 func is_finished() -> bool:
@@ -297,6 +316,7 @@ func _handle_state_entry(new_state: int) -> void:
 			)
 		MatchStateMachine.State.HEAT_RESULT:
 			_respawn_deadlines.clear()
+			_respawn_retry_ticks.clear()
 			powerups.clear()
 			world.clear_projectiles()
 		MatchStateMachine.State.ROUND_RESULT:
@@ -336,7 +356,8 @@ func _start_draft() -> void:
 			continue
 		if player.is_npc:
 			if not offer.locked and not offer.card_ids.is_empty():
-				var chosen_id := offer.card_ids[_rng.randi_range(0, offer.card_ids.size() - 1)]
+				var choices := draft.automatic_card_ids(peer_id)
+				var chosen_id := choices[_rng.randi_range(0, choices.size() - 1)]
 				draft.select_card(peer_id, offer.token, chosen_id)
 			continue
 		_private_offers.append({
@@ -489,21 +510,36 @@ func _elimination_records(peer_ids: Array[int], kill_events: Array[Dictionary]) 
 
 
 func _step_respawns(tick: int) -> void:
-	if not GameModeRules.uses_respawns(lobby.config.game_mode) or _respawn_deadlines.is_empty():
+	if not GameModeRules.uses_respawns(lobby.config.game_mode) or _respawn_deadlines.is_empty() or tick >= heat_end_tick():
 		return
 	var due_peer_ids: Array[int] = []
 	for peer_value in _respawn_deadlines.keys():
 		var peer_id := int(peer_value)
-		if tick >= int(_respawn_deadlines[peer_value]):
+		if tick >= int(_respawn_deadlines[peer_value]) and tick >= int(_respawn_retry_ticks.get(peer_id, 0)):
 			due_peer_ids.append(peer_id)
 	due_peer_ids.sort()
+	var attempts := 0
 	for peer_id in due_peer_ids:
+		var pending := machine.players.get(peer_id) as PlayerMatchState
+		if pending == null or not pending.connected or not pending.participant or pending.alive:
+			_respawn_deadlines.erase(peer_id)
+			_respawn_retry_ticks.erase(peer_id)
+			continue
+		if attempts >= MAX_RESPAWN_ATTEMPTS_PER_TICK:
+			break
+		attempts += 1
+		var spawn_position := _safe_respawn_position(peer_id)
+		if not spawn_position.is_finite():
+			# Preserve the visible deadline, but bound retries when the safe zone
+			# is crowded or blocked rather than reviving inside occupied geometry.
+			_respawn_retry_ticks[peer_id] = tick + GameConstants.PHYSICS_TICKS_PER_SECOND / 2
+			continue
 		_respawn_deadlines.erase(peer_id)
+		_respawn_retry_ticks.erase(peer_id)
 		if not machine.respawn_player(peer_id):
 			continue
 		var player := machine.players[peer_id] as PlayerMatchState
 		var stats := StatSystem.derive(player.effective_card_stacks(), catalog)
-		var spawn_position := _safe_respawn_position(peer_id)
 		if not world.respawn_peer(peer_id, stats, spawn_position):
 			player.eliminate()
 			continue
@@ -521,39 +557,26 @@ func _step_respawns(tick: int) -> void:
 
 func _safe_respawn_position(peer_id: int) -> Vector2:
 	var preferred := _spawn_assignments_cache.get(peer_id, ArenaLayout.center(current_map_id)) as Vector2
-	var candidates: Array[Vector2] = [preferred]
-	for anchor in ArenaLayout.spawn_anchors(current_map_id):
-		if anchor != preferred:
-			candidates.append(anchor)
-	candidates.sort_custom(func(left: Vector2, right: Vector2) -> bool:
-		return left.distance_squared_to(preferred) < right.distance_squared_to(preferred)
-	)
-	for candidate in candidates:
-		var available := true
-		for other_id in machine.alive_participant_ids():
-			if other_id == peer_id:
-				continue
-			var other := world.combatants.get(other_id) as CombatantState
-			if other != null and other.alive and other.position.distance_to(candidate) < GameConstants.SHIP_COLLISION_RADIUS * 3.0:
-				available = false
-				break
-		if available and ArenaCollisionSystem.is_ship_position_clear(candidate, current_map_id):
-			return candidate
-	return preferred
+	var center := _overtime_center()
+	var radius := OvertimeSystem.radius_at(npc_overtime_elapsed(), center, _overtime_minimum_radius())
+	return RespawnPlacementScript.choose(world, peer_id, preferred, center, radius)
 
 
 func _reset_objective_for_heat() -> void:
+	_heat_time_limit_reached = false
 	_objective_position = GameModeRules.objective_spawn(
 		current_map_id,
 		machine.round_number if GameModeRules.uses_hill(lobby.config.game_mode) else 0
 	)
 	_rebuild_objective_static_cache()
 	_respawn_deadlines.clear()
+	_respawn_retry_ticks.clear()
 	_objective_progress.clear()
 	if GameModeRules.uses_hill(lobby.config.game_mode):
 		for peer_id in machine.participant_ids():
 			_objective_progress[peer_id] = 0.0
 	_objective_controller_id = 0
+	_objective_contested = false
 	_flag_position = _objective_position
 	_flag_carrier_id = 0
 	_flag_dropped_seconds = 0.0
@@ -582,7 +605,9 @@ func _step_hill(delta: float, tick: int) -> void:
 	for peer_id in machine.alive_participant_ids():
 		var combatant := world.combatants.get(peer_id) as CombatantState
 		if combatant != null and combatant.position.distance_to(_objective_position) <= GameModeRules.OBJECTIVE_ZONE_RADIUS:
+			combatant.cloak_remaining = 0.0
 			occupants.append(peer_id)
+	_objective_contested = occupants.size() > 1
 	if occupants.size() != 1:
 		if _objective_controller_id != 0:
 			_objective_controller_id = 0
@@ -610,6 +635,7 @@ func _step_flag(delta: float, tick: int) -> void:
 			_flag_dropped_seconds = 0.0
 			_emit_objective_transition(tick, &"FLAG_DROPPED")
 		else:
+			carrier.cloak_remaining = 0.0
 			_flag_position = carrier.position
 			var carrier_team := int(_team_assignments_cache.get(_flag_carrier_id, 0))
 			var capture_zone_id := carrier_team if GameModeRules.is_team_mode(lobby.config.game_mode) else _flag_carrier_id
@@ -634,6 +660,8 @@ func _step_flag(delta: float, tick: int) -> void:
 				nearest_distance = distance
 		if pickup_id != 0:
 			_flag_carrier_id = pickup_id
+			(world.combatants[pickup_id] as CombatantState).cloak_remaining = 0.0
+			_flag_position = (world.combatants[pickup_id] as CombatantState).position
 			_flag_dropped_seconds = 0.0
 			_emit_objective_transition(tick, &"FLAG_PICKED_UP")
 		else:
@@ -665,6 +693,7 @@ func _objective_state_view() -> Dictionary:
 	_objective_view_cache.zone_radius = GameModeRules.OBJECTIVE_ZONE_RADIUS
 	if GameModeRules.uses_hill(mode):
 		_objective_view_cache.controller_id = _objective_controller_id
+		_objective_view_cache.contested = _objective_contested
 		_objective_view_cache.progress = _objective_progress
 		_objective_view_cache.target_seconds = GameModeRules.HILL_HOLD_SECONDS
 	elif GameModeRules.uses_flag(mode):
@@ -713,6 +742,8 @@ func _state_payload() -> Dictionary:
 		"state_name": machine.state_name(),
 		"entered_tick": machine.state_entered_tick,
 		"deadline_tick": machine.state_deadline_tick,
+		"heat_end_tick": heat_end_tick() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else -1,
+		"heat_time_limit_reached": _heat_time_limit_reached,
 		"round_number": machine.round_number,
 		"heat_number": machine.heat_number,
 		"map_id": current_map_id,

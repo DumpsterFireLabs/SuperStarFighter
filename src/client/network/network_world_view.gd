@@ -2,6 +2,7 @@ class_name NetworkWorldView
 extends Node2D
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const AccessibilityPreferencesScript = preload("res://src/client/presentation/accessibility_preferences.gd")
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
@@ -36,10 +37,13 @@ var local_stats := CombatStats.create_base()
 var camera: Camera2D
 var diagnostics_label: Label
 var hud_panel: PanelContainer
+var hud_root: Control
+var accessibility_settings: Dictionary = AccessibilityPreferencesScript.DEFAULTS.duplicate()
 var match_status_label: Label
 var resources_label: Label
 var combat_status_label: Label
 var spectator_label: Label
+var combat_feedback_panel: CombatFeedbackPanel
 var kill_feed: Control
 var health_bar: ProgressBar
 var shield_bar: ProgressBar
@@ -63,6 +67,13 @@ var camera_kick_duration: float = 0.0
 var camera_kick_offset: Vector2 = Vector2.ZERO
 var diagnostics_visible: bool = false
 var special_activation_sends_remaining: int = 0
+var special_activation_sequence: int = 0
+var selected_special_slot: int = -1
+var special_activation_slot: int = -1
+var local_active_ordnance: int = 0
+var local_active_mines: int = 0
+var local_budget_evictions: int = 0
+var budget_warning_remaining: float = 0.0
 var local_special_cooldown_remaining: float = 0.0
 var local_mine_charges_remaining: int = 0
 var local_mine_cooldown_remaining: float = 0.0
@@ -122,11 +133,13 @@ func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
 	if camera != null:
 		camera.enabled = active
 	if diagnostics_label != null:
-		var diagnostics_canvas := diagnostics_label.get_parent() as CanvasLayer
+		var diagnostics_canvas := hud_root.get_parent() as CanvasLayer
 		diagnostics_canvas.visible = active
 
 
 func reset_session() -> void:
+	if combat_feedback_panel != null:
+		combat_feedback_panel.clear_feedback(true)
 	for ship_value in ships.values():
 		(ship_value as SandboxShip).queue_free()
 	ships.clear()
@@ -151,6 +164,13 @@ func reset_session() -> void:
 	camera_kick_duration = 0.0
 	camera_kick_offset = Vector2.ZERO
 	special_activation_sends_remaining = 0
+	special_activation_sequence = 0
+	selected_special_slot = -1
+	special_activation_slot = -1
+	local_active_ordnance = 0
+	local_active_mines = 0
+	local_budget_evictions = 0
+	budget_warning_remaining = 0.0
 	local_special_cooldown_remaining = 0.0
 	local_mine_charges_remaining = 0
 	local_mine_cooldown_remaining = 0.0
@@ -179,6 +199,7 @@ func reset_session() -> void:
 	local_weapon.reset(local_stats)
 	if projectile_layer != null:
 		projectile_layer.set_beam_builds({}, card_catalog)
+		projectile_layer.set_team_identity({}, 0, false)
 	if effects_layer != null:
 		effects_layer.clear_effects()
 	if powerup_layer != null:
@@ -210,6 +231,7 @@ func _physics_process(delta: float) -> void:
 	_advance_input_clock()
 	input_send_accumulator += delta
 	local_special_cooldown_remaining = maxf(local_special_cooldown_remaining - maxf(delta, 0.0), 0.0)
+	budget_warning_remaining = maxf(budget_warning_remaining - maxf(delta, 0.0), 0.0)
 	local_mine_cooldown_remaining = maxf(local_mine_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_missile_cooldown_remaining = maxf(local_missile_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_remaining = maxf(local_cloak_remaining - maxf(delta, 0.0), 0.0)
@@ -230,29 +252,24 @@ func _physics_process(delta: float) -> void:
 	var mine_ready := local_stats.mine_layer_enabled and local_mine_charges_remaining > 0 and local_mine_cooldown_remaining <= 0.0
 	var missile_ready := local_stats.missile_launcher_enabled and local_missile_charges_remaining > 0 and local_missile_cooldown_remaining <= 0.0
 	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
+	selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
+	if controls_enabled and not input_blocked and local_alive:
+		if Input.is_action_just_pressed("special_previous"):
+			selected_special_slot = SpecialAbilitySelection.cycle(selected_special_slot, local_stats, -1)
+		if Input.is_action_just_pressed("special_next"):
+			selected_special_slot = SpecialAbilitySelection.cycle(selected_special_slot, local_stats, 1)
+	var readiness := [afterburner_ready, mine_ready, missile_ready, cloak_ready]
 	var special_just_pressed := (
 		controls_enabled
 		and not input_blocked
 		and local_alive
-		and (afterburner_ready or mine_ready or missile_ready or cloak_ready)
+		and selected_special_slot >= 0 and bool(readiness[selected_special_slot])
 		and Input.is_action_just_pressed("special")
 	)
 	if special_just_pressed:
 		special_activation_sends_remaining = 3
-		if afterburner_ready:
-			local_special_cooldown_remaining = local_stats.afterburner_cooldown
-		if mine_ready:
-			local_mine_charges_remaining -= 1
-			local_mine_cooldown_remaining = GameConstants.MINE_COOLDOWN_SECONDS
-		if missile_ready:
-			local_missile_charges_remaining -= 1
-			local_missile_cooldown_remaining = GameConstants.MISSILE_COOLDOWN_SECONDS
-		if cloak_ready:
-			local_cloak_charges_remaining -= 1
-			local_cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
-			local_cloak_cooldown_remaining = GameConstants.CLOAK_COOLDOWN_SECONDS
-			local_ship.combatant.cloak_remaining = local_cloak_remaining
-			local_ship.queue_redraw()
+		special_activation_sequence = input_sequence
+		special_activation_slot = selected_special_slot
 	elif not controls_enabled or input_blocked or not local_alive:
 		special_activation_sends_remaining = 0
 	var frame := PlayerInputFrame.new(
@@ -263,7 +280,9 @@ func _physics_process(delta: float) -> void:
 		controls_enabled and not input_blocked and local_alive and local_cloak_remaining <= 0.0 and Input.is_action_pressed("fire"),
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield"),
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
-		special_activation_sends_remaining > 0
+		special_activation_sends_remaining > 0,
+		special_activation_sequence,
+		special_activation_slot
 	)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
@@ -272,10 +291,8 @@ func _physics_process(delta: float) -> void:
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and controls_enabled:
 		prediction.predict(frame, local_stats, delta, arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID, local_breakaway_remaining > 0.0)
-		if special_just_pressed and afterburner_ready:
-			prediction.predicted_velocity = (
-				prediction.predicted_velocity + Vector2.from_angle(aim_angle) * local_stats.afterburner_impulse
-			).limit_length(local_stats.max_speed * local_stats.afterburner_speed_multiplier)
+		_sync_predicted_resources(local_ship)
+		if prediction.last_actions & CombatantState.ACTION_BOOST:
 			local_ship.flash_afterburner(local_stats.afterburner_duration)
 			trigger_afterburner_feedback(Vector2.from_angle(aim_angle))
 			presentation_event.emit(&"afterburner", {
@@ -290,11 +307,8 @@ func _physics_process(delta: float) -> void:
 		local_ship.combatant.velocity = prediction.predicted_velocity
 		local_ship.combatant.aim_angle = aim_angle
 		local_ship.queue_redraw()
-	local_weapon.step(local_stats, delta)
-	if frame.manual_reload:
-		local_weapon.request_reload(local_stats)
-	if frame.firing and local_weapon.try_fire(local_stats, frame.shielding):
-		_spawn_predicted_projectile(local_ship, aim_angle)
+		if prediction.last_actions & CombatantState.ACTION_SHOT:
+			_spawn_predicted_projectile(local_ship, aim_angle)
 	local_ship.combatant.weapon.ammunition = local_weapon.ammunition
 	local_ship.combatant.weapon.reloading = local_weapon.reloading
 	local_ship.combatant.weapon.reload_remaining = local_weapon.reload_remaining
@@ -343,11 +357,26 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		_handle_snapshot_feedback(peer_id, state, ship)
 		_apply_snapshot_resources(ship, state)
 		if peer_id == local_peer_id:
-			if revived:
-				prediction_initialized = false
-			if not prediction_initialized:
-				prediction.predicted_position = state.position
-				prediction.predicted_velocity = state.velocity
+			var correction := state.duplicate()
+			var local_state := decoded.get("local_state", {}) as Dictionary
+			if int(local_state.get("peer_id", 0)) == local_peer_id:
+				correction.merge(local_state, true)
+				local_active_ordnance = int(local_state.get("active_ordnance", 0))
+				local_active_mines = int(local_state.get("active_mines", 0))
+				var evictions := int(local_state.get("budget_evictions", 0))
+				if evictions > local_budget_evictions:
+					budget_warning_remaining = 2.0
+				local_budget_evictions = evictions
+			var new_life := prediction.simulated_combatant != null and int(correction.get("life_generation", prediction.simulated_combatant.life_generation)) != prediction.simulated_combatant.life_generation
+			if not prediction_initialized or revived or new_life or not bool(state.alive):
+				if combat_feedback_panel != null:
+					combat_feedback_panel.reset_for_life(int(correction.get("life_generation", 0)))
+				prediction.reset_to_snapshot(correction, local_stats)
+				if revived or new_life or not bool(state.alive):
+					special_activation_sends_remaining = 0
+					for shot_sequence in predicted_projectile_ids.keys():
+						_remove_predicted_volley(int(shot_sequence))
+					predicted_tracker = PredictedProjectileTracker.new()
 				ship.global_position = state.position
 				camera.position = state.position
 				prediction_initialized = true
@@ -358,9 +387,10 @@ func _on_snapshot(decoded: Dictionary) -> void:
 					decoded.acknowledged_input,
 					local_stats,
 					arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID,
-					local_breakaway_remaining > 0.0
+					local_breakaway_remaining > 0.0,
+					correction
 				)
-			local_weapon.ammunition = int(state.ammunition)
+			_sync_predicted_resources(ship)
 		else:
 			interpolation.add_sample(peer_id, receive_time, latest_server_tick, state)
 	for peer_value in ships.keys():
@@ -369,7 +399,35 @@ func _on_snapshot(decoded: Dictionary) -> void:
 			(ships[peer_id] as SandboxShip).queue_free()
 			ships.erase(peer_id)
 			interpolation.remove_peer(peer_id)
+			# A cloak disappearance is not a death. Forget prior feedback as well
+			# as interpolation so reappearance cannot flash stale damage/guard FX.
+			presentation_states.erase(peer_id)
 	_update_spectator_target()
+
+
+func _sync_predicted_resources(ship: SandboxShip) -> void:
+	var simulated := prediction.simulated_combatant
+	if simulated == null:
+		return
+	local_weapon = simulated.weapon
+	local_special_cooldown_remaining = simulated.afterburner_cooldown_remaining
+	local_mine_charges_remaining = simulated.mine_charges_remaining
+	local_mine_cooldown_remaining = simulated.mine_cooldown_remaining
+	local_missile_charges_remaining = simulated.missile_charges_remaining
+	local_missile_cooldown_remaining = simulated.missile_cooldown_remaining
+	local_cloak_charges_remaining = simulated.cloak_charges_remaining
+	local_cloak_remaining = simulated.cloak_remaining
+	local_cloak_cooldown_remaining = simulated.cloak_cooldown_remaining
+	local_breakaway_remaining = simulated.breakaway_remaining
+	local_breakaway_cooldown_remaining = simulated.breakaway_cooldown_remaining
+	local_kinetic_vent_charge = simulated.shield.kinetic_vent_charge
+	ship.combatant.weapon = local_weapon
+	# Keep presentation resources separate from the replay state: snapshots
+	# update the visual ship before the buffered inputs have been replayed.
+	ship.combatant.shield.energy = simulated.shield.energy
+	ship.combatant.shield.active = simulated.shield.active
+	ship.combatant.cloak_remaining = simulated.cloak_remaining
+	ship.combatant.breakaway_remaining = simulated.breakaway_remaining
 
 
 func apply_match_state(payload: Dictionary) -> void:
@@ -377,6 +435,12 @@ func apply_match_state(payload: Dictionary) -> void:
 	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
 	if arena != null:
 		arena.set_map_id(payload_map_id)
+		arena.local_peer_id = local_peer_id
+		arena.local_team_id = team_for_peer(local_peer_id)
+		arena.pilot_names.clear()
+		for player in payload.get("players", []):
+			var peer_id := int(player.get("peer_id", 0))
+			arena.pilot_names[peer_id] = _display_name(peer_id)
 		arena.set_objective(payload.get("objective", {}) as Dictionary)
 	var state_name := String(payload.get("state_name", ""))
 	controls_enabled = state_name == "ACTIVE_HEAT"
@@ -385,6 +449,10 @@ func apply_match_state(payload: Dictionary) -> void:
 		ship.visible = state_name != "DRAFT"
 		ship.display_name = _display_name(ship.combatant.peer_id)
 		ship.set_ship_appearance(_player_color(ship.combatant.peer_id), _player_pattern(ship.combatant.peer_id))
+		ship.set_team_identity(team_for_peer(ship.combatant.peer_id), team_for_peer(local_peer_id))
+	if projectile_layer != null:
+		projectile_layer.set_team_identity(match_payload.get("teams", {}) as Dictionary, team_for_peer(local_peer_id), GameModeRules.is_team_mode(int(match_payload.get("game_mode", 0))))
+	_nearest_incoming_revision = -1
 	if hud_panel != null:
 		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
 	if kill_feed != null:
@@ -393,6 +461,8 @@ func apply_match_state(payload: Dictionary) -> void:
 	if powerup_layer != null:
 		powerup_layer.set_powerups(payload.get("powerups", []) as Array)
 	if String(payload.get("state_name", "")) == "COUNTDOWN":
+		if combat_feedback_panel != null:
+			combat_feedback_panel.clear_feedback(true)
 		local_weapon.reset(local_stats)
 		prediction_initialized = false
 		# Spawn changes are authoritative teleports. Discard interpolation from
@@ -508,13 +578,10 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			_emit_weapon_shot(projectile.owner_id, projectile.shot_sequence, projectile.position, projectile)
 	for projectile_id in decoded.removed:
 		var projectile := authoritative_projectiles.get_projectile(int(projectile_id))
-		if projectile != null and effects_layer != null:
-			if projectile.is_mine:
-				effects_layer.spawn_mine_explosion(projectile.position)
-			else:
-				effects_layer.spawn_impact(projectile.position)
-		if projectile != null:
-			presentation_event.emit(&"mine_detonated" if projectile.is_mine else &"projectile_impact", {
+		if projectile != null and effects_layer != null and not projectile.is_mine:
+			effects_layer.spawn_impact(projectile.position)
+		if projectile != null and not projectile.is_mine:
+			presentation_event.emit(&"projectile_impact", {
 				"projectile_id": projectile.projectile_id,
 				"owner_id": projectile.owner_id,
 				"position": projectile.position,
@@ -560,8 +627,10 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 		existing.set_ship_appearance(_player_color(peer_id), _player_pattern(peer_id))
 		return existing
 	var ship := SandboxShip.new()
+	ship.reduced_flashes = bool(accessibility_settings.reduced_flashes)
 	var color := _player_color(peer_id)
 	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == local_peer_id, _display_name(peer_id), _player_pattern(peer_id))
+	ship.set_team_identity(team_for_peer(peer_id), team_for_peer(local_peer_id))
 	ship.set_shield_build(_build_for_peer(peer_id), card_catalog)
 	add_child(ship)
 	ships[peer_id] = ship
@@ -904,12 +973,16 @@ func _create_camera_and_hud() -> void:
 	canvas.name = "CombatHUD"
 	canvas.layer = 10
 	add_child(canvas)
+	hud_root = Control.new()
+	hud_root.name = "HUDSafeArea"
+	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(hud_root)
 	hud_panel = PanelContainer.new()
 	hud_panel.position = Vector2(16.0, 16.0)
 	hud_panel.custom_minimum_size = Vector2(430.0, 148.0)
 	hud_panel.add_theme_stylebox_override("panel", _hud_panel_style())
 	hud_panel.visible = false
-	canvas.add_child(hud_panel)
+	hud_root.add_child(hud_panel)
 	var hud_content := VBoxContainer.new()
 	hud_content.add_theme_constant_override("separation", 3)
 	hud_panel.add_child(hud_content)
@@ -920,6 +993,7 @@ func _create_camera_and_hud() -> void:
 	match_status_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
 	hud_content.add_child(match_status_label)
 	resources_label = Label.new()
+	resources_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	resources_label.add_theme_font_size_override("font_size", 17)
 	resources_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	hud_content.add_child(resources_label)
@@ -928,6 +1002,7 @@ func _create_camera_and_hud() -> void:
 	shield_bar = _make_resource_bar(DesignTokensScript.SHIELD)
 	hud_content.add_child(shield_bar)
 	combat_status_label = Label.new()
+	combat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	combat_status_label.add_theme_font_size_override("font_size", 14)
 	combat_status_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	hud_content.add_child(combat_status_label)
@@ -938,10 +1013,10 @@ func _create_camera_and_hud() -> void:
 	spectator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	spectator_label.add_theme_font_size_override("font_size", 24)
 	spectator_label.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
-	canvas.add_child(spectator_label)
+	hud_root.add_child(spectator_label)
 	kill_feed = KillFeedScript.new()
 	kill_feed.name = "KillFeed"
-	canvas.add_child(kill_feed)
+	hud_root.add_child(kill_feed)
 	diagnostics_label = Label.new()
 	diagnostics_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	diagnostics_label.position = Vector2(-620.0, -120.0)
@@ -950,7 +1025,74 @@ func _create_camera_and_hud() -> void:
 	diagnostics_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
 	diagnostics_label.add_theme_font_size_override("font_size", 16)
 	diagnostics_label.visible = false
-	canvas.add_child(diagnostics_label)
+	hud_root.add_child(diagnostics_label)
+	combat_feedback_panel = CombatFeedbackPanel.new()
+	combat_feedback_panel.name = "CombatFeedback"
+	hud_root.add_child(combat_feedback_panel)
+	combat_feedback_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	combat_feedback_panel.offset_left = -250.0
+	combat_feedback_panel.offset_right = 250.0
+	# Leave the outer navigation markers and spectator controls unobstructed.
+	combat_feedback_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	combat_feedback_panel.offset_top = -320.0
+	combat_feedback_panel.offset_bottom = -210.0
+	get_viewport().size_changed.connect(_layout_accessible_hud)
+	_layout_accessible_hud()
+
+
+func apply_combat_feedback(payload: Dictionary) -> void:
+	var names: Dictionary = {}
+	for player in match_payload.get("players", []):
+		names[int(player.get("peer_id", 0))] = String(player.get("display_name", "Pilot"))
+	if combat_feedback_panel != null:
+		combat_feedback_panel.apply_feedback(payload, local_peer_id, names)
+
+
+func apply_mine_detonations(server_tick: int, events: Array) -> void:
+	if server_tick + GameConstants.PHYSICS_TICKS_PER_SECOND < latest_server_tick:
+		return
+	for event in events:
+		if effects_layer != null:
+			effects_layer.spawn_mine_explosion(event.position as Vector2)
+		var payload := (event as Dictionary).duplicate()
+		payload["server_tick"] = server_tick
+		payload["listener_position"] = _audio_listener_position()
+		presentation_event.emit(&"mine_detonated", payload)
+
+
+func apply_accessibility_settings(values: Dictionary) -> void:
+	var normalized = AccessibilityPreferencesScript.new()
+	normalized.set_values(values)
+	accessibility_settings = normalized.values.duplicate()
+	if effects_layer != null:
+		effects_layer.reduced_flashes = bool(accessibility_settings.reduced_flashes)
+	for ship_value in ships.values():
+		(ship_value as SandboxShip).reduced_flashes = bool(accessibility_settings.reduced_flashes)
+		(ship_value as SandboxShip).queue_redraw()
+	if bool(accessibility_settings.reduced_shake):
+		camera_shake_remaining = 0.0
+		camera_kick_remaining = 0.0
+		if camera != null:
+			camera.offset = Vector2.ZERO
+	_layout_accessible_hud()
+
+
+func _layout_accessible_hud() -> void:
+	if hud_root == null:
+		return
+	var safe_rect: Rect2 = AccessibilityPreferencesScript.hud_safe_rect(get_viewport_rect().size, bool(accessibility_settings.constrain_hud))
+	var hud_scale := float(accessibility_settings.hud_scale)
+	hud_root.position = safe_rect.position
+	hud_root.scale = Vector2.ONE * hud_scale
+	hud_root.size = safe_rect.size / hud_scale
+	var panel_width := minf(430.0, maxf(240.0, hud_root.size.x - 420.0 - 56.0))
+	hud_panel.custom_minimum_size.x = panel_width
+	hud_panel.size.x = panel_width
+	match_status_label.custom_minimum_size.x = maxf(panel_width - 40.0, 100.0)
+	spectator_label.custom_minimum_size.x = minf(720.0, hud_root.size.x - 32.0)
+	spectator_label.size.x = spectator_label.custom_minimum_size.x
+	spectator_label.position.x = (hud_root.size.x - spectator_label.size.x) * 0.5
+	spectator_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
 func _update_diagnostics(delta: float = 0.0) -> void:
@@ -987,18 +1129,15 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			resources += "   BREAKAWAY %s" % breakaway_status
 		var reload_hint: String = input_profiles.binding_text(&"manual_reload") if input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
-		if local_stats.afterburner_enabled:
+		selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
+		if selected_special_slot >= 0:
 			var special_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
-			combat_status += "   ·   %s Afterburner" % special_hint
+			var cycle_hint: String = "%s/%s" % [input_profiles.binding_text(&"special_previous"), input_profiles.binding_text(&"special_next")] if input_profiles != null else "Q/E"
+			combat_status += "\n%s %s · %s select" % [special_hint, SpecialAbilitySelection.label(selected_special_slot), cycle_hint]
 		if local_stats.mine_layer_enabled:
-			var mine_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
-			combat_status += "   ·   %s Star Mine" % mine_hint
-		if local_stats.missile_launcher_enabled:
-			var missile_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
-			combat_status += "   ·   %s Hunter Missile" % missile_hint
-		if local_stats.cloak_enabled:
-			var cloak_hint: String = input_profiles.binding_text(&"special") if input_profiles != null else "Shift"
-			combat_status += "   ·   %s Cloak" % cloak_hint
+			combat_status += " · DEPLOYED %d/16" % local_active_mines
+		if budget_warning_remaining > 0.0:
+			combat_status += "\nORDNANCE LIMIT · oldest eligible weapon replaced"
 		if not local_ship.combatant.alive:
 			# Elimination can leave authoritative shield energy above zero (for
 			# example, damage that bypasses shields). Do not present that stale
@@ -1100,7 +1239,7 @@ func _refresh_nearest_incoming_projectile() -> void:
 		var projectile := authoritative_projectiles.get_projectile(projectile_id)
 		if projectile == null:
 			continue
-		if projectile.owner_id == local_peer_id:
+		if is_friendly_peer(projectile.owner_id):
 			continue
 		var offset := local_position - projectile.position
 		var distance := offset.length()
@@ -1121,11 +1260,15 @@ func _visible_world_rect() -> Rect2:
 
 
 func trigger_camera_shake(intensity: float, duration: float) -> void:
+	if bool(accessibility_settings.reduced_shake):
+		return
 	camera_shake_intensity = maxf(camera_shake_intensity, intensity)
 	camera_shake_remaining = maxf(camera_shake_remaining, duration)
 
 
 func trigger_afterburner_feedback(forward: Vector2) -> void:
+	if bool(accessibility_settings.reduced_shake):
+		return
 	var direction := forward.normalized()
 	if direction.is_zero_approx():
 		direction = Vector2.RIGHT
@@ -1256,6 +1399,18 @@ func _player_pattern(peer_id: int) -> StringName:
 		var pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
 		return pattern if not pattern.is_empty() else ShipAppearanceScript.SOLID
 	return ShipAppearanceScript.SOLID
+
+
+func team_for_peer(peer_id: int) -> int:
+	if not GameModeRules.is_team_mode(int(match_payload.get("game_mode", 0))):
+		return 0
+	var teams := match_payload.get("teams", {}) as Dictionary
+	return int(teams.get(peer_id, teams.get(str(peer_id), 0)))
+
+
+func is_friendly_peer(peer_id: int) -> bool:
+	var local_team := team_for_peer(local_peer_id)
+	return peer_id == local_peer_id or local_team > 0 and team_for_peer(peer_id) == local_team
 
 
 func _display_name(peer_id: int) -> String:

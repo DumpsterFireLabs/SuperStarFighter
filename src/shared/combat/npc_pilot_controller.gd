@@ -227,7 +227,8 @@ func submit_inputs(
 			and (combatant.health_fraction() <= 0.55 or distance > float(profile.preferred_max) * 1.5)
 		)
 		var special := afterburner_special or mine_special or missile_special or cloak_special
-		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special)
+		var slot := 3 if cloak_special else (0 if afterburner_special else (2 if missile_special else 1))
+		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special, slot)
 
 
 func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, objective: Dictionary) -> Vector2:
@@ -398,10 +399,10 @@ static func overtime_steering(
 	return (desired_position - position).normalized() * urgency
 
 
-func _submit_decision(world: AuthoritativeWorld, peer_id: int, movement: Vector2, aim_angle: float, firing: bool, shielding: bool, special: bool = false) -> void:
+func _submit_decision(world: AuthoritativeWorld, peer_id: int, movement: Vector2, aim_angle: float, firing: bool, shielding: bool, special: bool = false, special_slot: int = -1) -> void:
 	var sequence := SequenceMath.increment(int(_sequences.get(peer_id, world.acknowledged_inputs.get(peer_id, 0))))
 	_sequences[peer_id] = sequence
-	world.submit_input(peer_id, PlayerInputFrame.new(sequence, world.server_tick, movement, aim_angle, firing, shielding, false, special))
+	world.submit_input(peer_id, PlayerInputFrame.new(sequence, world.server_tick, movement, aim_angle, firing, shielding, false, special, sequence, special_slot))
 
 
 static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> Vector2:

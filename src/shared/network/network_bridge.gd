@@ -59,6 +59,8 @@ var _simulation_samples: int = 0
 var _simulation_sample_usec: Array[int] = []
 var _simulation_over_budget_ticks: int = 0
 var _outbound_bytes: int = 0
+var _phase_totals_usec: Dictionary = {"simulation": 0, "coordination": 0, "replication": 0}
+var _active_sample_usec: Array[int] = []
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
 var _discovery_instance_id: String = ""
@@ -389,6 +391,7 @@ func _physics_process(delta: float) -> void:
 			match_coordinator.npc_objective_state()
 		)
 	world.step(delta, controls_enabled, not npc_peer_ids.is_empty())
+	var simulation_done_usec := Time.get_ticks_usec()
 	if match_coordinator != null:
 		match_coordinator.step(delta)
 		_drain_match_coordinator()
@@ -396,13 +399,22 @@ func _physics_process(delta: float) -> void:
 		if match_coordinator.is_finished():
 			match_coordinator = null
 			_broadcast_lobby_state()
+	var coordination_done_usec := Time.get_ticks_usec()
 	var tick := world.server_tick
 	if lobby != null and lobby.match_active and tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE) == 0:
 		_send_player_snapshots()
 	_send_projectile_batch()
+	_send_mine_detonations()
 	if lobby != null and lobby.match_active and tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PROJECTILE_CORRECTION_RATE) == 0:
 		_send_projectile_correction()
+	if tick % 3 == 0:
+		_send_combat_feedback()
 	var duration_usec := Time.get_ticks_usec() - start_usec
+	_phase_totals_usec.simulation += simulation_done_usec - start_usec
+	_phase_totals_usec.coordination += coordination_done_usec - simulation_done_usec
+	_phase_totals_usec.replication += start_usec + duration_usec - coordination_done_usec
+	if controls_enabled:
+		_active_sample_usec.append(duration_usec)
 	_simulation_total_usec += duration_usec
 	_simulation_max_usec = maxi(_simulation_max_usec, duration_usec)
 	_simulation_samples += 1
@@ -457,6 +469,7 @@ func client_hello(protocol_version: int, display_name: String, password_proof: S
 	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
 	var player := result.player as PlayerMatchState
 	world.add_peer(sender_id)
+	world.input_timeouts[sender_id] = GameConstants.INPUT_STALE_SECONDS
 	if match_coordinator != null:
 		match_coordinator.add_late_spectator(player)
 	server_welcome.rpc_id(sender_id, sender_id, lobby.serialize())
@@ -1435,11 +1448,44 @@ func _drain_match_coordinator() -> void:
 func _send_player_snapshots() -> void:
 	if lobby == null or lobby.players.is_empty():
 		return
-	var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view())
+	var public_body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 0)
 	for peer_id in lobby.human_peer_ids_view():
-		var packet := PlayerSnapshotCodec.assemble(world.server_tick, world.acknowledged_input(peer_id), body)
+		var combatant := world.combatants.get(peer_id) as CombatantState
+		var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), peer_id) if combatant != null and combatant.is_cloaked() else public_body
+		var correction := combatant.prediction_state() if combatant != null else {}
+		correction["active_ordnance"] = world.projectile_registry.count_for_owner(peer_id)
+		correction["active_mines"] = world.projectile_registry.mine_count_for_owner(peer_id)
+		correction["budget_evictions"] = world.projectile_registry.budget_evictions_for_owner(peer_id)
+		var packet := PlayerSnapshotCodec.assemble(world.server_tick, world.acknowledged_input(peer_id), body, correction)
 		world_snapshot.rpc_id(peer_id, packet)
 		_outbound_bytes += packet.size()
+
+
+func _send_combat_feedback() -> void:
+	var feedback := world.drain_combat_feedback()
+	if lobby == null:
+		return
+	for peer_id in lobby.human_peer_ids_view():
+		if feedback.has(peer_id):
+			var payload := feedback[peer_id] as Dictionary
+			match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", world.server_tick, payload)
+			_outbound_bytes += var_to_bytes(payload).size()
+
+
+func _send_mine_detonations() -> void:
+	var events := world.drain_mine_detonations()
+	if lobby == null or lobby.human_count() == 0:
+		return
+	for start in range(0, events.size(), 8):
+		var chunk := events.slice(start, start + 8)
+		mine_detonations.rpc(world.server_tick, chunk)
+		_outbound_bytes += var_to_bytes(chunk).size() * lobby.human_count()
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PROJECTILE_DELTA)
+func mine_detonations(server_tick_value: int, events: Array) -> void:
+	if role == Role.CLIENT and events.size() <= 8:
+		client_match_event_received.emit(&"MINE_DETONATIONS", server_tick_value, {"events": events})
 
 
 func _send_projectile_batch() -> void:
@@ -1519,6 +1565,14 @@ func _log_metrics() -> void:
 		"static_memory_bytes": int(Performance.get_monitor(Performance.MEMORY_STATIC)),
 		"mean_simulation_usec": mean_usec,
 		"p95_simulation_usec": percentile_usec(_simulation_sample_usec, 0.95),
+		"p99_simulation_usec": percentile_usec(_simulation_sample_usec, 0.99),
+		"active_samples": _active_sample_usec.size(),
+		"active_p95_usec": percentile_usec(_active_sample_usec, 0.95),
+		"active_p99_usec": percentile_usec(_active_sample_usec, 0.99),
+		"mean_world_and_npc_usec": float(_phase_totals_usec.simulation) / maxi(_simulation_samples, 1),
+		"mean_coordination_usec": float(_phase_totals_usec.coordination) / maxi(_simulation_samples, 1),
+		"mean_replication_usec": float(_phase_totals_usec.replication) / maxi(_simulation_samples, 1),
+		"projectile_budget_evictions": world.projectile_registry.budget_evictions if world != null else 0,
 		"max_simulation_usec": _simulation_max_usec,
 		"over_budget_ticks": _simulation_over_budget_ticks,
 		"over_budget_percent": float(_simulation_over_budget_ticks) / maxi(_simulation_samples, 1) * 100.0,
@@ -1534,6 +1588,8 @@ func _reset_metrics_window() -> void:
 	_simulation_sample_usec.clear()
 	_simulation_over_budget_ticks = 0
 	_outbound_bytes = 0
+	_phase_totals_usec = {"simulation": 0, "coordination": 0, "replication": 0}
+	_active_sample_usec.clear()
 
 
 func _log_overtime_if_needed() -> void:

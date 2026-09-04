@@ -24,7 +24,7 @@ var start_when_players: int = GameConstants.MIN_PLAYERS
 var randomized: bool = false
 var malformed_input: bool = false
 var excessive_input: bool = false
-var malicious_payload_sent: bool = false
+var malformed_packets_sent: int = 0
 var random_decision_deadline: float = 0.0
 var random_movement := Vector2.ZERO
 var random_fire: bool = false
@@ -81,14 +81,17 @@ func _physics_process(delta: float) -> void:
 	if not welcomed:
 		return
 	if malformed_input:
-		if not malicious_payload_sent:
-			malicious_payload_sent = true
-			var malformed_packet := PackedByteArray()
-			malformed_packet.resize(InputPacketCodec.PACKET_SIZE)
+		send_accumulator += delta
+		# This stream is unreliable ordered: a single same-frame burst is not
+		# proof of sustained malformed traffic. Retry a bounded number of times
+		# at 10 Hz to tolerate missing datagrams during connection startup.
+		if send_accumulator >= 0.1 and malformed_packets_sent < 60:
+			send_accumulator = 0.0
+			var malformed_packet := InputPacketCodec.encode(PlayerInputFrame.new(malformed_packets_sent + 1, malformed_packets_sent + 1, Vector2.UP, 0.37, true))
 			malformed_packet[0] = 255
-			for index in NetworkProtocol.TRAFFIC_STRIKES_BEFORE_DISCONNECT:
-				bridge.send_test_input_packet(malformed_packet)
-			print("SSF_BOT_MALFORMED_SENT packets=%d" % NetworkProtocol.TRAFFIC_STRIKES_BEFORE_DISCONNECT)
+			bridge.send_test_input_packet(malformed_packet)
+			malformed_packets_sent += 1
+			print("SSF_BOT_MALFORMED_SENT packets=%d" % malformed_packets_sent)
 		return
 	elapsed += delta
 	if randomized and elapsed >= random_decision_deadline:
@@ -127,6 +130,10 @@ func _physics_process(delta: float) -> void:
 
 func _on_welcome(peer_id: int) -> void:
 	welcomed = true
+	if malformed_input:
+		# Follow the normal reliable control path before exercising sustained
+		# malformed traffic on the independently ordered input stream.
+		bridge.send_ready_state(true)
 	print("SSF_BOT_WELCOME peer_id=%d" % peer_id)
 
 

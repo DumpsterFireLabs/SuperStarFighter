@@ -1,6 +1,7 @@
 extends Node
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
+const AccessibilityPreferencesScript = preload("res://src/client/presentation/accessibility_preferences.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
@@ -136,6 +137,13 @@ var pause_overlay: PanelContainer
 var pause_title: Label
 var settings_panel: Control
 var settings_tabs: TabContainer
+var accessibility_preferences = AccessibilityPreferencesScript.new()
+var hud_scale_control: HSlider
+var hud_scale_value: Label
+var reduced_shake_control: CheckButton
+var reduced_flashes_control: CheckButton
+var constrain_hud_control: CheckButton
+var settings_back_button: Button
 var window_mode_control: OptionButton
 var resolution_control: OptionButton
 var display_mode_note: Label
@@ -226,6 +234,8 @@ func _ready() -> void:
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
 	network_world.setup(bridge, input_profiles)
+	accessibility_preferences.load_settings()
+	_apply_accessibility_settings()
 	network_world.presentation_event.connect(_on_world_presentation_event)
 	_create_connection_ui(configuration)
 	lan_browser = LanDiscoveryService.new()
@@ -380,6 +390,8 @@ func _create_connection_ui(configuration: Dictionary) -> void:
 	name_field = _add_labeled_field(content, "Display name", "Pilot")
 	name_field.max_length = 16
 	connection_tabs = TabContainer.new()
+	connection_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
+	connection_tabs.get_tab_bar().gui_input.connect(_on_tab_bar_gui_input.bind(connection_tabs))
 	connection_tabs.custom_minimum_size = Vector2(720.0, 285.0)
 	connection_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(connection_tabs)
@@ -1293,11 +1305,15 @@ func _create_settings_overlay() -> void:
 	title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(title)
 	settings_tabs = TabContainer.new()
+	settings_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
+	settings_tabs.get_tab_bar().gui_input.connect(_on_tab_bar_gui_input.bind(settings_tabs))
 	settings_tabs.custom_minimum_size = Vector2(860.0, 500.0)
 	settings_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(settings_tabs)
 	_create_display_audio_settings_tab()
 	_create_controls_settings_tab()
+	_create_accessibility_settings_tab()
+	settings_tabs.tab_changed.connect(_on_settings_tab_changed)
 	var saved_note := Label.new()
 	saved_note.text = "Settings and both control profiles save automatically."
 	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1309,6 +1325,126 @@ func _create_settings_overlay() -> void:
 	back_button.custom_minimum_size.y = 52.0
 	back_button.pressed.connect(_hide_settings)
 	content.add_child(back_button)
+	settings_back_button = back_button
+	_configure_accessibility_focus()
+
+
+func _create_accessibility_settings_tab() -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "ACCESSIBILITY"
+	tab.add_theme_constant_override("separation", 16)
+	settings_tabs.add_child(tab)
+	var heading := Label.new()
+	heading.text = "COMBAT READABILITY & COMFORT"
+	heading.add_theme_font_size_override("font_size", 23)
+	tab.add_child(heading)
+	var scale_row := HBoxContainer.new()
+	tab.add_child(scale_row)
+	var scale_label := Label.new()
+	scale_label.text = "HUD & combat text size"
+	scale_label.custom_minimum_size.x = 280.0
+	scale_row.add_child(scale_label)
+	hud_scale_control = HSlider.new()
+	hud_scale_control.name = "HUDScale"
+	hud_scale_control.min_value = 100.0
+	hud_scale_control.max_value = 150.0
+	hud_scale_control.step = 10.0
+	hud_scale_control.value = float(accessibility_preferences.values.hud_scale) * 100.0
+	hud_scale_control.custom_minimum_size = Vector2(340.0, 48.0)
+	hud_scale_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scale_row.add_child(hud_scale_control)
+	hud_scale_value = Label.new()
+	hud_scale_value.custom_minimum_size.x = 70.0
+	hud_scale_value.text = "%d%%" % roundi(hud_scale_control.value)
+	scale_row.add_child(hud_scale_value)
+	hud_scale_control.value_changed.connect(func(value: float) -> void:
+		hud_scale_value.text = "%d%%" % roundi(value)
+		_change_accessibility_setting("hud_scale", value / 100.0)
+	)
+	hud_scale_control.gui_input.connect(_on_hud_scale_gui_input)
+	reduced_shake_control = _add_accessibility_toggle(tab, "Disable camera shake and boost kick", "reduced_shake")
+	reduced_flashes_control = _add_accessibility_toggle(tab, "Reduce combat flashes", "reduced_flashes")
+	constrain_hud_control = _add_accessibility_toggle(tab, "Keep HUD within a centered 16:9 area", "constrain_hud")
+	var note := Label.new()
+	note.text = "Applies immediately to online play and the build laboratory.\nReduced flashes keeps impact outlines and damage information visible.\nUse Tab / Shift+Tab or controller D-pad to navigate; Left / Right adjusts size."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+	tab.add_child(note)
+
+
+func _add_accessibility_toggle(parent: Control, title: String, key: String) -> CheckButton:
+	var control := CheckButton.new()
+	control.text = title
+	control.theme_type_variation = &"SettingToggle"
+	control.custom_minimum_size.y = 52.0
+	control.button_pressed = bool(accessibility_preferences.values[key])
+	control.toggled.connect(func(value: bool) -> void: _change_accessibility_setting(key, value))
+	parent.add_child(control)
+	return control
+
+
+func _on_hud_scale_gui_input(event: InputEvent) -> void:
+	# Godot's range keyboard shortcuts do not consume joypad navigation; keep
+	# Left/Right on the slider instead of moving focus to a neighboring toggle.
+	if not (event is InputEventJoypadButton or event is InputEventJoypadMotion):
+		return
+	if event.is_action_pressed(&"ui_left"):
+		hud_scale_control.value -= hud_scale_control.step
+		hud_scale_control.accept_event()
+	elif event.is_action_pressed(&"ui_right"):
+		hud_scale_control.value += hud_scale_control.step
+		hud_scale_control.accept_event()
+
+
+func _on_tab_bar_gui_input(event: InputEvent, tabs: TabContainer) -> void:
+	if not (event is InputEventJoypadButton or event is InputEventJoypadMotion):
+		return
+	var direction := 0
+	if event.is_action_pressed(&"ui_left"):
+		direction = -1
+	elif event.is_action_pressed(&"ui_right"):
+		direction = 1
+	if direction != 0:
+		tabs.current_tab = clampi(tabs.current_tab + direction, 0, tabs.get_tab_count() - 1)
+		tabs.get_tab_bar().accept_event()
+
+
+func _change_accessibility_setting(key: String, value: Variant) -> void:
+	accessibility_preferences.set_values({key: value})
+	accessibility_preferences.save_settings()
+	_apply_accessibility_settings()
+
+
+func _apply_accessibility_settings() -> void:
+	if network_world != null:
+		network_world.apply_accessibility_settings(accessibility_preferences.values)
+	if offline_sandbox != null and offline_sandbox.has_method("apply_accessibility_settings"):
+		offline_sandbox.apply_accessibility_settings(accessibility_preferences.values)
+
+
+func _configure_accessibility_focus() -> void:
+	var controls: Array[Control] = [settings_tabs.get_tab_bar(), hud_scale_control, reduced_shake_control, reduced_flashes_control, constrain_hud_control, settings_back_button]
+	for index in range(1, controls.size() - 1):
+		controls[index].focus_previous = controls[index].get_path_to(controls[index - 1])
+		controls[index].focus_neighbor_top = controls[index].focus_previous
+		controls[index].focus_next = controls[index].get_path_to(controls[index + 1])
+		controls[index].focus_neighbor_bottom = controls[index].focus_next
+
+
+func _on_settings_tab_changed(index: int) -> void:
+	if not settings_panel.visible:
+		return
+	var first_control: Control = window_mode_control
+	if index == 2:
+		first_control = hud_scale_control
+	elif index == 1:
+		first_control = control_scheme_control
+	var tab_bar := settings_tabs.get_tab_bar()
+	tab_bar.focus_next = tab_bar.get_path_to(first_control)
+	tab_bar.focus_neighbor_bottom = tab_bar.focus_next
+	# Let players traverse every tab with Left/Right before entering its controls.
+	if get_viewport().gui_get_focus_owner() != tab_bar:
+		first_control.grab_focus()
 
 
 func _create_display_audio_settings_tab() -> void:
@@ -1782,10 +1918,7 @@ func _show_settings(return_to_pause: bool) -> void:
 	_refresh_input_settings_ui()
 	if network_world != null:
 		network_world.input_blocked = return_to_pause
-	if settings_tabs.current_tab == 1:
-		control_scheme_control.grab_focus()
-	else:
-		resolution_control.grab_focus()
+	_on_settings_tab_changed(settings_tabs.current_tab)
 
 
 func _hide_settings() -> void:
@@ -2782,7 +2915,11 @@ func _on_eject_pressed(peer_id: int) -> void:
 
 
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
-	if event_type == &"REQUEST_REJECTED":
+	if event_type == &"COMBAT_FEEDBACK":
+		network_world.apply_combat_feedback(payload)
+	elif event_type == &"MINE_DETONATIONS":
+		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
+	elif event_type == &"REQUEST_REJECTED":
 		_extend_match_requested = false
 		_return_to_lobby_requested = false
 		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
@@ -2852,6 +2989,9 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)
+	elif event_type == &"CARD_POWERUP_REMOVED":
+		if network_world.powerup_layer != null:
+			network_world.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
 	elif event_type == &"CARD_POWERUP_COLLECTED":
 		latest_match_payload["builds"] = payload.get("builds", latest_match_payload.get("builds", {}))
 		_scoreboard_rows_dirty = true
@@ -2971,6 +3111,13 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			rarity_label.text = "%s  ·  %s TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance_text()]
 			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
 			button.configure(card, current_stacks + 1, _result_card_tooltip(card, current_stacks + 1, "STACKS AFTER PICK"), "AFTER PICK")
+			button.configure_build_comparison(_local_build(), card_catalog)
+			if button.no_effective_benefit:
+				(button.get_node("CardContent/Details/Stack") as Label).text += "\nNO EFFECTIVE BENEFIT"
+				button.text += "\nNO EFFECTIVE BENEFIT"
+			elif button.has_limited_effect():
+				(button.get_node("CardContent/Details/Stack") as Label).text += "\nAT LIMIT · VIEW DETAILS"
+				button.text += "\nAT LIMIT · VIEW DETAILS"
 	draft_panel.visible = true
 	for button in draft_buttons:
 		if button.visible and not button.disabled:
@@ -2992,6 +3139,10 @@ func _select_draft_card(index: int) -> void:
 	var card := card_catalog.get_card(card_id)
 	var card_name := card.display_name.to_upper() if card != null else String(card_id).to_upper()
 	draft_confirmation_label.text = "LOCK IN %s?" % card_name
+	if button.no_effective_benefit:
+		draft_confirmation_label.text += "  NO EFFECTIVE BENEFIT · CHECK DRAWBACKS"
+	elif button.has_limited_effect():
+		draft_confirmation_label.text += "  SOME STATS ARE AT THEIR LIMIT"
 	draft_confirmation_row.visible = true
 	for button_index in draft_buttons.size():
 		var draft_button := draft_buttons[button_index]
@@ -3109,7 +3260,7 @@ func _update_match_presentation() -> void:
 		if (bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id) or bridge.local_peer_id in bye_peer_ids:
 			if not draft_bye_label.visible or not draft_panel.visible:
 				_show_draft_bye(deadline)
-			draft_title.text = "ROUND WINNER BUY · OTHERS DRAFTING · %.1fs" % seconds_left
+			draft_title.text = "ROUND WINNER — SKIPS THIS DRAFT · %.1fs" % seconds_left
 		elif not draft_bye_label.visible:
 			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · PICK, THEN CONFIRM" % seconds_left
 
@@ -3152,16 +3303,24 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	var mode_label := String(latest_match_payload.get("game_mode_name", GameModeRules.mode_name(int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH))))).to_upper()
 	var map_label := String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper()
 	var round_heat := "ROUND %d / HEAT %d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))]
+	var local_team := network_world.team_for_peer(bridge.local_peer_id) if bridge != null else 0
+	if local_team > 0:
+		round_heat = "R%d / H%d · T%d ○ALLY ◇ENEMY" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0)), local_team]
 	var detail_parts := PackedStringArray()
+	var objective_status := ""
 	if state_name == "ACTIVE_HEAT":
 		detail_parts.append("%d ALIVE" % (latest_match_payload.get("alive_peer_ids", []) as Array).size())
-		var objective_status := _objective_status_text()
-		if not objective_status.is_empty():
-			detail_parts.append(objective_status)
+		objective_status = _objective_status_text()
 		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
 		if overtime_tick >= 0:
-			detail_parts.append("OVERTIME" if network_world.latest_server_tick >= overtime_tick else "OT %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
+			var end_tick := int(latest_match_payload.get("heat_end_tick", -1))
+			var overtime_label := "OVERTIME"
+			if end_tick >= 0:
+				overtime_label += " · ENDS %.0fs" % maxf(float(end_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
+			detail_parts.append(overtime_label if network_world.latest_server_tick >= overtime_tick else "OVERTIME IN %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
 	elif state_name in ["COUNTDOWN", "HEAT_RESULT", "ROUND_RESULT"]:
+		if state_name == "HEAT_RESULT" and bool(latest_match_payload.get("heat_time_limit_reached", false)):
+			detail_parts.append("TIME LIMIT")
 		detail_parts.append("%.1fs" % seconds_left)
 	var lines := PackedStringArray([
 		"%s  ·  %s" % [state_label, mode_label],
@@ -3169,6 +3328,8 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	])
 	if not detail_parts.is_empty():
 		lines.append("  ·  ".join(detail_parts))
+	if not objective_status.is_empty():
+		lines.append(objective_status)
 	return "\n".join(lines)
 
 
@@ -3198,21 +3359,27 @@ func _objective_status_text() -> String:
 		var progress := objective.get("progress", {}) as Dictionary
 		var controller_id := int(objective.get("controller_id", 0))
 		if controller_id == 0:
+			var control_label := "HILL CONTESTED" if bool(objective.get("contested", false)) else "HILL NEUTRAL"
 			var leader_id := 0
 			var leader_seconds := 0.0
+			var tied_lead := false
 			for peer_value in progress.keys():
 				var peer_id := int(peer_value)
 				var seconds := float(progress[peer_value])
 				if seconds > leader_seconds:
 					leader_id = peer_id
 					leader_seconds = seconds
+					tied_lead = false
+				elif is_equal_approx(seconds, leader_seconds):
+					tied_lead = true
 			if leader_id != 0:
-				return "HILL CONTESTED · LEADER %s %.1f/%.0fs" % [
-					_player_name(leader_id).to_upper(),
+				return "%s · %s %.1f/%.0fs" % [
+					control_label,
+					"TIED LEAD" if tied_lead else "LEADER %s" % _player_name(leader_id).to_upper().left(14),
 					leader_seconds,
 					float(objective.get("target_seconds", GameModeRules.HILL_HOLD_SECONDS)),
 				]
-			return "HILL CONTESTED"
+			return control_label
 		var held := float(progress.get(controller_id, progress.get(str(controller_id), 0.0)))
 		return "HILL %s %.1f/%.0fs" % [_player_name(controller_id).to_upper(), held, float(objective.get("target_seconds", GameModeRules.HILL_HOLD_SECONDS))]
 	if GameModeRules.uses_flag(mode):
@@ -3236,7 +3403,7 @@ func _local_respawn_status_text() -> String:
 		float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND,
 		0.0
 	)
-	return "RESPAWN %.1fs" % seconds
+	return "RESPAWN · WAITING FOR CLEAR SPACE" if seconds <= 0.0 else "RESPAWN %.1fs" % seconds
 
 
 func _draft_category_color(category: int) -> Color:
@@ -3272,9 +3439,12 @@ func _draft_card_focus_style(rarity_color: Color) -> StyleBoxFlat:
 
 
 func _local_build_stack(card_id: StringName) -> int:
+	return int(_local_build().get(card_id, 0))
+
+
+func _local_build() -> Dictionary:
 	var builds := latest_match_payload.get("builds", {}) as Dictionary
-	var local_build := builds.get(bridge.local_peer_id, {}) as Dictionary
-	return int(local_build.get(card_id, 0))
+	return builds.get(bridge.local_peer_id, builds.get(str(bridge.local_peer_id), {})) as Dictionary
 
 
 func _player_name(peer_id: int) -> String:

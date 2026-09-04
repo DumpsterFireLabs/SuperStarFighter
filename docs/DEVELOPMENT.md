@@ -31,10 +31,10 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.9 |
-| Protocol version | 22 |
-| Automated suite | 2,923 assertions |
-| Project gate | 90 checks |
+| Game version | 0.1.0-beta.10 |
+| Protocol version | 28 (binary packets 12) |
+| Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
+| Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 
 The repository intentionally pins the engine. Avoid developing against a different Godot version unless the engine migration is itself the task and includes import, parser, behavior, documentation, and validation updates.
 
@@ -125,17 +125,24 @@ The client may predict local movement and shots for responsiveness, but it never
 - `NetworkBridge` owns ENet lifecycle, RPC direction, admission, rate limiting, serialization cadence, and logs.
 - `ServerLobby` owns participant records, leadership, readiness, player limits, NPC fill, game-mode/team assignment, timed-powerup configuration, player colours, and lobby permissions.
 - `AuthoritativeMatchCoordinator` connects draft, match state, combat world, timed card powerups, map-safe hill/flag objectives, and reliable match events.
+- Every heat has a server-owned deadline 60 seconds after overtime begins. Unresolved Hill heats use the sole control-time leader (ties draw); other unresolved modes draw. Flag safe circles retain every base. `RespawnPlacement` scores clear positions inside the current safe circle against nearby enemies, incoming projectile paths, and mines, with a cached spatial threat index and at most two attempts per tick. Blocked respawns retry after half a second. Pickups are capped at eight, expire after 60 seconds, and leave the world through reliable removal events when they expire or fall outside overtime.
+- Player replication shares a public body without cloaked combatants; only a cloaked owner's packet includes their hidden record and private correction trailer. Client disappearance clears ship, interpolation, and feedback history. Hill occupancy and flag pickup/carrying reveal cloak. Homing missiles and magnetic mines retain their existing interactions, so their public trajectories may provide clues.
+- Static stars, grid, cover, and map labels draw through `ArenaStaticLayer`; animated objective/overtime redraws stay in `SandboxArena`. Map changes invalidate static canvas commands. Objective ownership and navigation use the authoritative objective payload and local pilot/team identity.
+- Draft offers and manual acquisition remain unlimited. NPC and timeout choices prefer offered cards with at least one effective stat benefit or newly enabled mechanic, falling back to the full offer when none qualify. The UI flags picks with no effective benefit. This does not rebalance overflow or remove drawbacks.
 - `AuthoritativeWorld` owns deterministic per-tick combat state, including team-aware damage exclusion.
+- `OfflineSandbox` runs the same `AuthoritativeWorld` as online play. `LabPanel` provides searchable cards, stack editing, five build presets, target count/health/distance and shield/fire/strafe settings, encounter reset, and measurement reset. Editing pauses the local range. Damage and DPS come from resolved hull damage; overkill and shield blocks are excluded, while missed shots and reload time remain in the active measurement window. Targets stay down until reset.
+- `CombatFeedbackBuffer` coalesces authoritative hits, outgoing blocked shots, defender blocks, and the latest death recap into one bounded accumulator per recipient. The bridge drains it at 20 Hz over reliable private control events. Confirmations contain no target identity or position; recaps identify the source, killer and relevant mechanic, with life generation for stale-message rejection. Mine detonation visuals use separate actual-detonation events, never inferred projectile removals.
 - `NetworkWorldView` turns authoritative state into predicted/interpolated client presentation.
 - `ClientMain` owns screen flow and production UI, not gameplay authority.
 
 ### Competitive hot paths
 
 - `CombatSpatialIndex` bounds ship-overlap, ship-hit, and NPC projectile-threat candidate searches by arena cells instead of scanning every entity for every query.
-- `ProjectileRegistry` keeps indexed global/owner order, O(1) live counts, tombstoned removal, and allocation-free ordered views for simulation and rendering loops.
+- `ProjectileRegistry` keeps indexed global/owner order, O(1) live counts, tombstoned removal, and allocation-free ordered views for simulation and rendering loops. The existing 64-per-owner/1,024-global budgets include reserved mine allowances of 16 per owner and 512 globally. Ordinary fire evicts moving ordnance rather than deployed mines; excess mine deployment retires the oldest mine at the applicable allowance. Owner/global eviction counters make budget pressure observable.
 - Arena layouts and radius-expanded projectile geometry are immutable shared caches. A world may retain a cache entry but must never mutate or clear it.
 - Projectile messages are divided into messages no larger than 1,200 bytes. Four rotating partial corrections keep positions fresh; the fifth correction is a complete, chunk-assembled recovery snapshot.
 - Player snapshot bodies, roster views, team assignments, objective views, standings data, and common UI rows are reused until their source revision changes.
+- Each player snapshot reuses the common body and appends a 57-byte recipient correction trailer (1,187 bytes at 32 players), including the owner's active ordnance, active mines, and budget eviction count. `CombatantState.step_input` is shared by authority and replay; local weapon, shield, and ability clocks restore from this trailer before replay. A 21-byte input packet carries a selected ability slot and a stable press identity distinct from its frame sequence. One owned ability is attempted per press; retransmissions retain both slot and identity. `SpecialAbilitySelection` cycles owned abilities, with remappable Q/E or controller D-pad left/right defaults. Human input expires after 0.5 seconds without a fresh frame.
 - `ProjectileCorrectionAssembler` and `StandingsModel` keep packet reconstruction and result ordering out of the bridge and screen controller respectively.
 
 ### Match state
@@ -171,10 +178,10 @@ The six logical channels are:
 
 | Channel | Delivery | Use |
 | --- | --- | --- |
-| Control | Reliable ordered | Handshake, lobby, draft, match events, results |
+| Control | Reliable ordered | Handshake, lobby, draft, match events, results, private coalesced combat feedback at 20 Hz |
 | Input | Unreliable ordered | Latest local movement/aim/action frame |
 | Player snapshot | Unreliable ordered | Player transforms, resources, and local input acknowledgements |
-| Projectile delta | Unreliable ordered | Projectile spawn and removal batches |
+| Projectile delta | Unreliable ordered | Projectile spawn/removal batches and actual mine detonations in chunks of at most eight |
 | Projectile correction | Unreliable ordered | Rotating partial and periodic complete projectile recovery snapshots |
 | Objective | Unreliable ordered | Replaceable hill/flag state at 4 Hz; durable objective transitions remain on Control |
 
@@ -287,7 +294,7 @@ Any material UI change should be checked at minimum at:
 
 `verify-presentation.ps1` captures production states at all six acceptance resolutions, including 2880×1920, offline combat, every built-in round map, lobby match options, the roster-opened colour wheel, ordinary settings, exclusive-fullscreen settings, arena powerups, and graphical draft/live/final card-hover presentations. Inspect the relevant PNGs under `.tools/presentation-verification/`; passing file creation alone does not prove good composition.
 
-Keep combat center space free where possible. Durable match information belongs in the compact upper-left HUD. Temporary center overlays should have precise authoritative timing and short exits.
+Keep combat center space free where possible. Durable match information belongs in the compact upper-left HUD. Temporary center overlays should have precise authoritative timing and short exits. The persistent Accessibility settings tab offers combat HUD scaling from 100% to 150%, reduced shake, reduced flashes, and a centered 16:9 HUD safe area, enabled by default on wider displays. These preferences apply to online combat and the offline range; effect reduction must preserve readable hit, shield, and blast cues. Verify keyboard/controller focus traversal and the largest scale at 720p and ultrawide.
 
 Online Escape/settings screens must block local input without pausing the tree or server.
 
@@ -308,7 +315,7 @@ Do not commit audio without confirming its origin and project license. Let Godot
 
 The authority writes one bounded JSON object per line with UTC timestamp, level, event name, and event-specific fields. It records startup/shutdown, admission, departures, rejections, match transitions, match seed, overtime, and periodic simulation metrics.
 
-During a match, ten-second metric windows include connected peers, participants, ships, projectiles, mean/p95/max simulation time, outbound bytes, memory, object/node counts, and orphan-node count.
+During a match, ten-second metric windows include connected peers, participants, ships, projectiles, mean/p95/p99/max server callback time, active-combat p95/p99 samples, phase means, projectile budget evictions, outbound bytes, memory, object/node counts, and orphan-node count. The legacy `*_simulation_usec` names now measure the bridge callback through pending admission, NPC/world simulation, match coordination, encoding, and RPC enqueue. Engine multiplayer polling outside the callback, OS transmission, rendering, and the periodic metrics log itself are excluded; do not present these values as end-to-end frame or network latency. Separate phase means identify world/NPC, coordination, and replication costs.
 
 Do not log every input frame, unbounded collections, or client IP addresses. New logs must pass through the bridge's bounded logging helper.
 
@@ -320,14 +327,14 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | 2,923 deterministic assertions | After any gameplay/model/UI logic edit |
-| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, 88 project checks | Before commit/handoff |
+| `.\tools\run-tests.ps1` | Complete deterministic suite; reports actual assertion count and rejects script errors | After any gameplay/model/UI logic edit |
+| `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, and project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
-| `.\tools\run-performance-benchmark.ps1` | 32 Insane NPCs with 1,024 projectile churn, plus a 512-mine/512-projectile spatial-query case and p50/p95/p99 timings | Combat, projectile, mine, NPC, or networking hot-path changes |
+| `.\tools\run-performance-benchmark.ps1 -Map core_arena` | Selectable-map 32-Insane-NPC/1,024-projectile churn and 512-mine/512-projectile spatial-query cases, percentile timings and collision profiles | Combat, projectile, mine, NPC, or networking hot-path changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
-| `.\tools\verify-presentation.ps1` | 198 production captures at six resolutions | UI, map, text, theme, timing changes |
+| `.\tools\verify-presentation.ps1` | Production captures at six resolutions, including the lab and accessibility settings | UI, map, text, theme, timing changes |
 | `.\tools\build-beta.ps1` | Full foundation gate, Windows x64 export, rendered startup and packaged-audio inventory smoke, and friend ZIP | Beta/release packaging |
 | `.\tools\verify-hardening.ps1` | Malformed/excessive peers isolated while healthy clients continue | Validation/rate-limit changes |
 | `.\tools\verify-smoke.ps1` | Configurable 2–32 real-client short run | Capacity/performance smoke |
@@ -373,7 +380,7 @@ Good regression coverage normally includes:
 
 The foundation script deliberately runs a forced-failure test and expects its nonzero exit. Seeing that one intentional failure in the verbose gate output is normal when the script itself ultimately reports success.
 
-The performance benchmark is an overload regression gate: it combines all 32 participants at Insane decision quality with the global ceiling of 1,024 active projectiles, then separately holds 512 armed mines alongside 512 moving projectiles to guard the mixed spatial-query path. The main case fails above 20 ms p95, 24 ms p99, or 30 ms maximum; the mixed-mine case fails above 12 ms p95 or 20 ms maximum on the development machine. The ordinary 32-client soak retains the stricter 16.67 ms p95 server-simulation requirement from the specification.
+The performance benchmark is an overload regression gate: it combines all 32 participants at Insane decision quality with the global ceiling of 1,024 active projectiles, then separately holds 512 armed mines alongside 512 moving projectiles to guard the mixed spatial-query path. The main case fails above 20 ms p95, 24 ms p99, or 30 ms maximum; the mixed-mine case fails above 12 ms p95 or 20 ms maximum on the development machine. Use `-Map` with a catalog map ID to inspect collision-heavy layouts. Opt-in `AuthoritativeWorld.last_projectile_profile_usec` separates mine setup, guidance, obstacle/ship/mine sweeps, hit resolution, and damage resolution; `sweep_count` and `ship_candidates` in that dictionary are counts, not microseconds. These world benchmarks do not replace the real-client soak: it requires active-combat samples and enforces p95 below 16,667 microseconds for both active-combat and all-callback windows, including coordination and replication.
 
 Dedicated-server metrics also report the count and percentage of ticks exceeding the 60 Hz simulation budget. Treat sustained overruns as a release blocker even when mean latency remains low. Match randomness is generated cryptographically in production and is not sent to clients; `--test-match-seed` remains available only for deterministic server test runs.
 
@@ -413,7 +420,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 9 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Beta 1 through Beta 8 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing/notarization, and final release-candidate artifact checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 10 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Only the Windows x64 Beta 10 package has been built so far; Beta 9 remains the latest Linux and macOS package set. Beta 1 through Beta 9 remain archived in their own output folders. Dedicated-server export, clean-machine install validation, release-mode soak validation, code signing/notarization, and final release-candidate artifact checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 

@@ -8,6 +8,7 @@ const MINE_SMOKE_COUNT: int = 6
 const MAX_ACTIVE_MINE_EFFECTS: int = 24
 
 var effects: Array[Dictionary] = []
+var reduced_flashes: bool = false
 var active_mine_effect_count: int = 0
 var _mine_effect_sequence: int = 0
 
@@ -100,6 +101,12 @@ func _draw() -> void:
 		var alpha := 1.0 - progress
 		var position := effect.position as Vector2
 		var color := effect.color as Color
+		if reduced_flashes:
+			# Stable, subdued outlines preserve contact/location cues without bright
+			# filled explosions, white cores, or expanding starburst streaks.
+			var radius := GameConstants.MINE_BLAST_RADIUS if StringName(effect.kind) == &"mine" else 28.0
+			draw_arc(position, radius, 0.0, TAU, 40, Color(color, alpha * 0.42), 2.0, true)
+			continue
 		match StringName(effect.kind):
 			&"impact":
 				draw_circle(position, lerpf(5.0, 24.0, progress), Color(color, alpha * 0.24))

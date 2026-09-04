@@ -2,10 +2,11 @@ class_name GameConstants
 extends RefCounted
 
 const GAME_NAME: String = "Super Star Fighter"
-const GAME_VERSION: String = "0.1.0-beta.9"
-const RELEASE_LABEL: String = "BETA 9"
+const GAME_VERSION: String = "0.1.0-beta.10"
+const RELEASE_LABEL: String = "BETA 10"
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 24
+const PROTOCOL_VERSION: int = 28
+const INPUT_STALE_SECONDS: float = 0.5
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024
@@ -82,6 +83,7 @@ const CLOAK_COOLDOWN_SECONDS: float = 20.0
 const OVERTIME_START_SECONDS: float = 45.0
 const OVERTIME_WARNING_SECONDS: float = 5.0
 const OVERTIME_SHRINK_SECONDS: float = 45.0
+const OVERTIME_TIME_LIMIT_SECONDS: float = 60.0
 const OVERTIME_MINIMUM_RADIUS: float = 120.0
 const OVERTIME_BASE_DAMAGE_PER_SECOND: float = 30.0
 const OVERTIME_DAMAGE_STEP_SECONDS: float = 10.0

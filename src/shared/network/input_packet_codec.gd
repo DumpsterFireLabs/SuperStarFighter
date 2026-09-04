@@ -1,7 +1,7 @@
 class_name InputPacketCodec
 extends RefCounted
 
-const PACKET_SIZE: int = 16
+const PACKET_SIZE: int = 21
 const MOVEMENT_SCALE: float = 32767.0
 const MOVEMENT_TOLERANCE_SQUARED: float = 1.05 * 1.05
 
@@ -27,6 +27,8 @@ static func encode(frame: PlayerInputFrame) -> PackedByteArray:
 	if frame.special_activated:
 		action_bits |= NetworkProtocol.ACTION_SPECIAL
 	ByteCodec.append_u8(bytes, action_bits)
+	ByteCodec.append_u32(bytes, frame.special_sequence)
+	ByteCodec.append_u8(bytes, 255 if frame.special_slot == -1 else frame.special_slot)
 	return bytes
 
 
@@ -45,6 +47,9 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	var action_bits := ByteCodec.read_u8(bytes, 15)
 	if action_bits & ~NetworkProtocol.ACTION_MASK:
 		return _error("Input packet contains unsupported action bits.")
+	var slot := ByteCodec.read_u8(bytes, 20)
+	if slot > SpecialAbilitySelection.Slot.CLOAK and slot != 255:
+		return _error("Input packet contains an invalid special slot.")
 	var frame := PlayerInputFrame.new(
 		ByteCodec.read_u32(bytes, 1),
 		ByteCodec.read_u32(bytes, 5),
@@ -53,7 +58,9 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 		bool(action_bits & NetworkProtocol.ACTION_FIRE),
 		bool(action_bits & NetworkProtocol.ACTION_SHIELD),
 		bool(action_bits & NetworkProtocol.ACTION_RELOAD),
-		bool(action_bits & NetworkProtocol.ACTION_SPECIAL)
+		bool(action_bits & NetworkProtocol.ACTION_SPECIAL),
+		ByteCodec.read_u32(bytes, 16),
+		-1 if slot == 255 else slot
 	)
 	return {"ok": true, "frame": frame}
 

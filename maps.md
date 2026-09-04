@@ -16,6 +16,8 @@ At match start the server creates a deterministic shuffled deck containing all t
 
 ## 2. Non-Negotiable Map Contract
 
+This section defines the target contract for the expansion, including future dynamic mechanics and a proposed `MapDefinition` resource. It is not a claim that every item has shipped. Current static maps are implemented through `ArenaLayout`; the test suite verifies the implemented geometry and mode rules. Dynamic hazard safe states, portals, manual selection, and the proposed resource/validator remain roadmap work.
+
 All ten maps use the current 3200×1800 logical playfield for the first release. Shared dimensions keep camera behavior, overtime timing, network quantization, projectile budgets, and existing movement balance comparable. A later large-map experiment can extend the data format without making the first map pack harder to validate.
 
 ### 2.1 Thirty-two clear starting positions

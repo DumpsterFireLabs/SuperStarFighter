@@ -9,12 +9,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 $isArm64 = $Architecture -eq 'arm64'
-$presetName = if ($isArm64) { 'Linux ARM64 Beta 9' } else { 'Linux Beta 9' }
-$releaseLabel = 'Beta 9'
-$expectedGameVersion = '0.1.0-beta.9'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-9'
-$clientPath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta9.arm64' } else { 'SuperStarFighter-Beta9.x86_64' })
-$archivePath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta9-Linux-arm64.zip' } else { 'SuperStarFighter-Beta9-Linux-x64.zip' })
+$presetName = if ($isArm64) { 'Linux ARM64 Beta 10' } else { 'Linux Beta 10' }
+$releaseLabel = 'Beta 10'
+$expectedGameVersion = '0.1.0-beta.10'
+$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-10'
+$clientPath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta10.arm64' } else { 'SuperStarFighter-Beta10.x86_64' })
+$archivePath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta10-Linux-arm64.zip' } else { 'SuperStarFighter-Beta10-Linux-x64.zip' })
 $friendReadme = Join-Path $buildRoot 'README-BETA-LINUX.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES-LINUX.txt'
 $expectedMachineByte = if ($isArm64) { 0xb7 } else { 0x3e }

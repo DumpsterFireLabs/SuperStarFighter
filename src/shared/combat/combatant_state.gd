@@ -26,6 +26,22 @@ var burst_damage_window_remaining: float = 0.0
 var kinetic_vent_feedback_remaining: float = 0.0
 var shield: ShieldState = ShieldState.new()
 var weapon: WeaponState = WeaponState.new()
+var life_generation: int = 0
+var last_special_sequence: int = -1
+
+const ACTION_SHOT: int = 1
+const ACTION_MINE: int = 2
+const ACTION_MISSILE: int = 4
+const ACTION_BOOST: int = 8
+const ACTION_CLOAK: int = 16
+
+const PREDICTION_TIMERS: Array[StringName] = [
+	&"afterburner_remaining", &"afterburner_cooldown_remaining",
+	&"breakaway_remaining", &"breakaway_cooldown_remaining",
+	&"cloak_remaining", &"cloak_cooldown_remaining",
+	&"burst_damage_window_remaining", &"time_since_damage",
+	&"kinetic_vent_feedback_remaining",
+]
 
 
 static func create(
@@ -45,6 +61,7 @@ func reset_for_heat(
 	refresh_heat_inventory: bool = true
 ) -> void:
 	var previous_cloak_cooldown := cloak_cooldown_remaining
+	life_generation = SequenceMath.increment(life_generation)
 	stats = combat_stats.duplicate_stats()
 	if refresh_heat_inventory:
 		mine_charges_remaining = stats.mine_capacity
@@ -159,6 +176,92 @@ func step(
 		) - maxf(previous_damage_time - stats.auto_repair_delay, 0.0)
 		if repair_time > 0.0:
 			health = minf(health + stats.auto_repair_rate * repair_time, stats.max_health)
+
+
+## Shared input simulation for authority and client replay. Only the authority
+## turns the returned action bits into damaging projectiles.
+func step_input(frame: PlayerInputFrame, delta: float) -> int:
+	if not alive:
+		return 0
+	step(MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle), frame.aim_angle, frame.shielding, delta)
+	var actions := 0
+	if frame.special_activated:
+		if last_special_sequence < 0 or SequenceMath.is_newer(frame.special_sequence, last_special_sequence):
+			last_special_sequence = frame.special_sequence
+			# A press identifies exactly one ability, including across retries.
+			release_special_activation()
+			var slot := SpecialAbilitySelection.ensure_owned(-1, stats) if frame.special_slot == -1 else frame.special_slot
+			if slot == SpecialAbilitySelection.Slot.AFTERBURNER and activate_special():
+				actions |= ACTION_BOOST
+			if slot == SpecialAbilitySelection.Slot.MINE and deploy_mine():
+				actions |= ACTION_MINE
+			if slot == SpecialAbilitySelection.Slot.MISSILE and launch_missile():
+				actions |= ACTION_MISSILE
+			if slot == SpecialAbilitySelection.Slot.CLOAK and activate_cloak():
+				actions |= ACTION_CLOAK
+	else:
+		release_special_activation()
+	if frame.manual_reload:
+		request_reload()
+	if frame.firing and try_fire():
+		actions |= ACTION_SHOT
+	return actions
+
+
+func prediction_state() -> Dictionary:
+	var result := {
+		"peer_id": peer_id, "life_generation": life_generation,
+		"last_special_sequence": last_special_sequence,
+		"shot_sequence": weapon.shot_sequence,
+		"reloading": weapon.reloading, "weapon_cooldown": weapon.cooldown_remaining,
+		"reload_remaining": weapon.reload_remaining, "cadence_remainder": weapon.cadence_remainder,
+		"shield_locked": shield.depletion_locked, "shield_active": shield.active,
+		"shield_inactivity": shield.time_since_activity,
+		"guard_window": shield.perfect_guard_window_remaining,
+		"guard_feedback": shield.perfect_guard_feedback_remaining,
+		"shield_depleted": shield.depletion_triggered,
+		"vent_release": shield.kinetic_vent_release_pending,
+		"burst_damage": burst_damage_accumulator,
+	}
+	for property_name in PREDICTION_TIMERS:
+		result[property_name] = get(property_name)
+	return result
+
+
+func restore_prediction_state(state: Dictionary, combat_stats: CombatStats) -> void:
+	stats = combat_stats
+	peer_id = int(state.get("peer_id", peer_id))
+	position = state.get("position", position) as Vector2
+	velocity = state.get("velocity", velocity) as Vector2
+	aim_angle = float(state.get("aim_angle", aim_angle))
+	health = float(state.get("health", stats.max_health))
+	alive = bool(state.get("alive", true))
+	life_generation = int(state.get("life_generation", life_generation))
+	last_special_sequence = int(state.get("last_special_sequence", -1))
+	for property_name in PREDICTION_TIMERS:
+		set(property_name, float(state.get(property_name, 0.0)))
+	burst_damage_accumulator = float(state.get("burst_damage", 0.0))
+	weapon.ammunition = int(state.get("ammunition", stats.magazine_size))
+	weapon.shot_sequence = int(state.get("shot_sequence", 0))
+	weapon.reloading = bool(state.get("reloading", false))
+	weapon.cooldown_remaining = float(state.get("weapon_cooldown", 0.0))
+	weapon.reload_remaining = float(state.get("reload_remaining", 0.0))
+	weapon.cadence_remainder = float(state.get("cadence_remainder", 0.0))
+	shield.energy = float(state.get("shield", stats.shield_capacity))
+	shield.active = bool(state.get("shield_active", state.get("shielding", false)))
+	shield.depletion_locked = bool(state.get("shield_locked", false))
+	shield.time_since_activity = float(state.get("shield_inactivity", stats.shield_regeneration_delay))
+	shield.perfect_guard_window_remaining = float(state.get("guard_window", 0.0))
+	shield.perfect_guard_feedback_remaining = float(state.get("guard_feedback", 0.0))
+	shield.depletion_triggered = bool(state.get("shield_depleted", false))
+	shield.kinetic_vent_charge = float(state.get("kinetic_vent_charge", 0.0))
+	shield.kinetic_vent_release_pending = float(state.get("vent_release", 0.0))
+	mine_charges_remaining = int(state.get("mine_charges", 0))
+	mine_cooldown_remaining = float(state.get("mine_cooldown", 0.0))
+	missile_charges_remaining = int(state.get("missile_charges", 0))
+	missile_cooldown_remaining = float(state.get("missile_cooldown", 0.0))
+	cloak_charges_remaining = int(state.get("cloak_charges", 0))
+	cloak_activation_latched = false
 
 
 func try_fire() -> bool:

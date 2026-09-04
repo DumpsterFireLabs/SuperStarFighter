@@ -15,6 +15,7 @@ var _rng := RandomNumberGenerator.new()
 var _match_seed: int
 var _token_serial: int = 0
 var _offers: Dictionary = {}
+var _automatic_choices: Dictionary = {}
 var _active: bool = false
 
 
@@ -26,6 +27,7 @@ func _init(catalog: CardCatalog, match_seed: int) -> void:
 
 func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array[int] = []) -> Dictionary:
 	_offers.clear()
+	_automatic_choices.clear()
 	_active = true
 	var peer_ids := players.keys()
 	peer_ids.sort()
@@ -52,6 +54,11 @@ func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array
 		var eligible := _catalog.eligible_ids(player.card_stacks)
 		var offer_count := mini(GameConstants.CARD_OFFER_SIZE, eligible.size())
 		offer.card_ids = _weighted_cards_without_replacement(eligible, offer_count)
+		var useful: Array[StringName] = []
+		for card_id in offer.card_ids:
+			if StatSystem.has_effective_benefit(player.card_stacks, _catalog.get_card(card_id), _catalog):
+				useful.append(card_id)
+		_automatic_choices[peer_id] = useful if not useful.is_empty() else offer.card_ids.duplicate()
 		if offer.card_ids.is_empty():
 			offer.build_complete = true
 			offer.locked = true
@@ -61,6 +68,12 @@ func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array
 
 func get_offer(peer_id: int) -> DraftOffer:
 	return _offers.get(peer_id) as DraftOffer
+
+
+func automatic_card_ids(peer_id: int) -> Array[StringName]:
+	var result: Array[StringName] = []
+	result.assign(_automatic_choices.get(peer_id, []))
+	return result
 
 
 func select_card(peer_id: int, token: String, card_id: StringName) -> SelectionResult:
@@ -98,7 +111,8 @@ func resolve_timeout() -> void:
 		var offer := get_offer(peer_id)
 		if offer.locked:
 			continue
-		offer.selected_card_id = offer.card_ids[_rng.randi_range(0, offer.card_ids.size() - 1)]
+		var choices := automatic_card_ids(peer_id)
+		offer.selected_card_id = choices[_rng.randi_range(0, choices.size() - 1)]
 		offer.locked = true
 
 

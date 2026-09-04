@@ -19,9 +19,9 @@ const MODE_NAMES: Array[String] = [
 const MODE_DESCRIPTIONS: Array[String] = [
 	"Free-for-all combat. The last surviving pilot wins the heat.",
 	"Two to eight configured teams fight with friendly fire disabled. Eliminate every opposing team to win the heat.",
-	"Accumulate 20 seconds alone in the moving control point. Contested time pauses scoring; eliminated pilots respawn after 5 seconds.",
-	"Take the neutral flag from the middle of the arena back to your marked launch base. Eliminated pilots respawn after 5 seconds.",
-	"Two balanced teams contest a neutral center flag and carry it into their own team base. Eliminated pilots respawn after 5 seconds.",
+	"Accumulate 20 seconds alone in the control point. Contested time pauses scoring; respawns take 5 seconds. At the time limit, highest control time wins; equal times draw.",
+	"Take the neutral center flag back to your marked launch base. Respawns take 5 seconds. Bases remain inside overtime; no capture by the time limit means a draw.",
+	"Two balanced teams carry a neutral center flag into their own base. Respawns take 5 seconds. Bases remain inside overtime; no capture by the time limit means a draw.",
 ]
 const MIN_TEAM_COUNT: int = 2
 const MAX_TEAM_COUNT: int = 8

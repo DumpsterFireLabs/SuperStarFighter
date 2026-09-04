@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The main screen displays **BETA 9 · VERSION 0.1.0-beta.9** so players can confirm they are using the same build before joining one another.
+The main screen displays **BETA 10 · VERSION 0.1.0-beta.10** so players can confirm they are using the same build before joining one another.
 
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
@@ -93,7 +93,7 @@ The connection screen has three online paths:
 The same screen also offers:
 
 - **Offline Combat Lab** for solo movement, combat, card, shield, and overtime experimentation.
-- **Settings** for display mode, resolution, audio, and controls.
+- **Settings** for display mode, resolution, audio, controls, and accessibility.
 - **Quit** to close the game.
 
 Display names may contain 1–16 visible characters. Unsafe invisible or direction-formatting characters are rejected. International text and emoji are supported; when names are visually confusable, the server adds bounded suffixes such as `#2` for display clarity.
@@ -245,7 +245,7 @@ Changing a match option clears human readiness. Changing your own ship appearanc
 
 ### Random Spawn Powerups
 
-When the leader enables this optional rule, one Rare-or-better card appears at a safe random arena position every 5–90 seconds of active combat (20 seconds by default). King of the Hill enables temporary powerups by default; the other modes start with them off. Fly over a glowing rarity-coloured marker to collect it. The card is added immediately and its stats take effect without waiting for another draft. By default the stack expires when the heat ends; the leader may instead make arena drops permanent until the match ends. Humans and NPCs can collect powerups, and uncollected markers remain until the heat ends.
+When the leader enables this optional rule, one Rare-or-better card can appear at a safe random arena position every 5–90 seconds of active combat (20 seconds by default). King of the Hill enables temporary powerups by default; the other modes start with them off. Fly over a glowing rarity-coloured marker to collect it. The card is added immediately and its stats take effect without waiting for another draft. By default the collected stack expires when the heat ends; the leader may instead make arena drops permanent until the match ends. Humans and NPCs can collect powerups. At most eight uncollected markers may exist at once. Each expires after 60 seconds, when the overtime boundary passes it, or when the heat ends. New markers stay inside the safe zone; a spawn is skipped when no safe position is available.
 
 ### Game modes
 
@@ -259,7 +259,9 @@ When the leader enables this optional rule, one Rare-or-better card appears at a
 
 Every participant row in a team-mode lobby has a team dropdown. **Auto** balances that participant onto the least-populated available team; a specific choice locks them to that team. The host may assign anyone, each human may assign themselves, and any human may assign an NPC. A non-host cannot alter another human's selection. Team Death Match supports two through eight named/coloured teams; Team Capture the Flag stays fixed to **Cyan Team** and **Magenta Team** because each map has two bases. The roster, live standings, and results identify each pilot's team. Friendly projectile, beam, and shield-ram damage is disabled; ships still separate physically so teammates cannot occupy the same space. NPCs do not target or dodge allies and will pursue the active objective.
 
-Flags drop where their carrier dies and can be recovered. An untouched dropped flag returns to the center after eight seconds. King of the Hill and both flag modes respawn eliminated pilots after a five-second countdown, so combat deaths never decide or tie an objective heat; the objective must be completed.
+In team combat, ship labels identify the team number and ally/enemy relationship. Circles mark allies and diamonds mark enemies on ships, ordnance, and offscreen indicators, even when pilots choose identical hull colours. The combat HUD repeats this key.
+
+Flags drop where their carrier dies and can be recovered. An untouched dropped flag returns to the center after eight seconds. King of the Hill and both flag modes respawn eliminated pilots after a five-second countdown. Placement stays inside the current safe zone, avoids occupied positions, and favours distance or cover from enemies and nearby weapons. If no legal position is available, the HUD reports that respawn is waiting for clear space. Respawning grants no invulnerability. Combat deaths alone do not decide an objective heat; completing the objective or reaching the time limit does.
 
 ### NPC fill
 
@@ -287,6 +289,8 @@ Every participant drafts before round one. Before later rounds, the pilot who ju
 
 Human players see five private cards and have 30 seconds to choose. Hover a choice to open the same rarity-styled graphical stat card used for inspected builds; it previews the compounded build totals after taking that card. Click a card or press `1` through `5`. If the timer expires, the server chooses one of the offered cards. NPC choices are server-owned. When every eligible choice is locked, the draft ends immediately.
 
+Cards with **NO EFFECTIVE BENEFIT** have no improving stat or newly unlocked mechanic in the current build; any displayed drawbacks still apply. You can still choose them. Timeout and NPC picks prefer an offered card with an effective benefit, falling back to the full offer if none qualify. Card ownership remains unlimited, and capped benefits are not converted into another bonus.
+
 The cards apply simultaneously. Builds become public after the draft and can be inspected while holding `Tab`.
 
 ### Countdown and BEGIN
@@ -301,7 +305,7 @@ Complete the selected mode's heat objective. A solo winner gains one heat win; i
 
 If every remaining ship dies during the same authoritative tick, the heat is a tie: nobody receives a heat win and the heat is replayed after the result screen.
 
-The HUD names the current mode and reports hill control time or flag ownership. The arena draws the active hill, neutral flag, extraction zone, or coloured team bases. Overtime continues to apply in every mode, so objective play still converges if pilots try to stall. In King of the Hill, the overtime ring follows the hill and stops shrinking at a 350 px diameter, leaving a visible buffer around the 250 px control point.
+The HUD names the current mode and reports hill control time or flag ownership. The hill has a segmented boundary, a control-progress arc, and explicit neutral, contested, or controller labels. Your own base is labelled **YOUR BASE** or **YOUR TEAM BASE**; other bases identify their owner. Offscreen objective markers show direction and distance: a segmented circle for the hill, a diamond for the flag, and a square for your base. Carrying the flag changes your base marker to **RETURN FLAG**. Overtime applies in every mode. In King of the Hill, the overtime ring follows the hill and stops shrinking at a 350 px diameter, leaving a visible buffer around the 250 px control point. In flag modes, its minimum radius keeps every scoring base inside the safe zone.
 
 ### Round and match results
 
@@ -325,10 +329,11 @@ Keyboard and mouse is the first-launch default:
 | Hold left mouse | Automatic fire |
 | Hold right mouse | Directional shield |
 | `R` | Manually reload a partially used magazine |
-| `Shift` | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
+| `Q` / `E` | Select the previous / next owned active ability |
+| `Shift` | Activate only the selected ability |
 | Hold `Tab` | Live standings and public builds |
 | `Escape` | Pilot menu; online combat continues |
-| `F2` | Return to the main menu; active sessions require confirmation |
+| `F2` | Return to the main menu online; active sessions require confirmation. In the lab, switch between editor and range |
 | `F3` | Network diagnostic overlay |
 
 The controller/joystick profile defaults to:
@@ -340,12 +345,13 @@ The controller/joystick profile defaults to:
 | Hold right trigger | Automatic fire |
 | Hold left trigger | Directional shield |
 | X / Square | Manually reload a partially used magazine |
-| Left Stick Click | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
+| D-pad left / right during combat | Select the previous / next owned active ability |
+| Left Stick Click | Activate only the selected ability |
 | Hold View / Back | Live standings and public builds |
 | Menu / Start | Pilot menu; online combat continues |
 | Y / Triangle | Network diagnostic overlay |
 | Left / right bumper while spectating | Cycle living pilots |
-| D-pad | Navigate menus and draft cards |
+| D-pad in menus | Navigate menus and draft cards |
 | A / Cross | Confirm |
 | B / Circle | Back |
 
@@ -363,13 +369,21 @@ When the magazine empties, reload begins automatically. Press the configured man
 
 Cards can alter damage, cadence, magazine size, reload, projectile count, spread, speed, lifetime, pierces, ricochets, and knockback. Concussion Rounds and Repulsor Payload push struck ships; a shield block retains only 20% of that push. Beam cards transform shots into fast, short-lived pulse beams while retaining authoritative collision and damage.
 
-Afterburner is an active Ship card. Press the configured Special action (`Shift` or Left Stick Click by default) for a short forward speed and acceleration burst. It has an authoritative cooldown, works for human and NPC pilots, and produces a larger exhaust bloom while active.
+Afterburner, Star Mines, Hunter Missiles, and Cloak! are independently selected abilities. Use the previous/next-ability actions (`Q` / `E` or D-pad left / right by default) to cycle through abilities your build owns. The HUD identifies the selected ability. Press the configured Special action (`Shift` or Left Stick Click by default) to activate that ability alone. Other abilities retain their charges and cooldowns. Selecting an empty or cooling-down ability does not automatically spend a different ability. Selection actions can be rebound under **Settings → Controls**.
+
+Afterburner is an active Ship card. Select it and activate Special for a short forward speed and acceleration burst. It has an authoritative cooldown, works for human and NPC pilots, and produces a larger exhaust bloom while active.
 
 Breakaway Thrusters is a passive Rare Ship card. Depleting the shield, or losing at least 30% of maximum hull inside 0.35 seconds, triggers 0.85 seconds of stronger acceleration and braking without granting invulnerability or additional maximum speed. Its base cooldown is eight seconds; each stack reduces that cooldown by 15%. The HUD shows whether it is active, ready, or cooling down.
 
-Star Mines is an active Legendary Weapon card using the same Special action. Each stack supplies ten mines at the start of every heat. A mine can be placed immediately and then at most once every three seconds. It arms 0.25 seconds after placement; once armed, it slowly drags itself toward the nearest enemy within 320 pixels. An enemy entering its small trigger radius, direct contact, any projectile hit, or another mine's enlarged 200-pixel blast detonates it for 100 damage. Chain reactions can continue through other armed mines. The HUD shows authoritative remaining charges and cooldown. Mines disappear when their owner is eliminated or the heat ends; objective-mode respawns do not replenish charges within the same heat.
+Star Mines is an active Legendary Weapon card. Select it before using Special. Each stack supplies ten mines at the start of every heat. A mine can be placed immediately and then at most once every three seconds. It arms 0.25 seconds after placement; once armed, it slowly drags itself toward the nearest enemy within 320 pixels. An enemy entering its small trigger radius, direct contact, any projectile hit, or another mine's enlarged 200-pixel blast detonates it for 100 damage. Chain reactions can continue through other armed mines. The HUD shows authoritative remaining charges and cooldown. Mines disappear when their owner is eliminated or the heat ends; objective-mode respawns do not replenish charges within the same heat.
 
-Cloak! is an active Legendary Ship card using the Special action. Each stack supplies one use at the start of every heat, with a shared 20-second cooldown between activations. Objective-mode respawns do not replenish uses or clear the cooldown. Activation makes the ship invisible for five seconds and prevents it from firing; any positive hull damage ends invisibility immediately. The local pilot sees a faint outline, opponents see no ship, nameplate, shield, or exhaust, and NPC pilots cannot acquire a cloaked target. The HUD shows authoritative remaining uses, cooldown, and active state.
+Deployed mines have a protected budget of 16 per owner and 512 across the arena, within the overall 64-per-owner and 1024-global projectile limits. Ordinary gunfire and missiles cannot remove a deployed mine merely by filling the projectile budget; they replace older moving ordnance instead. Deploying beyond a mine limit removes the oldest applicable mine. Budget removal and cleanup do not detonate mines or deal blast damage.
+
+Hunter Missiles is an active Legendary Weapon card. Each stack supplies 20 missiles per heat. Select it and activate Special to launch one, with a one-second cooldown between launches. A missile deals 40 damage and acquires targets within its forward cone and clear line of sight, including while already in flight. It turns toward the target rather than changing direction instantly. The HUD shows remaining charges and cooldown; objective-mode respawns do not replenish the inventory.
+
+Cloak! is an active Legendary Ship card. Select it before using Special. Each stack supplies one use at the start of every heat, with a shared 20-second cooldown between activations. Objective-mode respawns do not replenish uses or clear the cooldown. Activation makes the ship invisible for five seconds and prevents it from firing; any positive hull damage ends invisibility immediately. The local pilot sees a faint outline, opponents see no ship, nameplate, shield, or exhaust, and NPC pilots cannot acquire a cloaked target. The HUD shows authoritative remaining uses, cooldown, and active state.
+
+Cloaked ship state is withheld from every other client, including allies and spectators. Entering or contesting the hill, picking up the flag, or carrying it reveals you. Activating cloak while doing so still spends the use and immediately reveals you. Missiles can still track you; mines can still approach and detonate, and projectiles, collisions, and overtime can still damage you. These visible interactions may reveal clues to your position.
 
 ### 7.3 Directional shields
 
@@ -405,7 +419,9 @@ The active map appears in the countdown banner, combat HUD, and live scoreboard.
 
 After the configured 30–120 second delay (45 seconds by default), a circular safe zone begins shrinking. The HUD warns five seconds before activation. Ships outside the boundary take continuous damage; once the boundary reaches its minimum size, the damage escalates over time.
 
-Overtime exists to force a conclusion. Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
+Every heat ends no later than 60 seconds after overtime starts: 105 seconds of active combat with the default settings. The overtime HUD counts down to this deadline. If King of the Hill reaches it, the pilot with the sole highest positive control time wins, including a pilot awaiting respawn. Equal leading control times or no control time produce a draw. Unresolved deathmatch and flag heats also draw. A normal victory completed on the deadline takes precedence. Results identify time-limit endings. This bounds each heat; repeated draws can still extend a match.
+
+Watch the boundary, reposition before it cuts off your route, and avoid relying on passive repair to outlast it.
 
 NPC pilots acquire opponents across the full arena, including opposite-edge spawns. They also react to the warning and shrinking radius. An NPC near or outside the boundary prioritizes an inward route over its preferred engagement distance; when cover blocks an engagement, its flank behavior continues to seek a viable firing lane rather than waiting for circle damage to decide the heat. At collision distance it releases shield/fire and executes a separating sidestep before resuming combat.
 
@@ -458,6 +474,8 @@ Each draft card shows:
 - Current stack transition, such as `STACK 2 → 3`.
 - Rarity and rarity-tier weight in smaller text at the bottom.
 
+Draft details show the actual whole-build values before and after the pick. `AT LIMIT` means a technical stat limit reduces or prevents that effect; any other effects, including drawbacks, still apply. The card and confirmation also flag limited effects. For example, another Twin Shot at six projectiles cannot add a seventh projectile, but its damage reduction still applies. Inspect the comparison before confirming.
+
 Click a card or press its `1`–`5` shortcut to stage it, then select **Confirm Pick** to lock it in. Until you confirm, select another card directly or use **Choose Another** (or Back/Escape) to clear the staged choice.
 
 Cards do not always contain a downside. Higher rarity means scarcity, not a guarantee that the card is correct for the current build.
@@ -478,6 +496,10 @@ The complete 135-card reference is in [section 7.3 of the specification](../spec
 
 The compact upper-left HUD carries match state, round/heat number, countdown or elapsed time, health, shield, ammunition, and owned ability resources such as mine inventory, cloak state, Kinetic Vent charge, and Breakaway cooldown without taking over the center of the arena. The upper-right kill feed shows the newest authoritative eliminations first, highlights events involving your pilot, and distinguishes environmental eliminations and disconnects from credited kills. The offline combat lab uses the same feed with locally resolved attribution. Entries fade after five seconds, while the decisive elimination remains visible through the immediate heat or round result. A second compact ammo bar and `AMMO`/`RELOAD` readout stays directly above the local ship for immediate combat awareness. Every ship's in-world health ring is scaled against that pilot's own card-modified maximum, so full health always appears full at the start of a heat.
 
+Combat feedback distinguishes confirmed hull hits from blocked or reflected shots. **HIT** reports damage actually removed from the target's hull, excluding overkill; **SHOT BLOCKED**, **SHOT REFLECTED**, and **PERFECT GUARD** explain defensive outcomes. Your own shield blocks have separate feedback. These confirmations come from the combat simulation, so firing or seeing a predicted projectile does not itself confirm a hit. Misses produce no hull-hit confirmation.
+
+When destroyed, a recap identifies the credited attacker or environment and the damage source: cannon, beam, missile, mine blast, shield ram, or overtime. Where applicable, it explains a reflection, a hit outside the shield arc, a depleted shield, or a mine blast bypassing shields. It also reports the final applied damage. The recap clears for a new life or session.
+
 Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
 
 When eliminated, you immediately spectate. Use the configured previous/next-target actions (`A`/`D` or the controller bumpers by default) to move among living ships. Late joiners also spectate until the current match returns to the lobby.
@@ -488,7 +510,7 @@ The configured diagnostics action (`F3` or Y / Triangle by default) shows frame 
 
 ## 10. Settings, Controls, and Audio
 
-Settings are available from the main menu and the in-match pilot menu. They are divided into **Display & Audio** and **Controls** tabs.
+Settings are available from the main menu and the in-match pilot menu. They have three tabs: **Display & Audio**, **Controls**, and **Accessibility**.
 
 Display mode choices:
 
@@ -530,28 +552,43 @@ The Controls tab provides:
 
 To remap an action, select its binding button and press the replacement key, mouse button, controller button, or joystick axis direction. Axis capture requires a deliberate movement past 65%, which avoids binding ordinary stick drift. Capture times out after eight seconds without changing the binding.
 
-All display, audio, flight-mode, profile, deadzone, and binding settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
+The **Accessibility** tab provides:
+
+- **HUD size**, from 100% to 150% in 10% steps, for larger combat text and controls.
+- **Disable camera shake and boost kick**, which suppresses both impact shake and Afterburner camera movement.
+- **Reduce combat flashes**, which reduces bright hit, shield, elimination, and boost flashes while retaining damage information and impact cues.
+- **Keep HUD within a centered 16:9 area**, enabled by default, which keeps important readouts near the center on ultrawide displays. Disable it to use the full display width.
+
+These options apply immediately to online play and the offline laboratory. Navigate settings with `Tab` / `Shift+Tab` or the controller D-pad; left / right adjusts HUD size. The settings tabs and toggles also support controller navigation.
+
+All display, audio, flight-mode, profile, deadzone, binding, and accessibility settings save automatically to Godot's per-user `super_star_fighter_settings.cfg` and persist between launches.
 
 The game safely runs without authored audio: combat effects are synthesized, victory has a generated fallback, and absent music is skipped. Repository maintainers can add real music and sound effects without code changes by following the [audio drop-in contract](../assets/audio/README.md).
 
 ## 11. Offline Combat Lab
 
-The lab is a local sandbox for learning controls and testing card interactions without a server.
+The lab opens in a paused build editor. It runs the same authoritative combat simulation as the server locally, including movement, collisions, projectiles, shields, active abilities, and damage. It is useful for testing a build without hosting a match; it does not simulate network delay or packet loss.
+
+Search cards by name, description, or rarity, then select a result to inspect its description and actual before/after stat changes. **+ Stack** adds the selected card, **− Stack** removes one stack, and **Clear build** restores the base ship. The build summary lists owned cards, while derived stats show the resulting hull, movement, weapon, shield, and ability values. Search and stat details are scrollable when space is limited.
+
+The preset menu contains **Base ship**, **Rapid scatter**, **Beam specialist**, **Shield tank**, and **All abilities**. Further edits turn a preset into a custom build. The target controls select one through five targets, 10–600 hull HP, and a distance of 160–900 pixels. You can enable target shields, return fire, and strafing independently. With a controller, D-pad left / right changes a focused numeric target control.
+
+Build and target changes reset the encounter, restoring health, ammunition, and ability resources and clearing projectiles and measurements. **Reset encounter** does the same without changing your build or target setup. **Reset measurements** clears only the counters. Targets stay destroyed until the encounter is reset; they do not silently heal or respawn. The default setup is one stationary, unshielded 100-HP target at 420 pixels.
+
+Choose **Enter range** to fly and fight, or **Edit build** to pause and return to the editor. The live readout counts trigger shots, confirmed hull hits, blocked shots, actual hull damage, and measured damage per second. Damage excludes shields and overkill. DPS uses active simulation time since the first shot or hit: misses, projectile travel, and reloads count, while time paused in the editor does not. A spread shot may produce multiple hull hits, so the hit count is not a percentage of trigger shots. The range also shows hit/block confirmations and death explanations.
 
 | Input | Lab action |
 | --- | --- |
-| Active keyboard/mouse or controller profile | Normal movement, aim, fire, and shield |
-| `Q` / `E` | Select previous / next card |
-| `G` | Grant one stack of the selected card |
-| `C` | Clear the current build |
-| `T` | Toggle target shields |
-| `B` | Toggle target firing |
-| `Y` | Reset the heat |
-| `O` | Start overtime, or reset warning/overtime to a full 45-second clock |
-| `Shift+O` | Cycle diagnostic overtime stages |
-| `F1` | Toggle laboratory help |
+| Active keyboard/mouse or controller profile | Normal movement, aim, fire, shield, reload, and selected ability |
+| `F2` | Switch between paused editor and live range |
+| `Enter` or A / Cross while flying | Open the editor |
+| `Q` / `E` or D-pad left / right while flying | Select the previous / next owned ability |
+| `Shift` or Left Stick Click | Activate only the selected ability |
+| `Y` while flying | Reset the encounter |
+| `O` while flying | Start overtime, or disable it and reset the elapsed clock |
+| `Shift+O` while flying | Cycle overtime warning, active, fully shrunk, and off stages |
 
-The lab uses shared movement, combat, collision, card, and overtime rules, but it is not a substitute for network testing.
+Practice is untimed until overtime is explicitly enabled. HUD size, reduced shake, reduced flashes, and the centered HUD preference also apply in the lab. Use the pilot menu to leave the laboratory.
 
 ## 12. Disconnects and Rejoining
 
@@ -635,7 +672,7 @@ Reconnect restoration is outside the current slice. Mid-match rejoiners spectate
 
 ### Performance becomes chaotic late in a match
 
-Hold `F3` to inspect network and entity diagnostics. Card scaling is intentionally excessive, but the server caps active projectiles at 64 per owner and 1024 globally. If diagnosing a regression, record the build, participant count, state, and server log window.
+Press `F3` to inspect network and entity diagnostics. Card scaling is intentionally excessive, but the server caps active projectiles at 64 per owner and 1024 globally. Deployed mines have protected limits of 16 per owner and 512 globally within those totals; ordinary fire replaces moving ordnance rather than deployed mines. If diagnosing a regression, record the build, participant count, state, and server log window.
 
 ## 14. Hosting Checklist
 

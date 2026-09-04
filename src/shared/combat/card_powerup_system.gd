@@ -7,6 +7,8 @@ const POWERUP_RADIUS: float = 26.0
 const SPAWN_MARGIN: float = 90.0
 const SHIP_CLEARANCE: float = 180.0
 const MAX_POSITION_ATTEMPTS: int = 64
+const MAX_ACTIVE_POWERUPS: int = 8
+const PICKUP_LIFETIME_SECONDS: float = 60.0
 
 var enabled: bool = false
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
@@ -15,6 +17,9 @@ var next_powerup_id: int = 1
 var active_powerups: Dictionary = {}
 var spawn_interval_seconds: float = DEFAULT_SPAWN_INTERVAL_SECONDS
 var permanent_drops: bool = false
+var _current_tick: int = 0
+var _safe_center: Vector2 = GameConstants.ARENA_SIZE * 0.5
+var _safe_radius: float = INF
 
 var _catalog: CardCatalog
 var _rng := RandomNumberGenerator.new()
@@ -37,6 +42,9 @@ func begin_heat(
 	map_id = ArenaLayout.normalized_map_id(selected_map_id)
 	spawn_interval_seconds = clampf(interval_seconds, 5.0, 90.0)
 	permanent_drops = permanent
+	_current_tick = start_tick
+	_safe_center = ArenaLayout.center(map_id)
+	_safe_radius = INF
 	next_spawn_tick = start_tick + roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND) if enabled else -1
 
 
@@ -45,15 +53,27 @@ func clear() -> void:
 	next_spawn_tick = -1
 
 
-func step(server_tick: int, world: AuthoritativeWorld, players: Dictionary) -> Array[Dictionary]:
+func step(server_tick: int, world: AuthoritativeWorld, players: Dictionary, safe_center: Vector2 = GameConstants.ARENA_SIZE * 0.5, safe_radius: float = INF) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	if not enabled:
 		return events
-	while next_spawn_tick >= 0 and server_tick >= next_spawn_tick:
-		var spawned := _spawn_powerup(world)
-		if not spawned.is_empty():
-			events.append({"event_type": &"CARD_POWERUP_SPAWNED", "payload": spawned})
-		next_spawn_tick += roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	_current_tick = server_tick
+	_safe_center = safe_center
+	_safe_radius = safe_radius
+	for id in active_powerups.keys():
+		var powerup := active_powerups[id] as Dictionary
+		var expired := server_tick >= int(powerup.get("expires_tick", 0x7fffffffffffffff))
+		if expired or (powerup.position as Vector2).distance_to(safe_center) + POWERUP_RADIUS > safe_radius:
+			active_powerups.erase(id)
+			events.append({"event_type": &"CARD_POWERUP_REMOVED", "payload": {"powerup_id": id, "reason": "expired" if expired else "overtime"}})
+	if next_spawn_tick >= 0 and server_tick >= next_spawn_tick:
+		if active_powerups.size() < MAX_ACTIVE_POWERUPS:
+			var spawned := _spawn_powerup(world)
+			if not spawned.is_empty():
+				events.append({"event_type": &"CARD_POWERUP_SPAWNED", "payload": spawned})
+		# Skip missed intervals instead of bursting an unbounded backlog after
+		# a tick jump, debugger pause, or a long period at capacity.
+		next_spawn_tick = server_tick + roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
 	if active_powerups.is_empty():
 		return events
 	events.append_array(_collect_powerups(world, players))
@@ -70,15 +90,20 @@ func snapshot() -> Array[Dictionary]:
 
 
 func _spawn_powerup(world: AuthoritativeWorld) -> Dictionary:
+	if active_powerups.size() >= MAX_ACTIVE_POWERUPS:
+		return {}
 	var card := _roll_rare_or_better_card()
 	if card == null:
 		return {}
 	var position := _random_legal_position(world)
+	if not position.is_finite():
+		return {}
 	var powerup := {
 		"powerup_id": next_powerup_id,
 		"card_id": card.card_id,
 		"position": position,
 		"rarity": card.rarity,
+		"expires_tick": _current_tick + roundi(PICKUP_LIFETIME_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND),
 	}
 	active_powerups[next_powerup_id] = powerup
 	next_powerup_id = SequenceMath.increment(next_powerup_id)
@@ -154,6 +179,11 @@ func _roll_rare_or_better_card() -> CardDefinition:
 
 func _random_legal_position(world: AuthoritativeWorld) -> Vector2:
 	var safe_bounds := ArenaLayout.arena_rect().grow(-SPAWN_MARGIN)
+	if is_finite(_safe_radius):
+		var radius := maxf(_safe_radius - POWERUP_RADIUS, 0.0)
+		safe_bounds = safe_bounds.intersection(Rect2(_safe_center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0))
+	if not safe_bounds.has_area():
+		return Vector2.INF
 	for _attempt in MAX_POSITION_ATTEMPTS:
 		var candidate := Vector2(
 			_rng.randf_range(safe_bounds.position.x, safe_bounds.end.x),
@@ -161,9 +191,11 @@ func _random_legal_position(world: AuthoritativeWorld) -> Vector2:
 		)
 		if _is_legal_position(candidate, world):
 			return candidate
-	var best_anchor := ArenaLayout.spawn_anchors(map_id)[0]
+	var best_anchor := Vector2.INF
 	var best_clearance := -1.0
 	for anchor in ArenaLayout.spawn_anchors(map_id):
+		if not _is_legal_position(anchor, world):
+			continue
 		var nearest_ship := 1.0e20
 		for combatant_value in world.combatants.values():
 			var combatant := combatant_value as CombatantState
@@ -176,8 +208,15 @@ func _random_legal_position(world: AuthoritativeWorld) -> Vector2:
 
 
 func _is_legal_position(position: Vector2, world: AuthoritativeWorld) -> bool:
+	if not ArenaLayout.arena_rect().grow(-POWERUP_RADIUS).has_point(position):
+		return false
+	if position.distance_to(_safe_center) + POWERUP_RADIUS > _safe_radius:
+		return false
 	if ArenaLayout.overlaps_obstacle(position, POWERUP_RADIUS + 12.0, map_id):
 		return false
+	for powerup in active_powerups.values():
+		if position.distance_to((powerup as Dictionary).position as Vector2) < POWERUP_RADIUS * 3.0:
+			return false
 	for combatant_value in world.combatants.values():
 		var combatant := combatant_value as CombatantState
 		if combatant.alive and combatant.position.distance_to(position) < SHIP_CLEARANCE:

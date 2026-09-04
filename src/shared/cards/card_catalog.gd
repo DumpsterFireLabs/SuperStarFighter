@@ -141,6 +141,8 @@ const DEFAULT_CARD_PATHS: Array[String] = [
 ]
 
 var _cards: Dictionary = {}
+var _sorted_ids: Array[StringName] = []
+var _ids_dirty: bool = true
 var load_errors := PackedStringArray()
 
 
@@ -167,6 +169,7 @@ func add_card(card: CardDefinition) -> bool:
 		load_errors.append("Duplicate card ID: %s." % card.card_id)
 		return false
 	_cards[card.card_id] = card
+	_ids_dirty = true
 	return true
 
 
@@ -183,11 +186,14 @@ func size() -> int:
 
 
 func all_ids() -> Array[StringName]:
-	var ids: Array[StringName] = []
-	for card_id in _cards:
-		ids.append(card_id)
-	ids.sort()
-	return ids
+	if _ids_dirty:
+		_sorted_ids.clear()
+		for card_id in _cards:
+			_sorted_ids.append(card_id)
+		_sorted_ids.sort()
+		_ids_dirty = false
+	# Callers may shuffle their copy; never expose the shared ordering to mutation.
+	return _sorted_ids.duplicate()
 
 
 func eligible_ids(_build: Dictionary) -> Array[StringName]:

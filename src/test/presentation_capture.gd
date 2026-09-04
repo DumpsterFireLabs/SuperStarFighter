@@ -70,6 +70,8 @@ func _capture_sequence() -> void:
 	client.settings_tabs.current_tab = 1
 	client._refresh_input_settings_ui()
 	await _capture(client, "controls")
+	client.settings_tabs.current_tab = 2
+	await _capture(client, "accessibility_settings")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
 	client.settings_tabs.current_tab = 0
 	client.current_window_mode = client.WindowModeOption.WINDOWED
@@ -77,6 +79,12 @@ func _capture_sequence() -> void:
 	client._update_resolution_control_state()
 	client._hide_settings()
 	client._play_offline()
+	await _capture(client, "build_lab")
+	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
+	await _capture(client, "build_lab_scaled")
+	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
+	client.offline_sandbox.set_target_settings(5, 100, 420, false, false, false)
+	client.offline_sandbox.set_editor_open(false)
 	var offline_damage_events: Array[Dictionary] = [
 		{"projectile_id": 701, "attacker_id": 1, "target_id": 2, "damage": 10_000.0},
 		{"projectile_id": 702, "attacker_id": 1, "target_id": 3, "damage": 10_000.0},
@@ -119,6 +127,10 @@ func _capture_sequence() -> void:
 	client._show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft")
 	await _capture_card_hover(client, client.draft_buttons[1] as Button, "draft_card_hover")
+	client.latest_match_payload["builds"] = {2: {&"twin_shot": 5, &"heavy_rounds": 2}}
+	client._show_draft_offer({"offer_token": "capture-cap", "card_ids": [&"twin_shot", &"phase_thrusters", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
+	await _capture(client, "draft_capped")
+	await _capture_card_hover(client, client.draft_buttons[0] as Button, "draft_capped_hover")
 	client.latest_match_payload["draft_bye_peer_id"] = 2
 	client._show_draft_bye(1800)
 	client._update_match_presentation()
@@ -149,6 +161,83 @@ func _capture_sequence() -> void:
 		{"killer_id": 0, "victim_id": 5, "reason": "disconnect"},
 	], 201)
 	await _capture(client, "combat")
+	var previous_combat_payload := client.latest_match_payload.duplicate(true) as Dictionary
+	client.network_world.set_physics_process(false)
+	client.latest_match_payload["game_mode"] = GameModeRules.Mode.TEAM_DEATH_MATCH
+	client.latest_match_payload["game_mode_name"] = "Team Death Match"
+	client.latest_match_payload["teams"] = {2: 1, 3: 2, 4: 1, 5: 8}
+	client.latest_match_payload["objective"] = {}
+	client.latest_match_payload["overtime_start_tick"] = 150
+	client.latest_match_payload["heat_end_tick"] = 2000
+	client.latest_match_payload["alive_peer_ids"] = [2, 3, 4, 5]
+	for player in client.latest_match_payload["players"]:
+		player["ship_color"] = "42e8ff"
+	client.network_world.apply_match_state(client.latest_match_payload)
+	var team_states: Array[Dictionary] = []
+	var positions := {2: Vector2(420, 340), 3: Vector2(730, 350), 4: Vector2(560, 570), 5: Vector2(520, 1120)}
+	for peer in [2, 3, 4, 5]:
+		team_states.append({"peer_id": peer, "position": positions[peer], "velocity": Vector2.ZERO, "aim_angle": 0.0 if peer in [2, 4] else PI, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true})
+	client.network_world._on_snapshot({"server_tick": 200, "acknowledged_input": 10, "states": team_states})
+	for state in team_states:
+		(client.network_world.ships[int(state.peer_id)] as SandboxShip).global_position = state.position
+	var team_registry := client.network_world.authoritative_projectiles as ProjectileRegistry
+	for id in range(1, 9):
+		var owner := 4 if id % 2 == 0 else 3
+		team_registry.add(ProjectileState.create(9000 + id, owner, id, Vector2(550 + id * 24, 420), 0.0, CombatStats.create_base()))
+	team_registry.add(ProjectileState.create_mine(9010, 4, Vector2(570, 250)))
+	team_registry.add(ProjectileState.create_mine(9011, 3, Vector2(750, 550)))
+	client.network_world.projectile_layer.queue_redraw()
+	client.network_world.indicator_layer.queue_redraw()
+	client._update_match_presentation()
+	await _capture(client, "team_combat")
+	client.network_world.apply_builds({2: {&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1, &"cloak": 1}})
+	client.network_world.selected_special_slot = 2
+	client.network_world.local_mine_charges_remaining = 8
+	client.network_world.local_missile_charges_remaining = 18
+	client.network_world.local_cloak_charges_remaining = 1
+	client.network_world._update_diagnostics()
+	await _capture(client, "ability_selection")
+	client.network_world.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
+	await _capture(client, "combat_accessibility")
+	client.network_world.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
+	client._on_match_event(&"COMBAT_FEEDBACK", 201, {"hit_count": 3, "hit_damage": 68, "blocked_count": 1, "last_block_reason": "perfect_guard"})
+	await _capture(client, "hit_confirmation")
+	client._on_match_event(&"COMBAT_FEEDBACK", 202, {"death": {"killer_id": 3, "source": "missile", "mechanic": "outside_shield_arc", "damage": 34, "life_generation": 1}})
+	await _capture(client, "death_recap")
+	client.network_world.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
+	await _capture(client, "death_recap_scaled")
+	client.network_world.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
+	client.network_world.combat_feedback_panel.clear_feedback()
+	client.network_world.apply_builds(client.latest_match_payload.get("builds", {}))
+	client.latest_match_payload["game_mode"] = GameModeRules.Mode.CAPTURE_THE_FLAG
+	client.latest_match_payload["game_mode_name"] = "Capture the Flag"
+	client.latest_match_payload["objective"] = {"active": true, "mode": GameModeRules.Mode.CAPTURE_THE_FLAG, "flag_position": Vector2(3000, 1600), "flag_carrier_id": 3, "capture_zones": {2: Vector2(2800, 1600), 3: Vector2(180, 300)}}
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	await _capture(client, "flag_navigation")
+	client.latest_match_payload["objective"]["flag_carrier_id"] = 2
+	client.network_world.apply_match_state(client.latest_match_payload)
+	await _capture(client, "flag_return")
+	client.latest_match_payload["game_mode"] = GameModeRules.Mode.KING_OF_THE_HILL
+	client.latest_match_payload["game_mode_name"] = "King of the Hill"
+	client.latest_match_payload["objective"] = {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(700, 430), "controller_id": 3, "progress": {3: 12.5}, "target_seconds": 20.0}
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	await _capture(client, "hill_enemy")
+	client.latest_match_payload["objective"]["controller_id"] = 0
+	client.latest_match_payload["objective"]["contested"] = true
+	client.network_world.apply_match_state(client.latest_match_payload)
+	await _capture(client, "hill_contested")
+	client.latest_match_payload = previous_combat_payload
+	client.network_world.apply_match_state(previous_combat_payload)
+	team_states.resize(2)
+	team_states[1]["position"] = Vector2(980, 520)
+	client.network_world._on_snapshot({"server_tick": 200, "acknowledged_input": 10, "states": team_states})
+	for state in team_states:
+		(client.network_world.ships[int(state.peer_id)] as SandboxShip).global_position = state.position
+	for id in range(9001, 9012):
+		team_registry.remove(id)
+	client.network_world.projectile_layer.queue_redraw()
 	client.network_world.set_physics_process(false)
 	var afterburner_ship := client.network_world.ships[2] as SandboxShip
 	var before_afterburner_position := afterburner_ship.global_position

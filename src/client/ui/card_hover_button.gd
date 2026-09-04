@@ -6,6 +6,8 @@ const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 var card_definition: CardDefinition
 var stack_count: int = 1
 var footer_context: String = "CURRENT BUILD"
+var comparison_rows: Array[Dictionary] = []
+var no_effective_benefit: bool = false
 
 
 func configure(card: CardDefinition, stacks: int, accessible_text: String, context: String = "CURRENT BUILD") -> void:
@@ -13,6 +15,29 @@ func configure(card: CardDefinition, stacks: int, accessible_text: String, conte
 	stack_count = maxi(stacks, 1)
 	footer_context = context
 	tooltip_text = accessible_text
+	comparison_rows.clear()
+	no_effective_benefit = false
+
+
+func configure_build_comparison(build: Dictionary, catalog: CardCatalog) -> void:
+	comparison_rows = StatSystem.compare_pick(build, card_definition, catalog)
+	no_effective_benefit = not StatSystem.has_effective_benefit(build, card_definition, catalog)
+	tooltip_text += "\n\nACTUAL BUILD: BEFORE → AFTER"
+	if no_effective_benefit:
+		tooltip_text += "\nNO EFFECTIVE BENEFIT · Existing drawbacks still apply."
+	for row in comparison_rows:
+		tooltip_text += "\n%s: %s → %s%s" % [_stat_name(row.property), _stat_value(row.before), _stat_value(row.after), " (AT LIMIT)" if row.limited else ""]
+
+
+func has_limited_effect() -> bool:
+	for row in comparison_rows:
+		if row.limited:
+			return true
+	return false
+
+
+func _stat_value(value: float) -> String:
+	return str(roundi(value)) if is_equal_approx(value, roundf(value)) else "%.2f" % value
 
 
 func _make_custom_tooltip(_for_text: String) -> Object:
@@ -91,7 +116,7 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	content.add_child(description)
 
 	var effects_heading := Label.new()
-	effects_heading.text = "STACKED CARD EFFECTS"
+	effects_heading.text = "ACTUAL BUILD: BEFORE → AFTER" if not comparison_rows.is_empty() else "STACKED CARD EFFECTS"
 	effects_heading.add_theme_font_size_override("font_size", 12)
 	effects_heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 	content.add_child(effects_heading)
@@ -109,7 +134,16 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 
 func _effect_rows() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
+	if not comparison_rows.is_empty():
+		for comparison in comparison_rows:
+			rows.append({
+				"name": _stat_name(comparison.property),
+				"each": "%s → %s" % [_stat_value(comparison.before), _stat_value(comparison.after)],
+				"total": "AT LIMIT" if comparison.limited else ("UNCHANGED" if comparison.unchanged else "%+.2f" % (float(comparison.after) - float(comparison.before))),
+			})
 	var names := card_definition.additive_modifiers.keys()
+	if not comparison_rows.is_empty():
+		names = []
 	names.sort()
 	for property_value in names:
 		var per_stack := float(card_definition.additive_modifiers[property_value])
@@ -119,6 +153,8 @@ func _effect_rows() -> Array[Dictionary]:
 			"total": "%+.2f total" % (per_stack * stack_count),
 		})
 	names = card_definition.multiplicative_modifiers.keys()
+	if not comparison_rows.is_empty():
+		names = []
 	names.sort()
 	for property_value in names:
 		var per_stack := float(card_definition.multiplicative_modifiers[property_value])
@@ -128,6 +164,8 @@ func _effect_rows() -> Array[Dictionary]:
 			"total": "×%.2f total" % pow(per_stack, stack_count),
 		})
 	names = card_definition.integer_modifiers.keys()
+	if not comparison_rows.is_empty():
+		names = []
 	names.sort()
 	for property_value in names:
 		var per_stack := int(card_definition.integer_modifiers[property_value])

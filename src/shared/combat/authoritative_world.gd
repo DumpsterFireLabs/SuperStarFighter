@@ -2,11 +2,14 @@ class_name AuthoritativeWorld
 extends RefCounted
 
 const CombatSpatialIndexScript = preload("res://src/shared/combat/combat_spatial_index.gd")
+const CombatFeedbackBufferScript = preload("res://src/shared/combat/combat_feedback_buffer.gd")
 
 var server_tick: int = 0
 var combatants: Dictionary = {}
 var latest_inputs: Dictionary = {}
 var acknowledged_inputs: Dictionary = {}
+var input_timeouts: Dictionary = {}
+var input_ages: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
 var spatial_index := CombatSpatialIndexScript.new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
@@ -16,10 +19,13 @@ var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
 var _kills_since_drain: Array[Dictionary] = []
+var _combat_feedback := CombatFeedbackBufferScript.new()
+var _mine_detonations: Array[Dictionary] = []
 var _ordered_peer_ids_cache: Array[int] = []
 var _ordered_peer_ids_dirty: bool = true
 var performance_profiling_enabled: bool = false
 var last_step_profile_usec: Dictionary = {}
+var last_projectile_profile_usec: Dictionary = {}
 var _projectile_geometry_normal: Dictionary = {}
 var _projectile_geometry_beam: Dictionary = {}
 var _projectile_geometry_missile: Dictionary = {}
@@ -47,10 +53,14 @@ func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
 
 
 func remove_peer(peer_id: int) -> void:
+	_combat_feedback.forget_peer(peer_id)
+	projectile_registry.forget_owner_metrics(peer_id)
 	combatants.erase(peer_id)
 	_ordered_peer_ids_dirty = true
 	latest_inputs.erase(peer_id)
 	acknowledged_inputs.erase(peer_id)
+	input_timeouts.erase(peer_id)
+	input_ages.erase(peer_id)
 	team_assignments.erase(peer_id)
 	projectile_registry.schedule_owner_cleanup(peer_id)
 
@@ -79,6 +89,7 @@ func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
 			return false
 	latest_inputs[peer_id] = frame
 	acknowledged_inputs[peer_id] = frame.sequence
+	input_ages[peer_id] = 0.0
 	return true
 
 
@@ -97,23 +108,20 @@ func step(
 		if not combatant.alive:
 			continue
 		var frame := latest_inputs[peer_id] as PlayerInputFrame
-		var world_movement := MovementSystem.ship_relative_to_world(frame.movement, frame.aim_angle)
-		combatant.step(world_movement, frame.aim_angle, frame.shielding, delta)
-		if frame.special_activated:
-			combatant.activate_special()
-			if combatant.deploy_mine():
-				_spawn_mine(combatant)
-			if combatant.launch_missile():
-				_spawn_missile(combatant)
-			combatant.activate_cloak()
-		else:
-			combatant.release_special_activation()
+		if input_timeouts.has(peer_id):
+			input_ages[peer_id] = float(input_ages.get(peer_id, 0.0)) + maxf(delta, 0.0)
+			if float(input_ages[peer_id]) > float(input_timeouts[peer_id]):
+				frame = PlayerInputFrame.new(frame.sequence, server_tick, Vector2.ZERO, frame.aim_angle)
+				latest_inputs[peer_id] = frame
+		var actions := combatant.step_input(frame, delta)
+		if actions & CombatantState.ACTION_MINE:
+			_spawn_mine(combatant)
+		if actions & CombatantState.ACTION_MISSILE:
+			_spawn_missile(combatant)
 		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
-		if frame.manual_reload:
-			combatant.request_reload()
-		if frame.firing and combatant.try_fire():
+		if actions & CombatantState.ACTION_SHOT:
 			_spawn_shot(combatant)
 	var movement_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for peer_id in _resolve_ship_overlaps(peer_ids):
@@ -146,6 +154,8 @@ func prepare_heat(
 	clear_projectiles()
 	_ram_contact_ticks.clear()
 	_kills_since_drain.clear()
+	_combat_feedback.clear()
+	_mine_detonations.clear()
 	for peer_id in _ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		if participant_stats.has(peer_id) and spawn_assignments.has(peer_id):
@@ -233,6 +243,7 @@ func apply_overtime(
 				"projectile_id": 2_000_000_000 + peer_id,
 				"target_id": peer_id,
 				"damage": damage,
+				"source": "overtime",
 			})
 	var deaths := _resolve_damage_events(damage_events)
 	for peer_id in deaths:
@@ -318,6 +329,18 @@ func maximum_projectile_speed() -> float:
 func drain_kill_events() -> Array[Dictionary]:
 	var result := _kills_since_drain.duplicate(true)
 	_kills_since_drain.clear()
+	return result
+
+
+# Private recipient feedback: deliberately contains no positions, directions,
+# projectile IDs or hit target identities that could expose cloaked opponents.
+func drain_combat_feedback() -> Dictionary:
+	return _combat_feedback.drain()
+
+
+func drain_mine_detonations() -> Array[Dictionary]:
+	var result := _mine_detonations
+	_mine_detonations = []
 	return result
 
 
@@ -415,6 +438,13 @@ func _acquire_missile_target(
 
 
 func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
+	var profile_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
+	if performance_profiling_enabled:
+		last_projectile_profile_usec = {
+			"mine_setup": 0, "guidance": 0, "obstacle_sweep": 0,
+			"ship_sweep": 0, "mine_sweep": 0, "hit_resolution": 0,
+			"damage_resolution": 0, "sweep_count": 0, "ship_candidates": 0,
+		}
 	var damage_events: Array[Dictionary] = []
 	var safe_delta := maxf(delta, 0.0)
 	var projectile_ids := projectile_registry.ordered_ids_view()
@@ -433,6 +463,8 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	_step_mine_magnetism(safe_delta, armed_mine_ids)
 	spatial_index.rebuild_armed_mines(projectile_registry, armed_mine_ids)
 	_step_mine_proximity(damage_events, armed_mine_ids)
+	if performance_profiling_enabled:
+		last_projectile_profile_usec.mine_setup = Time.get_ticks_usec() - profile_started
 	if _projectile_geometry_normal.is_empty():
 		_projectile_geometry_normal = ArenaCollisionSystem.projectile_geometry(
 			map_id,
@@ -453,7 +485,10 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			continue
 		if projectile.is_mine:
 			continue
+		var guidance_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 		_step_missile_guidance(projectile, safe_delta)
+		if performance_profiling_enabled:
+			last_projectile_profile_usec.guidance += Time.get_ticks_usec() - guidance_started
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			_remove_projectile(projectile.projectile_id)
@@ -472,6 +507,7 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 				_projectile_geometry_beam if projectile.is_beam
 				else (_projectile_geometry_missile if projectile.is_missile else _projectile_geometry_normal)
 			)
+			var sweep_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
@@ -479,24 +515,40 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 				map_id,
 				projectile_geometry
 			)
+			if performance_profiling_enabled:
+				last_projectile_profile_usec.obstacle_sweep += Time.get_ticks_usec() - sweep_started
+				last_projectile_profile_usec.sweep_count += 1
 			var obstacle_fraction := clampf(float(obstacle_hit.get("fraction", INF)), 0.0, 1.0) if obstacle_hit != null else INF
+			sweep_started = Time.get_ticks_usec() if performance_profiling_enabled else 0
 			var ship_hit: Variant = _nearest_projectile_ship_hit(projectile, start, finish, peer_ids)
+			if performance_profiling_enabled:
+				last_projectile_profile_usec.ship_sweep += Time.get_ticks_usec() - sweep_started
 			var ship_fraction := clampf(float(ship_hit.get("fraction", INF)), 0.0, 1.0) if ship_hit != null else INF
 			var mine_hit: Variant = null
 			if not armed_mine_ids.is_empty():
+				sweep_started = Time.get_ticks_usec() if performance_profiling_enabled else 0
 				mine_hit = _nearest_projectile_mine_hit(projectile, start, finish)
+				if performance_profiling_enabled:
+					last_projectile_profile_usec.mine_sweep += Time.get_ticks_usec() - sweep_started
 			var mine_fraction := clampf(float(mine_hit.get("fraction", INF)), 0.0, 1.0) if mine_hit != null else INF
 			if mine_hit != null and mine_fraction <= obstacle_fraction and mine_fraction <= ship_fraction:
 				projectile.position = mine_hit.position as Vector2
 				var mine := projectile_registry.get_projectile(int(mine_hit.mine_id))
 				_remove_projectile(projectile.projectile_id)
 				if mine != null:
+					var detonation_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 					_detonate_mine(mine, damage_events)
+					if performance_profiling_enabled:
+						last_projectile_profile_usec.hit_resolution += Time.get_ticks_usec() - detonation_started
 				break
 			if ship_hit != null and ship_fraction <= obstacle_fraction:
 				projectile.position = ship_hit.position as Vector2
 				travel_remaining *= maxf(1.0 - ship_fraction, 0.0)
-				if not _resolve_projectile_ship_hit(projectile, int(ship_hit.peer_id), damage_events):
+				var impact_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
+				var survives_impact := _resolve_projectile_ship_hit(projectile, int(ship_hit.peer_id), damage_events)
+				if performance_profiling_enabled:
+					last_projectile_profile_usec.hit_resolution += Time.get_ticks_usec() - impact_started
+				if not survives_impact:
 					break
 				projectile.position += projectile.velocity.normalized() * COLLISION_SURFACE_EPSILON
 				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
@@ -514,9 +566,12 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			projectile.position = finish
 			travel_remaining = 0.0
 
+	var damage_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for peer_id in _resolve_damage_events(damage_events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	_step_mine_activation(safe_delta, mine_ids)
+	if performance_profiling_enabled:
+		last_projectile_profile_usec.damage_resolution = Time.get_ticks_usec() - damage_started
 
 
 func _step_missile_guidance(missile: ProjectileState, delta: float) -> void:
@@ -692,6 +747,8 @@ func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> 
 		var current := projectile_registry.get_projectile(current_id)
 		if current == null or not current.is_mine_armed():
 			continue
+		if _mine_detonations.size() < GameConstants.MAX_PROJECTILES_GLOBAL:
+			_mine_detonations.append({"projectile_id": current.projectile_id, "owner_id": current.owner_id, "position": current.position})
 		_remove_projectile(current.projectile_id)
 		for peer_id in spatial_index.query_nearby_ships(
 			current.position,
@@ -709,6 +766,8 @@ func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> 
 				"attacker_id": current.owner_id,
 				"target_id": peer_id,
 				"damage": current.damage,
+				"source": "mine",
+				"mechanic": "blast_ignores_shield",
 			})
 		for candidate_id in spatial_index.query_nearby_mines(
 			current.position,
@@ -740,6 +799,8 @@ func _nearest_projectile_ship_hit(
 		finish,
 		GameConstants.SHIP_COLLISION_RADIUS + projectile.radius
 	)
+	if performance_profiling_enabled and not last_projectile_profile_usec.is_empty():
+		last_projectile_profile_usec.ship_candidates += candidates.size()
 	for peer_id in candidates:
 		var target := combatants[peer_id] as CombatantState
 		if not target.alive or not projectile.can_hit(peer_id) or are_allies(projectile.owner_id, peer_id):
@@ -774,6 +835,7 @@ func _resolve_projectile_ship_hit(
 	var impact_vector := projectile.position - target.position
 	if impact_vector.is_zero_approx():
 		impact_vector = -projectile.velocity.normalized()
+	var perfect_guard := target.shield.is_perfect_guard_active()
 	if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
 		target.shield.register_blocked_damage(projectile.damage, target.stats)
 		_apply_projectile_knockback(target, projectile, 0.2)
@@ -796,9 +858,12 @@ func _resolve_projectile_ship_hit(
 				for removed_id in projectile_registry.transfer_owner(projectile.projectile_id, target.peer_id):
 					_record_removed(removed_id)
 				if projectile_registry.get_projectile(projectile.projectile_id) != null:
+					_record_shield_feedback(old_owner_id, peer_id, "rebound")
 					_record_projectile_update(projectile)
 					return true
+				_record_shield_feedback(old_owner_id, peer_id, "rebound")
 				return false
+		_record_shield_feedback(projectile.owner_id, peer_id, "perfect_guard" if perfect_guard else "shield")
 		_remove_projectile(projectile.projectile_id)
 		return false
 	_apply_projectile_knockback(target, projectile, 1.0)
@@ -807,6 +872,8 @@ func _resolve_projectile_ship_hit(
 		"attacker_id": projectile.owner_id,
 		"target_id": peer_id,
 		"damage": projectile.damage,
+		"source": _projectile_source(projectile),
+		"mechanic": _hull_hit_mechanic(target, projectile),
 	})
 	if not projectile.register_hull_hit(peer_id):
 		_remove_projectile(projectile.projectile_id)
@@ -1072,6 +1139,8 @@ func _append_ram_damage(
 		"attacker_id": attacker.peer_id,
 		"target_id": target.peer_id,
 		"damage": attacker.stats.shield_ram_damage * speed_scale,
+		"source": "shield_ram",
+		"mechanic": "ram_contact",
 	})
 
 
@@ -1084,13 +1153,44 @@ func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileS
 
 func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 	var deaths: Array[int] = []
-	for death in DamageResolver.resolve_tick_with_attribution(combatants, damage_events):
-		var target_id := int(death.target_id)
-		var killer_id := int(death.killer_id)
+	for impact in DamageResolver.resolve_tick_with_feedback(combatants, damage_events):
+		var target_id := int(impact.target_id)
+		var killer_id := int(impact.attacker_id)
+		if killer_id != target_id and combatants.has(killer_id):
+			_combat_feedback.record_hit(killer_id, float(impact.damage), String(impact.source))
+		if not bool(impact.lethal):
+			continue
+		_combat_feedback.record_death(target_id, {
+			"killer_id": killer_id, "source": impact.source,
+			"mechanic": impact.mechanic, "damage": impact.damage,
+			"life_generation": impact.life_generation,
+		})
 		deaths.append(target_id)
 		if killer_id != 0 and killer_id != target_id and combatants.has(killer_id):
 			_kills_since_drain.append({"killer_id": killer_id, "target_id": target_id})
 	return deaths
+
+
+func _record_shield_feedback(attacker_id: int, defender_id: int, reason: String) -> void:
+	_combat_feedback.record_block(attacker_id if combatants.has(attacker_id) else 0, defender_id, reason)
+
+
+static func _projectile_source(projectile: ProjectileState) -> String:
+	if projectile.is_missile:
+		return "missile"
+	if projectile.is_beam:
+		return "beam"
+	return "projectile"
+
+
+static func _hull_hit_mechanic(target: CombatantState, projectile: ProjectileState) -> String:
+	if projectile.has_rebounded:
+		return "reflected"
+	if target.shield.active:
+		return "outside_shield_arc"
+	if target.shield.depletion_locked:
+		return "shield_depleted"
+	return ""
 
 
 func _remove_projectile(projectile_id: int) -> void:

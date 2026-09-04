@@ -78,6 +78,55 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	client.bridge.local_peer_id = 7
 	client.latest_match_payload["draft_bye_peer_id"] = 7
 	client._update_match_presentation()
-	context.expect_true(client.draft_title.text.contains("ROUND WINNER BUY"), "round winner sees the buy-round label while sitting out the draw")
+	context.expect_true(client.draft_title.text.contains("SKIPS THIS DRAFT"), "round winner sees a plain explanation of the draft bye")
+	client.latest_match_payload.erase("draft_bye_peer_id")
+	client.latest_match_payload["builds"] = {"7": {&"twin_shot": 5, &"heavy_rounds": 2}}
+	client._show_draft_offer({"offer_token": "cap-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	var capped := client.draft_buttons[0] as CardHoverButton
+	context.expect_true(capped.has_limited_effect(), "sixth Twin Shot detects the projectile count limit")
+	context.expect_true((capped.get_node("CardContent/Details/Stack") as Label).text.contains("NO EFFECTIVE BENEFIT"), "draft exposes drawback-only pick without requiring hover")
+	context.expect_true(capped.tooltip_text.contains("ACTUAL BUILD: BEFORE → AFTER"), "draft accessible details include actual derived build comparison")
+	var before := StatSystem.derive({&"twin_shot": 5, &"heavy_rounds": 2}, client.card_catalog)
+	var after := StatSystem.derive({&"twin_shot": 6, &"heavy_rounds": 2}, client.card_catalog)
+	var rows: Dictionary = {}
+	for row in capped.comparison_rows:
+		rows[row.property] = row
+	context.expect_equal(rows[&"projectile_count"].before, 6.0, "cap comparison starts at actual six-projectile limit")
+	context.expect_equal(rows[&"projectile_count"].after, 6.0, "cap comparison does not promise an unavailable projectile")
+	context.expect_approx(rows[&"projectile_damage"].before, before.projectile_damage, "comparison includes other owned cards in current damage")
+	context.expect_approx(rows[&"projectile_damage"].after, after.projectile_damage, "comparison exposes actual damage drawback after the capped pick")
+	context.expect_true(float(rows[&"projectile_damage"].after) < float(rows[&"projectile_damage"].before), "capped Twin Shot still visibly shows its damage penalty")
+	client._select_draft_card(0)
+	context.expect_true(client.draft_confirmation_label.text.contains("NO EFFECTIVE BENEFIT"), "confirmation retains the drawback-only warning")
+	client._cancel_draft_confirmation()
+	client.latest_match_payload["builds"] = {7: {}}
+	client._show_draft_offer({"offer_token": "new-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	context.expect_false(capped.has_limited_effect(), "a reused offer button clears the previous build's cap warning")
+	_validate_weapon_correction(context, client)
 	tree_parent.remove_child(client)
 	client.free()
+
+
+static func _validate_weapon_correction(context: TestContext, client: Node) -> void:
+	var world := AuthoritativeWorld.new()
+	var pilot := world.add_peer(7)
+	var view := client.network_world as NetworkWorldView
+	view.local_peer_id = 7
+	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(1, 0, world.snapshot_states(), pilot.prediction_state())))
+	pilot.weapon.ammunition = 2
+	pilot.weapon.shot_sequence = 9
+	pilot.weapon.request_reload(pilot.stats)
+	pilot.weapon.step(pilot.stats, 0.3)
+	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(2, 0, world.snapshot_states(), pilot.prediction_state())))
+	context.expect_true(view.local_weapon.reloading, "production client adopts authoritative mid-reload state")
+	context.expect_approx(view.local_weapon.reload_remaining, pilot.weapon.reload_remaining, "production client corrects reload progress", 0.001)
+	context.expect_equal(view.local_weapon.shot_sequence, 9, "production client corrects shot identity")
+	view.prediction.predict(PlayerInputFrame.new(1, 1, Vector2.UP), pilot.stats, 1.0 / 60.0)
+	pilot.alive = false
+	world.respawn_peer(7, pilot.stats, Vector2(420, 340))
+	# Deliberately skip the dead snapshot, as can happen on the unreliable channel.
+	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(3, 0, world.snapshot_states(), pilot.prediction_state())))
+	context.expect_empty(view.prediction.buffered_inputs, "life generation clears old replay even when the death snapshot was lost")
+	context.expect_false(view.local_weapon.reloading, "respawn clears stale reload in the production client")
+	context.expect_equal(view.local_weapon.ammunition, pilot.stats.magazine_size, "respawn restores production client ammo immediately")
+	context.expect_equal(view.local_weapon.shot_sequence, 0, "respawn resets production client shot identity")
