@@ -14,7 +14,7 @@ const LOCAL_FIELDS: Array[StringName] = [
 	&"weapon_cooldown", &"reload_remaining", &"cadence_remainder",
 	&"shield_inactivity", &"guard_window", &"guard_feedback", &"vent_release", &"burst_damage",
 ]
-const LOCAL_STATE_SIZE: int = 57 # Combat correction plus private ordnance usage/counter.
+const LOCAL_STATE_SIZE: int = 61 # Combat correction, ordnance usage and consumed shield press.
 
 
 static func encode(server_tick: int, acknowledged_input: int, states: Array[Dictionary], local_state: Dictionary = {}) -> PackedByteArray:
@@ -57,6 +57,10 @@ static func assemble(server_tick: int, acknowledged_input: int, body: PackedByte
 
 
 static func _local_scale(field: StringName) -> float:
+	if field == &"guard_window":
+		# 60 Hz guard durations round-trip exactly in 1/60000-second units.
+		# Millisecond rounding can otherwise add a displayed replay tick.
+		return 60000.0
 	if field in [&"weapon_cooldown", &"cadence_remainder"]:
 		return 10000.0
 	return 100.0 if field in [&"burst_damage", &"vent_release"] else 1000.0
@@ -70,12 +74,14 @@ static func _append_local_state(bytes: PackedByteArray, state: Dictionary) -> vo
 	flags |= 4 if bool(state.get("shield_active", false)) else 0
 	flags |= 8 if bool(state.get("shield_depleted", false)) else 0
 	flags |= 16 if int(state.get("last_special_sequence", -1)) >= 0 else 0
+	flags |= 32 if int(state.get("last_shield_press_sequence", -1)) >= 0 else 0
 	ByteCodec.append_u8(bytes, flags)
 	for field in LOCAL_FIELDS:
 		ByteCodec.append_u16(bytes, clampi(roundi(float(state.get(field, 0.0)) * _local_scale(field)), 0, 65535))
 	ByteCodec.append_u8(bytes, clampi(int(state.get("active_ordnance", 0)), 0, 255))
 	ByteCodec.append_u8(bytes, clampi(int(state.get("active_mines", 0)), 0, 255))
 	ByteCodec.append_u32(bytes, int(state.get("budget_evictions", 0)) & 0xffffffff)
+	ByteCodec.append_u32(bytes, maxi(int(state.get("last_shield_press_sequence", 0)), 0))
 
 
 static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
@@ -237,7 +243,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 		})
 		offset += PLAYER_RECORD_SIZE
 	var local_flags := ByteCodec.read_u8(bytes, offset + 16)
-	if local_flags & ~31:
+	if local_flags & ~63:
 		return _error("Player snapshot contains unsupported local correction flags.")
 	var local_state := {
 		"peer_id": ByteCodec.read_u32(bytes, offset),
@@ -253,6 +259,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	local_state["active_ordnance"] = ByteCodec.read_u8(bytes, offset + 51)
 	local_state["active_mines"] = ByteCodec.read_u8(bytes, offset + 52)
 	local_state["budget_evictions"] = ByteCodec.read_u32(bytes, offset + 53)
+	local_state["last_shield_press_sequence"] = ByteCodec.read_u32(bytes, offset + 57) if local_flags & 32 else -1
 	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states, "local_state": local_state}
 
 

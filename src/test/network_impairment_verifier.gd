@@ -4,9 +4,27 @@ extends SceneTree
 ## snapshot reconciliation and projectile presentation use production code.
 ## A separate UDP proxy impairs actual ENet datagrams in both directions.
 class FixtureMatch extends AuthoritativeMatchCoordinator:
+	var probe_peer: int = 0
+	var probe_last_press: int = -1
+	var shield_probes: Array[Dictionary] = []
 
 	func step(_delta: float) -> void:
-		pass # Keep one controlled heat alive; match transitions have separate gates.
+		# Keep one controlled heat alive; match transitions have separate gates.
+		if probe_peer == 0:
+			return
+		var defender := world.combatants[probe_peer] as CombatantState
+		if defender.last_shield_press_sequence == probe_last_press:
+			return
+		probe_last_press = defender.last_shield_press_sequence
+		var guarded := defender.shield.is_perfect_guard_active()
+		var before := defender.shield.energy
+		var damages: Array[Dictionary] = []
+		for index in 3:
+			var point := defender.position + Vector2.from_angle(defender.aim_angle) * 20.0
+			var projectile := ProjectileState.create(900000 + index, 0, index, point, defender.aim_angle + PI, defender.stats)
+			world.projectile_registry.add(projectile)
+			world._resolve_projectile_ship_hit(projectile, probe_peer, damages)
+		shield_probes.append({"press": probe_last_press, "received_ms": Time.get_ticks_msec(), "guarded": guarded, "energy_cost": before - defender.shield.energy, "hull_hits": damages.size()})
 
 var server: NetworkBridge
 var client: NetworkBridge
@@ -29,6 +47,9 @@ var final_acknowledged: bool = false
 var authority_reload_observed: bool = false
 var authority_shield_observed: bool = false
 var correction_errors: Array[float] = []
+var shield_tap_attempts: int = 0
+var shield_tap_latencies_ms: Array[int] = []
+var shield_only: bool = false
 
 
 func _initialize() -> void:
@@ -55,6 +76,7 @@ func _run() -> void:
 	var port := 17780
 	var proxy_port := 17781
 	for argument in OS.get_cmdline_user_args():
+		if argument == "--shield-only": shield_only = true
 		if argument.begins_with("--server-port="): port = int(argument.get_slice("=", 1))
 		if argument.begins_with("--proxy-port="): proxy_port = int(argument.get_slice("=", 1))
 	server = _runtime("Server")
@@ -63,7 +85,7 @@ func _run() -> void:
 	root.add_child(view)
 	view.setup(client)
 	client.client_snapshot_received.connect(_snapshot)
-	client.client_connection_lost.connect(func() -> void: _fail("unexpected disconnect"))
+	client.client_connection_lost.connect(func(_message: String) -> void: _fail("unexpected disconnect"))
 	if server.start_server({"port": port, "max_players": 2, "ban_file": "", "lobby_password": "impairment-fixture"}) != OK:
 		_fail("server start: %s" % server.last_error)
 		return
@@ -95,7 +117,7 @@ func _run() -> void:
 	await create_timer(0.1).timeout
 	# Long held actions, manual reload, shield, each selected ability, then idle.
 	# The normal client retries one identity until consumed or its deadline.
-	for phase in 12:
+	for phase in (0 if shield_only else 12):
 		var shots_before := ship.weapon.shot_sequence
 		_release_inputs()
 		await create_timer(0.05).timeout
@@ -113,6 +135,14 @@ func _run() -> void:
 		print("IMPAIRMENT_PHASE=%d shots=%d ammo=%d fire=%s shield=%s pending=%d" % [phase, ship.weapon.shot_sequence, ship.weapon.ammunition, str(Input.is_action_pressed("fire")), str(ship.shield.active), view.prediction.buffered_inputs.size()])
 		if failed: return
 	_release_inputs()
+	if shield_only:
+		# Keep enough traffic to exercise the proxy's scheduled blackout and
+		# place short taps near it, rather than finishing before the fault starts.
+		await _until(func() -> bool: return false, 3.0)
+	if not await _verify_shield_taps(ship):
+		return
+	if shield_only:
+		await _until(func() -> bool: return false, 2.0)
 	# Stop sampling and create one neutral barrier. Retry that exact sequence at
 	# the normal send cadence until authority acknowledges it; a lost final UDP
 	# sample must not strand replay or be misreported as resource divergence.
@@ -129,22 +159,58 @@ func _run() -> void:
 	if not final_acknowledged:
 		_fail("neutral input barrier was not acknowledged")
 		return
-	if not await _until(_settled, 8.0):
+	if not await _until(func() -> bool: return snapshots >= 30 and _settled(), 8.0):
 		_fail("resources did not converge: %s" % _comparison())
 		return
-	if snapshots < 30 or not authority_reload_observed or not authority_shield_observed or ship.weapon.shot_sequence < 3:
+	if snapshots < 30 or (not shield_only and (not authority_reload_observed or not authority_shield_observed or ship.weapon.shot_sequence < 3)):
 		_fail("missing delivery coverage")
 		return
-	if ship.mine_charges_remaining != 2 or ship.missile_charges_remaining != 2 or ship.cloak_charges_remaining != 2:
+	if not shield_only and (ship.mine_charges_remaining != 2 or ship.missile_charges_remaining != 2 or ship.cloak_charges_remaining != 2):
 		_fail("ability was lost or spent multiple charges: %s" % _comparison())
 		return
 	view.local_prediction._expire_unconfirmed_predicted_projectiles(view._now_seconds() + 2.0)
 	if not view.predicted_projectile_ids.is_empty():
 		_fail("unconfirmed predicted volleys leaked")
 		return
-	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "comparison": _comparison(), "delivery": _delivery_diagnostics(), "movement": _movement_diagnostics()}))
+	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "comparison": _comparison(), "delivery": _delivery_diagnostics(), "movement": _movement_diagnostics(), "shield_taps": {"attempts": shield_tap_attempts, "delivery_ms": shield_tap_latencies_ms, "volleys": (server.match_coordinator as FixtureMatch).shield_probes}}))
 	_cleanup()
 	quit(0)
+
+
+func _verify_shield_taps(ship: CombatantState) -> bool:
+	var fixture := server.match_coordinator as FixtureMatch
+	fixture.probe_peer = client.local_peer_id
+	fixture.probe_last_press = ship.last_shield_press_sequence
+	for attempt in 4:
+		if shield_tap_latencies_ms.size() >= 2:
+			break
+		_release_inputs()
+		await create_timer(0.3).timeout
+		ship.shield.reset(stats)
+		view.set_physics_process(false)
+		var local_ship := view.ships[client.local_peer_id] as CombatShipView
+		var began := Time.get_ticks_msec()
+		Input.action_press("shield")
+		view.local_prediction.step(1.0 / 60.0, local_ship)
+		var press := view.prediction.simulated_combatant.last_shield_press_sequence
+		Input.action_release("shield")
+		view.local_prediction.step(1.0 / 60.0, local_ship)
+		view.set_physics_process(true)
+		shield_tap_attempts += 1
+		# Retry coverage with a fresh player tap only after an expired attempt.
+		# No acceptance requires resurrecting a tap through a long blackout.
+		if await _until(func() -> bool: return ship.last_shield_press_sequence == press, 1.0):
+			var result: Dictionary = fixture.shield_probes.back()
+			if not bool(result.guarded) or not is_equal_approx(float(result.energy_cost), 55.0) or int(result.hull_hits) != 0:
+				_fail("shield tap/volley timing: %s" % result)
+				return false
+			shield_tap_latencies_ms.append(int(result.received_ms) - began)
+	fixture.probe_peer = 0
+	_release_inputs()
+	if shield_tap_latencies_ms.size() < 2:
+		_fail("missing short shield tap delivery coverage")
+		return false
+	return true
 
 
 func _snapshot(decoded: Dictionary) -> void:
@@ -177,7 +243,7 @@ func _snapshot(decoded: Dictionary) -> void:
 func _comparison() -> Dictionary:
 	var authority := server.world.combatants[client.local_peer_id] as CombatantState
 	var predicted := view.prediction.simulated_combatant
-	return {"ammo": [authority.weapon.ammunition, predicted.weapon.ammunition], "shots": [authority.weapon.shot_sequence, predicted.weapon.shot_sequence], "reloading": [authority.weapon.reloading, predicted.weapon.reloading], "mines": [authority.mine_charges_remaining, predicted.mine_charges_remaining], "missiles": [authority.missile_charges_remaining, predicted.missile_charges_remaining], "cloak": [authority.cloak_charges_remaining, predicted.cloak_charges_remaining], "special_identity": [authority.last_special_sequence, predicted.last_special_sequence]}
+	return {"ammo": [authority.weapon.ammunition, predicted.weapon.ammunition], "shots": [authority.weapon.shot_sequence, predicted.weapon.shot_sequence], "reloading": [authority.weapon.reloading, predicted.weapon.reloading], "mines": [authority.mine_charges_remaining, predicted.mine_charges_remaining], "missiles": [authority.missile_charges_remaining, predicted.missile_charges_remaining], "cloak": [authority.cloak_charges_remaining, predicted.cloak_charges_remaining], "special_identity": [authority.last_special_sequence, predicted.last_special_sequence], "shield_identity": [authority.last_shield_press_sequence, predicted.last_shield_press_sequence], "shield_energy": [authority.shield.energy, predicted.shield.energy], "shield_locked": [authority.shield.depletion_locked, predicted.shield.depletion_locked], "shield_active": [authority.shield.active, predicted.shield.active], "guard_window": [authority.shield.perfect_guard_window_remaining, predicted.shield.perfect_guard_window_remaining]}
 
 
 func _settled() -> bool:

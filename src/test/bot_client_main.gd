@@ -89,7 +89,10 @@ func _physics_process(delta: float) -> void:
 			send_accumulator = 0.0
 			var malformed_packet := InputPacketCodec.encode(PlayerInputFrame.new(malformed_packets_sent + 1, malformed_packets_sent + 1, Vector2.UP, 0.37, true))
 			malformed_packet[0] = 255
-			bridge.send_test_input_packet(malformed_packet)
+			if malformed_packets_sent % 2 == 0:
+				bridge.send_test_input_packet(malformed_packet)
+			else:
+				bridge.shield_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, malformed_packet)
 			malformed_packets_sent += 1
 			print("SSF_BOT_MALFORMED_SENT packets=%d" % malformed_packets_sent)
 		return
@@ -124,7 +127,10 @@ func _physics_process(delta: float) -> void:
 		bridge.send_input(frame)
 		if excessive_input:
 			for burst_index in 4:
-				bridge.send_test_input_packet(InputPacketCodec.encode(frame))
+				if burst_index % 2 == 0:
+					bridge.send_test_input_packet(InputPacketCodec.encode(frame))
+				else:
+					bridge.send_shield_input(frame)
 				bridge.send_lobby_config(GameConstants.DEFAULT_ROUNDS_TO_WIN)
 
 

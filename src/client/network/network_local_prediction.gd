@@ -19,6 +19,8 @@ var local_stats := CombatStats.create_base()
 var input_sequence: int = 0
 var client_tick: int = 0
 var input_send_accumulator: float = 0.0
+var _shield_was_held: bool = false
+var _shield_press_sequence: int = -1
 var prediction_initialized: bool = false
 var next_predicted_id: int = -1
 var latest_acknowledged_input: int = 0
@@ -80,6 +82,8 @@ func _sync_predicted_resources(ship: CombatShipView) -> void:
 	# update the visual ship before the buffered inputs have been replayed.
 	ship.combatant.shield.energy = simulated.shield.energy
 	ship.combatant.shield.active = simulated.shield.active
+	ship.combatant.shield.perfect_guard_window_remaining = simulated.shield.perfect_guard_window_remaining
+	ship.combatant.shield.perfect_guard_feedback_remaining = simulated.shield.perfect_guard_feedback_remaining
 	ship.combatant.cloak_remaining = simulated.cloak_remaining
 	ship.combatant.breakaway_remaining = simulated.breakaway_remaining
 
@@ -254,10 +258,24 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 		special_activation_sequence,
 		special_activation_slot
 	)
+	if not view.controls_enabled or input_blocked or not local_alive:
+		_shield_press_sequence = -1
+	elif frame.shielding and not _shield_was_held:
+		_shield_press_sequence = input_sequence
+	var shield_changed := frame.shielding != _shield_was_held
+	_shield_was_held = frame.shielding
+	if _shield_press_sequence >= 0 and ((input_sequence - _shield_press_sequence) & 0xffffffff) > GameConstants.SHIELD_PRESS_RETENTION_TICKS:
+		_shield_press_sequence = -1
+	frame.shield_press_sequence = _shield_press_sequence
+	if shield_changed:
+		# Edges bypass unreliable throttling. Ordinary samples still carry the
+		# press identity; shared sequence checks discard late reliable frames.
+		view.bridge.send_shield_input(frame)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
 		input_send_accumulator = fmod(input_send_accumulator, send_interval)
-		view.bridge.send_input(frame)
+		if not shield_changed:
+			view.bridge.send_input(frame)
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and view.controls_enabled:
 		prediction.predict(frame, local_stats, delta, view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID, local_breakaway_remaining > 0.0)
@@ -307,6 +325,8 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 			view.hud_camera.combat_feedback_panel.reset_for_life(int(correction.get("life_generation", 0)))
 		prediction.reset_to_snapshot(correction, local_stats)
 		if revived or new_life or not bool(state.alive):
+			_shield_press_sequence = -1
+			_shield_was_held = false
 			special_activation_sends_remaining = 0
 			for shot_sequence in predicted_projectile_ids.keys():
 				_remove_predicted_volley(int(shot_sequence))
@@ -340,6 +360,8 @@ func _expire_special_activation(now_msec: int) -> void:
 
 
 func reset_session() -> void:
+	_shield_press_sequence = -1
+	_shield_was_held = false
 	action_latch.reset()
 	input_sequence = 0
 	client_tick = 0

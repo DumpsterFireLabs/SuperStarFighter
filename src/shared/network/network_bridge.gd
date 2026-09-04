@@ -136,6 +136,12 @@ func send_input(frame: PlayerInputFrame) -> void:
 	submit_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, packet)
 
 
+func send_shield_input(frame: PlayerInputFrame) -> void:
+	if role != Role.CLIENT or local_peer_id == 0:
+		return
+	shield_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, InputPacketCodec.encode(frame))
+
+
 func send_lobby_config(rounds_to_win: int) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_lobby_config.rpc_id(NetworkProtocol.SERVER_PEER_ID, rounds_to_win)
@@ -704,6 +710,15 @@ func select_card(offer_token: String, card_id: String) -> void:
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_INPUT)
 func submit_input(packet: PackedByteArray) -> void:
+	_accept_input_packet(packet)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_INPUT)
+func shield_input(packet: PackedByteArray) -> void:
+	_accept_input_packet(packet)
+
+
+func _accept_input_packet(packet: PackedByteArray) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()

@@ -41,6 +41,10 @@ func step(held: bool, stats: CombatStats, delta: float) -> void:
 	var safe_delta := maxf(delta, 0.0)
 	var was_active := active
 	perfect_guard_window_remaining = maxf(perfect_guard_window_remaining - safe_delta, 0.0)
+	# Repeated 1/60-second subtraction must not leave a positive floating-point
+	# residue that grants one extra physics tick at the 250 ms deadline.
+	if is_zero_approx(perfect_guard_window_remaining):
+		perfect_guard_window_remaining = 0.0
 	perfect_guard_feedback_remaining = maxf(perfect_guard_feedback_remaining - safe_delta, 0.0)
 	if not stats.kinetic_vent_enabled:
 		kinetic_vent_charge = 0.0

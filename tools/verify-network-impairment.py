@@ -25,7 +25,7 @@ PROFILES = {
 }
 
 
-def run_profile(godot, name, port, seed, output):
+def run_profile(godot, name, port, seed, output, shield_only=False):
     profile = PROFILES[name]
     rng = random.Random(seed)
     counters = {direction: dict(received=0, delivered=0, dropped=0, duplicated=0,
@@ -47,7 +47,7 @@ def run_profile(godot, name, port, seed, output):
                 str(output / f"{name}.godot.log"), "--script",
                 "res://src/test/network_impairment_verifier.gd", "--",
                 f"--server-port={port}", f"--proxy-port={port + 1}",
-            ], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
+            ] + (["--shield-only"] if shield_only else []), cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             started = time.monotonic()
             settlement_started = None
@@ -93,7 +93,9 @@ def run_profile(godot, name, port, seed, output):
                             row["delayed"] += 1
                         serial += 1
                         heapq.heappush(queue, (now + delay, serial, direction, packet))
-                        if rng.random() < profile.get("duplicate", 0):
+                        # A short focused fixture must actually exercise every
+                        # requested fault, not randomly miss duplication entirely.
+                        if rng.random() < profile.get("duplicate", 0) or (profile.get("duplicate") and row["duplicated"] == 0 and row["received"] >= 8):
                             row["duplicated"] += 1
                             heapq.heappush(queue, (now + delay + 0.010, serial, direction, packet))
                         peak_queue = max(peak_queue, len(queue))
@@ -138,7 +140,7 @@ def run_profile(godot, name, port, seed, output):
         fixture = json.loads(next(line.split("=", 1)[1] for line in text.splitlines() if line.startswith("SSF_IMPAIRMENT_OK=")))
         if profile.get("settlement_blackout") and (counters["up"]["settlement_dropped"] == 0 or fixture["delivery"]["neutral_send_attempts"] < 2):
             raise RuntimeError(f"{name}: did not exercise loss and retry of the final neutral barrier")
-        result = dict(profile=name, seed=seed, configuration=profile, datagrams=counters,
+        result = dict(profile=name, seed=seed, shield_only=shield_only, configuration=profile, datagrams=counters,
                       peak_queued_datagrams=peak_queue, fixture=fixture)
         (output / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(f"PASS {name}: {fixture['snapshots']} snapshots, resources converged, faults={counters}", flush=True)
@@ -152,6 +154,7 @@ def main():
     parser.add_argument("--port", type=int, default=17780)
     parser.add_argument("--seed", type=int, default=230926)
     parser.add_argument("--seeds", type=int, default=1, help="consecutive seeds to run; failed runs are retained and reported")
+    parser.add_argument("--shield-only", action="store_true", help="isolate shield tap/volley timing and convergence from ability-delivery coverage")
     args = parser.parse_args()
     if not 1024 <= args.port <= 65534:
         parser.error("port must leave room for the adjacent proxy port")
@@ -168,11 +171,11 @@ def main():
         seed_output.mkdir()
         for name in names:
             try:
-                result = run_profile(args.godot.resolve(), name, args.port, seed, seed_output)
+                result = run_profile(args.godot.resolve(), name, args.port, seed, seed_output, args.shield_only)
                 result["passed"] = True
             except (RuntimeError, OSError) as error:
                 failures += 1
-                result = dict(profile=name, seed=seed, passed=False, error=str(error))
+                result = dict(profile=name, seed=seed, shield_only=args.shield_only, passed=False, error=str(error))
                 print(f"FAIL {name} seed={seed}: {error}", flush=True)
             results.append(result)
             (output / "summary.json").write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")

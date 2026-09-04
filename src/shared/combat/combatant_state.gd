@@ -28,6 +28,7 @@ var shield: ShieldState = ShieldState.new()
 var weapon: WeaponState = WeaponState.new()
 var life_generation: int = 0
 var last_special_sequence: int = -1
+var last_shield_press_sequence: int = -1
 
 const ACTION_SHOT: int = 1
 const ACTION_MINE: int = 2
@@ -197,7 +198,15 @@ func step_input_with_movement(
 ) -> int:
 	if not alive:
 		return 0
-	step(world_movement, frame.aim_angle, frame.shielding, delta, environment_speed_multiplier)
+	var shield_pressed := frame.shield_press_sequence >= 0 and (last_shield_press_sequence < 0 or SequenceMath.is_newer(frame.shield_press_sequence, last_shield_press_sequence))
+	if shield_pressed:
+		last_shield_press_sequence = frame.shield_press_sequence
+		# A newer press implies a release even when transport coalesced the
+		# intermediate held state. Preserve vent release and normal lock rules.
+		if shield.active:
+			shield.step(false, stats, 0.0)
+	# A delivered tap gets one simulation tick; repetitions cannot extend it.
+	step(world_movement, frame.aim_angle, frame.shielding or shield_pressed, delta, environment_speed_multiplier)
 	var actions := 0
 	if frame.special_activated:
 		if last_special_sequence < 0 or SequenceMath.is_newer(frame.special_sequence, last_special_sequence):
@@ -226,6 +235,7 @@ func prediction_state() -> Dictionary:
 	var result := {
 		"peer_id": peer_id, "life_generation": life_generation,
 		"last_special_sequence": last_special_sequence,
+		"last_shield_press_sequence": last_shield_press_sequence,
 		"shot_sequence": weapon.shot_sequence,
 		"reloading": weapon.reloading, "weapon_cooldown": weapon.cooldown_remaining,
 		"reload_remaining": weapon.reload_remaining, "cadence_remainder": weapon.cadence_remainder,
@@ -252,6 +262,7 @@ func restore_prediction_state(state: Dictionary, combat_stats: CombatStats) -> v
 	alive = bool(state.get("alive", true))
 	life_generation = int(state.get("life_generation", life_generation))
 	last_special_sequence = int(state.get("last_special_sequence", -1))
+	last_shield_press_sequence = int(state.get("last_shield_press_sequence", -1))
 	for property_name in PREDICTION_TIMERS:
 		set(property_name, float(state.get(property_name, 0.0)))
 	burst_damage_accumulator = float(state.get("burst_damage", 0.0))

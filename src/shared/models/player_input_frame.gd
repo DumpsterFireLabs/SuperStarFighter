@@ -11,6 +11,7 @@ var manual_reload: bool = false
 var special_activated: bool = false
 var special_sequence: int = 0
 var special_slot: int = -1
+var shield_press_sequence: int = -1
 
 
 func _init(
@@ -23,7 +24,8 @@ func _init(
 	manual_reload_value: bool = false,
 	special_activated_value: bool = false,
 	special_sequence_value: int = -1,
-	special_slot_value: int = -1
+	special_slot_value: int = -1,
+	shield_press_sequence_value: int = -1
 ) -> void:
 	sequence = sequence_value
 	client_tick = client_tick_value
@@ -35,6 +37,7 @@ func _init(
 	special_activated = special_activated_value
 	special_sequence = special_sequence_value if special_sequence_value >= 0 else sequence_value
 	special_slot = special_slot_value
+	shield_press_sequence = shield_press_sequence_value
 
 
 func is_valid() -> bool:
@@ -43,6 +46,7 @@ func is_valid() -> bool:
 		and client_tick >= 0
 		and special_sequence >= 0 and special_sequence <= 0xffffffff
 		and special_slot >= -1 and special_slot <= SpecialAbilitySelection.Slot.CLOAK
+		and (shield_press_sequence == -1 or (shield_press_sequence >= 0 and shield_press_sequence <= 0xffffffff and ((sequence - shield_press_sequence) & 0xffffffff) <= GameConstants.SHIELD_PRESS_RETENTION_TICKS))
 		and is_finite(movement.x)
 		and is_finite(movement.y)
 		and movement.length_squared() <= 1.0002

@@ -1,7 +1,7 @@
 class_name InputPacketCodec
 extends RefCounted
 
-const PACKET_SIZE: int = 21
+const PACKET_SIZE: int = 25
 const MOVEMENT_SCALE: float = 32767.0
 const MOVEMENT_TOLERANCE_SQUARED: float = 1.05 * 1.05
 
@@ -26,9 +26,12 @@ static func encode(frame: PlayerInputFrame) -> PackedByteArray:
 		action_bits |= NetworkProtocol.ACTION_RELOAD
 	if frame.special_activated:
 		action_bits |= NetworkProtocol.ACTION_SPECIAL
+	if frame.shield_press_sequence >= 0:
+		action_bits |= NetworkProtocol.ACTION_SHIELD_PRESS
 	ByteCodec.append_u8(bytes, action_bits)
 	ByteCodec.append_u32(bytes, frame.special_sequence)
 	ByteCodec.append_u8(bytes, 255 if frame.special_slot == -1 else frame.special_slot)
+	ByteCodec.append_u32(bytes, maxi(frame.shield_press_sequence, 0))
 	return bytes
 
 
@@ -60,8 +63,11 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 		bool(action_bits & NetworkProtocol.ACTION_RELOAD),
 		bool(action_bits & NetworkProtocol.ACTION_SPECIAL),
 		ByteCodec.read_u32(bytes, 16),
-		-1 if slot == 255 else slot
+		-1 if slot == 255 else slot,
+		ByteCodec.read_u32(bytes, 21) if action_bits & NetworkProtocol.ACTION_SHIELD_PRESS else -1
 	)
+	if not frame.is_valid():
+		return _error("Input packet contains an expired or future shield press.")
 	return {"ok": true, "frame": frame}
 
 
