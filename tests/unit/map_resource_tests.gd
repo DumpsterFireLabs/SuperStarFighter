@@ -32,6 +32,26 @@ static func run(context: TestContext) -> void:
 		for key in row.palette:
 			context.expect_equal(ArenaLayout.theme(id)[key].to_html(), row.palette[key], "map palette preserved")
 	context.expect_equal(ArenaLayout.normalized_map_id(&"missing_map"), &"core_arena", "unknown map retains established safe default")
+	var editable := MapRegistry.definition(&"solar_tide")
+	var original_name := editable.display_name
+	var original_spawn := editable.spawns[0]
+	var original_field := editable.movement_fields[0] as ArenaMovementFieldDefinition
+	var original_multiplier := original_field.maximum_speed_multiplier
+	editable.display_name = "Caller edit"
+	editable.spawns[0] = Vector2.ZERO
+	editable.cover.clear()
+	editable.floor_color = Color.MAGENTA
+	original_field.maximum_speed_multiplier = 1.99
+	original_field.center = Vector2.ZERO
+	var next := MapRegistry.definition(&"solar_tide")
+	context.expect_equal(next.display_name, original_name, "editing a returned definition cannot rename the cached map")
+	context.expect_equal(next.spawns[0], original_spawn, "nested spawn edits cannot change launch positions")
+	context.expect_false(next.cover.is_empty(), "clearing editable cover cannot remove collision geometry")
+	context.expect_false(next.floor_color == Color.MAGENTA, "editable palette fields do not change shared presentation")
+	context.expect_approx((next.movement_fields[0] as ArenaMovementFieldDefinition).maximum_speed_multiplier, original_multiplier, "nested Resource edits cannot poison later definition lookups")
+	context.expect_approx(ArenaLayout.movement_fields(&"solar_tide")[0].maximum_speed_multiplier, original_multiplier, "editable Resources never change published simulation fields")
+	context.expect_equal(ArenaLayout.display_name(&"solar_tide"), original_name, "allocation-free identity queries retain the cached value")
+	context.expect_equal(MapRegistry.definition(&"missing_map").map_id, &"core_arena", "editable definition lookup preserves unknown-map fallback")
 	var source := MapRegistry.DEFINITIONS[0] as MapDefinition
 	var invalid := source.duplicate(true) as MapDefinition
 	invalid.cover.append(Rect2(Vector2.ZERO, Vector2(-1, 20)))

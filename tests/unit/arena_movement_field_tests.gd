@@ -6,11 +6,24 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(fields.size(), 1, "Solar Tide publishes one signature movement field")
 	context.expect_true(fields.is_read_only(), "shared movement-field roster is immutable")
 	context.expect_true(ArenaLayout.movement_fields(&"core_arena").is_empty(), "other arenas preserve static movement")
-	var field := fields[0] as ArenaMovementFieldDefinition
+	var field := fields[0] as ArenaMovementField
 	context.expect_true(field != null, "map resource exposes a typed movement field")
 	if field == null:
 		return
 	context.expect_equal(field.field_id, &"solar_current", "signature field has stable identity")
+	var multiplier := field.maximum_speed_multiplier
+	var center := field.center
+	field.maximum_speed_multiplier = 1.99
+	field.center = Vector2.ZERO
+	context.expect_approx(field.maximum_speed_multiplier, multiplier, "runtime speed limit rejects nested mutation")
+	context.expect_equal(field.center, center, "runtime field geometry rejects nested mutation")
+	context.expect_equal(ArenaLayout.movement_fields(&"solar_tide")[0].get_instance_id(), field.get_instance_id(), "simulation and rendering reuse one immutable field without per-frame copies")
+	var authored := MapRegistry.definition(&"solar_tide").movement_fields[0] as ArenaMovementFieldDefinition
+	var isolated := ArenaMovementField.new(authored)
+	authored.maximum_speed_multiplier = 1.99
+	authored.center = Vector2.ZERO
+	context.expect_approx(isolated.maximum_speed_multiplier, multiplier, "runtime publication captures values independently of its authoring Resource")
+	context.expect_equal(isolated.center, center, "later authoring edits cannot move a published field")
 	context.expect_equal(field.mechanic_prompt(), "SOLAR CURRENT · CLOCKWISE", "field teaches its direction in text")
 	var middle := field.center + Vector2.UP * ((field.inner_radius + field.outer_radius) * 0.5)
 	context.expect_approx(field.influence_at(middle), 1.0, "middle of current receives full influence")
@@ -79,7 +92,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_approx(prediction.predicted_velocity.distance_to(combatant.velocity), 0.0, "authority and client replay share Solar Current velocity")
 
 	var invalid := (MapRegistry.definition(&"solar_tide") as MapDefinition).duplicate(true) as MapDefinition
-	var invalid_field := field.duplicate(true) as ArenaMovementFieldDefinition
+	var invalid_field := invalid.movement_fields[0] as ArenaMovementFieldDefinition
 	invalid_field.outer_radius = 2000.0
 	invalid.movement_fields = [invalid_field]
 	context.expect_false(invalid.validation_errors().is_empty(), "map validation rejects fields extending beyond the arena")

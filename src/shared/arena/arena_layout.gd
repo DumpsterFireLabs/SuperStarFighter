@@ -20,7 +20,7 @@ static func normalized_map_id(map_id: StringName) -> StringName:
 
 
 static func display_name(map_id: StringName = DEFAULT_MAP_ID) -> String:
-	return Registry.definition(map_id).display_name
+	return Registry.display_name(map_id)
 
 
 static func arena_rect() -> Rect2:
@@ -32,7 +32,7 @@ static func center(_map_id: StringName = DEFAULT_MAP_ID) -> Vector2:
 
 
 static func central_radius(map_id: StringName = DEFAULT_MAP_ID) -> float:
-	return Registry.definition(map_id).central_radius
+	return Registry.central_radius(map_id)
 
 
 static func central_octagon(map_id: StringName = DEFAULT_MAP_ID) -> PackedVector2Array:
@@ -54,10 +54,10 @@ static func circle_obstacles(map_id: StringName = DEFAULT_MAP_ID) -> Array[Dicti
 
 
 static func spawn_anchors(map_id: StringName = DEFAULT_MAP_ID) -> Array[Vector2]:
-	return Registry.definition(map_id).spawns.duplicate()
+	return Registry.spawns(map_id)
 
 
-static func movement_fields(map_id: StringName = DEFAULT_MAP_ID) -> Array[Resource]:
+static func movement_fields(map_id: StringName = DEFAULT_MAP_ID) -> Array[ArenaMovementField]:
 	return Registry.movement_fields(map_id)
 
 
@@ -65,7 +65,7 @@ static func mechanic_prompt(map_id: StringName = DEFAULT_MAP_ID) -> String:
 	var fields := movement_fields(map_id)
 	if fields.is_empty():
 		return ""
-	var field := fields[0] as ArenaMovementFieldDefinition
+	var field := fields[0] as ArenaMovementField
 	return field.mechanic_prompt() if field != null else ""
 
 
@@ -74,7 +74,7 @@ static func theme(map_id: StringName = DEFAULT_MAP_ID) -> Dictionary:
 
 
 static func material_family(map_id: StringName = DEFAULT_MAP_ID) -> StringName:
-	return Registry.definition(map_id).material_family
+	return Registry.material_family(map_id)
 
 
 static func validate() -> PackedStringArray:

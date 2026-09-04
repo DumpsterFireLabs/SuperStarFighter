@@ -64,9 +64,9 @@ static func _ensure_loaded() -> void:
 			obstacles.append(obstacle)
 		obstacles.make_read_only()
 		_circles[definition.map_id] = obstacles
-		var fields: Array[Resource] = []
+		var fields: Array[ArenaMovementField] = []
 		for field in definition.movement_fields:
-			fields.append(field)
+			fields.append(ArenaMovementField.new(field as ArenaMovementFieldDefinition))
 		fields.make_read_only()
 		_movement_fields[definition.map_id] = fields
 		var palette := {"floor": definition.floor_color, "border": definition.border_color, "obstacle": definition.obstacle_color, "line": definition.line_color}
@@ -90,8 +90,30 @@ static func normalized(id: StringName) -> StringName:
 
 
 static func definition(id: StringName) -> MapDefinition:
+	# Editable inspection/authoring copy, including nested field Resources.
+	# Runtime queries below never allocate this copy in simulation loops.
+	return _cached_definition(id).duplicate(true) as MapDefinition
+
+
+static func _cached_definition(id: StringName) -> MapDefinition:
 	_ensure_loaded()
 	return _entries.get(normalized(id)) as MapDefinition
+
+
+static func display_name(id: StringName) -> String:
+	return _cached_definition(id).display_name
+
+
+static func central_radius(id: StringName) -> float:
+	return _cached_definition(id).central_radius
+
+
+static func material_family(id: StringName) -> StringName:
+	return _cached_definition(id).material_family
+
+
+static func spawns(id: StringName) -> Array[Vector2]:
+	return _cached_definition(id).spawns.duplicate()
 
 
 static func cover(id: StringName) -> Array[Rect2]:
@@ -109,6 +131,6 @@ static func palette(id: StringName) -> Dictionary:
 	return _palettes[normalized(id)] as Dictionary
 
 
-static func movement_fields(id: StringName) -> Array[Resource]:
+static func movement_fields(id: StringName) -> Array[ArenaMovementField]:
 	_ensure_loaded()
-	return _movement_fields[normalized(id)] as Array[Resource]
+	return _movement_fields[normalized(id)] as Array[ArenaMovementField]

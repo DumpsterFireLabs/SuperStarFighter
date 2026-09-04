@@ -31,12 +31,12 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	for resource in ArenaLayout.movement_fields(map_id):
-		var field := resource as ArenaMovementFieldDefinition
+		var field := resource as ArenaMovementField
 		if field != null:
 			_draw_annular_field(field)
 
 
-func _draw_annular_field(field: ArenaMovementFieldDefinition) -> void:
+func _draw_annular_field(field: ArenaMovementField) -> void:
 	var palette := ArenaLayout.theme(map_id)
 	var flow_color := Color("77f8ff") if high_contrast else Color(palette.line).lerp(Color("77f8ff"), 0.55)
 	var segments := 96
