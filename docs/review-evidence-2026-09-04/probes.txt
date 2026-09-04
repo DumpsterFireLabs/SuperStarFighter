@@ -1,0 +1,22 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2582)
+REVIEW_COUNTDOWN announced={ 2: (1600.0, 170.0), 3: (1600.0, 170.0) } actual={ 2: (180.0, 817.1429), 3: (3020.0, 1480.0) }
+REVIEW_FALSE_BREAK active=true energy=24 events=[&"shield_break"]
+REVIEW_FALSE_BLOCK no_impacts=true energy_drop=4 events=[&"shield_block"]
+REVIEW_FIELD_MUTABLE subsequent_lookup=1.99
+REVIEW_TYPED_ZONE_BEGIN
+ERROR: Attempted to get a variable of type 'String' into a TypedDictionary.Key of type 'int'.
+   at: _internal_validate (./core/variant/container_type_validate.h:73)
+   GDScript backtrace (most recent call first):
+       [0] objective_intent (res://src/shared/combat/npc_pilot_controller.gd:269)
+       [1] _run (res://reports/fresh-review-2026-09-04/reproduce.gd:53)
+ERROR: Condition "!_p->typed_key.validate(key, "get")" is true. Returning: p_default
+   at: get (core/variant/dictionary.cpp:180)
+   GDScript backtrace (most recent call first):
+       [0] objective_intent (res://src/shared/combat/npc_pilot_controller.gd:269)
+       [1] _run (res://reports/fresh-review-2026-09-04/reproduce.gd:53)
+{ "role": &"retrieve", "destination": (1600.0, 900.0) }
+REVIEW_TYPED_ZONE_END
+REVIEW_PROBES_COMPLETE

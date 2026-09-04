@@ -1,0 +1,19 @@
+Closing fast test run:
+ERROR: Failed to open 'user://logs/godot2026-09-04T14.17.06.log'.
+ERROR: Failed to open log file for writing: user://logs/godot.log
+ERROR: Failed to read the root certificate store.
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+TEST_SUMMARY passed=5894 failed=0
+SSF_MODE_READY=tests
+Hardening verification passed: malformed and excessive peers were isolated while healthy clients continued; bounded structured logs and clean shutdown verified.
+Match-loop verification passed: private picks, timeout auto-pick, two full matches, reset, rematch, and clean shutdown.
+Soak verification passed: 32 initial clients, 11 windows, max p95 6367 us, overtime, combat disconnect, late spectator, bounded entities, and clean shutdown.

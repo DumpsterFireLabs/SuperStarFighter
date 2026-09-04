@@ -1,0 +1,22 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2582)
+{"event":"server_started","level":"info","max_players":2,"port":17780,"rounds_to_win":3,"timestamp":"2026-09-04T21:09:48"}
+{"display_name":"ImpairedPilot","event":"peer_joined","level":"info","peer_id":2110035776,"spectator":false,"timestamp":"2026-09-04T21:09:48"}
+IMPAIRMENT_PHASE=0 shots=3 ammo=13 fire=true shield=false pending=24
+IMPAIRMENT_PHASE=1 shots=5 ammo=11 fire=true shield=false pending=69
+IMPAIRMENT_PHASE=2 shots=5 ammo=11 fire=false shield=false pending=23
+IMPAIRMENT_PHASE=3 shots=5 ammo=11 fire=false shield=true pending=22
+IMPAIRMENT_PHASE=4 shots=5 ammo=16 fire=false shield=false pending=67
+IMPAIRMENT_PHASE=5 shots=5 ammo=16 fire=false shield=false pending=67
+IMPAIRMENT_PHASE=6 shots=5 ammo=16 fire=false shield=false pending=66
+IMPAIRMENT_PHASE=7 shots=5 ammo=16 fire=false shield=false pending=20
+{"active_p95_usec":421,"active_p99_usec":557,"active_projectiles":1,"active_samples":543,"active_ships":1,"connected_peers":1,"event":"simulation_metrics","level":"info","max_simulation_usec":610,"mean_coordination_usec":74.1816666666667,"mean_replication_usec":52.765,"mean_simulation_usec":248.858333333333,"mean_world_and_npc_usec":121.911666666667,"node_count":59,"npc_pilots":0,"object_count":2132,"orphan_node_count":0,"outbound_bytes":21454,"over_budget_percent":0.0,"over_budget_ticks":0,"p95_simulation_usec":419,"p99_simulation_usec":540,"participant_records":1,"projectile_budget_evictions":0,"server_tick":600,"static_memory_bytes":72685414,"timestamp":"2026-09-04T21:09:58","window":1}
+IMPAIRMENT_PHASE=8 shots=5 ammo=16 fire=true shield=false pending=20
+IMPAIRMENT_PHASE=9 shots=5 ammo=16 fire=true shield=false pending=19
+IMPAIRMENT_PHASE=10 shots=5 ammo=16 fire=false shield=false pending=19
+IMPAIRMENT_PHASE=11 shots=5 ammo=16 fire=false shield=false pending=19
+{"active_p95_usec":419,"active_p99_usec":529,"active_projectiles":1,"active_samples":600,"active_ships":1,"connected_peers":1,"event":"simulation_metrics","level":"info","max_simulation_usec":788,"mean_coordination_usec":82.595,"mean_replication_usec":57.835,"mean_simulation_usec":278.285,"mean_world_and_npc_usec":137.855,"node_count":59,"npc_pilots":0,"object_count":2109,"orphan_node_count":0,"outbound_bytes":22750,"over_budget_percent":0.0,"over_budget_ticks":0,"p95_simulation_usec":419,"p99_simulation_usec":529,"participant_records":1,"projectile_budget_evictions":0,"server_tick":1200,"static_memory_bytes":72641954,"timestamp":"2026-09-04T21:10:08","window":2}
+SSF_IMPAIRMENT_ERROR=resources did not converge: { "ammo": [16, 16], "shots": [5, 5], "reloading": [false, false], "mines": [2, 2], "missiles": [2, 2], "cloak": [2, 2], "special_identity": [455, 455] }
+{"active_projectiles":1,"active_ships":1,"connected_peers":1,"event":"server_shutdown","level":"info","participant_records":1,"pending_handshakes":0,"timestamp":"2026-09-04T21:10:09"}
