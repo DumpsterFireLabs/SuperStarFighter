@@ -474,6 +474,7 @@ func _capture_crowded_combat(client: Node) -> void:
 	view.effects_layer.spawn_damage(Vector2(1600, 900), Vector2.RIGHT, true)
 	view.apply_combat_feedback({"hit_count": 3, "hit_damage": 60, "guard_count": 1, "last_guard_reason": "perfect_guard"})
 	view.projectile_layer.queue_redraw()
+	view.replicated_visuals.update_combat_priorities()
 	await _capture(client, "crowded_combat")
 	var samples: Array[int] = []
 	for sample in 36:

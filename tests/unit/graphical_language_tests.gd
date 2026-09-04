@@ -2,6 +2,7 @@ extends RefCounted
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	_combat_priority_contract(context)
 	var client = load("res://scenes/client/client_main.tscn").instantiate()
 	parent.add_child(client)
 	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
@@ -101,6 +102,35 @@ static func run(context: TestContext, parent: Node) -> void:
 		var meaning := entry.node.find_child("EventMeaning", true, false) as Label
 		context.expect_true(meaning.size.x >= meaning.get_theme_font("font").get_string_size(meaning.text, HORIZONTAL_ALIGNMENT_LEFT, -1, meaning.get_theme_font_size("font_size")).x, "kill-feed event meaning fits even beside long names")
 	client.free()
+
+
+static func _combat_priority_contract(context: TestContext) -> void:
+	var layer := ProjectileLayer.new()
+	layer.registry = ProjectileRegistry.new()
+	layer.set_team_identity({2: 1, 3: 2}, 1, true)
+	var stats := CombatStats.create_base()
+	for index in ProjectileLayer.SIMPLIFY_PROJECTILE_THRESHOLD:
+		layer.registry.add(ProjectileState.create(index + 1, 2 + index / 32, index, Vector2.ZERO, 0.0, stats))
+	context.expect_true(layer.uses_compact_friendly_style(2), "dense friendly ordnance uses the compact body without decorative team outlines")
+	context.expect_false(layer.uses_compact_friendly_style(3), "hostile ordnance retains full threat geometry under identical density")
+	layer.set_team_identity({2: 1, 3: 2}, 0, true)
+	context.expect_false(layer.uses_compact_friendly_style(2), "neutral spectators do not attenuate an arbitrary team")
+	layer.registry = ProjectileRegistry.new()
+	context.expect_false(layer.uses_compact_friendly_style(2), "low-density scenes restore normal projectile detail")
+	layer.free()
+	var ship := CombatShipView.new()
+	ship.position = Vector2(900, 0)
+	ship.set_combat_focus(Vector2.ZERO, true)
+	context.expect_false(ship.show_combat_details, "distant ships suppress names and build decoration in crowded combat")
+	ship.set_combat_focus(Vector2(800, 0), true)
+	context.expect_true(ship.show_combat_details, "nearby threats retain their identity and build details")
+	ship.local_control = true
+	ship.set_combat_focus(Vector2.ZERO, true)
+	context.expect_true(ship.show_combat_details, "local identity remains visible regardless of crowd or camera distance")
+	ship.local_control = false
+	ship.set_combat_focus(Vector2.ZERO, false)
+	context.expect_true(ship.show_combat_details, "normal scenes restore distant ship detail")
+	ship.free()
 
 
 static func _press_key(viewport: Viewport, code: Key) -> void:

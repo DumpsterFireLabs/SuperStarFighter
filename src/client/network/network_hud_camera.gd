@@ -195,7 +195,14 @@ func _layout_accessible_hud() -> void:
 	spectator_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
+func uses_compact_hud() -> bool:
+	return float(view.accessibility_settings.hud_scale) >= 1.25 or view.replicated_visuals.ships.size() >= 16
+
+
 func _update_diagnostics(delta: float = 0.0) -> void:
+	var compact := uses_compact_hud()
+	view.local_prediction.selected_special_slot = SpecialAbilitySelection.ensure_owned(view.local_prediction.selected_special_slot, view.local_prediction.local_stats)
+	var selected := view.local_prediction.selected_special_slot
 	var resources := "Waiting for combat snapshot"
 	var diagnostics_hint: String = view.input_profiles.binding_text(&"diagnostics") if view.input_profiles != null else "F3"
 	var scoreboard_hint: String = view.input_profiles.binding_text(&"scoreboard") if view.input_profiles != null else "Tab"
@@ -207,17 +214,19 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 		shield_bar.max_value = view.local_prediction.local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
 		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, view.local_prediction.local_stats.max_health, local_ship.combatant.shield.energy, view.local_prediction.local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, view.local_prediction.local_stats.magazine_size]
-		if view.local_prediction.local_stats.mine_layer_enabled:
+		if compact:
+			resources = "HULL %.0f · SHIELD %.0f\nAMMO %d/%d" % [local_ship.combatant.health, local_ship.combatant.shield.energy, local_ship.combatant.weapon.ammunition, view.local_prediction.local_stats.magazine_size]
+		if view.local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
 			var mine_status := "%d" % view.local_prediction.local_mine_charges_remaining
 			if view.local_prediction.local_mine_cooldown_remaining > 0.05:
 				mine_status += " (%.1fs)" % view.local_prediction.local_mine_cooldown_remaining
 			resources += "   MINES %s" % mine_status
-		if view.local_prediction.local_stats.missile_launcher_enabled:
+		if view.local_prediction.local_stats.missile_launcher_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MISSILE):
 			var missile_status := "%d" % view.local_prediction.local_missile_charges_remaining
 			if view.local_prediction.local_missile_cooldown_remaining > 0.05:
 				missile_status += " (%.1fs)" % view.local_prediction.local_missile_cooldown_remaining
 			resources += "   MISSILES %s" % missile_status
-		if view.local_prediction.local_stats.cloak_enabled:
+		if view.local_prediction.local_stats.cloak_enabled and (not compact or selected == SpecialAbilitySelection.Slot.CLOAK or view.local_prediction.local_cloak_remaining > 0.0):
 			var cloak_status := "ACTIVE" if view.local_prediction.local_cloak_remaining > 0.0 else "%d" % view.local_prediction.local_cloak_charges_remaining
 			if view.local_prediction.local_cloak_remaining <= 0.0 and view.local_prediction.local_cloak_cooldown_remaining > 0.05:
 				cloak_status += " (%.1fs)" % view.local_prediction.local_cloak_cooldown_remaining
@@ -229,12 +238,16 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			resources += "   BREAKAWAY %s" % breakaway_status
 		var reload_hint: String = view.input_profiles.binding_text(&"manual_reload") if view.input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
+		# Controls remain discoverable in countdown and pause/settings. During
+		# combat reserve this space for selected abilities and actionable warnings.
+		if String(view.match_payload.get("state_name", "")) == "ACTIVE_HEAT":
+			combat_status = ""
 		view.local_prediction.selected_special_slot = SpecialAbilitySelection.ensure_owned(view.local_prediction.selected_special_slot, view.local_prediction.local_stats)
 		if view.local_prediction.selected_special_slot >= 0:
 			var special_hint: String = view.input_profiles.binding_text(&"special") if view.input_profiles != null else "Shift"
 			var cycle_hint: String = "%s/%s" % [view.input_profiles.binding_text(&"special_previous"), view.input_profiles.binding_text(&"special_next")] if view.input_profiles != null else "Q/E"
 			combat_status += "\n%s %s · %s select" % [special_hint, SpecialAbilitySelection.label(view.local_prediction.selected_special_slot), cycle_hint]
-		if view.local_prediction.local_stats.mine_layer_enabled:
+		if view.local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
 			combat_status += " · DEPLOYED %d/16" % view.local_prediction.local_active_mines
 		if view.local_prediction.budget_warning_remaining > 0.0:
 			combat_status += "\nORDNANCE LIMIT · oldest eligible weapon replaced"
@@ -251,7 +264,8 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 		else:
 			spectator_label.visible = false
 	resources_label.text = resources
-	combat_status_label.text = combat_status
+	combat_status_label.text = combat_status.strip_edges()
+	combat_status_label.visible = not combat_status_label.text.is_empty()
 	if toggle_status_label == null and hud_root != null:
 		toggle_status_label = view.local_prediction.action_latch.create_status_label(hud_root)
 	if toggle_status_label != null:

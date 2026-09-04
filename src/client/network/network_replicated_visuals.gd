@@ -212,6 +212,7 @@ func _update_remote_ships() -> void:
 
 
 func _step_projectile_visuals(delta: float) -> void:
+	update_combat_priorities()
 	for projectile_id in authoritative_projectiles.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
@@ -289,6 +290,15 @@ func _step_projectile_visuals(delta: float) -> void:
 		projectile_layer.queue_redraw()
 	if effects_layer != null:
 		effects_layer.visible_world_rect = view.hud_camera._visible_world_rect()
+
+
+func update_combat_priorities() -> void:
+	var crowded := ships.size() >= 16 or authoritative_projectiles.size() >= ProjectileLayer.SIMPLIFY_PROJECTILE_THRESHOLD
+	var focus := view.hud_camera.camera.position
+	if ships.has(view.local_peer_id) and (ships[view.local_peer_id] as CombatShipView).combatant.alive:
+		focus = (ships[view.local_peer_id] as CombatShipView).global_position
+	for ship: CombatShipView in ships.values():
+		ship.set_combat_focus(focus, crowded)
 
 
 func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileState) -> bool:

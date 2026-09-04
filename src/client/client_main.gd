@@ -1486,6 +1486,13 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 		"%s  ·  %s" % [state_label, mode_label],
 		"%s  ·  %s" % [map_label, round_heat],
 	])
+	if state_name == "ACTIVE_HEAT" and network_world.hud_camera.uses_compact_hud():
+		var short_modes := ["DM", "TEAM DM", "HILL", "CTF", "TEAM CTF"]
+		var mode := clampi(int(latest_match_payload.get("game_mode", 0)), 0, short_modes.size() - 1)
+		lines = PackedStringArray([
+			"%s · R%d / H%d%s" % [short_modes[mode], int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0)), " · T%d" % local_team if local_team > 0 else ""],
+			map_label,
+		])
 	if not detail_parts.is_empty():
 		lines.append("  ·  ".join(detail_parts))
 	if not objective_status.is_empty():

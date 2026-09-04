@@ -34,6 +34,14 @@ var team_id: int = 0
 var allied_to_local: bool = false
 var has_local_team: bool = false
 var movement_field_strength: float = 0.0
+var show_combat_details: bool = true
+
+
+func set_combat_focus(focus: Vector2, crowded: bool) -> void:
+	var detailed := local_control or not crowded or global_position.distance_squared_to(focus) <= 360.0 * 360.0
+	if detailed != show_combat_details:
+		show_combat_details = detailed
+		queue_redraw()
 
 
 func set_team_identity(value: int, local_team: int) -> void:
@@ -58,7 +66,7 @@ func setup(peer_id: int, stats: CombatStats, spawn_position: Vector2, color: Col
 	display_name = pilot_name if not pilot_name.is_empty() else "Pilot %d" % peer_id
 	identity_pattern = posmod(peer_id, 3)
 	global_position = spawn_position
-	z_index = 3
+	z_index = 4 if is_local else 3
 	name = "Ship%d" % peer_id
 	collision_layer = 2
 	collision_mask = 3
@@ -335,7 +343,8 @@ func _draw() -> void:
 	draw_polyline(points + PackedVector2Array([points[0]]), Color(ship_color, 0.18), 12.0)
 	draw_colored_polygon(points, Color(ship_color.darkened(0.45), 0.82))
 	_draw_cosmetic_pattern(forward, side)
-	_draw_build_modules(forward, side)
+	if show_combat_details:
+		_draw_build_modules(forward, side)
 	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 and not reduced_flashes else (ship_color.lightened(0.55) if high_contrast else ship_color), 6.0 if local_control else 4.0)
 	draw_circle(Vector2.ZERO, 6.0, Color("ffffff"))
 	for mark in identity_pattern + 1:
@@ -510,12 +519,16 @@ func _draw_team_marker() -> void:
 		draw_arc(Vector2.ZERO, 43.0, 0.0, TAU, 40, Color(color, 0.9), 2.5, true)
 	else:
 		draw_polyline(PackedVector2Array([Vector2(0, -43), Vector2(43, 0), Vector2(0, 43), Vector2(-43, 0), Vector2(0, -43)]), color, 2.5, true)
+	if not show_combat_details:
+		return
 	draw_rect(Rect2(-49, 49, 98, 22), Color("071024"))
 	draw_rect(Rect2(-49, 49, 98, 22), color, false, 1.0)
 	draw_string(ThemeDB.fallback_font, Vector2(-47, 65), team_marker_text(), HORIZONTAL_ALIGNMENT_CENTER, 94.0, 14, color.lightened(0.25))
 
 
 func _draw_nameplate(color: Color) -> void:
+	if not show_combat_details:
+		return
 	var label := "◆ %s" % display_name if local_control else display_name
 	draw_string(ThemeDB.fallback_font, Vector2(-70.0, -45.0), label, HORIZONTAL_ALIGNMENT_CENTER, 140.0, 16, color)
 

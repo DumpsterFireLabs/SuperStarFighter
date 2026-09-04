@@ -94,6 +94,9 @@ func _draw() -> void:
 		if projectile == null or not cull_rect.has_point(projectile.position):
 			continue
 		last_drawn_projectiles += 1
+		if uses_compact_friendly_style(projectile.owner_id):
+			_draw_compact_friendly(projectile)
+			continue
 		var friendly_alpha := 0.5 if simplified and is_friendly_owner(projectile.owner_id) else 1.0
 		if projectile.is_mine:
 			var mine_color := projectile_color_for_owner(projectile.owner_id) if has_team_marker(projectile.owner_id) else Color("ff4f78")
@@ -153,7 +156,35 @@ func _draw_team_marker(projectile: ProjectileState) -> void:
 	var point := projectile.position
 	var radius := projectile.radius + 5.0
 	var color := projectile_color_for_owner(projectile.owner_id)
+	if is_friendly_owner(projectile.owner_id):
+		color.a = 0.5
 	if is_friendly_owner(projectile.owner_id) or local_team_id == 0:
 		draw_arc(point, radius, 0.0, TAU, 16, color, 2.0)
 	else:
 		draw_polyline(PackedVector2Array([point + Vector2(0, -radius), point + Vector2(radius, 0), point + Vector2(0, radius), point + Vector2(-radius, 0), point + Vector2(0, -radius)]), color, 2.0)
+
+
+func uses_compact_friendly_style(owner_id: int) -> bool:
+	return registry != null and registry.size() >= SIMPLIFY_PROJECTILE_THRESHOLD and is_friendly_owner(owner_id)
+
+
+func _draw_compact_friendly(projectile: ProjectileState) -> void:
+	# Retain the weapon body and direction; friendly halos and repeated team
+	# outlines spend decoration budget without identifying a threat.
+	var color := Color(projectile_color_for_owner(projectile.owner_id).lightened(0.35), 0.45)
+	var point := projectile.position
+	var direction := projectile.velocity.normalized()
+	if projectile.is_mine:
+		draw_circle(point, projectile.radius, color)
+		if projectile.is_mine_armed():
+			draw_arc(point, projectile.radius + 4.0, 0.0, TAU, 12, color, 1.0)
+	elif projectile.is_missile:
+		var rear := point - direction * 11.0
+		var side := direction.orthogonal() * 7.0
+		draw_colored_polygon(PackedVector2Array([point + direction * 13.0, rear + side, rear - side]), color)
+		draw_line(rear, point - direction * 26.0, color, 2.0)
+	elif projectile.is_beam:
+		draw_line(point, point - direction * 150.0, color, 2.0)
+	else:
+		draw_circle(point, projectile.radius, color)
+		draw_line(point, point - direction * 14.0, color, 2.0)
