@@ -12,13 +12,13 @@ func _draw() -> void:
 	draw_rect(ArenaLayout.arena_rect(), palette.floor, true)
 	_draw_stars()
 	_draw_grid()
-	draw_rect(ArenaLayout.arena_rect(), palette.border, false, 8.0)
+	draw_rect(ArenaLayout.arena_rect(), Color(palette.border, 0.65), false, 5.0)
 	for rectangle in ArenaLayout.cover_rectangles(map_id):
 		draw_rect(rectangle, palette.obstacle, true)
-		draw_rect(rectangle, palette.line, false, 5.0)
+		draw_rect(rectangle, Color(palette.line, 0.48), false, 3.0)
 	for circle in ArenaLayout.circle_obstacles(map_id):
 		draw_circle(circle.center, float(circle.radius), palette.obstacle)
-		draw_arc(circle.center, float(circle.radius), 0.0, TAU, 64, palette.line, 6.0)
+		draw_arc(circle.center, float(circle.radius), 0.0, TAU, 64, Color(palette.line, 0.48), 3.0)
 	if show_spawn_anchors:
 		for anchor in ArenaLayout.spawn_anchors(map_id):
 			draw_circle(anchor, 5.0, Color(0.2, 0.85, 1.0, 0.35))

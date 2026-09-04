@@ -83,6 +83,16 @@ func _capture_sequence() -> void:
 	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "build_lab_scaled")
 	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
+	client._play_tutorial()
+	await _capture(client, "tutorial_movement")
+	client.offline_sandbox.tutorial._enter_step(4)
+	await _capture(client, "tutorial_guard")
+	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
+	await _capture(client, "tutorial_scaled")
+	client.offline_sandbox.tutorial._enter_step(6)
+	await _capture(client, "tutorial_draft")
+	client.offline_sandbox.stop_tutorial()
+	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
 	client.offline_sandbox.set_target_settings(5, 100, 420, false, false, false)
 	client.offline_sandbox.set_editor_open(false)
 	var offline_damage_events: Array[Dictionary] = [
@@ -324,11 +334,89 @@ func _capture_sequence() -> void:
 	var result_cards := client.results_standings_container.find_child("FinalBuildCards", true, false) as HFlowContainer
 	await _capture_card_hover(client, result_cards.get_child(1) as Button, "results_card_hover")
 
+	await _capture_crowded_combat(client)
 	client._on_rejected(&"SERVER_FULL", "The server is full.")
 	await _capture(client, "error")
 	root.remove_meta("ssf_presentation_capture_resolution")
 	print("PRESENTATION_CAPTURE_OK=%s" % capture_label)
 	quit(0)
+
+
+func _capture_crowded_combat(client: Node) -> void:
+	client._show_connection_screen("Stress capture")
+	client.connection_screen.hide()
+	client.bridge.local_peer_id = 2
+	client.network_world.set_network_active(true)
+	client.network_world.set_physics_process(false)
+	var view := client.network_world as NetworkWorldView
+	view.local_peer_id = 2
+	var states: Array[Dictionary] = []
+	var players: Array[Dictionary] = []
+	var ids: Array[int] = []
+	var teams: Dictionary = {}
+	var builds: Dictionary = {}
+	for index in 32:
+		var peer := index + 2
+		ids.append(peer)
+		teams[peer] = 1 + index % 2
+		builds[peer] = {&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1, &"rebound_shields": 1}
+		players.append({"peer_id": peer, "display_name": "Pilot %02d" % peer, "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "ship_pattern": SHIP_PATTERNS[index % SHIP_PATTERNS.size()]})
+		var position := Vector2(930 + (index % 8) * 190, 550 + (index / 8) * 210)
+		if index == 0:
+			position = Vector2(1600, 900)
+		states.append({"peer_id": peer, "position": position, "velocity": Vector2.ZERO, "aim_angle": index * 0.6, "health": 100, "shield": 100, "ammunition": 8, "alive": true, "shielding": index % 2 == 0, "afterburner_active": index % 3 == 0})
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "round_number": 1, "heat_number": 1, "deadline_tick": -1, "alive_peer_ids": ids, "participant_peer_ids": ids, "players": players, "scores": {}, "builds": builds, "teams": teams, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "game_mode_name": "Team Capture the Flag", "map_id": &"prism_array", "map_name": "Prism Array", "overtime_start_tick": 4000, "objective": {"active": true, "mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "flag_position": Vector2(1850, 950), "flag_carrier_id": 0, "capture_zones": {1: Vector2(1000, 500), 2: Vector2(2500, 1400)}}}
+	view.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	view._on_snapshot({"server_tick": 300, "acknowledged_input": 0, "states": states})
+	view._update_diagnostics()
+	view.camera.position = Vector2(1600, 900)
+	view.camera.reset_smoothing()
+	view.authoritative_projectiles = ProjectileRegistry.new()
+	view.projectile_layer.registry = view.authoritative_projectiles
+	var stats := CombatStats.create_base()
+	for index in 1024:
+		var position := Vector2(720 + (index % 48) * 36, 470 + (index / 48) * 38)
+		var owner := 2 + index / 32
+		var projectile: ProjectileState
+		if index % 16 == 0:
+			projectile = ProjectileState.create_mine(index + 1, owner, position)
+			projectile.mine_activation_remaining = 0.0
+		elif index % 16 == 1:
+			projectile = ProjectileState.create_missile(index + 1, owner, position, index * 0.3)
+		else:
+			projectile = ProjectileState.create(index + 1, owner, index, position, index * 0.3, stats)
+			projectile.is_beam = index % 7 == 0
+		view.authoritative_projectiles.add(projectile)
+	view.projectile_layer.visible_world_rect = view._visible_world_rect()
+	view.effects_layer.visible_world_rect = view._visible_world_rect()
+	view.effects_layer.clear_effects()
+	view.effects_layer.set_process(false)
+	for index in 128:
+		var position := Vector2(950 + index % 8 * 190, 600 + index % 4 * 160)
+		view.effects_layer.spawn_impact(position)
+		if index < 16:
+			view.effects_layer.spawn_mine_explosion(position)
+		if index < 32:
+			view.effects_layer.spawn_rebound(position)
+	view.effects_layer.spawn_damage(Vector2(1600, 900), Vector2.RIGHT, true)
+	view.apply_combat_feedback({"hit_count": 3, "hit_damage": 60, "guard_count": 1, "last_guard_reason": "perfect_guard"})
+	view.projectile_layer.queue_redraw()
+	await _capture(client, "crowded_combat")
+	var samples: Array[int] = []
+	for sample in 36:
+		await process_frame
+		view.projectile_layer.queue_redraw()
+		view.effects_layer.queue_redraw()
+		var started := Time.get_ticks_usec()
+		RenderingServer.force_draw(false)
+		if sample >= 6:
+			samples.append(Time.get_ticks_usec() - started)
+	samples.sort()
+	print("SSF_CROWD_RENDER_RESULT resolution=%s draw_submit_p95_usec=%d active_projectiles=%d drawn_projectiles=%d effects=%d suppressed=%d" % [capture_label, samples[ceili(samples.size() * 0.95) - 1], view.authoritative_projectiles.size(), view.projectile_layer.last_drawn_projectiles, view.effects_layer.effects.size(), view.effects_layer.dropped_effect_count])
+	view.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
+	await _capture(client, "crowded_combat_reduced")
+	view.effects_layer.set_process(true)
 
 
 func _capture(_client: Node, screen_name: String) -> void:

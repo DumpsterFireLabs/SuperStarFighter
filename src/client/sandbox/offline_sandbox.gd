@@ -2,6 +2,7 @@ class_name OfflineSandbox
 extends Node2D
 
 const LabPanelScript = preload("res://src/client/sandbox/lab_panel.gd")
+const TutorialScript = preload("res://src/client/sandbox/combat_tutorial.gd")
 const AbilitySelection = preload("res://src/shared/combat/special_ability_selection.gd")
 const FeedbackPresentation = preload("res://src/client/presentation/combat_feedback_presentation.gd")
 const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
@@ -68,6 +69,7 @@ var camera_kick_remaining: float = 0.0
 var camera_kick_duration: float = 0.0
 var camera_kick_offset: Vector2 = Vector2.ZERO
 var accessibility: Dictionary = {}
+var tutorial: RefCounted
 
 
 func _ready() -> void:
@@ -93,7 +95,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if editor_open:
+	if editor_open or (tutorial != null and tutorial.blocks_simulation()):
 		_update_camera(delta)
 		return
 	if not combat_input_armed:
@@ -125,6 +127,8 @@ func _physics_process(delta: float) -> void:
 
 ## The live lab and regression fixtures use the same server simulation entry point.
 func step_lab(delta: float, frame: PlayerInputFrame) -> void:
+	if tutorial != null and tutorial.blocks_simulation():
+		return
 	if feedback_remaining > 0.0:
 		feedback_remaining = maxf(feedback_remaining - delta, 0.0)
 		if feedback_remaining == 0.0:
@@ -155,6 +159,8 @@ func step_lab(delta: float, frame: PlayerInputFrame) -> void:
 		measurement_seconds += maxf(delta, 0.0)
 	projectile_layer.queue_redraw()
 	arena.set_overtime(overtime_enabled and OvertimeSystem.is_active(heat_elapsed), OvertimeSystem.radius_at(heat_elapsed))
+	if tutorial != null:
+		tutorial.after_step(frame)
 
 
 func _presentation_states() -> Dictionary:
@@ -181,7 +187,7 @@ func _sync_presentation(before: Dictionary) -> void:
 			var killer := int(kills.get(peer_id, 0))
 			eliminations.append({"killer_id": killer, "victim_id": peer_id, "reason": "combat" if killer > 0 else "environment"})
 			if not bool(accessibility.get("reduced_flashes", false)):
-				effects_layer.spawn_elimination(state.position, ship.ship_color)
+				effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == 1)
 		elif state.health < float(previous.health) and not bool(accessibility.get("reduced_flashes", false)):
 			ship.flash_damage()
 		if state.weapon.shot_sequence != int(previous.shot):
@@ -215,6 +221,8 @@ func _consume_feedback() -> void:
 				ship.flash_shield_block()
 			_emit_effect(&"shield_block", {"peer_id": peer_id}, ship.global_position)
 		if int(peer_id) == 1:
+			if tutorial != null:
+				tutorial.observe_feedback(event)
 			hull_hits += int(event.get("hit_count", 0))
 			blocked_shots += int(event.get("blocked_count", 0))
 			measured_damage += float(event.get("hit_damage", 0.0))
@@ -245,6 +253,8 @@ func _emit_effect(event_name: StringName, payload: Dictionary, origin: Vector2) 
 
 
 func set_sandbox_active(active: bool) -> void:
+	if not active and tutorial != null and tutorial.active:
+		tutorial.stop()
 	visible = active
 	process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 	if camera != null:
@@ -267,6 +277,15 @@ func set_input_profile_manager(profile_manager: Node) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if tutorial != null and tutorial.active:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.physical_keycode == KEY_Y:
+				tutorial.retry_step()
+				get_viewport().set_input_as_handled()
+			elif event.physical_keycode == KEY_F2:
+				tutorial.stop()
+				get_viewport().set_input_as_handled()
+		return
 	if not editor_open and event.is_action_pressed("ui_accept"):
 		set_editor_open(true)
 		get_viewport().set_input_as_handled()
@@ -344,6 +363,8 @@ func _create_hud() -> void:
 	lab_panel.name = "BuildEditor"
 	hud_root.add_child(lab_panel)
 	lab_panel.configure(self)
+	tutorial = TutorialScript.new()
+	tutorial.configure(self, hud_root)
 	card_label = lab_panel.card_description
 	help_label = lab_panel.help_label
 	kill_feed = KillFeedScript.new()
@@ -388,6 +409,16 @@ func _layout_hud() -> void:
 	feedback_label.size = Vector2(maxf(hud_root.size.x - 260.0, 100.0), 54.0)
 	lab_panel.position = Vector2(0.0, 132.0)
 	lab_panel.size = Vector2(minf(420.0, hud_root.size.x), maxf(hud_root.size.y - 132.0, 120.0))
+	if tutorial != null:
+		tutorial.layout()
+
+
+func start_tutorial() -> void:
+	tutorial.start()
+
+
+func stop_tutorial() -> void:
+	tutorial.stop()
 
 
 func apply_accessibility_settings(values: Dictionary) -> void:

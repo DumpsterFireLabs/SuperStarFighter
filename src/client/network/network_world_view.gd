@@ -865,6 +865,8 @@ func _step_projectile_visuals(delta: float) -> void:
 	if projectile_layer != null:
 		projectile_layer.visible_world_rect = _visible_world_rect()
 		projectile_layer.queue_redraw()
+	if effects_layer != null:
+		effects_layer.visible_world_rect = _visible_world_rect()
 
 
 func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileState) -> bool:
@@ -1301,7 +1303,7 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: SandboxShi
 		if direction.is_zero_approx():
 			direction = Vector2.from_angle(float(state.get("aim_angle", 0.0)) + PI)
 		if effects_layer != null:
-			effects_layer.spawn_damage(state.position, direction)
+			effects_layer.spawn_damage(state.position, direction, peer_id == local_peer_id)
 		presentation_event.emit(&"damage", {"peer_id": peer_id, "server_tick": latest_server_tick})
 		if peer_id == local_peer_id:
 			trigger_camera_shake(5.0, 0.16)
@@ -1337,7 +1339,7 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: SandboxShi
 		presentation_event.emit(&"breakaway", {"peer_id": peer_id, "server_tick": latest_server_tick})
 	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
 		if effects_layer != null:
-			effects_layer.spawn_elimination(state.position, ship.ship_color)
+			effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == local_peer_id)
 		presentation_event.emit(&"elimination", {"peer_id": peer_id, "server_tick": latest_server_tick})
 		if peer_id == local_peer_id:
 			trigger_camera_shake(9.0, 0.3)

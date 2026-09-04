@@ -19,6 +19,7 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 - Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
 - Independent active-ability selection, confirmed hull-hit and shield-block feedback, and authoritative death explanations.
 - A searchable offline build lab with presets, configurable targets, and measured combat results using the server's simulation.
+- A guided combat introduction and mechanic icons with effective build changes on draft cards.
 - Persistent display, audio, control-profile, deadzone, and per-action binding settings, plus HUD scaling, reduced shake/flashes, an ultrawide HUD safe area, spectating, live standings, and rematches.
 
 ## Quick Start
@@ -48,6 +49,8 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, select Newtonian ship-facing or Relative screen-aligned flight, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
 Select an owned active ability with **Q/E** or **D-pad left/right**, then activate it with **Shift** or **left-stick click**. In the offline lab, **F2** switches between the paused build editor and the firing range. **Settings → Accessibility** adjusts HUD scale, shake, flashes, and the centered HUD safe area.
+
+Choose **Learn to play** on the main menu for a short interactive lesson covering movement, firing, reloads, directional shields, Perfect Guard, abilities, and drafting. Each step advances when you perform its action; retry or skip at any time.
 
 Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Sixteen selectable resolutions cover common 16:9, 16:10, 3:2, 21:9, and 32:9 displays through 5120×2160, including 2880×1920 and 5120×1440 super-ultrawide.
 

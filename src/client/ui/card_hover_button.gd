@@ -2,12 +2,15 @@ class_name CardHoverButton
 extends Button
 
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
+const IdentityScript = preload("res://src/client/ui/card_identity.gd")
+const MechanicIconScript = preload("res://src/client/ui/card_mechanic_icon.gd")
 
 var card_definition: CardDefinition
 var stack_count: int = 1
 var footer_context: String = "CURRENT BUILD"
 var comparison_rows: Array[Dictionary] = []
 var no_effective_benefit: bool = false
+var effective_summary: Dictionary = {}
 
 
 func configure(card: CardDefinition, stacks: int, accessible_text: String, context: String = "CURRENT BUILD") -> void:
@@ -16,6 +19,7 @@ func configure(card: CardDefinition, stacks: int, accessible_text: String, conte
 	footer_context = context
 	tooltip_text = accessible_text
 	comparison_rows.clear()
+	effective_summary.clear()
 	no_effective_benefit = false
 
 
@@ -27,6 +31,60 @@ func configure_build_comparison(build: Dictionary, catalog: CardCatalog) -> void
 		tooltip_text += "\nNO EFFECTIVE BENEFIT · Existing drawbacks still apply."
 	for row in comparison_rows:
 		tooltip_text += "\n%s: %s → %s%s" % [_stat_name(row.property), _stat_value(row.before), _stat_value(row.after), " (AT LIMIT)" if row.limited else ""]
+	effective_summary = IdentityScript.summarize(build, card_definition, catalog, comparison_rows)
+	_update_draft_identity()
+
+
+func _update_draft_identity() -> void:
+	var details := get_node_or_null("CardContent/Details") as VBoxContainer
+	if details == null:
+		return
+	var icon := details.get_node_or_null("MechanicIcon") as Control
+	if icon == null:
+		icon = MechanicIconScript.new()
+		icon.name = "MechanicIcon"
+		details.add_child(icon)
+		details.move_child(icon, 1)
+	icon.family = IdentityScript.family(card_definition)
+	icon.accent = _category_color(card_definition.category)
+	icon.queue_redraw()
+	var category := details.get_node("Category") as Label
+	category.text = IdentityScript.role(card_definition).to_upper()
+	category.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var description := details.get_node("Description") as Label
+	description.visible = false # Full card text remains in the detailed preview.
+	var summary := details.get_node_or_null("EffectiveSummary") as VBoxContainer
+	if summary == null:
+		summary = VBoxContainer.new()
+		summary.name = "EffectiveSummary"
+		summary.add_theme_constant_override("separation", 5)
+		summary.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		summary.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		details.add_child(summary)
+		details.move_child(summary, description.get_index() + 1)
+	for child in summary.get_children():
+		summary.remove_child(child)
+		child.queue_free()
+	var heading := Label.new()
+	heading.text = "YOUR BUILD AFTER PICK"
+	heading.add_theme_font_size_override("font_size", 11)
+	heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
+	summary.add_child(heading)
+	for row in effective_summary.rows:
+		var label := Label.new()
+		label.text = String(row.text)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.add_theme_font_size_override("font_size", 16)
+		label.add_theme_color_override("font_color", DesignTokensScript.WARNING if row.kind == &"drawback" else DesignTokensScript.TEXT_PRIMARY)
+		summary.add_child(label)
+	var note := Label.new()
+	note.text = String(effective_summary.note)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_font_size_override("font_size", 11)
+	note.add_theme_color_override("font_color", DesignTokensScript.WARNING)
+	note.visible = not note.text.is_empty()
+	summary.add_child(note)
+	tooltip_text += "\nROLE: %s" % IdentityScript.role(card_definition)
 
 
 func has_limited_effect() -> bool:
@@ -64,13 +122,10 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	crest.custom_minimum_size = Vector2(54.0, 54.0)
 	crest.add_theme_stylebox_override("panel", _crest_style(category_color))
 	identity.add_child(crest)
-	var crest_label := Label.new()
-	crest_label.text = _category_glyph(card_definition.category)
-	crest_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	crest_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	crest_label.add_theme_font_size_override("font_size", 28)
-	crest_label.add_theme_color_override("font_color", category_color.lightened(0.2))
-	crest.add_child(crest_label)
+	var crest_icon := MechanicIconScript.new()
+	crest_icon.family = IdentityScript.family(card_definition)
+	crest_icon.accent = category_color.lightened(0.2)
+	crest.add_child(crest_icon)
 
 	var title_column := VBoxContainer.new()
 	title_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -91,6 +146,11 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	tier.add_theme_font_size_override("font_size", 13)
 	tier.add_theme_color_override("font_color", rarity_color.lightened(0.18))
 	title_column.add_child(tier)
+	var role_label := Label.new()
+	role_label.text = IdentityScript.role(card_definition).to_upper()
+	role_label.add_theme_font_size_override("font_size", 13)
+	role_label.add_theme_color_override("font_color", category_color)
+	title_column.add_child(role_label)
 
 	var stack_badge := Label.new()
 	stack_badge.text = "×%d" % stack_count
@@ -280,16 +340,6 @@ func _category_color(category: int) -> Color:
 			return Color("ae7cff")
 		_:
 			return Color("ff4fd8")
-
-
-func _category_glyph(category: int) -> String:
-	match category:
-		CardDefinition.Category.SHIP:
-			return "◇"
-		CardDefinition.Category.SHIELD:
-			return "⬡"
-		_:
-			return "✦"
 
 
 func _stat_name(property_name: String) -> String:

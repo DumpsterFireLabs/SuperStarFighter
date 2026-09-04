@@ -8,6 +8,9 @@ const AbilityBudgetTestsScript = preload("res://tests/unit/ability_budget_tests.
 const CombatFeedbackTestsScript = preload("res://tests/unit/combat_feedback_tests.gd")
 const BuildLabTestsScript = preload("res://tests/unit/build_lab_tests.gd")
 const AccessibilityTestsScript = preload("res://tests/unit/accessibility_tests.gd")
+const PerformanceReadabilityTestsScript = preload("res://tests/unit/performance_readability_tests.gd")
+const CombatTutorialTestsScript = preload("res://tests/unit/combat_tutorial_tests.gd")
+const CardIdentityTestsScript = preload("res://tests/unit/card_identity_tests.gd")
 var _context := TestContext.new()
 
 
@@ -27,6 +30,9 @@ func _ready() -> void:
 	CombatFeedbackTestsScript.run(_context)
 	BuildLabTestsScript.run(_context, self)
 	AccessibilityTestsScript.run(_context, self)
+	PerformanceReadabilityTestsScript.run(_context, self)
+	CombatTutorialTestsScript.run(_context, self)
+	CardIdentityTestsScript.run(_context, self)
 	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})

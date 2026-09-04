@@ -92,6 +92,7 @@ The connection screen has three online paths:
 
 The same screen also offers:
 
+- **Learn to play** for a guided lesson in seven combat actions, using your current input bindings.
 - **Offline Combat Lab** for solo movement, combat, card, shield, and overtime experimentation.
 - **Settings** for display mode, resolution, audio, controls, and accessibility.
 - **Quit** to close the game.
@@ -469,12 +470,15 @@ Auto-repair and beam cards enable behaviors. Other cards can improve repair dela
 Each draft card shows:
 
 - Its input number and title.
-- Ship, Shield, or Weapon category.
-- Exact per-stack effect.
+- A mechanic icon and role, such as Flight Control, Piercing, Beam Weapon, or Area Denial. The icon describes the card's mechanics; its category colour distinguishes Ship, Shield, and Weapon cards.
+- Up to three prominent changes to your actual build, shown as before → after values. A newly enabled mechanic appears as an **Unlock**; another copy of an already enabled mechanic does not claim a second unlock.
+- A visible amber tradeoff when the pick has a numerical downside. If further tradeoffs or changes do not fit, the card explicitly counts them and directs you to the details.
 - Current stack transition, such as `STACK 2 → 3`.
 - Rarity and rarity-tier weight in smaller text at the bottom.
 
-Draft details show the actual whole-build values before and after the pick. `AT LIMIT` means a technical stat limit reduces or prevents that effect; any other effects, including drawbacks, still apply. The card and confirmation also flag limited effects. For example, another Twin Shot at six projectiles cannot add a seventh projectile, but its damage reduction still applies. Inspect the comparison before confirming.
+Hover a card for its full description, category, and complete stat comparison. The compact face prioritizes a few changes; it does not replace these details. A shorter reload is an improvement even though its numerical value decreases. Roles describe the card's mechanic family, not a guarantee that it benefits every build.
+
+Draft details show the actual whole-build values before and after the pick. `AT LIMIT` means a technical stat limit reduces or prevents that effect; any other effects, including drawbacks, still apply. An asterisk marks limited values in the compact preview, and the card and confirmation also flag limited effects. For example, another Twin Shot at six projectiles shows `6 → 6`: it cannot add a seventh projectile, but its damage reduction still applies. Inspect the comparison before confirming.
 
 Click a card or press its `1`–`5` shortcut to stage it, then select **Confirm Pick** to lock it in. Until you confirm, select another card directly or use **Choose Another** (or Back/Escape) to clear the staged choice.
 
@@ -490,7 +494,7 @@ Cards do not always contain a downside. Higher rarity means scarcity, not a guar
 - Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
 - Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
 
-The complete 135-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+The complete 136-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 
@@ -499,6 +503,8 @@ The compact upper-left HUD carries match state, round/heat number, countdown or 
 Combat feedback distinguishes confirmed hull hits from blocked or reflected shots. **HIT** reports damage actually removed from the target's hull, excluding overkill; **SHOT BLOCKED**, **SHOT REFLECTED**, and **PERFECT GUARD** explain defensive outcomes. Your own shield blocks have separate feedback. These confirmations come from the combat simulation, so firing or seeing a predicted projectile does not itself confirm a hit. Misses produce no hull-hit confirmation.
 
 When destroyed, a recap identifies the credited attacker or environment and the damage source: cannon, beam, missile, mine blast, shield ram, or overtime. Where applicable, it explains a reflection, a hit outside the shield arc, a depleted shield, or a mine blast bypassing shields. It also reports the final applied damage. The recap clears for a new life or session.
+
+Busy fights automatically use quieter effects. Transient combat effects are capped at 96, and decorative impact effects stop adding to the total once it reaches 48. Damage and elimination feedback for your own ship takes priority over lower-priority effects. At 40 simultaneous effects, filled bursts become subdued outlines. At 160 active projectiles, extra glow is reduced, trails shorten, and allied bullets and beams become dimmer. Every projectile within the view continues to be drawn, including mine arming cues and team markers. Objective symbols appear above ordnance. Cover uses quieter outlines so it competes less with ships, threats, and objectives. These visual limits do not remove projectiles or change collision and damage rules.
 
 Hold the configured scoreboard action (`Tab` or View / Back by default) to show live standings. The overlay tracks each pilot's kills across the entire match and explicitly identifies the active round map and currently playing gameplay song; menu and victory tracks are not reported there. The overlay is momentary and closes as soon as the action is released. Match-total kills also appear in the final standings, and builds are public after every draft.
 
@@ -568,6 +574,22 @@ The game safely runs without authored audio: combat effects are synthesized, vic
 ## 11. Offline Combat Lab
 
 The lab opens in a paused build editor. It runs the same authoritative combat simulation as the server locally, including movement, collisions, projectiles, shields, active abilities, and damage. It is useful for testing a build without hosting a match; it does not simulate network delay or packet loss.
+
+### Guided introduction
+
+Choose **Learn to play** on the main menu, or **Guided introduction · learn seven combat actions** in the lab editor. The lesson displays the bindings from your selected keyboard/mouse or controller profile and progresses when you perform each action:
+
+1. Move the ship while aiming toward the practice target.
+2. Land a confirmed hull hit; a missed shot does not advance the lesson.
+3. Manually reload the partly used magazine and wait for it to fill.
+4. Face an incoming practice round and block it with the shield.
+5. Release and raise the shield just before impact to perform a Perfect Guard. Slow, low-damage practice rounds make timing easier to see; the real guard timing window still applies.
+6. Switch the selected ability from mines to Afterburner, then activate Afterburner alone.
+7. Choose a practice draft upgrade after reviewing its effective stat changes. The range pauses for this choice. In a match, drafting occurs before rounds.
+
+Use **Retry step** to reset the current combat exercise, **Restart lesson** to begin again, or **Skip to lab** to leave early. Keyboard `Y` retries the current combat exercise and `F2` returns to the lab. The final **Return to lab** action restores the build and target configuration you had before starting the lesson, with a fresh encounter in the paused editor. Practice choices do not overwrite that saved setup.
+
+### Build and target experiments
 
 Search cards by name, description, or rarity, then select a result to inspect its description and actual before/after stat changes. **+ Stack** adds the selected card, **− Stack** removes one stack, and **Clear build** restores the base ship. The build summary lists owned cards, while derived stats show the resulting hull, movement, weapon, shield, and ability values. Search and stat details are scrollable when space is limited.
 

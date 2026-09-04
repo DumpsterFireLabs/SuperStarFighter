@@ -1,104 +1,166 @@
 extends Node
 
+const SettingsControllerScript = preload("res://src/client/ui/settings_controller.gd")
+const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
+
+var settings_controller := SettingsControllerScript.new()
+var connection_controller := ConnectionControllerScript.new()
+
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
-const AccessibilityPreferencesScript = preload("res://src/client/presentation/accessibility_preferences.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
-const ShipPatternPreviewScript = preload("res://src/client/ui/ship_pattern_preview.gd")
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 const DUMPSTER_FIRE_LABS_TEXTURE: Texture2D = preload("res://assets/ui/dumpster_fire_labs.png")
 const STUDIO_SPLASH_AUTO_ADVANCE_SECONDS: float = 4.0
 const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
-enum WindowModeOption {
-	WINDOWED,
-	BORDERLESS_FULLSCREEN,
-	EXCLUSIVE_FULLSCREEN,
-}
-const WINDOW_MODE_LABELS: Array[String] = [
-	"Windowed",
-	"Borderless Fullscreen",
-	"Exclusive Fullscreen",
-]
-const RESOLUTION_OPTIONS: Array[Vector2i] = [
-	Vector2i(1280, 720),
-	Vector2i(1366, 768),
-	Vector2i(1440, 900),
-	Vector2i(1600, 900),
-	Vector2i(1920, 1080),
-	Vector2i(1920, 1200),
-	Vector2i(2560, 1080),
-	Vector2i(2560, 1440),
-	Vector2i(2560, 1600),
-	Vector2i(2880, 1920),
-	Vector2i(3440, 1440),
-	Vector2i(3840, 1080),
-	Vector2i(3840, 1600),
-	Vector2i(3840, 2160),
-	Vector2i(5120, 1440),
-	Vector2i(5120, 2160),
-]
+const WindowModeOption = SettingsControllerScript.WindowModeOption
+const WINDOW_MODE_LABELS = SettingsControllerScript.WINDOW_MODE_LABELS
+const RESOLUTION_OPTIONS = SettingsControllerScript.RESOLUTION_OPTIONS
+
 
 var bridge: NetworkBridge
 var network_world: NetworkWorldView
 var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
 var input_profiles: Node
-var connection_canvas: CanvasLayer
+## Compatibility handles for existing capture/test tools. Screen state lives in its controller.
+var connection_canvas: CanvasLayer:
+	get:
+		return connection_controller.connection_canvas
 var gameplay_cursor_canvas: CanvasLayer
 var gameplay_cursor: Sprite2D
-var connection_screen: Control
-var connection_form_panel: PanelContainer
-var connection_tabs: TabContainer
-var lobby_panel: PanelContainer
-var host_field: LineEdit
-var port_field: LineEdit
-var host_port_field: LineEdit
-var name_field: LineEdit
-var server_name_field: LineEdit
-var direct_password_field: LineEdit
-var remember_password_button: CheckButton
-var host_password_field: LineEdit
-var connection_status: Label
-var lan_servers_container: VBoxContainer
-var lan_refresh_button: Button
-var lan_browser: LanDiscoveryService
-var _lan_servers: Array[Dictionary] = []
-var _hosted_server_root: Node
-var _hosted_server_bridge: NetworkBridge
-var _hosted_server_multiplayer: MultiplayerAPI
-var lobby_label: Label
-var version_label: Label
-var lobby_roster: VBoxContainer
-var ready_button: CheckButton
-var rounds_control: SpinBox
-var player_limit_control: SpinBox
-var npc_all_difficulty_control: OptionButton
-var npcs_button: CheckButton
-var lobby_options_button: Button
-var lobby_options_blocker: ColorRect
-var lobby_options_popup: PanelContainer
-var lobby_options_focus_return: Control
-var powerups_button: CheckButton
-var powerup_interval_control: SpinBox
-var powerups_permanent_button: CheckButton
-var overtime_start_control: SpinBox
-var game_mode_control: OptionButton
-var game_mode_note: Label
-var team_count_row: HBoxContainer
-var team_count_control: SpinBox
-var ship_color_popup: PanelContainer
-var ship_color_blocker: ColorRect
-var ship_color_focus_return: Control
-var random_color_button: Button
-var ship_color_picker: ColorPicker
-var ship_pattern_control: OptionButton
-var ship_pattern_preview
-var apply_ship_color_button: Button
-var start_button: Button
+var connection_screen: Control:
+	get:
+		return connection_controller.connection_screen
+var connection_form_panel: PanelContainer:
+	get:
+		return connection_controller.connection_form_panel
+var connection_tabs: TabContainer:
+	get:
+		return connection_controller.connection_tabs
+var lobby_panel: PanelContainer:
+	get:
+		return connection_controller.lobby_panel
+var host_field: LineEdit:
+	get:
+		return connection_controller.host_field
+var port_field: LineEdit:
+	get:
+		return connection_controller.port_field
+var host_port_field: LineEdit:
+	get:
+		return connection_controller.host_port_field
+var name_field: LineEdit:
+	get:
+		return connection_controller.name_field
+var server_name_field: LineEdit:
+	get:
+		return connection_controller.server_name_field
+var direct_password_field: LineEdit:
+	get:
+		return connection_controller.direct_password_field
+var remember_password_button: CheckButton:
+	get:
+		return connection_controller.remember_password_button
+var host_password_field: LineEdit:
+	get:
+		return connection_controller.host_password_field
+var connection_status: Label:
+	get:
+		return connection_controller.connection_status
+var lan_servers_container: VBoxContainer:
+	get:
+		return connection_controller.lan_servers_container
+
+var lan_browser: LanDiscoveryService:
+	get:
+		return connection_controller.lan_browser
+var _lan_servers: Array[Dictionary]:
+	get:
+		return connection_controller._lan_servers
+var _hosted_server_root: Node:
+	get:
+		return connection_controller._hosted_server_root
+var _hosted_server_bridge: NetworkBridge:
+	get:
+		return connection_controller._hosted_server_bridge
+var _hosted_server_multiplayer: MultiplayerAPI:
+	get:
+		return connection_controller._hosted_server_multiplayer
+
+var version_label: Label:
+	get:
+		return connection_controller.version_label
+var lobby_roster: VBoxContainer:
+	get:
+		return connection_controller.lobby_roster
+
+
+var npc_all_difficulty_control: OptionButton:
+	get:
+		return connection_controller.npc_all_difficulty_control
+
+var lobby_options_button: Button:
+	get:
+		return connection_controller.lobby_options_button
+var lobby_options_blocker: ColorRect:
+	get:
+		return connection_controller.lobby_options_blocker
+var lobby_options_popup: PanelContainer:
+	get:
+		return connection_controller.lobby_options_popup
+
+var powerups_button: CheckButton:
+	get:
+		return connection_controller.powerups_button
+var powerup_interval_control: SpinBox:
+	get:
+		return connection_controller.powerup_interval_control
+var powerups_permanent_button: CheckButton:
+	get:
+		return connection_controller.powerups_permanent_button
+var overtime_start_control: SpinBox:
+	get:
+		return connection_controller.overtime_start_control
+var game_mode_control: OptionButton:
+	get:
+		return connection_controller.game_mode_control
+var game_mode_note: Label:
+	get:
+		return connection_controller.game_mode_note
+var team_count_row: HBoxContainer:
+	get:
+		return connection_controller.team_count_row
+var team_count_control: SpinBox:
+	get:
+		return connection_controller.team_count_control
+var ship_color_popup: PanelContainer:
+	get:
+		return connection_controller.ship_color_popup
+var ship_color_blocker: ColorRect:
+	get:
+		return connection_controller.ship_color_blocker
+
+var random_color_button: Button:
+	get:
+		return connection_controller.random_color_button
+var ship_color_picker: ColorPicker:
+	get:
+		return connection_controller.ship_color_picker
+var ship_pattern_control: OptionButton:
+	get:
+		return connection_controller.ship_pattern_control
+
+var apply_ship_color_button: Button:
+	get:
+		return connection_controller.apply_ship_color_button
+var start_button: Button:
+	get:
+		return connection_controller.start_button
 var match_panel: PanelContainer
 var match_label: Label
 var heat_intro_panel: PanelContainer
@@ -135,36 +197,70 @@ var _return_to_lobby_requested: bool = false
 var win_overlay: Control
 var pause_overlay: PanelContainer
 var pause_title: Label
-var settings_panel: Control
-var settings_tabs: TabContainer
-var accessibility_preferences = AccessibilityPreferencesScript.new()
-var hud_scale_control: HSlider
-var hud_scale_value: Label
-var reduced_shake_control: CheckButton
-var reduced_flashes_control: CheckButton
-var constrain_hud_control: CheckButton
-var settings_back_button: Button
-var window_mode_control: OptionButton
-var resolution_control: OptionButton
-var display_mode_note: Label
-var control_scheme_control: OptionButton
-var flight_mode_control: OptionButton
-var controller_status_label: Label
-var controller_deadzone_row: HBoxContainer
-var controller_deadzone_slider: HSlider
-var controller_deadzone_value: Label
-var binding_rows: GridContainer
-var binding_buttons: Dictionary = {}
-var binding_capture_status: Label
-var binding_capture_action: StringName = &""
-var binding_capture_seconds: float = 0.0
-var current_window_mode: int = WindowModeOption.WINDOWED
-var current_resolution: Vector2i = Vector2i(1280, 720)
-var preferred_ship_color: Color = Color("42e8ff")
-var pending_ship_color: Color = Color("42e8ff")
-var preferred_ship_pattern: StringName = ShipAppearanceScript.SOLID
-var pending_ship_pattern: StringName = ShipAppearanceScript.SOLID
-var random_ship_color: bool = true
+var settings_panel: Control:
+	get:
+		return settings_controller.settings_panel
+var settings_tabs: TabContainer:
+	get:
+		return settings_controller.settings_tabs
+var accessibility_preferences:
+	get:
+		return settings_controller.accessibility_preferences
+var hud_scale_control: HSlider:
+	get:
+		return settings_controller.hud_scale_control
+
+var reduced_shake_control: CheckButton:
+	get:
+		return settings_controller.reduced_shake_control
+var reduced_flashes_control: CheckButton:
+	get:
+		return settings_controller.reduced_flashes_control
+
+
+var window_mode_control: OptionButton:
+	get:
+		return settings_controller.window_mode_control
+var resolution_control: OptionButton:
+	get:
+		return settings_controller.resolution_control
+
+var control_scheme_control: OptionButton:
+	get:
+		return settings_controller.control_scheme_control
+var flight_mode_control: OptionButton:
+	get:
+		return settings_controller.flight_mode_control
+
+
+var binding_rows: GridContainer:
+	get:
+		return settings_controller.binding_rows
+
+
+var current_window_mode: int:
+	get:
+		return settings_controller.current_window_mode
+	set(value):
+		settings_controller.current_window_mode = value
+var current_resolution: Vector2i:
+	get:
+		return settings_controller.current_resolution
+	set(value):
+		settings_controller.current_resolution = value
+var preferred_ship_color: Color:
+	get:
+		return connection_controller.preferred_ship_color
+var pending_ship_color: Color:
+	get:
+		return connection_controller.pending_ship_color
+var preferred_ship_pattern: StringName:
+	get:
+		return connection_controller.preferred_ship_pattern
+var pending_ship_pattern: StringName:
+	get:
+		return connection_controller.pending_ship_pattern
+
 var settings_return_to_pause: bool = false
 var settings_return_to_lobby: bool = false
 var credits_panel: Control
@@ -182,26 +278,43 @@ var active_offer_token: String = ""
 var active_offer_deadline: int = -1
 var pending_draft_index: int = -1
 var latest_match_payload: Dictionary = {}
-var _applying_lobby_state: bool = false
+
 var interface_theme: Theme
 var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = "LOBBY"
-var connection_primary_button: Button
-var direct_connect_button: Button
-var host_join_button: Button
-var lobby_settings_button: Button
+var connection_primary_button: Button:
+	get:
+		return connection_controller.connection_primary_button
+var direct_connect_button: Button:
+	get:
+		return connection_controller.direct_connect_button
+var host_join_button: Button:
+	get:
+		return connection_controller.host_join_button
+var lobby_settings_button: Button:
+	get:
+		return connection_controller.lobby_settings_button
 var pause_resume_button: Button
-var lobby_disconnect_button: Button
+var lobby_disconnect_button: Button:
+	get:
+		return connection_controller.lobby_disconnect_button
 var pause_disconnect_button: Button
 var f2_return_confirmation: ConfirmationDialog
 var _application_has_focus: bool = true
 var _disconnect_in_progress: bool = false
-var _pending_password_host: String = ""
-var _pending_password_port: int = 0
-var _pending_password_value: String = ""
-var _pending_remember_password: bool = false
+
+
 var _native_gameplay_cursor_active: bool = false
+
+
+func _init() -> void:
+	settings_controller.initialize(self)
+	settings_controller.name = "SettingsController"
+	add_child(settings_controller)
+	connection_controller.initialize(self)
+	connection_controller.name = "ConnectionController"
+	add_child(connection_controller)
 
 
 func _ready() -> void:
@@ -210,10 +323,10 @@ func _ready() -> void:
 	offline_sandbox.set_sandbox_active(false)
 	input_profiles = InputProfileManagerScript.new()
 	input_profiles.name = "InputProfileManager"
-	input_profiles.scheme_changed.connect(_on_control_scheme_changed)
-	input_profiles.flight_mode_changed.connect(_on_flight_mode_changed)
-	input_profiles.bindings_changed.connect(_on_control_bindings_changed)
-	input_profiles.controller_connections_changed.connect(_update_controller_status)
+	input_profiles.scheme_changed.connect(settings_controller._on_control_scheme_changed)
+	input_profiles.flight_mode_changed.connect(settings_controller._on_flight_mode_changed)
+	input_profiles.bindings_changed.connect(settings_controller._on_control_bindings_changed)
+	input_profiles.controller_connections_changed.connect(settings_controller._update_controller_status)
 	add_child(input_profiles)
 	offline_sandbox.set_input_profile_manager(input_profiles)
 	bridge = NetworkBridge.new()
@@ -228,27 +341,21 @@ func _ready() -> void:
 	audio_director.name = "AudioDirector"
 	add_child(audio_director)
 	offline_sandbox.presentation_event.connect(_on_world_presentation_event)
-	_load_video_settings()
-	_load_appearance_settings()
+	settings_controller._load_video_settings()
+	connection_controller._load_appearance_settings()
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
 	network_world.setup(bridge, input_profiles)
-	accessibility_preferences.load_settings()
+	settings_controller.accessibility_preferences.load_settings()
 	_apply_accessibility_settings()
 	network_world.presentation_event.connect(_on_world_presentation_event)
-	_create_connection_ui(configuration)
-	lan_browser = LanDiscoveryService.new()
-	lan_browser.name = "LanServerBrowser"
-	add_child(lan_browser)
-	lan_browser.servers_updated.connect(_on_lan_servers_updated)
-	var discovery_error := lan_browser.start_browser()
-	if discovery_error != OK:
-		connection_status.text = lan_browser.last_error
+	connection_controller._create_connection_ui(configuration)
+	connection_controller.start_discovery()
 	_create_match_ui()
 	_create_pause_overlay()
 	_create_f2_return_confirmation()
-	_create_settings_overlay()
+	settings_controller._create_settings_overlay()
 	_create_credits_overlay()
 	_create_gameplay_cursor()
 	_create_splash_screen()
@@ -277,7 +384,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_overlay") and not (event is InputEventKey and event.echo):
 		if credits_panel != null and credits_panel.visible:
 			_hide_credits()
-		elif settings_panel != null and settings_panel.visible:
+		elif settings_controller.settings_panel != null and settings_controller.settings_panel.visible:
 			_hide_settings()
 		else:
 			_toggle_pause_overlay()
@@ -288,15 +395,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			_hide_credits()
 			get_viewport().set_input_as_handled()
 			return
-		if ship_color_popup != null and ship_color_popup.visible:
-			_hide_ship_color()
+		if connection_controller.ship_color_popup != null and connection_controller.ship_color_popup.visible:
+			connection_controller._hide_ship_color()
 			get_viewport().set_input_as_handled()
 			return
-		if lobby_options_popup != null and lobby_options_popup.visible:
-			_hide_lobby_options()
+		if connection_controller.lobby_options_popup != null and connection_controller.lobby_options_popup.visible:
+			connection_controller._hide_lobby_options()
 			get_viewport().set_input_as_handled()
 			return
-		if settings_panel != null and settings_panel.visible:
+		if settings_controller.settings_panel != null and settings_controller.settings_panel.visible:
 			_hide_settings()
 			get_viewport().set_input_as_handled()
 			return
@@ -319,10 +426,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not binding_capture_action.is_empty():
-		if input_profiles.accepts_rebind_event(event):
-			_complete_binding_capture(event)
-			get_viewport().set_input_as_handled()
+	if settings_controller.capture_input(event):
 		return
 	if splash_screen != null and splash_screen.visible and _is_start_input(event):
 		_dismiss_splash()
@@ -345,508 +449,6 @@ func _is_start_input(event: InputEvent) -> bool:
 		or (event is InputEventJoypadMotion and absf(event.axis_value) >= 0.65)
 
 
-func _create_connection_ui(configuration: Dictionary) -> void:
-	interface_theme = DesignTokensScript.create_interface_theme()
-	connection_canvas = CanvasLayer.new()
-	connection_canvas.layer = 20
-	connection_canvas.name = "ConnectionUI"
-	add_child(connection_canvas)
-	connection_screen = Control.new()
-	connection_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	connection_screen.theme = interface_theme
-	connection_canvas.add_child(connection_screen)
-	var background := NeonBackdrop.new()
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	connection_screen.add_child(background)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	connection_screen.add_child(center)
-	connection_form_panel = PanelContainer.new()
-	connection_form_panel.custom_minimum_size = Vector2(780.0, 690.0)
-	connection_form_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.96))
-	center.add_child(connection_form_panel)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 16)
-	connection_form_panel.add_child(content)
-	var title := Label.new()
-	title.text = "✦ SUPER STAR FIGHTER ✦"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 48)
-	content.add_child(title)
-	var subtitle := Label.new()
-	subtitle.text = "POWER UP · OUTGUN · OUTLAST"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_color_override("font_color", Color("d39cff"))
-	subtitle.add_theme_font_size_override("font_size", 25)
-	content.add_child(subtitle)
-	version_label = Label.new()
-	version_label.name = "VersionLabel"
-	version_label.text = "%s  ·  VERSION %s" % [GameConstants.RELEASE_LABEL, GameConstants.GAME_VERSION]
-	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	version_label.add_theme_color_override("font_color", Color("73f7ff"))
-	version_label.add_theme_font_size_override("font_size", 15)
-	content.add_child(version_label)
-	name_field = _add_labeled_field(content, "Display name", "Pilot")
-	name_field.max_length = 16
-	connection_tabs = TabContainer.new()
-	connection_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
-	connection_tabs.get_tab_bar().gui_input.connect(_on_tab_bar_gui_input.bind(connection_tabs))
-	connection_tabs.custom_minimum_size = Vector2(720.0, 285.0)
-	connection_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(connection_tabs)
-	_create_lan_join_tab()
-	_create_direct_join_tab(configuration)
-	_create_host_tab(configuration)
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override("separation", 12)
-	content.add_child(buttons)
-	var offline_button := Button.new()
-	offline_button.text = "Offline Combat Lab"
-	offline_button.theme_type_variation = &"PrimaryButton"
-	offline_button.custom_minimum_size.y = 54.0
-	offline_button.pressed.connect(_play_offline)
-	buttons.add_child(offline_button)
-	connection_primary_button = offline_button
-	var settings_button := Button.new()
-	settings_button.text = "Settings"
-	settings_button.theme_type_variation = &"QuietButton"
-	settings_button.custom_minimum_size.y = 54.0
-	settings_button.pressed.connect(_show_settings.bind(false))
-	buttons.add_child(settings_button)
-	credits_button = Button.new()
-	credits_button.name = "CreditsButton"
-	credits_button.text = "Credits"
-	credits_button.theme_type_variation = &"QuietButton"
-	credits_button.custom_minimum_size.y = 54.0
-	credits_button.pressed.connect(_show_credits)
-	buttons.add_child(credits_button)
-	var quit_button := Button.new()
-	quit_button.text = "Quit"
-	quit_button.theme_type_variation = &"DangerButton"
-	quit_button.custom_minimum_size = Vector2(110.0, 54.0)
-	quit_button.pressed.connect(get_tree().quit)
-	buttons.add_child(quit_button)
-	connection_status = Label.new()
-	connection_status.text = "Browse local servers, host instantly, or connect directly by address."
-	connection_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	connection_status.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(connection_status)
-	_create_lobby_panel()
-
-
-func _create_lan_join_tab() -> void:
-	var tab := VBoxContainer.new()
-	tab.name = "LAN SERVERS"
-	tab.add_theme_constant_override("separation", 8)
-	connection_tabs.add_child(tab)
-	var controls := HBoxContainer.new()
-	controls.add_theme_constant_override("separation", 10)
-	tab.add_child(controls)
-	var hint := Label.new()
-	hint.text = "Servers on your local network"
-	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hint.add_theme_color_override("font_color", Color("aebbd4"))
-	controls.add_child(hint)
-	lan_refresh_button = Button.new()
-	lan_refresh_button.text = "REFRESH"
-	lan_refresh_button.theme_type_variation = &"QuietButton"
-	lan_refresh_button.custom_minimum_size = Vector2(145.0, 42.0)
-	lan_refresh_button.pressed.connect(_refresh_lan_servers)
-	controls.add_child(lan_refresh_button)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size.y = 185.0
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tab.add_child(scroll)
-	lan_servers_container = VBoxContainer.new()
-	lan_servers_container.name = "LanServerRows"
-	lan_servers_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lan_servers_container.add_theme_constant_override("separation", 6)
-	scroll.add_child(lan_servers_container)
-	_rebuild_lan_server_list()
-
-
-func _create_direct_join_tab(configuration: Dictionary) -> void:
-	var tab := VBoxContainer.new()
-	tab.name = "DIRECT CONNECT"
-	tab.add_theme_constant_override("separation", 10)
-	connection_tabs.add_child(tab)
-	host_field = _add_compact_labeled_field(tab, "Server host or IP", configuration.get("host", "127.0.0.1"))
-	port_field = _add_compact_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
-	direct_password_field = _add_compact_labeled_field(tab, "Lobby password", "")
-	direct_password_field.secret = true
-	direct_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
-	remember_password_button = CheckButton.new()
-	remember_password_button.text = "Remember password for this server"
-	remember_password_button.tooltip_text = "Saved only in this client's local settings after this server accepts the connection."
-	tab.add_child(remember_password_button)
-	host_field.text_changed.connect(_on_direct_host_changed)
-	port_field.text_changed.connect(_on_direct_port_changed)
-	_apply_remembered_password(host_field.text, int(port_field.text))
-	var connect_center := CenterContainer.new()
-	tab.add_child(connect_center)
-	direct_connect_button = Button.new()
-	direct_connect_button.name = "DirectConnectButton"
-	direct_connect_button.text = "CONNECT TO SERVER"
-	direct_connect_button.theme_type_variation = &"PrimaryButton"
-	direct_connect_button.custom_minimum_size = Vector2(280.0, 48.0)
-	direct_connect_button.pressed.connect(_connect_online)
-	connect_center.add_child(direct_connect_button)
-
-
-func _create_host_tab(configuration: Dictionary) -> void:
-	var tab := VBoxContainer.new()
-	tab.name = "HOST GAME"
-	tab.add_theme_constant_override("separation", 10)
-	connection_tabs.add_child(tab)
-	server_name_field = _add_compact_labeled_field(tab, "Server name", "Super Star Arena")
-	server_name_field.max_length = LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
-	host_port_field = _add_compact_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
-	host_password_field = _add_compact_labeled_field(tab, "Required lobby password", "")
-	host_password_field.secret = true
-	host_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
-	var host_center := CenterContainer.new()
-	tab.add_child(host_center)
-	host_join_button = Button.new()
-	host_join_button.name = "HostJoinButton"
-	host_join_button.text = "HOST & JOIN"
-	host_join_button.theme_type_variation = &"PrimaryButton"
-	host_join_button.custom_minimum_size = Vector2(280.0, 48.0)
-	host_join_button.pressed.connect(_host_online)
-	host_center.add_child(host_join_button)
-
-
-func _create_modal_blocker(blocker_name: String) -> ColorRect:
-	var blocker := ColorRect.new()
-	blocker.name = blocker_name
-	blocker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	blocker.color = Color(DesignTokensScript.BACKGROUND, 0.78)
-	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	blocker.focus_mode = Control.FOCUS_NONE
-	blocker.visible = false
-	return blocker
-
-
-func _create_lobby_panel() -> void:
-	lobby_panel = PanelContainer.new()
-	lobby_panel.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_panel.position = Vector2(-390.0, -345.0)
-	lobby_panel.custom_minimum_size = Vector2(780.0, 690.0)
-	lobby_panel.theme = interface_theme
-	lobby_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.96))
-	lobby_panel.visible = false
-	connection_canvas.add_child(lobby_panel)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
-	lobby_panel.add_child(content)
-	var title := Label.new()
-	title.text = "✦  ONLINE LOBBY  ✦"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 34)
-	content.add_child(title)
-	lobby_label = Label.new()
-	lobby_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lobby_label.add_theme_font_size_override("font_size", 20)
-	lobby_label.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(lobby_label)
-	var player_scroll := ScrollContainer.new()
-	player_scroll.custom_minimum_size = Vector2(740.0, 220.0)
-	player_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	player_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	content.add_child(player_scroll)
-	lobby_roster = VBoxContainer.new()
-	lobby_roster.add_theme_constant_override("separation", 7)
-	lobby_roster.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	player_scroll.add_child(lobby_roster)
-	var rounds_row := HBoxContainer.new()
-	content.add_child(rounds_row)
-	var rounds_label := Label.new()
-	rounds_label.text = "Rounds to win"
-	rounds_row.add_child(rounds_label)
-	rounds_control = SpinBox.new()
-	rounds_control.min_value = GameConstants.MIN_ROUNDS_TO_WIN
-	rounds_control.max_value = GameConstants.MAX_ROUNDS_TO_WIN
-	rounds_control.value = GameConstants.DEFAULT_ROUNDS_TO_WIN
-	rounds_control.custom_minimum_size = Vector2(130.0, 48.0)
-	rounds_control.value_changed.connect(_on_rounds_changed)
-	rounds_row.add_child(rounds_control)
-	var limit_row := HBoxContainer.new()
-	content.add_child(limit_row)
-	var limit_label := Label.new()
-	limit_label.text = "Player limit"
-	limit_row.add_child(limit_label)
-	player_limit_control = SpinBox.new()
-	player_limit_control.min_value = GameConstants.MIN_PLAYERS
-	player_limit_control.max_value = GameConstants.MAX_PLAYERS
-	player_limit_control.value = GameConstants.DEFAULT_MAX_PLAYERS
-	player_limit_control.custom_minimum_size = Vector2(130.0, 48.0)
-	player_limit_control.value_changed.connect(_on_player_limit_changed)
-	limit_row.add_child(player_limit_control)
-	npcs_button = CheckButton.new()
-	npcs_button.text = "Enable NPCs · add configurable pilots to empty seats"
-	npcs_button.theme_type_variation = &"SettingToggle"
-	npcs_button.custom_minimum_size.y = 48.0
-	npcs_button.toggled.connect(_on_npcs_toggled)
-	content.add_child(npcs_button)
-	var npc_difficulty_row := HBoxContainer.new()
-	npc_difficulty_row.add_theme_constant_override("separation", 14)
-	content.add_child(npc_difficulty_row)
-	var npc_difficulty_label := Label.new()
-	npc_difficulty_label.text = "Set all NPC difficulties"
-	npc_difficulty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_difficulty_row.add_child(npc_difficulty_label)
-	npc_all_difficulty_control = OptionButton.new()
-	npc_all_difficulty_control.custom_minimum_size = Vector2(190.0, 42.0)
-	for difficulty in NpcPilotController.DIFFICULTY_NAMES.size():
-		npc_all_difficulty_control.add_item(NpcPilotController.difficulty_name(difficulty), difficulty)
-	npc_all_difficulty_control.select(NpcPilotController.Difficulty.NEUTRAL)
-	npc_all_difficulty_control.item_selected.connect(_on_all_npc_difficulty_selected)
-	npc_difficulty_row.add_child(npc_all_difficulty_control)
-	lobby_options_button = Button.new()
-	lobby_options_button.text = "MATCH OPTIONS"
-	lobby_options_button.theme_type_variation = &"SecondaryButton"
-	lobby_options_button.custom_minimum_size.y = 48.0
-	lobby_options_button.pressed.connect(_show_lobby_options)
-	content.add_child(lobby_options_button)
-	_create_lobby_options_popup()
-	_create_ship_color_popup()
-	ready_button = CheckButton.new()
-	ready_button.text = "READY FOR LAUNCH"
-	ready_button.theme_type_variation = &"SuccessToggle"
-	ready_button.custom_minimum_size.y = 52.0
-	ready_button.toggled.connect(_on_ready_toggled)
-	content.add_child(ready_button)
-	start_button = Button.new()
-	start_button.text = "Start Match"
-	start_button.theme_type_variation = &"PrimaryButton"
-	start_button.custom_minimum_size.y = 54.0
-	start_button.pressed.connect(bridge.send_start_match)
-	content.add_child(start_button)
-	var lobby_actions := HBoxContainer.new()
-	lobby_actions.add_theme_constant_override("separation", 12)
-	content.add_child(lobby_actions)
-	lobby_settings_button = Button.new()
-	lobby_settings_button.name = "LobbySettingsButton"
-	lobby_settings_button.text = "Settings"
-	lobby_settings_button.theme_type_variation = &"SecondaryButton"
-	lobby_settings_button.custom_minimum_size.y = 54.0
-	lobby_settings_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lobby_settings_button.tooltip_text = "Configure your display, audio, and controls without leaving the lobby."
-	lobby_settings_button.pressed.connect(_show_settings.bind(false))
-	lobby_actions.add_child(lobby_settings_button)
-	lobby_disconnect_button = Button.new()
-	lobby_disconnect_button.name = "LobbyDisconnectButton"
-	lobby_disconnect_button.text = "Disconnect"
-	lobby_disconnect_button.theme_type_variation = &"DangerButton"
-	lobby_disconnect_button.custom_minimum_size.y = 54.0
-	lobby_disconnect_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lobby_disconnect_button.pressed.connect(_disconnect_online)
-	lobby_actions.add_child(lobby_disconnect_button)
-
-
-func _create_lobby_options_popup() -> void:
-	lobby_options_blocker = _create_modal_blocker("LobbyOptionsBlocker")
-	connection_canvas.add_child(lobby_options_blocker)
-	lobby_options_popup = PanelContainer.new()
-	lobby_options_popup.name = "LobbyOptions"
-	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_options_popup.position = Vector2(-340.0, -350.0)
-	lobby_options_popup.custom_minimum_size = Vector2(680.0, 700.0)
-	lobby_options_popup.theme = interface_theme
-	lobby_options_popup.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
-	lobby_options_popup.visible = false
-	connection_canvas.add_child(lobby_options_popup)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 14)
-	lobby_options_popup.add_child(content)
-	var title := Label.new()
-	title.text = "MATCH OPTIONS"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color("d39cff"))
-	content.add_child(title)
-	var mode_row := HBoxContainer.new()
-	mode_row.add_theme_constant_override("separation", 14)
-	content.add_child(mode_row)
-	var mode_label := Label.new()
-	mode_label.text = "Game mode"
-	mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mode_row.add_child(mode_label)
-	game_mode_control = OptionButton.new()
-	game_mode_control.custom_minimum_size = Vector2(300.0, 44.0)
-	for mode in GameModeRules.MODE_NAMES.size():
-		game_mode_control.add_item(GameModeRules.mode_name(mode), mode)
-	game_mode_control.select(GameModeRules.Mode.DEATH_MATCH)
-	game_mode_control.item_selected.connect(_on_game_mode_selected)
-	mode_row.add_child(game_mode_control)
-	game_mode_note = Label.new()
-	game_mode_note.text = GameModeRules.mode_description(GameModeRules.Mode.DEATH_MATCH)
-	game_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	game_mode_note.add_theme_color_override("font_color", Color("73f7ff"))
-	content.add_child(game_mode_note)
-	team_count_row = HBoxContainer.new()
-	team_count_row.name = "TeamCountRow"
-	team_count_row.add_theme_constant_override("separation", 14)
-	team_count_row.visible = false
-	content.add_child(team_count_row)
-	var team_count_label := Label.new()
-	team_count_label.text = "Number of teams"
-	team_count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	team_count_row.add_child(team_count_label)
-	team_count_control = SpinBox.new()
-	team_count_control.min_value = GameModeRules.MIN_TEAM_COUNT
-	team_count_control.max_value = GameModeRules.MAX_TEAM_COUNT
-	team_count_control.value = GameModeRules.DEFAULT_TEAM_COUNT
-	team_count_control.step = 1.0
-	team_count_control.custom_minimum_size = Vector2(150.0, 44.0)
-	team_count_control.tooltip_text = "Team Death Match supports two through eight teams. Every configured team needs at least one participant."
-	team_count_control.value_changed.connect(_on_team_count_changed)
-	team_count_row.add_child(team_count_control)
-	powerups_button = CheckButton.new()
-	powerups_button.text = "Random spawn powerups"
-	powerups_button.theme_type_variation = &"SettingToggle"
-	powerups_button.tooltip_text = "King of the Hill enables temporary drops by default. When enabled, a server-owned Rare-or-better card appears during active combat at the configured interval."
-	powerups_button.custom_minimum_size.y = 48.0
-	powerups_button.toggled.connect(_on_powerups_toggled)
-	var powerup_row := HBoxContainer.new()
-	powerup_row.add_theme_constant_override("separation", 14)
-	powerup_row.add_child(powerups_button)
-	powerups_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var interval_label := Label.new()
-	interval_label.text = "Every"
-	powerup_row.add_child(interval_label)
-	powerup_interval_control = SpinBox.new()
-	powerup_interval_control.min_value = 5.0
-	powerup_interval_control.max_value = 90.0
-	powerup_interval_control.step = 1.0
-	powerup_interval_control.value = 20.0
-	powerup_interval_control.suffix = " sec"
-	powerup_interval_control.custom_minimum_size = Vector2(130.0, 44.0)
-	powerup_interval_control.value_changed.connect(_on_powerup_interval_changed)
-	powerup_row.add_child(powerup_interval_control)
-	content.add_child(powerup_row)
-	powerups_permanent_button = CheckButton.new()
-	powerups_permanent_button.text = "Powerup cards persist for the full match"
-	powerups_permanent_button.theme_type_variation = &"SettingToggle"
-	powerups_permanent_button.tooltip_text = "Off by default. When off, arena-drop cards are removed after the heat."
-	powerups_permanent_button.toggled.connect(_on_powerups_permanent_toggled)
-	content.add_child(powerups_permanent_button)
-	var overtime_row := HBoxContainer.new()
-	overtime_row.add_theme_constant_override("separation", 14)
-	content.add_child(overtime_row)
-	var overtime_label := Label.new()
-	overtime_label.text = "Overtime begins"
-	overtime_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	overtime_row.add_child(overtime_label)
-	overtime_start_control = SpinBox.new()
-	overtime_start_control.min_value = 30.0
-	overtime_start_control.max_value = 120.0
-	overtime_start_control.step = 1.0
-	overtime_start_control.value = GameConstants.OVERTIME_START_SECONDS
-	overtime_start_control.suffix = " sec"
-	overtime_start_control.custom_minimum_size = Vector2(150.0, 44.0)
-	overtime_start_control.value_changed.connect(_on_overtime_start_changed)
-	overtime_row.add_child(overtime_start_control)
-	var powerup_note := Label.new()
-	powerup_note.text = "Rare-or-better drops appear at safe map positions. Temporary drops leave your inventory after each heat unless permanence is enabled."
-	powerup_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	powerup_note.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(powerup_note)
-	var close_button := Button.new()
-	close_button.text = "DONE"
-	close_button.theme_type_variation = &"PrimaryButton"
-	close_button.custom_minimum_size.y = 48.0
-	close_button.pressed.connect(_hide_lobby_options)
-	content.add_child(close_button)
-
-
-func _create_ship_color_popup() -> void:
-	ship_color_blocker = _create_modal_blocker("ShipColorBlocker")
-	connection_canvas.add_child(ship_color_blocker)
-	ship_color_popup = PanelContainer.new()
-	ship_color_popup.name = "ShipColorPicker"
-	ship_color_popup.set_anchors_preset(Control.PRESET_CENTER)
-	ship_color_popup.position = Vector2(-350.0, -330.0)
-	ship_color_popup.custom_minimum_size = Vector2(700.0, 660.0)
-	ship_color_popup.theme = interface_theme
-	ship_color_popup.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.99))
-	ship_color_popup.visible = false
-	connection_canvas.add_child(ship_color_popup)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
-	ship_color_popup.add_child(content)
-	var title := Label.new()
-	title.text = "CUSTOMIZE YOUR SHIP"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", Color("73f7ff"))
-	content.add_child(title)
-	var note := Label.new()
-	note.text = "Combine any colour with a hull pattern, then apply your appearance."
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(note)
-	var appearance_row := HBoxContainer.new()
-	appearance_row.add_theme_constant_override("separation", 18)
-	content.add_child(appearance_row)
-	ship_pattern_preview = ShipPatternPreviewScript.new()
-	ship_pattern_preview.set_appearance(preferred_ship_color, preferred_ship_pattern)
-	appearance_row.add_child(ship_pattern_preview)
-	var pattern_column := VBoxContainer.new()
-	pattern_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	appearance_row.add_child(pattern_column)
-	var pattern_label := Label.new()
-	pattern_label.text = "HULL PATTERN"
-	pattern_label.add_theme_color_override("font_color", Color("e8f5ff"))
-	pattern_column.add_child(pattern_label)
-	ship_pattern_control = OptionButton.new()
-	ship_pattern_control.custom_minimum_size.y = 48.0
-	for pattern in ShipAppearanceScript.PATTERNS:
-		ship_pattern_control.add_item(ShipAppearanceScript.display_name(pattern))
-	ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(preferred_ship_pattern))
-	ship_pattern_control.item_selected.connect(_on_ship_pattern_selected)
-	pattern_column.add_child(ship_pattern_control)
-	ship_color_picker = ColorPicker.new()
-	ship_color_picker.color = preferred_ship_color
-	ship_color_picker.edit_alpha = false
-	ship_color_picker.picker_shape = ColorPicker.SHAPE_HSV_WHEEL
-	ship_color_picker.sliders_visible = false
-	ship_color_picker.presets_visible = false
-	ship_color_picker.sampler_visible = false
-	ship_color_picker.custom_minimum_size = Vector2(640.0, 300.0)
-	ship_color_picker.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	ship_color_picker.color_changed.connect(_on_ship_color_changed)
-	content.add_child(ship_color_picker)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 12)
-	content.add_child(actions)
-	random_color_button = Button.new()
-	random_color_button.text = "RANDOM COLOUR"
-	random_color_button.theme_type_variation = &"SecondaryButton"
-	random_color_button.custom_minimum_size = Vector2(180.0, 48.0)
-	random_color_button.tooltip_text = "Ask the server for a high-contrast random ship colour."
-	random_color_button.pressed.connect(_on_random_color_pressed)
-	actions.add_child(random_color_button)
-	var cancel_button := Button.new()
-	cancel_button.text = "CANCEL"
-	cancel_button.theme_type_variation = &"QuietButton"
-	cancel_button.custom_minimum_size = Vector2(160.0, 48.0)
-	cancel_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cancel_button.pressed.connect(_cancel_ship_color)
-	actions.add_child(cancel_button)
-	apply_ship_color_button = Button.new()
-	apply_ship_color_button.text = "APPLY APPEARANCE"
-	apply_ship_color_button.theme_type_variation = &"PrimaryButton"
-	apply_ship_color_button.custom_minimum_size = Vector2(210.0, 48.0)
-	apply_ship_color_button.pressed.connect(_apply_ship_color)
-	actions.add_child(apply_ship_color_button)
-
-
 func _create_match_ui() -> void:
 	match_panel = PanelContainer.new()
 	match_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -855,7 +457,7 @@ func _create_match_ui() -> void:
 	match_panel.theme = interface_theme
 	match_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.9))
 	match_panel.visible = false
-	connection_canvas.add_child(match_panel)
+	connection_controller.connection_canvas.add_child(match_panel)
 	match_label = Label.new()
 	match_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	match_label.add_theme_font_size_override("font_size", 24)
@@ -871,7 +473,7 @@ func _create_match_ui() -> void:
 	heat_intro_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	heat_intro_panel.add_theme_stylebox_override("panel", _heat_intro_style())
 	heat_intro_panel.visible = false
-	connection_canvas.add_child(heat_intro_panel)
+	connection_controller.connection_canvas.add_child(heat_intro_panel)
 	var heat_intro_content := VBoxContainer.new()
 	heat_intro_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	heat_intro_content.add_theme_constant_override("separation", 8)
@@ -899,7 +501,7 @@ func _create_match_ui() -> void:
 	draft_panel.theme = interface_theme
 	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	draft_panel.visible = false
-	connection_canvas.add_child(draft_panel)
+	connection_controller.connection_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 14)
 	draft_panel.add_child(content)
@@ -1039,7 +641,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	scoreboard_panel.theme = interface_theme
 	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.985))
 	scoreboard_panel.visible = false
-	connection_canvas.add_child(scoreboard_panel)
+	connection_controller.connection_canvas.add_child(scoreboard_panel)
 	var scoreboard_content := VBoxContainer.new()
 	scoreboard_content.add_theme_constant_override("separation", 10)
 	scoreboard_panel.add_child(scoreboard_content)
@@ -1096,7 +698,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	win_overlay.name = "WinScreen"
 	win_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	win_overlay.visible = false
-	connection_canvas.add_child(win_overlay)
+	connection_controller.connection_canvas.add_child(win_overlay)
 	var win_background := NeonBackdrop.new()
 	win_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	win_overlay.add_child(win_background)
@@ -1185,34 +787,6 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	results_actions.add_child(results_return_button)
 
 
-func _add_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
-	var label := Label.new()
-	label.text = label_text
-	parent.add_child(label)
-	var field := LineEdit.new()
-	field.text = initial_text
-	field.custom_minimum_size.y = 48.0
-	parent.add_child(field)
-	return field
-
-
-func _add_compact_labeled_field(parent: VBoxContainer, label_text: String, initial_text: String) -> LineEdit:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	parent.add_child(row)
-	var label := Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = 210.0
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(label)
-	var field := LineEdit.new()
-	field.text = initial_text
-	field.custom_minimum_size.y = 48.0
-	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(field)
-	return field
-
-
 func _create_pause_overlay() -> void:
 	pause_overlay = PanelContainer.new()
 	pause_overlay.set_anchors_preset(Control.PRESET_CENTER)
@@ -1221,7 +795,7 @@ func _create_pause_overlay() -> void:
 	pause_overlay.theme = interface_theme
 	pause_overlay.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	pause_overlay.visible = false
-	connection_canvas.add_child(pause_overlay)
+	connection_controller.connection_canvas.add_child(pause_overlay)
 	var content := VBoxContainer.new()
 	content.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_theme_constant_override("separation", 18)
@@ -1273,426 +847,23 @@ func _create_f2_return_confirmation() -> void:
 	f2_return_confirmation.theme = interface_theme
 	f2_return_confirmation.confirmed.connect(_confirm_f2_return_to_menu)
 	f2_return_confirmation.canceled.connect(_cancel_f2_return_to_menu)
-	connection_canvas.add_child(f2_return_confirmation)
+	connection_controller.connection_canvas.add_child(f2_return_confirmation)
 	f2_return_confirmation.get_ok_button().theme_type_variation = &"DangerButton"
 
 
-func _create_settings_overlay() -> void:
-	settings_panel = Control.new()
-	settings_panel.name = "SettingsScreen"
-	settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	settings_panel.visible = false
-	connection_canvas.add_child(settings_panel)
-	var dim := ColorRect.new()
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color("02040d", 0.88)
-	settings_panel.add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	settings_panel.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(920.0, 690.0)
-	panel.theme = interface_theme
-	panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
-	center.add_child(panel)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 10)
-	panel.add_child(content)
-	var title := Label.new()
-	title.text = "SETTINGS"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color("d39cff"))
-	content.add_child(title)
-	settings_tabs = TabContainer.new()
-	settings_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
-	settings_tabs.get_tab_bar().gui_input.connect(_on_tab_bar_gui_input.bind(settings_tabs))
-	settings_tabs.custom_minimum_size = Vector2(860.0, 500.0)
-	settings_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(settings_tabs)
-	_create_display_audio_settings_tab()
-	_create_controls_settings_tab()
-	_create_accessibility_settings_tab()
-	settings_tabs.tab_changed.connect(_on_settings_tab_changed)
-	var saved_note := Label.new()
-	saved_note.text = "Settings and both control profiles save automatically."
-	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	saved_note.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(saved_note)
-	var back_button := Button.new()
-	back_button.text = "Back"
-	back_button.theme_type_variation = &"QuietButton"
-	back_button.custom_minimum_size.y = 52.0
-	back_button.pressed.connect(_hide_settings)
-	content.add_child(back_button)
-	settings_back_button = back_button
-	_configure_accessibility_focus()
-
-
-func _create_accessibility_settings_tab() -> void:
-	var tab := VBoxContainer.new()
-	tab.name = "ACCESSIBILITY"
-	tab.add_theme_constant_override("separation", 16)
-	settings_tabs.add_child(tab)
-	var heading := Label.new()
-	heading.text = "COMBAT READABILITY & COMFORT"
-	heading.add_theme_font_size_override("font_size", 23)
-	tab.add_child(heading)
-	var scale_row := HBoxContainer.new()
-	tab.add_child(scale_row)
-	var scale_label := Label.new()
-	scale_label.text = "HUD & combat text size"
-	scale_label.custom_minimum_size.x = 280.0
-	scale_row.add_child(scale_label)
-	hud_scale_control = HSlider.new()
-	hud_scale_control.name = "HUDScale"
-	hud_scale_control.min_value = 100.0
-	hud_scale_control.max_value = 150.0
-	hud_scale_control.step = 10.0
-	hud_scale_control.value = float(accessibility_preferences.values.hud_scale) * 100.0
-	hud_scale_control.custom_minimum_size = Vector2(340.0, 48.0)
-	hud_scale_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scale_row.add_child(hud_scale_control)
-	hud_scale_value = Label.new()
-	hud_scale_value.custom_minimum_size.x = 70.0
-	hud_scale_value.text = "%d%%" % roundi(hud_scale_control.value)
-	scale_row.add_child(hud_scale_value)
-	hud_scale_control.value_changed.connect(func(value: float) -> void:
-		hud_scale_value.text = "%d%%" % roundi(value)
-		_change_accessibility_setting("hud_scale", value / 100.0)
-	)
-	hud_scale_control.gui_input.connect(_on_hud_scale_gui_input)
-	reduced_shake_control = _add_accessibility_toggle(tab, "Disable camera shake and boost kick", "reduced_shake")
-	reduced_flashes_control = _add_accessibility_toggle(tab, "Reduce combat flashes", "reduced_flashes")
-	constrain_hud_control = _add_accessibility_toggle(tab, "Keep HUD within a centered 16:9 area", "constrain_hud")
-	var note := Label.new()
-	note.text = "Applies immediately to online play and the build laboratory.\nReduced flashes keeps impact outlines and damage information visible.\nUse Tab / Shift+Tab or controller D-pad to navigate; Left / Right adjusts size."
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
-	tab.add_child(note)
-
-
-func _add_accessibility_toggle(parent: Control, title: String, key: String) -> CheckButton:
-	var control := CheckButton.new()
-	control.text = title
-	control.theme_type_variation = &"SettingToggle"
-	control.custom_minimum_size.y = 52.0
-	control.button_pressed = bool(accessibility_preferences.values[key])
-	control.toggled.connect(func(value: bool) -> void: _change_accessibility_setting(key, value))
-	parent.add_child(control)
-	return control
-
-
-func _on_hud_scale_gui_input(event: InputEvent) -> void:
-	# Godot's range keyboard shortcuts do not consume joypad navigation; keep
-	# Left/Right on the slider instead of moving focus to a neighboring toggle.
-	if not (event is InputEventJoypadButton or event is InputEventJoypadMotion):
-		return
-	if event.is_action_pressed(&"ui_left"):
-		hud_scale_control.value -= hud_scale_control.step
-		hud_scale_control.accept_event()
-	elif event.is_action_pressed(&"ui_right"):
-		hud_scale_control.value += hud_scale_control.step
-		hud_scale_control.accept_event()
-
-
-func _on_tab_bar_gui_input(event: InputEvent, tabs: TabContainer) -> void:
-	if not (event is InputEventJoypadButton or event is InputEventJoypadMotion):
-		return
-	var direction := 0
-	if event.is_action_pressed(&"ui_left"):
-		direction = -1
-	elif event.is_action_pressed(&"ui_right"):
-		direction = 1
-	if direction != 0:
-		tabs.current_tab = clampi(tabs.current_tab + direction, 0, tabs.get_tab_count() - 1)
-		tabs.get_tab_bar().accept_event()
-
-
 func _change_accessibility_setting(key: String, value: Variant) -> void:
-	accessibility_preferences.set_values({key: value})
-	accessibility_preferences.save_settings()
-	_apply_accessibility_settings()
+	settings_controller._change_accessibility_setting(key, value)
 
 
 func _apply_accessibility_settings() -> void:
 	if network_world != null:
-		network_world.apply_accessibility_settings(accessibility_preferences.values)
+		network_world.apply_accessibility_settings(settings_controller.accessibility_preferences.values)
 	if offline_sandbox != null and offline_sandbox.has_method("apply_accessibility_settings"):
-		offline_sandbox.apply_accessibility_settings(accessibility_preferences.values)
-
-
-func _configure_accessibility_focus() -> void:
-	var controls: Array[Control] = [settings_tabs.get_tab_bar(), hud_scale_control, reduced_shake_control, reduced_flashes_control, constrain_hud_control, settings_back_button]
-	for index in range(1, controls.size() - 1):
-		controls[index].focus_previous = controls[index].get_path_to(controls[index - 1])
-		controls[index].focus_neighbor_top = controls[index].focus_previous
-		controls[index].focus_next = controls[index].get_path_to(controls[index + 1])
-		controls[index].focus_neighbor_bottom = controls[index].focus_next
-
-
-func _on_settings_tab_changed(index: int) -> void:
-	if not settings_panel.visible:
-		return
-	var first_control: Control = window_mode_control
-	if index == 2:
-		first_control = hud_scale_control
-	elif index == 1:
-		first_control = control_scheme_control
-	var tab_bar := settings_tabs.get_tab_bar()
-	tab_bar.focus_next = tab_bar.get_path_to(first_control)
-	tab_bar.focus_neighbor_bottom = tab_bar.focus_next
-	# Let players traverse every tab with Left/Right before entering its controls.
-	if get_viewport().gui_get_focus_owner() != tab_bar:
-		first_control.grab_focus()
-
-
-func _create_display_audio_settings_tab() -> void:
-	var tab := VBoxContainer.new()
-	tab.name = "DISPLAY & AUDIO"
-	tab.add_theme_constant_override("separation", 14)
-	settings_tabs.add_child(tab)
-	var display_title := Label.new()
-	display_title.text = "DISPLAY"
-	display_title.add_theme_font_size_override("font_size", 23)
-	display_title.add_theme_color_override("font_color", Color("73f7ff"))
-	tab.add_child(display_title)
-	var mode_row := HBoxContainer.new()
-	mode_row.add_theme_constant_override("separation", 16)
-	tab.add_child(mode_row)
-	var mode_label := Label.new()
-	mode_label.text = "Display mode"
-	mode_label.custom_minimum_size.x = 190.0
-	mode_row.add_child(mode_label)
-	window_mode_control = OptionButton.new()
-	window_mode_control.custom_minimum_size = Vector2(430.0, 48.0)
-	window_mode_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for mode_index in WINDOW_MODE_LABELS.size():
-		window_mode_control.add_item(WINDOW_MODE_LABELS[mode_index], mode_index)
-	window_mode_control.select(current_window_mode)
-	window_mode_control.item_selected.connect(_on_window_mode_selected)
-	mode_row.add_child(window_mode_control)
-	var resolution_row := HBoxContainer.new()
-	resolution_row.add_theme_constant_override("separation", 16)
-	tab.add_child(resolution_row)
-	var resolution_label := Label.new()
-	resolution_label.text = "Resolution"
-	resolution_label.custom_minimum_size.x = 190.0
-	resolution_row.add_child(resolution_label)
-	resolution_control = OptionButton.new()
-	resolution_control.custom_minimum_size = Vector2(430.0, 48.0)
-	resolution_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for resolution in RESOLUTION_OPTIONS:
-		resolution_control.add_item("%d × %d" % [resolution.x, resolution.y])
-	resolution_control.select(maxi(RESOLUTION_OPTIONS.find(current_resolution), 0))
-	resolution_control.item_selected.connect(_on_resolution_selected)
-	resolution_row.add_child(resolution_control)
-	display_mode_note = Label.new()
-	display_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	display_mode_note.add_theme_color_override("font_color", Color("aebbd4"))
-	tab.add_child(display_mode_note)
-	_update_resolution_control_state()
-	var audio_title := Label.new()
-	audio_title.text = "AUDIO"
-	audio_title.add_theme_font_size_override("font_size", 23)
-	audio_title.add_theme_color_override("font_color", Color("73f7ff"))
-	tab.add_child(audio_title)
-	_add_volume_setting(tab, "Master Volume", &"master", audio_director.master_volume_percent)
-	_add_volume_setting(tab, "Music Volume", &"music", audio_director.music_volume_percent)
-	_add_volume_setting(tab, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
-	var mute_button := CheckButton.new()
-	mute_button.text = "Mute all audio"
-	mute_button.theme_type_variation = &"SettingToggle"
-	mute_button.button_pressed = audio_director.muted
-	mute_button.custom_minimum_size.y = 48.0
-	mute_button.toggled.connect(audio_director.set_muted)
-	tab.add_child(mute_button)
-
-
-func _create_controls_settings_tab() -> void:
-	var tab := VBoxContainer.new()
-	tab.name = "CONTROLS"
-	tab.add_theme_constant_override("separation", 8)
-	settings_tabs.add_child(tab)
-	var scheme_row := HBoxContainer.new()
-	scheme_row.add_theme_constant_override("separation", 16)
-	tab.add_child(scheme_row)
-	var scheme_label := Label.new()
-	scheme_label.text = "Active input"
-	scheme_label.custom_minimum_size.x = 220.0
-	scheme_row.add_child(scheme_label)
-	control_scheme_control = OptionButton.new()
-	control_scheme_control.custom_minimum_size = Vector2(540.0, 44.0)
-	control_scheme_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	control_scheme_control.add_item("Keyboard & Mouse", InputProfileManagerScript.Scheme.KEYBOARD_MOUSE)
-	control_scheme_control.add_item("Controller / Joystick", InputProfileManagerScript.Scheme.CONTROLLER)
-	control_scheme_control.select(int(input_profiles.active_scheme))
-	control_scheme_control.item_selected.connect(_on_control_scheme_selected)
-	scheme_row.add_child(control_scheme_control)
-	var flight_mode_row := HBoxContainer.new()
-	flight_mode_row.add_theme_constant_override("separation", 16)
-	tab.add_child(flight_mode_row)
-	var flight_mode_label := Label.new()
-	flight_mode_label.text = "Flight mode"
-	flight_mode_label.custom_minimum_size.x = 220.0
-	flight_mode_row.add_child(flight_mode_label)
-	flight_mode_control = OptionButton.new()
-	flight_mode_control.custom_minimum_size = Vector2(540.0, 44.0)
-	flight_mode_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	flight_mode_control.add_item("Newtonian · movement follows ship heading", InputProfileManagerScript.FlightMode.NEWTONIAN)
-	flight_mode_control.add_item("Relative · movement follows the screen", InputProfileManagerScript.FlightMode.RELATIVE)
-	flight_mode_control.select(int(input_profiles.flight_mode))
-	flight_mode_control.item_selected.connect(_on_flight_mode_selected)
-	flight_mode_row.add_child(flight_mode_control)
-	controller_status_label = Label.new()
-	controller_status_label.add_theme_color_override("font_color", Color("aebbd4"))
-	controller_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tab.add_child(controller_status_label)
-	controller_deadzone_row = HBoxContainer.new()
-	controller_deadzone_row.add_theme_constant_override("separation", 16)
-	tab.add_child(controller_deadzone_row)
-	var deadzone_label := Label.new()
-	deadzone_label.text = "Stick deadzone"
-	deadzone_label.custom_minimum_size.x = 220.0
-	controller_deadzone_row.add_child(deadzone_label)
-	controller_deadzone_slider = HSlider.new()
-	controller_deadzone_slider.min_value = InputProfileManagerScript.MIN_CONTROLLER_DEADZONE
-	controller_deadzone_slider.max_value = InputProfileManagerScript.MAX_CONTROLLER_DEADZONE
-	controller_deadzone_slider.step = 0.01
-	controller_deadzone_slider.value = input_profiles.controller_deadzone
-	controller_deadzone_slider.custom_minimum_size = Vector2(460.0, 40.0)
-	controller_deadzone_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controller_deadzone_row.add_child(controller_deadzone_slider)
-	controller_deadzone_value = Label.new()
-	controller_deadzone_value.custom_minimum_size.x = 72.0
-	controller_deadzone_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	controller_deadzone_row.add_child(controller_deadzone_value)
-	controller_deadzone_slider.value_changed.connect(_on_controller_deadzone_changed)
-	binding_capture_status = Label.new()
-	binding_capture_status.text = "Select a binding, then press its replacement input."
-	binding_capture_status.add_theme_color_override("font_color", Color("fff36a"))
-	binding_capture_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tab.add_child(binding_capture_status)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(820.0, 250.0)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tab.add_child(scroll)
-	binding_rows = GridContainer.new()
-	binding_rows.columns = 2
-	binding_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	binding_rows.add_theme_constant_override("h_separation", 18)
-	binding_rows.add_theme_constant_override("v_separation", 6)
-	scroll.add_child(binding_rows)
-	var reset_button := Button.new()
-	reset_button.text = "Restore This Profile's Defaults"
-	reset_button.theme_type_variation = &"SecondaryButton"
-	reset_button.custom_minimum_size.y = 42.0
-	reset_button.pressed.connect(_on_restore_control_defaults)
-	tab.add_child(reset_button)
-	_refresh_input_settings_ui()
+		offline_sandbox.apply_accessibility_settings(settings_controller.accessibility_preferences.values)
 
 
 func _refresh_input_settings_ui() -> void:
-	if control_scheme_control == null:
-		return
-	control_scheme_control.select(int(input_profiles.active_scheme))
-	flight_mode_control.select(int(input_profiles.flight_mode))
-	controller_deadzone_row.visible = input_profiles.uses_controller()
-	controller_deadzone_slider.set_value_no_signal(input_profiles.controller_deadzone)
-	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
-	_update_controller_status()
-	_rebuild_binding_rows()
-
-
-func _rebuild_binding_rows() -> void:
-	if binding_rows == null:
-		return
-	for child in binding_rows.get_children():
-		binding_rows.remove_child(child)
-		child.queue_free()
-	binding_buttons.clear()
-	for action in input_profiles.rebind_actions():
-		var label := Label.new()
-		label.text = input_profiles.action_label(action)
-		label.custom_minimum_size = Vector2(360.0, 40.0)
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		binding_rows.add_child(label)
-		var button := Button.new()
-		button.text = input_profiles.binding_text(action)
-		button.custom_minimum_size = Vector2(390.0, 40.0)
-		button.pressed.connect(_begin_binding_capture.bind(action))
-		binding_rows.add_child(button)
-		binding_buttons[action] = button
-
-
-func _on_control_scheme_selected(index: int) -> void:
-	_cancel_binding_capture()
-	input_profiles.set_scheme(control_scheme_control.get_item_id(index))
-	_refresh_input_settings_ui()
-
-
-func _on_flight_mode_selected(index: int) -> void:
-	input_profiles.set_flight_mode(flight_mode_control.get_item_id(index))
-	_refresh_input_settings_ui()
-
-
-func _on_controller_deadzone_changed(value: float) -> void:
-	input_profiles.set_controller_deadzone(value)
-	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
-
-
-func _begin_binding_capture(action: StringName) -> void:
-	binding_capture_action = action
-	binding_capture_seconds = 8.0
-	var prompt := "Press a controller button or move one axis fully" if input_profiles.uses_controller() else "Press a keyboard key or mouse button"
-	binding_capture_status.text = "%s for %s…" % [prompt, input_profiles.action_label(action)]
-	if binding_buttons.has(action):
-		(binding_buttons[action] as Button).text = "PRESS INPUT…"
-
-
-func _complete_binding_capture(event: InputEvent) -> void:
-	var action := binding_capture_action
-	var rebound: bool = input_profiles.rebind(action, event)
-	if rebound:
-		binding_capture_status.text = "%s is now %s." % [input_profiles.action_label(action), input_profiles.binding_text(action)]
-	else:
-		binding_capture_status.text = "That input is not valid for the selected profile."
-	binding_capture_action = &""
-	binding_capture_seconds = 0.0
-	if not rebound:
-		_rebuild_binding_rows()
-
-
-func _cancel_binding_capture() -> void:
-	if binding_capture_action.is_empty():
-		return
-	binding_capture_action = &""
-	binding_capture_seconds = 0.0
-	if binding_capture_status != null:
-		binding_capture_status.text = "Binding capture timed out. Nothing changed."
-	_rebuild_binding_rows()
-
-
-func _on_restore_control_defaults() -> void:
-	_cancel_binding_capture()
-	input_profiles.restore_active_defaults()
-	binding_capture_status.text = "Restored the selected profile's default bindings."
-	_refresh_input_settings_ui()
-
-
-func _on_control_scheme_changed(_scheme: int) -> void:
-	_refresh_input_settings_ui()
-	_refresh_control_prompts()
-
-
-func _on_flight_mode_changed(_flight_mode: int) -> void:
-	_refresh_input_settings_ui()
-
-
-func _on_control_bindings_changed() -> void:
-	_rebuild_binding_rows()
-	_refresh_control_prompts()
+	settings_controller._refresh_input_settings_ui()
 
 
 func _refresh_control_prompts() -> void:
@@ -1700,241 +871,40 @@ func _refresh_control_prompts() -> void:
 		scoreboard_hint_label.text = "RELEASE %s TO RETURN TO COMBAT  ·  THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
 
 
-func _update_controller_status() -> void:
-	if controller_status_label == null:
-		return
-	controller_status_label.text = input_profiles.controller_status_text() if input_profiles.uses_controller() else "Keyboard and mouse is the default profile. Controller settings remain saved separately."
-
-
-func _add_volume_setting(parent: VBoxContainer, title: String, channel: StringName, initial_value: float) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	parent.add_child(row)
-	var label := Label.new()
-	label.text = title
-	label.custom_minimum_size.x = 190.0
-	row.add_child(label)
-	var slider := HSlider.new()
-	slider.min_value = 0.0
-	slider.max_value = 100.0
-	slider.step = 1.0
-	slider.value = initial_value
-	slider.custom_minimum_size = Vector2(380.0, 48.0)
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(slider)
-	var value_label := Label.new()
-	value_label.text = "%d%%" % roundi(initial_value)
-	value_label.custom_minimum_size.x = 70.0
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	row.add_child(value_label)
-	slider.value_changed.connect(_on_volume_changed.bind(channel, value_label))
-
-
-func _on_volume_changed(value: float, channel: StringName, value_label: Label) -> void:
-	value_label.text = "%d%%" % roundi(value)
-	match channel:
-		&"master": audio_director.set_master_volume(value)
-		&"music": audio_director.set_music_volume(value)
-		&"sfx": audio_director.set_sfx_volume(value)
-
-
-func _on_resolution_selected(index: int) -> void:
-	if index < 0 or index >= RESOLUTION_OPTIONS.size():
-		return
-	current_resolution = RESOLUTION_OPTIONS[index]
-	if DisplayServer.get_name() != "headless":
-		_apply_video_settings()
-	_save_video_settings()
-
-
-func _on_window_mode_selected(index: int) -> void:
-	if index < 0 or index >= WINDOW_MODE_LABELS.size():
-		return
-	current_window_mode = window_mode_control.get_item_id(index)
-	_update_resolution_control_state()
-	if DisplayServer.get_name() != "headless":
-		_apply_video_settings()
-	_save_video_settings()
-
-
-func _load_video_settings() -> void:
-	var capture_resolution_value: Variant = get_tree().root.get_meta("ssf_presentation_capture_resolution", Vector2i.ZERO)
-	if capture_resolution_value is Vector2i and capture_resolution_value != Vector2i.ZERO:
-		current_window_mode = WindowModeOption.WINDOWED
-		current_resolution = capture_resolution_value
-		if DisplayServer.get_name() != "headless":
-			_apply_video_settings()
-		return
-	if DisplayServer.get_name() != "headless":
-		current_resolution = DisplayServer.window_get_size()
-	var config := ConfigFile.new()
-	if config.load(AudioDirector.SETTINGS_PATH) == OK:
-		var configured_mode := int(config.get_value("video", "window_mode", WindowModeOption.WINDOWED))
-		if configured_mode >= WindowModeOption.WINDOWED and configured_mode <= WindowModeOption.EXCLUSIVE_FULLSCREEN:
-			current_window_mode = configured_mode
-		var configured := Vector2i(
-			int(config.get_value("video", "width", current_resolution.x)),
-			int(config.get_value("video", "height", current_resolution.y))
-		)
-		if configured in RESOLUTION_OPTIONS:
-			current_resolution = configured
-	if current_resolution not in RESOLUTION_OPTIONS:
-		current_resolution = RESOLUTION_OPTIONS[0]
-	if DisplayServer.get_name() != "headless":
-		_apply_video_settings()
-
-
-func _apply_video_settings() -> void:
-	match current_window_mode:
-		WindowModeOption.BORDERLESS_FULLSCREEN:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-		WindowModeOption.EXCLUSIVE_FULLSCREEN:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-			DisplayServer.window_set_size(current_resolution)
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
-		_:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-			DisplayServer.window_set_size(current_resolution)
-			var screen := DisplayServer.window_get_current_screen()
-			var usable_rect := DisplayServer.screen_get_usable_rect(screen)
-			var safe_offset := Vector2i(
-				maxi((usable_rect.size.x - current_resolution.x) / 2, 0),
-				maxi((usable_rect.size.y - current_resolution.y) / 2, 0)
-			)
-			DisplayServer.window_set_position(usable_rect.position + safe_offset)
-
-
 func _update_resolution_control_state() -> void:
-	if resolution_control == null:
-		return
-	var uses_desktop_resolution := current_window_mode == WindowModeOption.BORDERLESS_FULLSCREEN
-	resolution_control.disabled = uses_desktop_resolution
-	if display_mode_note == null:
-		return
-	if uses_desktop_resolution:
-		display_mode_note.text = "Borderless fullscreen uses the desktop's current resolution. Your selected resolution remains saved for other modes."
-	elif current_window_mode == WindowModeOption.EXCLUSIVE_FULLSCREEN:
-		display_mode_note.text = "Exclusive fullscreen requests the selected display mode; availability depends on the connected monitor and graphics driver."
-	else:
-		display_mode_note.text = "Windowed mode uses the selected client-area resolution."
-
-
-func _save_video_settings() -> void:
-	var config := ConfigFile.new()
-	config.load(AudioDirector.SETTINGS_PATH)
-	config.set_value("video", "window_mode", current_window_mode)
-	config.set_value("video", "width", current_resolution.x)
-	config.set_value("video", "height", current_resolution.y)
-	config.save(AudioDirector.SETTINGS_PATH)
-
-
-func _load_appearance_settings() -> void:
-	var config := ConfigFile.new()
-	if config.load(AudioDirector.SETTINGS_PATH) != OK:
-		return
-	random_ship_color = bool(config.get_value("appearance", "random_ship_color", true))
-	var saved_color := String(config.get_value("appearance", "ship_color", preferred_ship_color.to_html(false)))
-	if not ServerLobby._normalized_ship_color(saved_color).is_empty():
-		preferred_ship_color = Color.from_string("#%s" % saved_color.trim_prefix("#"), preferred_ship_color)
-	var saved_pattern := ShipAppearanceScript.normalized_pattern(String(config.get_value("appearance", "ship_pattern", ShipAppearanceScript.SOLID)))
-	if not saved_pattern.is_empty():
-		preferred_ship_pattern = saved_pattern
-
-
-func _save_appearance_settings() -> void:
-	var config := ConfigFile.new()
-	config.load(AudioDirector.SETTINGS_PATH)
-	config.set_value("appearance", "random_ship_color", random_ship_color)
-	config.set_value("appearance", "ship_color", preferred_ship_color.to_html(false))
-	config.set_value("appearance", "ship_pattern", String(preferred_ship_pattern))
-	config.save(AudioDirector.SETTINGS_PATH)
-
-
-func _on_direct_host_changed(address: String) -> void:
-	_apply_remembered_password(address, _remembered_password_port())
-
-
-func _on_direct_port_changed(_port_text: String) -> void:
-	_apply_remembered_password(host_field.text, _remembered_password_port())
-
-
-func _apply_remembered_password(address: String, port: int) -> void:
-	if direct_password_field == null or remember_password_button == null:
-		return
-	var remembered := _remembered_password_for_endpoint(address, port)
-	direct_password_field.text = remembered
-	remember_password_button.button_pressed = not remembered.is_empty()
-
-
-func _remembered_password_for_endpoint(address: String, port: int) -> String:
-	var key := _password_settings_key(address, port)
-	if key.is_empty():
-		return ""
-	var config := ConfigFile.new()
-	if config.load(AudioDirector.SETTINGS_PATH) != OK:
-		return ""
-	var remembered := String(config.get_value("lobby_passwords", key, ""))
-	return remembered if NetworkProtocol.is_valid_lobby_password(remembered) else ""
-
-
-func _commit_pending_password_preference() -> void:
-	var key := _password_settings_key(_pending_password_host, _pending_password_port)
-	if key.is_empty():
-		return
-	var config := ConfigFile.new()
-	config.load(AudioDirector.SETTINGS_PATH)
-	if _pending_remember_password and NetworkProtocol.is_valid_lobby_password(_pending_password_value):
-		config.set_value("lobby_passwords", key, _pending_password_value)
-	elif config.has_section_key("lobby_passwords", key):
-		config.erase_section_key("lobby_passwords", key)
-	config.save(AudioDirector.SETTINGS_PATH)
-	_pending_password_host = ""
-	_pending_password_port = 0
-	_pending_password_value = ""
-	_pending_remember_password = false
+	settings_controller._update_resolution_control_state()
 
 
 static func _password_settings_key(address: String, port: int) -> String:
-	var normalized := address.strip_edges().to_lower()
-	if normalized.begins_with("[") and normalized.ends_with("]"):
-		normalized = normalized.substr(1, normalized.length() - 2)
-	if normalized.is_empty() or port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
-		return ""
-	return ("%s:%d" % [normalized, port]).sha256_text()
-
-
-func _remembered_password_port() -> int:
-	if port_field == null or not port_field.text.strip_edges().is_valid_int():
-		return 0
-	return int(port_field.text.strip_edges())
+	return ConnectionControllerScript._password_settings_key(address, port)
 
 
 func _show_settings(return_to_pause: bool) -> void:
 	settings_return_to_pause = return_to_pause
-	settings_return_to_lobby = not return_to_pause and lobby_panel != null and lobby_panel.visible
+	settings_return_to_lobby = not return_to_pause and connection_controller.lobby_panel != null and connection_controller.lobby_panel.visible
 	if pause_overlay != null:
 		pause_overlay.visible = false
-	settings_panel.visible = true
-	_refresh_input_settings_ui()
+	settings_controller.settings_panel.visible = true
+	settings_controller._refresh_input_settings_ui()
 	if network_world != null:
 		network_world.input_blocked = return_to_pause
-	_on_settings_tab_changed(settings_tabs.current_tab)
+	settings_controller._on_settings_tab_changed(settings_controller.settings_tabs.current_tab)
 
 
 func _hide_settings() -> void:
-	_cancel_binding_capture()
-	settings_panel.visible = false
-	if settings_return_to_pause and not connection_screen.visible:
+	settings_controller._cancel_binding_capture()
+	settings_controller.settings_panel.visible = false
+	if settings_return_to_pause and not connection_controller.connection_screen.visible:
 		pause_overlay.visible = true
 		network_world.input_blocked = true
 		pause_resume_button.grab_focus()
-	elif settings_return_to_lobby and lobby_panel != null and lobby_panel.visible:
+	elif settings_return_to_lobby and connection_controller.lobby_panel != null and connection_controller.lobby_panel.visible:
 		network_world.input_blocked = false
-		lobby_settings_button.grab_focus()
+		connection_controller.lobby_settings_button.grab_focus()
 	else:
 		network_world.input_blocked = false
-		if connection_screen.visible and connection_primary_button != null:
-			connection_primary_button.grab_focus()
+		if connection_controller.connection_screen.visible and connection_controller.connection_primary_button != null:
+			connection_controller.connection_primary_button.grab_focus()
 	settings_return_to_pause = false
 	settings_return_to_lobby = false
 
@@ -1944,7 +914,7 @@ func _create_credits_overlay() -> void:
 	credits_panel.name = "CreditsScreen"
 	credits_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	credits_panel.visible = false
-	connection_canvas.add_child(credits_panel)
+	connection_controller.connection_canvas.add_child(credits_panel)
 	var dim := ColorRect.new()
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color("02040d", 0.92)
@@ -2023,7 +993,7 @@ func _show_credits() -> void:
 
 func _hide_credits() -> void:
 	credits_panel.visible = false
-	if connection_screen.visible and credits_button != null:
+	if connection_controller.connection_screen.visible and credits_button != null:
 		credits_button.grab_focus()
 
 
@@ -2193,12 +1163,12 @@ func _finish_splash_dismissal() -> void:
 
 
 func _focus_connection_menu() -> void:
-	if connection_primary_button != null:
-		connection_primary_button.grab_focus()
+	if connection_controller.connection_primary_button != null:
+		connection_controller.connection_primary_button.grab_focus()
 
 
 func _toggle_pause_overlay() -> void:
-	if connection_screen.visible:
+	if connection_controller.connection_screen.visible:
 		return
 	_set_scoreboard_open(false)
 	pause_overlay.visible = not pause_overlay.visible
@@ -2230,7 +1200,7 @@ func _request_f2_return_to_menu() -> void:
 		return
 	if f2_return_confirmation.visible:
 		return
-	var hosting := _hosted_server_root != null and is_instance_valid(_hosted_server_root)
+	var hosting := connection_controller._hosted_server_root != null and is_instance_valid(connection_controller._hosted_server_root)
 	if hosting:
 		f2_return_confirmation.dialog_text = "You are hosting this game.\n\nReturning to the main menu will stop the server and disconnect every player."
 		f2_return_confirmation.ok_button_text = "STOP SERVER"
@@ -2247,7 +1217,7 @@ func _request_f2_return_to_menu() -> void:
 func _f2_would_leave_session() -> bool:
 	if offline_sandbox != null and offline_sandbox.visible:
 		return true
-	if _hosted_server_root != null and is_instance_valid(_hosted_server_root):
+	if connection_controller._hosted_server_root != null and is_instance_valid(connection_controller._hosted_server_root):
 		return true
 	return bridge != null and bridge.role == NetworkBridge.Role.CLIENT
 
@@ -2270,215 +1240,45 @@ func _set_f2_confirmation_gameplay_blocked(blocked: bool) -> void:
 
 
 func _connect_online() -> void:
-	var port := _validated_port(port_field)
-	if port == 0:
-		return
-	var display_name := ServerLobby.sanitize_display_name(name_field.text)
-	if display_name.is_empty():
-		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
-		return
-	name_field.text = display_name
-	var lobby_password := direct_password_field.text
-	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
-		connection_status.text = "Enter the lobby password (1–%d printable characters)." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
-		direct_password_field.grab_focus()
-		return
-	var address := host_field.text.strip_edges()
-	offline_sandbox.set_sandbox_active(false)
-	network_world.set_network_active(false)
-	_pending_password_host = address
-	_pending_password_port = port
-	_pending_password_value = lobby_password
-	_pending_remember_password = remember_password_button.button_pressed
-	connection_status.text = "Authenticating with %s:%d…" % [address, port]
-	var error := bridge.start_client(address, port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
-	if error != OK:
-		connection_status.text = bridge.last_error
+	connection_controller._connect_online()
 
 
 func _host_online() -> void:
-	var port := _validated_port(host_port_field, true)
-	if port == 0:
-		return
-	var display_name := ServerLobby.sanitize_display_name(name_field.text)
-	if display_name.is_empty():
-		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
-		return
-	name_field.text = display_name
-	var server_name := server_name_field.text.strip_edges()
-	if not LanDiscoveryProtocol.is_valid_server_name(server_name):
-		connection_status.text = "Server name must contain 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
-		return
-	var lobby_password := host_password_field.text
-	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
-		connection_status.text = "Set a required lobby password containing 1–%d printable characters." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
-		host_password_field.grab_focus()
-		return
-	bridge.stop()
-	_stop_hosted_server()
-	var error := _start_hosted_server({
-		"port": port,
-		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
-		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
-		"server_name": server_name,
-		"lobby_password": lobby_password,
-	})
-	if error != OK:
-		connection_status.text = _hosted_server_bridge.last_error if _hosted_server_bridge != null else "Could not start the local server."
-		_stop_hosted_server()
-		return
-	offline_sandbox.set_sandbox_active(false)
-	network_world.set_network_active(false)
-	connection_status.text = "Hosting %s on UDP %d and joining locally…" % [server_name, port]
-	_pending_password_host = ""
-	_pending_password_port = 0
-	_pending_password_value = ""
-	_pending_remember_password = false
-	error = bridge.start_client("127.0.0.1", port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
-	if error != OK:
-		connection_status.text = bridge.last_error
-		_stop_hosted_server()
+	connection_controller._host_online()
 
 
 func _start_hosted_server(configuration: Dictionary) -> Error:
-	_hosted_server_root = Node.new()
-	_hosted_server_root.name = "HostedServerRuntime"
-	add_child(_hosted_server_root)
-	_hosted_server_multiplayer = MultiplayerAPI.create_default_interface()
-	get_tree().set_multiplayer(_hosted_server_multiplayer, _hosted_server_root.get_path())
-	var server_main := Node.new()
-	server_main.name = "Main"
-	_hosted_server_root.add_child(server_main)
-	_hosted_server_bridge = NetworkBridge.new()
-	_hosted_server_bridge.name = "NetworkBridge"
-	server_main.add_child(_hosted_server_bridge)
-	return _hosted_server_bridge.start_server(configuration)
+	return connection_controller._start_hosted_server(configuration)
 
 
 func _stop_hosted_server() -> void:
-	if _hosted_server_bridge != null and is_instance_valid(_hosted_server_bridge):
-		_hosted_server_bridge.stop()
-	if _hosted_server_root != null and is_instance_valid(_hosted_server_root):
-		_hosted_server_root.free()
-	_hosted_server_bridge = null
-	_hosted_server_root = null
-	_hosted_server_multiplayer = null
-
-
-func _validated_port(field: LineEdit, reserve_discovery_port: bool = false) -> int:
-	var port_text := field.text.strip_edges()
-	if not port_text.is_valid_int():
-		connection_status.text = "Port must be an integer from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT]
-		return 0
-	var port := int(port_text)
-	if port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
-		connection_status.text = "Port must be from %d through %d." % [GameConstants.MIN_PORT, GameConstants.MAX_PORT]
-		return 0
-	if reserve_discovery_port and port == LanDiscoveryProtocol.DISCOVERY_PORT:
-		connection_status.text = "Port %d is reserved for LAN server discovery. Choose another gameplay port." % port
-		return 0
-	return port
-
-
-func _refresh_lan_servers() -> void:
-	if lan_browser != null:
-		lan_browser.refresh_now()
-	connection_status.text = "Scanning the local network for Super Star Fighter servers…"
+	connection_controller._stop_hosted_server()
 
 
 func _on_lan_servers_updated(servers: Array[Dictionary]) -> void:
-	_lan_servers = servers.duplicate(true)
-	_rebuild_lan_server_list()
-	if connection_form_panel.visible and connection_tabs.current_tab == 0:
-		connection_status.text = "%d local server%s found." % [servers.size(), "" if servers.size() == 1 else "s"]
+	connection_controller._on_lan_servers_updated(servers)
 
 
-func _rebuild_lan_server_list() -> void:
-	if lan_servers_container == null:
-		return
-	for child in lan_servers_container.get_children():
-		lan_servers_container.remove_child(child)
-		child.free()
-	if _lan_servers.is_empty():
-		var empty_label := Label.new()
-		empty_label.text = "SEARCHING…\nStart a server on this network or use Direct Connect."
-		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.add_theme_color_override("font_color", Color("8ba1c7"))
-		lan_servers_container.add_child(empty_label)
-		return
-	for server in _lan_servers:
-		_add_lan_server_row(server)
-
-
-func _add_lan_server_row(server: Dictionary) -> void:
-	var compatible := int(server.get("protocol_version", 0)) == GameConstants.PROTOCOL_VERSION
-	var remembered_password := _remembered_password_for_endpoint(
-		String(server.get("address", "")),
-		int(server.get("game_port", 0))
-	)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size.y = 62.0
-	panel.set_meta("address", String(server.get("address", "")))
-	panel.set_meta("game_port", int(server.get("game_port", 0)))
-	panel.add_theme_stylebox_override("panel", _lan_server_row_style(compatible))
-	lan_servers_container.add_child(panel)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	panel.add_child(row)
-	var identity := VBoxContainer.new()
-	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(identity)
-	var name_label := Label.new()
-	name_label.text = String(server.get("server_name", "LOCAL SERVER"))
-	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name_label.add_theme_font_size_override("font_size", 18)
-	name_label.add_theme_color_override("font_color", Color("42e8ff") if compatible else Color("ff7994"))
-	identity.add_child(name_label)
-	var detail_label := Label.new()
-	var state_text := "IN MATCH" if bool(server.get("match_active", false)) else "LOBBY"
-	detail_label.text = "%s:%d  ·  LOCKED  ·  %d HUMAN + %d NPC / %d  ·  %s  ·  %d ms" % [
-		server.get("address", ""), server.get("game_port", 0), server.get("human_count", 0),
-		server.get("npc_count", 0), server.get("player_limit", 0), state_text, server.get("ping_ms", 0),
-	]
-	detail_label.add_theme_font_size_override("font_size", 14)
-	detail_label.add_theme_color_override("font_color", Color("aebbd4"))
-	identity.add_child(detail_label)
-	var join_button := Button.new()
-	join_button.text = ("JOIN" if not remembered_password.is_empty() else "PASSWORD") if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
-	join_button.theme_type_variation = &"PrimaryButton" if compatible else &"QuietButton"
-	join_button.disabled = not compatible
-	join_button.custom_minimum_size = Vector2(140.0, 46.0)
-	join_button.pressed.connect(_join_lan_server.bind(String(server.get("address", "")), int(server.get("game_port", 0))))
-	row.add_child(join_button)
-
-
-func _join_lan_server(address: String, port: int) -> void:
-	host_field.text = address
-	port_field.text = str(port)
-	_apply_remembered_password(address, port)
-	if direct_password_field.text.is_empty():
-		connection_tabs.current_tab = 1
-		connection_status.text = "Enter the password for %s, then connect." % address
-		direct_password_field.grab_focus()
-		return
-	_connect_online()
+func _play_tutorial() -> void:
+	_play_offline()
+	offline_sandbox.start_tutorial()
 
 
 func _play_offline() -> void:
 	bridge.stop()
-	_stop_hosted_server()
+	connection_controller._stop_hosted_server()
 	_set_scoreboard_open(false)
 	latest_match_payload.clear()
 	network_world.set_network_active(false)
-	connection_screen.visible = false
-	lobby_panel.visible = false
+	connection_controller.connection_screen.visible = false
+	connection_controller.lobby_panel.visible = false
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_panel.visible = false
 	scoreboard_panel.visible = false
 	results_panel.visible = false
 	pause_overlay.visible = false
-	settings_panel.visible = false
+	settings_controller.settings_panel.visible = false
 	credits_panel.visible = false
 	win_overlay.visible = false
 	offline_sandbox.set_sandbox_active(true)
@@ -2498,420 +1298,90 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 		f2_return_confirmation.hide()
 	if bridge.role == NetworkBridge.Role.CLIENT:
 		bridge.stop()
-	_pending_password_host = ""
-	_pending_password_port = 0
-	_pending_password_value = ""
-	_pending_remember_password = false
-	_stop_hosted_server()
+	connection_controller._pending_password_host = ""
+	connection_controller._pending_password_port = 0
+	connection_controller._pending_password_value = ""
+	connection_controller._pending_remember_password = false
+	connection_controller._stop_hosted_server()
 	network_world.set_network_active(false)
 	_set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
 	latest_match_payload.clear()
 	active_offer_token = ""
 	active_offer_deadline = -1
-	connection_screen.visible = true
-	connection_form_panel.visible = true
-	lobby_panel.visible = false
-	if lobby_options_popup != null:
-		_hide_lobby_options(false)
-	if ship_color_popup != null:
-		_hide_ship_color(false)
+	connection_controller.connection_screen.visible = true
+	connection_controller.connection_form_panel.visible = true
+	connection_controller.lobby_panel.visible = false
+	if connection_controller.lobby_options_popup != null:
+		connection_controller._hide_lobby_options(false)
+	if connection_controller.ship_color_popup != null:
+		connection_controller._hide_ship_color(false)
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_panel.visible = false
 	scoreboard_panel.visible = false
 	results_panel.visible = false
 	pause_overlay.visible = false
-	settings_panel.visible = false
+	settings_controller.settings_panel.visible = false
 	credits_panel.visible = false
 	win_overlay.visible = false
 	network_world.input_blocked = false
-	connection_status.text = message
-	connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
+	connection_controller.connection_status.text = message
+	connection_controller.connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
 	audio_director.set_context(&"menu")
 	_focus_connection_menu()
 
 
 func _on_connected(peer_id: int) -> void:
-	_commit_pending_password_preference()
-	connection_screen.visible = true
-	connection_form_panel.visible = false
-	lobby_panel.visible = true
 	network_world.set_network_active(false, false)
-	connection_status.text = "Connected as peer %d." % peer_id
-	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
 	audio_director.set_context(&"lobby")
-	bridge.send_player_appearance(random_ship_color, preferred_ship_color, preferred_ship_pattern)
-	ready_button.grab_focus()
+	connection_controller.show_connected(peer_id)
 
 
 func _on_lobby_state(state: Dictionary) -> void:
 	bridge.latest_lobby_state = state.duplicate(true)
 	_scoreboard_rows_dirty = true
 	_results_rows_dirty = true
-	var npc_count := int(state.get("npc_count", 0))
-	var total_count := (state.get("players", []) as Array).size()
-	var match_active := bool(state.get("match_active", false))
-	if match_active:
-		if lobby_options_popup != null:
-			_hide_lobby_options(false)
-		if ship_color_popup != null:
-			_hide_ship_color(false)
-	if not match_active:
+	if not bool(state.get("match_active", false)):
 		_set_scoreboard_open(false)
-		connection_screen.visible = true
-		connection_form_panel.visible = false
 		network_world.set_network_active(false, false)
-	lobby_panel.visible = not match_active
-	lobby_label.text = "PLAYERS  %d / %d    ·    READY  %d / %d    ·    NPCS  %d" % [
-		total_count,
-		state.get("player_limit", 32),
-		state.get("ready_human_count", 0),
-		total_count - npc_count,
-		npc_count,
-	]
-	var is_leader := int(state.get("leader_id", 0)) == bridge.local_peer_id
-	_rebuild_lobby_roster(state, is_leader)
-	var local_ready := false
-	for player_value in state.get("players", []):
-		var player := player_value as Dictionary
-		if int(player.get("peer_id", 0)) == bridge.local_peer_id:
-			local_ready = bool(player.get("ready", false))
-			break
-	_applying_lobby_state = true
-	var selected_game_mode := clampi(int(state.get("game_mode", GameModeRules.Mode.DEATH_MATCH)), GameModeRules.Mode.DEATH_MATCH, GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG)
-	game_mode_control.select(selected_game_mode)
-	game_mode_note.text = GameModeRules.mode_description(selected_game_mode)
-	team_count_row.visible = selected_game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH
-	team_count_control.max_value = mini(GameModeRules.MAX_TEAM_COUNT, int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS)))
-	team_count_control.value = clampi(int(state.get("team_count", GameModeRules.DEFAULT_TEAM_COUNT)), GameModeRules.MIN_TEAM_COUNT, GameModeRules.MAX_TEAM_COUNT)
-	rounds_control.value = int(state.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
-	player_limit_control.max_value = int(state.get("server_capacity", GameConstants.MAX_PLAYERS))
-	player_limit_control.value = int(state.get("player_limit", GameConstants.DEFAULT_MAX_PLAYERS))
-	npcs_button.button_pressed = bool(state.get("npcs_enabled", false))
-	npc_all_difficulty_control.select(clampi(int(state.get("default_npc_difficulty", NpcPilotController.Difficulty.NEUTRAL)), NpcPilotController.Difficulty.PASSIVE, NpcPilotController.Difficulty.INSANE))
-	powerups_button.button_pressed = bool(state.get("random_spawn_powerups", false))
-	powerup_interval_control.value = float(state.get("random_powerup_interval_seconds", 20.0))
-	powerups_permanent_button.button_pressed = bool(state.get("random_powerups_permanent", false))
-	overtime_start_control.value = float(state.get("overtime_start_seconds", GameConstants.OVERTIME_START_SECONDS))
-	ready_button.button_pressed = local_ready
-	for player_value in state.get("players", []):
-		var player := player_value as Dictionary
-		if int(player.get("peer_id", 0)) == bridge.local_peer_id:
-			preferred_ship_color = Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), preferred_ship_color)
-			preferred_ship_pattern = ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
-			if preferred_ship_pattern.is_empty():
-				preferred_ship_pattern = ShipAppearanceScript.SOLID
-			if not ship_color_popup.visible:
-				pending_ship_color = preferred_ship_color
-				pending_ship_pattern = preferred_ship_pattern
-				ship_color_picker.color = preferred_ship_color
-				ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(preferred_ship_pattern))
-				ship_pattern_preview.set_appearance(preferred_ship_color, preferred_ship_pattern)
-			break
-	_applying_lobby_state = false
-	ready_button.disabled = match_active
-	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
-	var settings_editable := is_leader and not match_active
-	game_mode_control.disabled = not settings_editable
-	team_count_control.editable = settings_editable and selected_game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH
-	rounds_control.editable = settings_editable
-	player_limit_control.editable = settings_editable
-	npcs_button.disabled = not settings_editable
-	npc_all_difficulty_control.disabled = not settings_editable or not bool(state.get("npcs_enabled", false))
-	powerups_button.disabled = not settings_editable
-	powerup_interval_control.editable = settings_editable and bool(state.get("random_spawn_powerups", false))
-	powerups_permanent_button.disabled = not settings_editable or not bool(state.get("random_spawn_powerups", false))
-	overtime_start_control.editable = settings_editable
-	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
-	var team_setup_valid := bool(state.get("team_setup_valid", true))
-	var team_setup_error := String(state.get("team_setup_error", ""))
-	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false)) or not team_setup_valid
-	var human_count := total_count - npc_count
-	if not is_leader:
-		start_button.text = "Waiting for Lobby Leader"
-	elif not team_setup_valid:
-		start_button.text = "Configure All Teams"
-	elif not bool(state.get("all_humans_ready", false)):
-		start_button.text = "Waiting for Players to Ready"
-	elif human_count == 1 and not bool(state.get("npcs_enabled", false)):
-		start_button.text = "Enable NPCs to Start Solo"
-	elif human_count == 1:
-		start_button.text = "Start Match with NPCs"
-	else:
-		start_button.text = "Start Match"
-	start_button.tooltip_text = team_setup_error if not team_setup_valid else "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
-	if get_viewport().gui_get_focus_owner() == null:
-		ready_button.grab_focus()
+	connection_controller.render_lobby(state)
 
 
 func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
-	for child in lobby_roster.get_children():
-		lobby_roster.remove_child(child)
-		child.queue_free()
-	var game_mode := int(state.get("game_mode", GameModeRules.Mode.DEATH_MATCH))
-	var team_mode := GameModeRules.is_team_mode(game_mode)
-	var team_count := GameModeRules.team_count_for_mode(game_mode, int(state.get("team_count", GameModeRules.DEFAULT_TEAM_COUNT)))
-	var match_active := bool(state.get("match_active", false))
-	for player_value in state.get("players", []):
-		var player := player_value as Dictionary
-		var peer_id := int(player.get("peer_id", 0))
-		var is_npc := bool(player.get("is_npc", false))
-		var is_ready := bool(player.get("ready", false))
-		var row := HBoxContainer.new()
-		row.custom_minimum_size.y = 42.0
-		row.add_theme_constant_override("separation", 10)
-		lobby_roster.add_child(row)
-		var color_swatch := Button.new()
-		color_swatch.name = "ShipColor"
-		var swatch_color := Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
-		var swatch_pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
-		if swatch_pattern.is_empty():
-			swatch_pattern = ShipAppearanceScript.SOLID
-		color_swatch.text = ShipAppearanceScript.swatch_symbol(swatch_pattern)
-		color_swatch.add_theme_color_override("font_color", Color.WHITE)
-		color_swatch.add_theme_font_size_override("font_size", 16)
-		color_swatch.custom_minimum_size = Vector2(34.0, 34.0)
-		color_swatch.add_theme_stylebox_override("normal", _ship_color_swatch_style(swatch_color, false))
-		color_swatch.add_theme_stylebox_override("hover", _ship_color_swatch_style(swatch_color, true))
-		color_swatch.add_theme_stylebox_override("pressed", _ship_color_swatch_style(swatch_color.lightened(0.12), true))
-		color_swatch.add_theme_stylebox_override("focus", _ship_color_swatch_style(swatch_color, true))
-		color_swatch.add_theme_stylebox_override("disabled", _ship_color_swatch_style(swatch_color, false))
-		var can_choose_color := peer_id == bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false))
-		color_swatch.disabled = not can_choose_color
-		color_swatch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_choose_color else Control.CURSOR_ARROW
-		color_swatch.tooltip_text = "Click to customize your ship" if can_choose_color else "%s hull pattern" % ShipAppearanceScript.display_name(swatch_pattern)
-		if can_choose_color:
-			color_swatch.pressed.connect(_show_ship_color_popup)
-		row.add_child(color_swatch)
-		var name_label := Label.new()
-		name_label.text = String(player.get("display_name", "Pilot"))
-		name_label.custom_minimum_size.x = 190.0 if team_mode else 300.0
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.add_theme_color_override("font_color", Color("fff36a") if peer_id == int(state.get("leader_id", 0)) else Color("e8f5ff"))
-		row.add_child(name_label)
-		var role_label := Label.new()
-		var team_id := int(player.get("team_id", 0))
-		var role_name := "HOST" if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
-		role_label.text = role_name if team_mode else "%s · %s" % [role_name, GameModeRules.team_name(team_id)] if team_id > 0 else role_name
-		role_label.custom_minimum_size.x = 80.0 if team_mode else 170.0 if team_id > 0 else 90.0
-		role_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id) if team_id > 0 else Color("d39cff"))
-		row.add_child(role_label)
-		if team_mode:
-			var team_control := OptionButton.new()
-			team_control.name = "TeamAssignment"
-			team_control.custom_minimum_size = Vector2(160.0, 38.0)
-			var team_selection := clampi(int(player.get("team_selection", 0)), 0, team_count)
-			team_control.add_item("AUTO · %s" % GameModeRules.team_name(team_id).trim_suffix(" TEAM"), 0)
-			for selectable_team_id in range(1, team_count + 1):
-				team_control.add_item(GameModeRules.team_name(selectable_team_id), selectable_team_id)
-			team_control.select(team_selection)
-			team_control.add_theme_color_override("font_color", GameModeRules.team_color(team_id))
-			var can_assign_team := not match_active and (is_leader or peer_id == bridge.local_peer_id or is_npc)
-			team_control.disabled = not can_assign_team
-			team_control.tooltip_text = "Choose a specific team or keep automatic balancing." if can_assign_team else "Only the host or this player may change this team."
-			team_control.item_selected.connect(_on_team_assignment_selected.bind(peer_id))
-			row.add_child(team_control)
-		if is_npc:
-			var difficulty_control := OptionButton.new()
-			difficulty_control.name = "NpcDifficulty"
-			difficulty_control.custom_minimum_size = Vector2(170.0, 38.0)
-			for difficulty in NpcPilotController.DIFFICULTY_NAMES.size():
-				difficulty_control.add_item(NpcPilotController.difficulty_name(difficulty), difficulty)
-			difficulty_control.select(clampi(int(player.get("npc_difficulty", NpcPilotController.Difficulty.NEUTRAL)), NpcPilotController.Difficulty.PASSIVE, NpcPilotController.Difficulty.INSANE))
-			difficulty_control.disabled = not is_leader or bool(state.get("match_active", false))
-			difficulty_control.tooltip_text = "NPC difficulty changes reaction speed, aim, movement, firing, shields, and awareness."
-			difficulty_control.item_selected.connect(_on_npc_difficulty_selected.bind(peer_id))
-			row.add_child(difficulty_control)
-		else:
-			var status_label := Label.new()
-			status_label.text = "READY" if is_ready else "NOT READY"
-			status_label.custom_minimum_size.x = 125.0
-			status_label.add_theme_color_override("font_color", Color("62ff9b") if is_ready else Color("ff7994"))
-			row.add_child(status_label)
-		if is_leader and peer_id != bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false)):
-			var eject_button := Button.new()
-			eject_button.text = "EJECT"
-			eject_button.custom_minimum_size = Vector2(100.0, 38.0)
-			eject_button.tooltip_text = "Remove this player from the lobby."
-			eject_button.pressed.connect(_on_eject_pressed.bind(peer_id))
-			row.add_child(eject_button)
-
-
-func _on_rounds_changed(value: float) -> void:
-	if not _applying_lobby_state:
-		bridge.send_lobby_config(roundi(value))
-
-
-func _on_player_limit_changed(value: float) -> void:
-	if not _applying_lobby_state:
-		bridge.send_player_limit(roundi(value))
-
-
-func _on_npcs_toggled(enabled: bool) -> void:
-	if not _applying_lobby_state:
-		bridge.send_npcs_enabled(enabled)
-
-
-func _on_game_mode_selected(index: int) -> void:
-	var mode := game_mode_control.get_item_id(index)
-	game_mode_note.text = GameModeRules.mode_description(mode)
-	team_count_row.visible = mode == GameModeRules.Mode.TEAM_DEATH_MATCH
-	if not _applying_lobby_state:
-		bridge.send_game_mode(mode)
-
-
-func _on_team_count_changed(value: float) -> void:
-	if not _applying_lobby_state:
-		bridge.send_team_count(roundi(value))
-
-
-func _on_team_assignment_selected(index: int, peer_id: int) -> void:
-	bridge.send_team_assignment(peer_id, index)
+	connection_controller._rebuild_lobby_roster(state, is_leader)
 
 
 func _show_lobby_options() -> void:
-	if lobby_options_popup != null and lobby_panel.visible:
-		lobby_options_focus_return = get_viewport().gui_get_focus_owner()
-		if ship_color_popup != null:
-			_hide_ship_color(false)
-		lobby_options_blocker.show()
-		lobby_panel.hide()
-		lobby_options_popup.show()
-		game_mode_control.grab_focus()
+	connection_controller._show_lobby_options()
 
 
 func _hide_lobby_options(restore_focus: bool = true) -> void:
-	if lobby_options_popup != null:
-		lobby_options_popup.hide()
-	if lobby_options_blocker != null:
-		lobby_options_blocker.hide()
-	_restore_lobby_after_modal()
-	if restore_focus:
-		_restore_modal_focus(lobby_options_focus_return, lobby_options_button)
-	lobby_options_focus_return = null
-
-
-func _on_powerups_toggled(enabled: bool) -> void:
-	if not _applying_lobby_state:
-		bridge.send_random_spawn_powerups(enabled)
+	connection_controller._hide_lobby_options(restore_focus)
 
 
 func _show_ship_color_popup() -> void:
-	if ship_color_popup == null or not lobby_panel.visible or bool(bridge.latest_lobby_state.get("match_active", false)):
-		return
-	ship_color_focus_return = get_viewport().gui_get_focus_owner()
-	if lobby_options_popup != null:
-		_hide_lobby_options(false)
-	pending_ship_color = preferred_ship_color
-	pending_ship_pattern = preferred_ship_pattern
-	ship_color_picker.color = pending_ship_color
-	ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(pending_ship_pattern))
-	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
-	ship_color_blocker.show()
-	lobby_panel.hide()
-	ship_color_popup.show()
-	apply_ship_color_button.grab_focus()
+	connection_controller._show_ship_color_popup()
 
 
 func _hide_ship_color(restore_focus: bool = true) -> void:
-	if ship_color_popup != null:
-		ship_color_popup.hide()
-	if ship_color_blocker != null:
-		ship_color_blocker.hide()
-	_restore_lobby_after_modal()
-	if restore_focus:
-		_restore_modal_focus(ship_color_focus_return, ready_button)
-	ship_color_focus_return = null
-
-
-func _restore_modal_focus(preferred: Control, fallback: Control) -> void:
-	var target := preferred if is_instance_valid(preferred) and preferred.is_visible_in_tree() else fallback
-	if is_instance_valid(target) and target.is_visible_in_tree() and target.focus_mode != Control.FOCUS_NONE:
-		target.call_deferred("grab_focus")
-
-
-func _restore_lobby_after_modal() -> void:
-	if (
-		lobby_panel != null
-		and (bridge.role == NetworkBridge.Role.CLIENT or bridge.local_peer_id != 0)
-		and connection_screen.visible
-		and not bool(bridge.latest_lobby_state.get("match_active", false))
-	):
-		lobby_panel.show()
+	connection_controller._hide_ship_color(restore_focus)
 
 
 func _on_ship_color_changed(color: Color) -> void:
-	if _applying_lobby_state:
-		return
-	pending_ship_color = Color(color.r, color.g, color.b, 1.0)
-	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
+	connection_controller._on_ship_color_changed(color)
 
 
 func _on_ship_pattern_selected(index: int) -> void:
-	if _applying_lobby_state or index < 0 or index >= ShipAppearanceScript.PATTERNS.size():
-		return
-	pending_ship_pattern = ShipAppearanceScript.PATTERNS[index]
-	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
+	connection_controller._on_ship_pattern_selected(index)
 
 
 func _apply_ship_color() -> void:
-	preferred_ship_color = pending_ship_color
-	preferred_ship_pattern = pending_ship_pattern
-	random_ship_color = false
-	_save_appearance_settings()
-	bridge.send_player_appearance(false, preferred_ship_color, preferred_ship_pattern)
-	_hide_ship_color()
+	connection_controller._apply_ship_color()
 
 
 func _on_random_color_pressed() -> void:
-	preferred_ship_pattern = pending_ship_pattern
-	random_ship_color = true
-	_save_appearance_settings()
-	bridge.send_player_appearance(true, preferred_ship_color, preferred_ship_pattern)
-	_hide_ship_color()
-
-
-func _cancel_ship_color() -> void:
-	pending_ship_color = preferred_ship_color
-	pending_ship_pattern = preferred_ship_pattern
-	ship_color_picker.color = preferred_ship_color
-	ship_pattern_control.select(ShipAppearanceScript.PATTERNS.find(preferred_ship_pattern))
-	ship_pattern_preview.set_appearance(preferred_ship_color, preferred_ship_pattern)
-	_hide_ship_color()
-
-
-func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
-	bridge.send_npc_difficulty(npc_peer_id, index)
-
-
-func _on_all_npc_difficulty_selected(index: int) -> void:
-	if not _applying_lobby_state:
-		bridge.send_all_npc_difficulty(index)
-
-
-func _on_powerup_interval_changed(value: float) -> void:
-	if not _applying_lobby_state:
-		bridge.send_random_powerup_interval(value)
-
-
-func _on_powerups_permanent_toggled(permanent: bool) -> void:
-	if not _applying_lobby_state:
-		bridge.send_random_powerups_permanent(permanent)
-
-
-func _on_overtime_start_changed(value: float) -> void:
-	if not _applying_lobby_state:
-		bridge.send_overtime_start(value)
-
-
-func _on_ready_toggled(ready: bool) -> void:
-	if not _applying_lobby_state:
-		bridge.send_ready_state(ready)
-
-
-func _on_eject_pressed(peer_id: int) -> void:
-	bridge.send_eject_player(peer_id)
+	connection_controller._on_random_color_pressed()
 
 
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
@@ -2922,7 +1392,7 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 	elif event_type == &"REQUEST_REJECTED":
 		_extend_match_requested = false
 		_return_to_lobby_requested = false
-		lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
+		connection_controller.lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
 		if draft_panel.visible and not active_offer_token.is_empty():
 			for draft_button in draft_buttons:
 				if draft_button.visible:
@@ -2946,9 +1416,9 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		else:
 			network_world.reset_match_presentation()
 			network_world.set_network_active(false, false)
-		connection_screen.visible = not entering_match
+		connection_controller.connection_screen.visible = not entering_match
 		if not entering_match:
-			connection_form_panel.visible = false
+			connection_controller.connection_form_panel.visible = false
 		network_world.apply_match_state(payload)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
@@ -3001,11 +1471,7 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
 
 
-func _process(delta: float) -> void:
-	if not binding_capture_action.is_empty():
-		binding_capture_seconds = maxf(binding_capture_seconds - delta, 0.0)
-		if binding_capture_seconds <= 0.0:
-			_cancel_binding_capture()
+func _process(_delta: float) -> void:
 	if not latest_match_payload.is_empty():
 		_update_match_presentation()
 	if scoreboard_panel != null:
@@ -3030,7 +1496,7 @@ func _update_pointer_visibility() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_screen.visible or settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
+	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	if gameplay_cursor != null:
@@ -3211,13 +1677,13 @@ func _update_match_presentation() -> void:
 		network_world.set_match_status("")
 		draft_panel.visible = false
 		_set_win_screen_visible(false)
-		lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
-		connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
-		if connection_screen.visible:
-			connection_form_panel.visible = false
+		connection_controller.lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
+		connection_controller.connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
+		if connection_controller.connection_screen.visible:
+			connection_controller.connection_form_panel.visible = false
 		network_world.set_network_active(false, false)
 		return
-	lobby_panel.visible = false
+	connection_controller.lobby_panel.visible = false
 	match_panel.visible = false
 	if state_name != "DRAFT":
 		draft_panel.visible = false
@@ -3908,21 +2374,6 @@ func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
 	return DesignTokensScript.panel_style(accent, opacity)
 
 
-func _ship_color_swatch_style(ship_color: Color, hovered: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(ship_color, 1.0)
-	style.border_color = Color.WHITE if hovered else Color(ship_color.lightened(0.38), 0.95)
-	style.set_border_width_all(3 if hovered else 2)
-	style.set_corner_radius_all(9)
-	style.shadow_color = Color(ship_color, 0.58 if hovered else 0.28)
-	style.shadow_size = 8 if hovered else 4
-	style.content_margin_left = 4.0
-	style.content_margin_right = 4.0
-	style.content_margin_top = 4.0
-	style.content_margin_bottom = 4.0
-	return style
-
-
 func _heat_intro_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("050b1de8")
@@ -3938,25 +2389,11 @@ func _heat_intro_style() -> StyleBoxFlat:
 	return style
 
 
-func _lan_server_row_style(compatible: bool) -> StyleBoxFlat:
-	var accent := DesignTokensScript.INTERACTIVE if compatible else DesignTokensScript.DANGER
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(accent.darkened(0.82), 0.74)
-	style.border_color = Color(accent, 0.52)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(9)
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 7.0
-	style.content_margin_bottom = 7.0
-	return style
-
-
 func _on_rejected(reason: StringName, message: String) -> void:
 	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck the server settings, then try again." % message, true)
 	if reason == NetworkProtocol.REJECT_INVALID_PASSWORD:
-		connection_tabs.current_tab = 1
-		direct_password_field.grab_focus()
+		connection_controller.connection_tabs.current_tab = 1
+		connection_controller.direct_password_field.grab_focus()
 
 
 func _on_connection_lost(message: String) -> void:
@@ -3966,8 +2403,7 @@ func _on_connection_lost(message: String) -> void:
 func _exit_tree() -> void:
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if lan_browser != null:
-		lan_browser.stop()
+	if is_instance_valid(connection_controller):
+		connection_controller.shutdown()
 	if bridge != null:
 		bridge.stop()
-	_stop_hosted_server()

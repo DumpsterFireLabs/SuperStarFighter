@@ -6,14 +6,22 @@ const MINE_EFFECT_DURATION: float = 0.9
 const MINE_SPARK_COUNT: int = 16
 const MINE_SMOKE_COUNT: int = 6
 const MAX_ACTIVE_MINE_EFFECTS: int = 24
+const MAX_ACTIVE_EFFECTS: int = 96
+const DECORATIVE_EFFECT_LIMIT: int = 48
+const SIMPLIFY_EFFECT_THRESHOLD: int = 40
 
 var effects: Array[Dictionary] = []
 var reduced_flashes: bool = false
 var active_mine_effect_count: int = 0
 var _mine_effect_sequence: int = 0
+var dropped_effect_count: int = 0
+var peak_effect_count: int = 0
+var visible_world_rect: Rect2 = Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
 
 
 func _process(delta: float) -> void:
+	if effects.is_empty():
+		return
 	for index in range(effects.size() - 1, -1, -1):
 		var effect := effects[index]
 		effect.remaining = float(effect.remaining) - delta
@@ -25,19 +33,20 @@ func _process(delta: float) -> void:
 
 
 func spawn_impact(position: Vector2, color: Color = Color("f4fbff")) -> void:
-	effects.append({"kind": &"impact", "position": position, "color": color, "remaining": 0.22, "duration": 0.22})
+	_append_effect({"kind": &"impact", "position": position, "color": color, "remaining": 0.22, "duration": 0.22}, 0)
 
 
-func spawn_elimination(position: Vector2, color: Color) -> void:
-	effects.append({"kind": &"elimination", "position": position, "color": color, "remaining": 0.65, "duration": 0.65})
+func spawn_elimination(position: Vector2, color: Color, local: bool = false) -> void:
+	_append_effect({"kind": &"elimination", "position": position, "color": color, "remaining": 0.65, "duration": 0.65}, 4 if local else 2)
 
 
-func spawn_damage(position: Vector2, direction: Vector2) -> void:
-	effects.append({"kind": &"damage", "position": position, "direction": direction, "color": Color("ff4f78"), "remaining": 0.3, "duration": 0.3})
+func spawn_damage(position: Vector2, direction: Vector2, local: bool = false) -> void:
+	_append_effect({"kind": &"damage", "position": position, "direction": direction, "color": Color("ff4f78"), "remaining": 0.3, "duration": 0.3}, 4 if local else 1)
 
 
 func spawn_mine_explosion(position: Vector2) -> void:
 	if active_mine_effect_count >= MAX_ACTIVE_MINE_EFFECTS:
+		dropped_effect_count += 1
 		return
 	_mine_effect_sequence += 1
 	var random := RandomNumberGenerator.new()
@@ -63,7 +72,7 @@ func spawn_mine_explosion(position: Vector2) -> void:
 			"distance": random.randf_range(28.0, 62.0),
 			"radius": random.randf_range(15.0, 28.0),
 		})
-	effects.append({
+	var admitted := _append_effect({
 		"kind": &"mine",
 		"position": position,
 		"color": Color("ff9f43"),
@@ -71,27 +80,58 @@ func spawn_mine_explosion(position: Vector2) -> void:
 		"duration": MINE_EFFECT_DURATION,
 		"sparks": sparks,
 		"smoke": smoke,
-	})
-	active_mine_effect_count += 1
+	}, 3)
+	if admitted:
+		active_mine_effect_count += 1
 
 
 func spawn_rebound(position: Vector2) -> void:
-	effects.append({"kind": &"rebound", "position": position, "color": Color("ff4fd8"), "remaining": 0.3, "duration": 0.3})
+	_append_effect({"kind": &"rebound", "position": position, "color": Color("ff4fd8"), "remaining": 0.3, "duration": 0.3}, 3)
 
 
 func spawn_kinetic_vent(position: Vector2) -> void:
-	effects.append({
+	_append_effect({
 		"kind": &"kinetic_vent",
 		"position": position,
 		"color": Color("73f7ff"),
 		"remaining": GameConstants.KINETIC_VENT_FEEDBACK_SECONDS,
 		"duration": GameConstants.KINETIC_VENT_FEEDBACK_SECONDS,
-	})
+	}, 3)
+
+
+func _append_effect(effect: Dictionary, priority: int) -> bool:
+	if not visible_world_rect.grow(GameConstants.MINE_BLAST_RADIUS + 110.0).has_point(effect.position):
+		dropped_effect_count += 1
+		return false
+	var limit := DECORATIVE_EFFECT_LIMIT if priority == 0 else MAX_ACTIVE_EFFECTS
+	if effects.size() >= limit:
+		var replacement := -1
+		var lowest_priority := priority
+		for index in effects.size():
+			var existing_priority := int(effects[index].get("priority", 0))
+			if existing_priority <= lowest_priority:
+				if replacement < 0 or existing_priority < lowest_priority:
+					replacement = index
+					lowest_priority = existing_priority
+		if replacement < 0:
+			dropped_effect_count += 1
+			return false
+		if effects[replacement].kind == &"mine":
+			active_mine_effect_count = maxi(active_mine_effect_count - 1, 0)
+		effects.remove_at(replacement)
+		dropped_effect_count += 1
+	effect["priority"] = priority
+	effects.append(effect)
+	peak_effect_count = maxi(peak_effect_count, effects.size())
+	queue_redraw()
+	return true
 
 
 func clear_effects() -> void:
 	effects.clear()
 	active_mine_effect_count = 0
+	dropped_effect_count = 0
+	peak_effect_count = 0
 	queue_redraw()
 
 
@@ -100,8 +140,10 @@ func _draw() -> void:
 		var progress := 1.0 - float(effect.remaining) / float(effect.duration)
 		var alpha := 1.0 - progress
 		var position := effect.position as Vector2
+		if not visible_world_rect.grow(GameConstants.MINE_BLAST_RADIUS + 110.0).has_point(position):
+			continue
 		var color := effect.color as Color
-		if reduced_flashes:
+		if reduced_flashes or effects.size() >= SIMPLIFY_EFFECT_THRESHOLD:
 			# Stable, subdued outlines preserve contact/location cues without bright
 			# filled explosions, white cores, or expanding starburst streaks.
 			var radius := GameConstants.MINE_BLAST_RADIUS if StringName(effect.kind) == &"mine" else 28.0

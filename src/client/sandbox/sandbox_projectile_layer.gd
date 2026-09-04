@@ -3,6 +3,7 @@ extends Node2D
 
 const DEFAULT_BEAM_COLOR: Color = Color("42e8ff")
 const REBOUNDED_BEAM_COLOR: Color = Color("ff4fd8")
+const SIMPLIFY_PROJECTILE_THRESHOLD: int = 160
 
 var registry: ProjectileRegistry
 var visible_world_rect: Rect2 = Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
@@ -11,6 +12,7 @@ var high_tier_beam_colors_by_owner: Dictionary = {}
 var teams: Dictionary = {}
 var local_team_id: int = 0
 var team_mode: bool = false
+var last_drawn_projectiles: int = 0
 
 
 func set_team_identity(assignments: Dictionary, local_team: int, enabled: bool) -> void:
@@ -80,8 +82,10 @@ func _beam_color(projectile: ProjectileState) -> Color:
 
 
 func _draw() -> void:
+	last_drawn_projectiles = 0
 	if registry == null:
 		return
+	var simplified := registry.size() >= SIMPLIFY_PROJECTILE_THRESHOLD
 	var cull_rect := visible_world_rect.grow(260.0)
 	for projectile_id in registry.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
@@ -89,14 +93,18 @@ func _draw() -> void:
 		var projectile := registry.get_projectile(projectile_id)
 		if projectile == null or not cull_rect.has_point(projectile.position):
 			continue
+		last_drawn_projectiles += 1
+		var friendly_alpha := 0.5 if simplified and is_friendly_owner(projectile.owner_id) else 1.0
 		if projectile.is_mine:
 			var mine_color := projectile_color_for_owner(projectile.owner_id) if has_team_marker(projectile.owner_id) else Color("ff4f78")
 			var pulse := 0.5 + sin(Time.get_ticks_msec() * 0.008 + projectile.projectile_id) * 0.5
 			var armed := projectile.is_mine_armed()
 			if armed:
-				draw_circle(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, Color(mine_color, 0.035 + pulse * 0.025))
+				if not simplified:
+					draw_circle(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, Color(mine_color, 0.035 + pulse * 0.025))
 				draw_arc(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, 0.0, TAU, 40, Color(mine_color, 0.18 + pulse * 0.12), 2.0)
-			draw_circle(projectile.position, projectile.radius + 7.0, Color(1.0, 0.95, 0.42, 0.12 + pulse * 0.08))
+			if not simplified:
+				draw_circle(projectile.position, projectile.radius + 7.0, Color(1.0, 0.95, 0.42, 0.12 + pulse * 0.08))
 			draw_circle(projectile.position, projectile.radius, mine_color if armed else Color("7b8496"))
 			draw_circle(projectile.position, 5.0, Color("fff36a"))
 			for spoke in 4:
@@ -108,8 +116,9 @@ func _draw() -> void:
 		var trail_color := projectile_color_for_owner(projectile.owner_id) if has_team_marker(projectile.owner_id) else (REBOUNDED_BEAM_COLOR if projectile.has_rebounded else projectile_color_for_owner(projectile.owner_id))
 		if projectile.is_missile:
 			var side := direction.orthogonal()
-			var tail := projectile.position - direction * 52.0
-			draw_line(projectile.position - direction * 9.0, tail, Color(0.75, 0.82, 0.92, 0.12), 17.0)
+			var tail := projectile.position - direction * (36.0 if simplified else 52.0)
+			if not simplified:
+				draw_line(projectile.position - direction * 9.0, tail, Color(0.75, 0.82, 0.92, 0.12), 17.0)
 			draw_line(projectile.position - direction * 9.0, tail, trail_color if has_team_marker(projectile.owner_id) else Color("ff9f43"), 7.0)
 			draw_line(projectile.position - direction * 7.0, tail + direction * 12.0, Color("fff36a"), 3.0)
 			var nose := projectile.position + direction * 13.0
@@ -121,17 +130,20 @@ func _draw() -> void:
 			continue
 		if projectile.is_beam:
 			trail_color = _beam_color(projectile)
-			var tail := projectile.position - direction * 230.0
-			draw_line(projectile.position, tail, Color(trail_color, 0.16), 22.0)
-			draw_line(projectile.position, tail, Color(trail_color, 0.68), 10.0)
-			draw_line(projectile.position, tail, Color(trail_color.lightened(0.82), 0.98), 3.0)
-			draw_circle(projectile.position, 12.0, Color(trail_color, 0.35))
+			var tail := projectile.position - direction * (150.0 if simplified else 230.0)
+			if not simplified:
+				draw_line(projectile.position, tail, Color(trail_color, 0.16), 22.0)
+			draw_line(projectile.position, tail, Color(trail_color, 0.68 * friendly_alpha), 6.0 if simplified else 10.0)
+			draw_line(projectile.position, tail, Color(trail_color.lightened(0.82), 0.98 * friendly_alpha), 2.0 if simplified else 3.0)
+			if not simplified:
+				draw_circle(projectile.position, 12.0, Color(trail_color, 0.35))
 			_draw_team_marker(projectile)
 			continue
-		draw_line(projectile.position, projectile.position - direction * 32.0, Color(trail_color, 0.16), 9.0)
-		draw_circle(projectile.position, projectile.radius + 7.0, Color(trail_color, 0.12))
-		draw_circle(projectile.position, projectile.radius, trail_color.lightened(0.72))
-		draw_line(projectile.position, projectile.position - direction * 25.0, Color(trail_color, 0.82), 3.0)
+		if not simplified:
+			draw_line(projectile.position, projectile.position - direction * 32.0, Color(trail_color, 0.16), 9.0)
+			draw_circle(projectile.position, projectile.radius + 7.0, Color(trail_color, 0.12))
+		draw_circle(projectile.position, projectile.radius, Color(trail_color.lightened(0.72), friendly_alpha))
+		draw_line(projectile.position, projectile.position - direction * (14.0 if simplified else 25.0), Color(trail_color, 0.82 * friendly_alpha), 3.0)
 		_draw_team_marker(projectile)
 
 

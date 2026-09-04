@@ -2,10 +2,12 @@ class_name CombatSpatialIndex
 extends RefCounted
 
 const CELL_SIZE: float = 200.0
+const SHIP_SWEEP_PADDING: float = GameConstants.SHIP_COLLISION_RADIUS + maxf(7.0, GameConstants.MISSILE_RADIUS)
 const RESPAWN_THREAT_LOOKAHEAD_SECONDS: float = 0.6
 var projectile_revision: int = -1
 var maximum_projectile_speed: float = 0.0
 var _ship_cells: Dictionary = {}
+var _ship_sweep_cells: Dictionary = {}
 var _projectile_threat_cells: Dictionary = {}
 var _armed_mine_cells: Dictionary = {}
 var _empty_ids: Array[int] = []
@@ -39,11 +41,19 @@ func respawn_threats_at(position: Vector2, registry: ProjectileRegistry, tick: i
 
 func rebuild_ships(combatants: Dictionary, ordered_peer_ids: Array[int]) -> void:
 	_ship_cells.clear()
+	_ship_sweep_cells.clear()
 	for peer_id in ordered_peer_ids:
 		var combatant := combatants.get(peer_id) as CombatantState
 		if combatant == null or not combatant.alive:
 			continue
 		_append_cell_id(_ship_cells, _cell_for(combatant.position), peer_id)
+		# Pre-expand once per ship instead of expanding every projectile query.
+		# Typical short sweeps can then borrow one cell's immutable candidate list.
+		var minimum := _cell_for(combatant.position - Vector2.ONE * SHIP_SWEEP_PADDING)
+		var maximum := _cell_for(combatant.position + Vector2.ONE * SHIP_SWEEP_PADDING)
+		for y in range(minimum.y, maximum.y + 1):
+			for x in range(minimum.x, maximum.x + 1):
+				_append_cell_id(_ship_sweep_cells, Vector2i(x, y), peer_id)
 
 
 func rebuild_projectile_threats(registry: ProjectileRegistry) -> void:
@@ -85,6 +95,21 @@ func query_nearby_mines(position: Vector2, radius: float) -> Array[int]:
 
 
 func query_ships_along_segment(start: Vector2, finish: Vector2, padding: float) -> Array[int]:
+	if _ship_cells.is_empty():
+		return _empty_ids
+	if padding <= SHIP_SWEEP_PADDING:
+		var start_cell := _cell_for(start)
+		var end_cell := _cell_for(finish)
+		if start_cell == end_cell:
+			return _ship_sweep_cells.get(start_cell, _empty_ids) as Array[int]
+		var result: Array[int] = []
+		for y in range(mini(start_cell.y, end_cell.y), maxi(start_cell.y, end_cell.y) + 1):
+			for x in range(mini(start_cell.x, end_cell.x), maxi(start_cell.x, end_cell.x) + 1):
+				for peer_id in _ship_sweep_cells.get(Vector2i(x, y), _empty_ids) as Array[int]:
+					if not peer_id in result:
+						result.append(peer_id)
+		result.sort()
+		return result
 	var minimum := Vector2(minf(start.x, finish.x) - padding, minf(start.y, finish.y) - padding)
 	var maximum := Vector2(maxf(start.x, finish.x) + padding, maxf(start.y, finish.y) + padding)
 	return _query_cells(_ship_cells, minimum, maximum)

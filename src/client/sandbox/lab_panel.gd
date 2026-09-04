@@ -38,6 +38,7 @@ func configure(sandbox: OfflineSandbox) -> void:
 	scroll.add_child(content)
 	_label(content, "BUILD LABORATORY", 22)
 	_label(content, "Edit while paused, then enter the range.", 16)
+	_button(content, "Guided introduction · learn seven combat actions", lab.start_tutorial)
 	var presets := OptionButton.new()
 	preset_control = presets
 	presets.name = "BuildPreset"

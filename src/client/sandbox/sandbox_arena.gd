@@ -20,9 +20,14 @@ var static_layer: ArenaStaticLayer
 
 
 func _ready() -> void:
+	# Objective symbols and boundaries stay legible above dense ordnance.
+	# Static terrain retains its own absolute background draw order.
+	z_index = 4
 	static_layer = ArenaStaticLayer.new()
 	static_layer.name = "StaticMap"
 	static_layer.show_behind_parent = true
+	static_layer.z_as_relative = false
+	static_layer.z_index = 0
 	static_layer.map_id = map_id
 	static_layer.show_spawn_anchors = show_spawn_anchors
 	add_child(static_layer)

@@ -485,10 +485,11 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			continue
 		if projectile.is_mine:
 			continue
-		var guidance_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
-		_step_missile_guidance(projectile, safe_delta)
-		if performance_profiling_enabled:
-			last_projectile_profile_usec.guidance += Time.get_ticks_usec() - guidance_started
+		if projectile.is_missile:
+			var guidance_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
+			_step_missile_guidance(projectile, safe_delta)
+			if performance_profiling_enabled:
+				last_projectile_profile_usec.guidance += Time.get_ticks_usec() - guidance_started
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			_remove_projectile(projectile.projectile_id)
