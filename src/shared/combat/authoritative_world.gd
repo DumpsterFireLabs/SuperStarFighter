@@ -601,15 +601,7 @@ func _step_missile_guidance(missile: ProjectileState, delta: float) -> void:
 		target = combatants.get(missile.missile_target_id) as CombatantState
 		if target == null:
 			return
-	var offset := target.position - missile.position
-	if offset.is_zero_approx():
-		return
-	var current_angle := missile.velocity.angle()
-	var desired_angle := offset.angle()
-	var angular_error := angle_difference(current_angle, desired_angle)
-	var maximum_turn := GameConstants.MISSILE_TURN_RATE * maxf(delta, 0.0)
-	var next_angle := current_angle + clampf(angular_error, -maximum_turn, maximum_turn)
-	missile.velocity = Vector2.from_angle(next_angle) * GameConstants.MISSILE_SPEED
+	missile.steer_missile_toward(target.position, delta)
 
 
 func _missile_target_is_visible_in_cone(

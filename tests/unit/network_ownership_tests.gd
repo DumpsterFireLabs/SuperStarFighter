@@ -60,7 +60,22 @@ static func run(context: TestContext) -> void:
 	first.free()
 	second.free()
 	_schedule(context)
+	_missile_corrections(context)
 	_ban_persistence(context)
+
+
+static func _missile_corrections(context: TestContext) -> void:
+	var bridge := NetworkBridge.new()
+	bridge.world = AuthoritativeWorld.new()
+	for id in range(1, 121):
+		bridge.world.projectile_registry.add(ProjectileState.create(id, id, 1, Vector2(300, 300), 0.0, CombatStats.create_base()))
+	var missile := ProjectileState.create_missile(121, 1, Vector2(300, 300), 0.0, 2)
+	bridge.world.projectile_registry.add(missile)
+	for unused in 4:
+		var active := bridge.replication._projectiles_for_correction(false)
+		context.expect_equal(active.count(missile), 1, "each partial correction includes guided ordnance exactly once beyond the rotating bullet window")
+	context.expect_equal(bridge.replication._projectiles_for_correction(true).size(), 121, "full correction still includes all active projectiles")
+	bridge.free()
 
 
 static func _schedule(context: TestContext) -> void:

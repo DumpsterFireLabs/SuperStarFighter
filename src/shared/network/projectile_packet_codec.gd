@@ -2,7 +2,7 @@ class_name ProjectilePacketCodec
 extends RefCounted
 
 const HEADER_SIZE: int = 14
-const PROJECTILE_RECORD_SIZE: int = 27
+const PROJECTILE_RECORD_SIZE: int = 31
 const POSITION_SCALE: float = 16.0
 const VELOCITY_SCALE: float = 8.0
 const DAMAGE_SCALE: float = 100.0
@@ -178,6 +178,7 @@ static func _append_projectile(bytes: PackedByteArray, projectile: ProjectileSta
 	if projectile.is_missile:
 		flags |= 8
 	ByteCodec.append_u8(bytes, flags)
+	ByteCodec.append_u32(bytes, projectile.missile_target_id)
 
 
 static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileState:
@@ -196,6 +197,7 @@ static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileS
 	projectile.is_mine = (flags & 2) != 0
 	projectile.has_rebounded = (flags & 4) != 0
 	projectile.is_missile = (flags & 8) != 0
+	projectile.missile_target_id = ByteCodec.read_u32(bytes, offset + 27)
 	if projectile.is_mine:
 		projectile.radius = GameConstants.MINE_RADIUS
 		projectile.mine_activation_remaining = projectile.lifetime_remaining

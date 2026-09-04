@@ -220,8 +220,19 @@ func _step_projectile_visuals(delta: float) -> void:
 			projectile.position += projectile.velocity * maxf(delta, 0.0)
 			continue
 		var safe_delta := maxf(delta, 0.0)
+		if projectile.is_missile and projectile.lifetime_remaining > 0.0:
+			var target := ships.get(projectile.missile_target_id) as CombatShipView
+			if target != null and target.combatant.alive and ArenaCollisionSystem.has_clear_line_of_sight(
+				projectile.position, target.combatant.position,
+				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+			) and absf(projectile.velocity.angle_to(target.combatant.position - projectile.position)) <= GameConstants.MISSILE_GUIDANCE_HALF_ANGLE:
+				projectile.steer_missile_toward(target.combatant.position, safe_delta)
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
+			# Guided ordnance is retired by authority. A local expiry or wall
+			# prediction must not hide a missile that can still deal damage.
+			if projectile.is_missile:
+				continue
 			authoritative_projectiles.remove(projectile.projectile_id)
 			continue
 		var travel_remaining := projectile.velocity.length() * safe_delta
@@ -246,6 +257,10 @@ func _step_projectile_visuals(delta: float) -> void:
 			projectile.position = obstacle_hit.position as Vector2
 			travel_remaining *= maxf(1.0 - collision_fraction, 0.0)
 			var obstacle_normal := obstacle_hit.normal as Vector2
+			if projectile.is_missile:
+				# Stop at the surface until a removal or fresh flight state arrives.
+				projectile.lifetime_remaining = 0.0
+				break
 			if projectile.ricochet(obstacle_normal):
 				view.presentation_event.emit(&"ricochet", {
 					"projectile_id": projectile.projectile_id,
@@ -285,6 +300,7 @@ func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileStat
 	existing.is_beam = incoming.is_beam
 	existing.is_mine = incoming.is_mine
 	existing.is_missile = incoming.is_missile
+	existing.missile_target_id = incoming.missile_target_id
 	existing.mine_activation_remaining = incoming.mine_activation_remaining
 	existing.has_rebounded = incoming.has_rebounded
 	existing.radius = incoming.radius

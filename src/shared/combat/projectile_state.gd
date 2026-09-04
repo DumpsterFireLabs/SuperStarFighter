@@ -82,6 +82,18 @@ static func create_missile(
 	return missile
 
 
+func steer_missile_toward(target_position: Vector2, delta: float) -> void:
+	if not is_missile or velocity.is_zero_approx():
+		return
+	var offset := target_position - position
+	if offset.is_zero_approx():
+		return
+	var current_angle := velocity.angle()
+	var angular_error := angle_difference(current_angle, offset.angle())
+	var maximum_turn := GameConstants.MISSILE_TURN_RATE * maxf(delta, 0.0)
+	velocity = Vector2.from_angle(current_angle + clampf(angular_error, -maximum_turn, maximum_turn)) * GameConstants.MISSILE_SPEED
+
+
 func is_mine_armed() -> bool:
 	return is_mine and mine_activation_remaining <= 0.0
 

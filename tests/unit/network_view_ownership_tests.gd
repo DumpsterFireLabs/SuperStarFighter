@@ -45,6 +45,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(view.hud_camera, hud_owner, "physics retains HUD camera owner")
 	context.expect_equal(view.ships[1], local_ship, "physics preserves local drawable identity")
 	_projectile_reconciliation(context, view, bridge, local_ship)
+	_missile_visuals(context, view, bridge)
 	remote.cloak_remaining = 5.0
 	_emit_snapshot(bridge, authority, 13)
 	context.expect_false(view.ships.has(2), "cloak omission removes replicated drawable")
@@ -110,6 +111,50 @@ static func _projectile_reconciliation(context: TestContext, view: NetworkWorldV
 	context.expect_empty(view.predicted_projectile_ids, "full correction reconciles lost shot delta")
 	context.expect_equal(view.authoritative_projectiles.all_projectiles().size(), 1, "full correction prunes stale authoritative shot and prediction")
 	context.expect_true(view.authoritative_projectiles.get_projectile(102) != null, "corrected authoritative shot remains drawable")
+
+
+static func _missile_visuals(context: TestContext, view: NetworkWorldView, bridge: NetworkBridge) -> void:
+	var missile := ProjectileState.create_missile(201, 1, Vector2(300, 300), 0.0, 2)
+	var target := view.ships[2] as CombatShipView
+	target.combatant.position = Vector2(950, 440)
+	var chunks := ProjectilePacketCodec.encode_correction_chunks(20, 3, [missile], true)
+	bridge.client_projectile_correction_received.emit(ProjectilePacketCodec.decode_correction(chunks[0]))
+	var visual := view.authoritative_projectiles.get_projectile(201)
+	context.expect_equal(visual.missile_target_id, 2, "missile target survives wire replication")
+	var world := AuthoritativeWorld.new()
+	world.add_peer(1).position = Vector2(200, 300)
+	world.add_peer(2).position = target.combatant.position
+	world.projectile_registry.add(missile)
+	for tick in 30:
+		world.step(1.0 / 60.0)
+		view.replicated_visuals._step_projectile_visuals(1.0 / 60.0)
+	context.expect_true(visual.position.distance_to(missile.position) < 0.1, "replicated missile follows authoritative curved flight between corrections")
+	context.expect_true(visual.velocity.y > 0, "missile visual turns toward its target")
+	visual.lifetime_remaining = 0.001
+	var before := visual.position
+	view.replicated_visuals._step_projectile_visuals(0.1)
+	context.expect_equal(view.authoritative_projectiles.get_projectile(201), visual, "predicted expiry cannot hide a live authoritative missile")
+	context.expect_equal(visual.position, before, "expired prediction stops travelling while waiting for authority")
+	missile.position = Vector2(740, 550)
+	missile.velocity = Vector2.RIGHT * GameConstants.MISSILE_SPEED
+	missile.missile_target_id = 0
+	missile.lifetime_remaining = 1.0
+	chunks = ProjectilePacketCodec.encode_correction_chunks(50, 4, [missile], true)
+	bridge.client_projectile_correction_received.emit(ProjectilePacketCodec.decode_correction(chunks[0]))
+	context.expect_equal(visual.missile_target_id, 0, "correction clears a lost missile lock")
+	view.replicated_visuals._step_projectile_visuals(0.1)
+	context.expect_approx(visual.position.x, 770.0 - GameConstants.MISSILE_RADIUS, "missile prediction stops at the terrain surface")
+	before = visual.position
+	view.replicated_visuals._step_projectile_visuals(0.5)
+	context.expect_equal(visual.position, before, "missile prediction cannot travel through terrain after contact")
+	context.expect_equal(view.authoritative_projectiles.get_projectile(201), visual, "predicted terrain contact cannot hide a live missile")
+	context.expect_true(not visual.velocity.is_zero_approx(), "stationary missile retains its visible body orientation")
+	bridge.client_projectile_batch_received.emit({"spawned": [], "removed": [201]})
+	context.expect_equal(view.authoritative_projectiles.get_projectile(201), null, "confirmed impact immediately removes missile visual")
+	chunks = ProjectilePacketCodec.encode_correction_chunks(60, 5, [missile], true)
+	bridge.client_projectile_correction_received.emit(ProjectilePacketCodec.decode_correction(chunks[0]))
+	bridge.client_projectile_correction_received.emit({"spawned": [], "complete_snapshot": true})
+	context.expect_equal(view.authoritative_projectiles.get_projectile(201), null, "full snapshot retires missile when removal delta was lost")
 
 
 static func _shared_resource_identity(context: TestContext) -> void:

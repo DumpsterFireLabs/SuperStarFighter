@@ -111,16 +111,7 @@ func _send_projectile_correction() -> void:
 	_projectile_correction_send_count += 1
 	if bridge.world.projectile_registry.size() == 0 and not complete_snapshot:
 		return
-	var active: Array[ProjectileState] = []
-	if complete_snapshot:
-		active = bridge.world.active_projectiles()
-	else:
-		var window := bridge.world.projectile_registry.projectile_window(
-			_projectile_correction_cursor,
-			PARTIAL_PROJECTILE_CORRECTION_COUNT
-		)
-		active = window.projectiles as Array[ProjectileState]
-		_projectile_correction_cursor = int(window.next_slot)
+	var active := _projectiles_for_correction(complete_snapshot)
 	var sequence := _next_projectile_message_sequence()
 	var packets := ProjectilePacketCodec.encode_correction_chunks(
 		bridge.world.server_tick,
@@ -131,6 +122,27 @@ func _send_projectile_correction() -> void:
 	for packet in packets:
 		bridge.projectile_correction.rpc(packet)
 		_outbound_bytes += packet.size() * bridge.lobby.human_count()
+
+
+func _projectiles_for_correction(complete_snapshot: bool) -> Array[ProjectileState]:
+	var active: Array[ProjectileState] = []
+	if complete_snapshot:
+		active = bridge.world.active_projectiles()
+	else:
+		var window := bridge.world.projectile_registry.projectile_window(
+			_projectile_correction_cursor,
+			PARTIAL_PROJECTILE_CORRECTION_COUNT
+		)
+		active = window.projectiles as Array[ProjectileState]
+		_projectile_correction_cursor = int(window.next_slot)
+		# Guided flight needs every correction even during heavy ordinary fire.
+		var included_ids: Dictionary = {}
+		for projectile in active:
+			included_ids[projectile.projectile_id] = true
+		for projectile in bridge.world.active_projectiles():
+			if projectile.is_missile and not included_ids.has(projectile.projectile_id):
+				active.append(projectile)
+	return active
 
 
 func _next_projectile_message_sequence() -> int:

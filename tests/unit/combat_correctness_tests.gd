@@ -9,6 +9,39 @@ static func run(context: TestContext) -> void:
 	_specials_and_timeout(context)
 	_prediction(context)
 	_local_snapshot(context)
+	_missile_collisions(context)
+
+
+static func _missile_collisions(context: TestContext) -> void:
+	# Cover, the central circular obstacle, and the outer wall must all retire
+	# the gameplay projectile before any later target can receive damage.
+	for positions in [
+		[Vector2(700, 550), Vector2(1200, 550), 761.0],
+		[Vector2(1300, 900), Vector2(1900, 900), 1411.0],
+		[Vector2(3100, 300), Vector2(2800, 300), 3191.0],
+	]:
+		var world := AuthoritativeWorld.new()
+		world.add_peer(1).position = Vector2(200, 200)
+		var target := world.add_peer(2)
+		target.position = positions[1]
+		var missile := ProjectileState.create_missile(1, 1, positions[0], 0.0, 2)
+		world.projectile_registry.add(missile)
+		world.step(1.0)
+		context.expect_equal(world.projectile_registry.get_projectile(1), null, "missile is destroyed on its first obstacle")
+		context.expect_approx(missile.position.x, positions[2], "authoritative missile ends at obstacle surface")
+		context.expect_true((world.drain_projectile_batch().removed as Array).has(1), "missile impact replicates removal")
+		for tick in 120:
+			world.step(DT)
+		context.expect_approx(target.health, target.stats.max_health, "destroyed missile cannot deal delayed ghost damage")
+	var world := AuthoritativeWorld.new()
+	var missile := ProjectileState.create_missile(1, 1, Vector2(200, 200), 0.0)
+	world.projectile_registry.add(missile)
+	for tick in 90:
+		world.step(DT)
+	context.expect_true(world.projectile_registry.get_projectile(1) != null, "missile survives through its configured flight lifetime")
+	for tick in 20:
+		world.step(DT)
+	context.expect_equal(world.projectile_registry.get_projectile(1), null, "missile lifetime expiry removes gameplay projectile")
 
 
 static func _cleanup(context: TestContext) -> void:
