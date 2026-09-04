@@ -514,6 +514,7 @@ func _create_camera_and_hud() -> void:
 
 
 func apply_combat_feedback(payload: Dictionary) -> void:
+	replicated_visuals.apply_shield_feedback(payload)
 	hud_camera.apply_combat_feedback(payload)
 
 

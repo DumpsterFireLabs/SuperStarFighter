@@ -32,7 +32,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.10 |
-| Protocol version | 31 (binary packets 13) |
+| Protocol version | 32 (binary packets 13) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 
@@ -327,6 +327,8 @@ Do not log every input frame, unbounded collections, or client IP addresses. New
 Client `F3` diagnostics expose local FPS, round-trip time and variance, ENet loss/throttle, snapshot arrival jitter and gaps, interpolation extrapolation rate, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment.
 
 ## 11. Verification Matrix
+
+Shield block and break cues come from bounded authoritative impact and depletion counts in the reliable `COMBAT_FEEDBACK` payload. Holding a shield or crossing its regeneration unlock threshold produces neither cue. Counts coalesce at the existing 20 Hz feedback cadence; public shield cues follow snapshot cloak visibility, while hit/guard totals remain recipient-private. Clients suppress duplicate, previous-heat, and more-than-one-second-old cues; newly visible or revived ships discard earlier cues. Offline practice drains the same shield events. Compatibility version 32 requires both endpoints to understand this feedback contract; binary packet layouts remain version 13 and player snapshots remain 1,187 bytes at 32 players.
 
 All commands run from the repository root after bootstrap.
 

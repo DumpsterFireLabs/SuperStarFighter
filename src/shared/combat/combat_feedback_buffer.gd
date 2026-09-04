@@ -45,6 +45,35 @@ func record_death(peer_id: int, recap: Dictionary) -> void:
 		feedback.death = recap.duplicate(true)
 
 
+func record_shield_events(peer_id: int, life_generation: int, counts: Vector2i) -> void:
+	var feedback := _for_peer(peer_id)
+	if not feedback.is_empty():
+		feedback.shield = {"peer_id": peer_id, "life_generation": life_generation,
+			"blocks": counts.x, "breaks": counts.y}
+
+
+static func for_recipient(batch: Dictionary, combatants: Dictionary, recipient_id: int, tick: int) -> Dictionary:
+	var result := (batch.get(recipient_id, {}) as Dictionary).duplicate(true)
+	result.erase("shield")
+	var cues: Array[Dictionary] = []
+	for peer_id in batch:
+		var feedback := batch[peer_id] as Dictionary
+		var combatant := combatants.get(peer_id) as CombatantState
+		if not feedback.has("shield") or combatant == null:
+			continue
+		if int(feedback.shield.life_generation) != combatant.life_generation:
+			continue
+		# Match player-snapshot visibility: even allies cannot discover a cloaked
+		# ship through public shield cues. Recipient hit/guard totals stay private.
+		if peer_id != recipient_id and combatant.is_cloaked():
+			continue
+		cues.append((feedback.shield as Dictionary).duplicate())
+	if not cues.is_empty():
+		result.shield_cues = cues
+		result.server_tick = tick
+	return result
+
+
 func drain() -> Dictionary:
 	var result := _pending
 	_pending = {}

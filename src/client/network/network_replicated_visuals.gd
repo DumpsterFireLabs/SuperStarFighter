@@ -19,6 +19,7 @@ var effects_layer: CombatEffectsLayer
 var powerup_layer: Node2D
 var interpolation := RemoteInterpolator.new()
 var presentation_states: Dictionary = {}
+var _shield_feedback_ticks: Dictionary[int, int] = {}
 var last_snapshot_receive_time: float = -1.0
 var snapshot_jitter_ms: float = 0.0
 var snapshot_gap_count: int = 0
@@ -115,6 +116,7 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> CombatShipView:
 	ship.set_shield_build(_build_for_peer(peer_id), view.card_catalog)
 	view.add_child(ship)
 	ships[peer_id] = ship
+	_shield_feedback_ticks[peer_id] = view.latest_server_tick - 1
 	return ship
 
 
@@ -122,6 +124,7 @@ func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 	var was_alive := ship.combatant.alive
 	if bool(state.alive) and not was_alive:
 		ship.reset_ship(_stats_for_peer(ship.combatant.peer_id), state.position)
+		_shield_feedback_ticks[ship.combatant.peer_id] = maxi(int(_shield_feedback_ticks.get(ship.combatant.peer_id, -1)), view.latest_server_tick - 1)
 	ship.combatant.position = state.position
 	ship.combatant.velocity = state.velocity
 	ship.combatant.aim_angle = state.aim_angle
@@ -319,13 +322,35 @@ func _emit_rebound_feedback(projectile: ProjectileState) -> void:
 	})
 
 
+func apply_shield_feedback(payload: Dictionary) -> void:
+	var tick := int(payload.get("server_tick", -1))
+	# Reliable delivery may arrive after newer snapshots. Drop old presentation
+	# cues rather than replaying them after a blackout or into another heat.
+	if not view.controls_enabled or tick < 0 or tick + GameConstants.PHYSICS_TICKS_PER_SECOND < view.latest_server_tick:
+		return
+	if tick < int(view.match_payload.get("entered_tick", 0)):
+		return
+	for cue in payload.get("shield_cues", []):
+		var peer_id := int(cue.get("peer_id", 0))
+		var ship := ships.get(peer_id) as CombatShipView
+		if ship == null or not ship.combatant.alive or tick <= int(_shield_feedback_ticks.get(peer_id, -1)):
+			continue
+		_shield_feedback_ticks[peer_id] = tick
+		var details := {"peer_id": peer_id, "server_tick": tick,
+			"position": ship.global_position, "listener_position": view.hud_camera._audio_listener_position()}
+		if int(cue.get("blocks", 0)) > 0:
+			ship.flash_shield_block()
+			view.presentation_event.emit(&"shield_block", details)
+		if int(cue.get("breaks", 0)) > 0:
+			view.presentation_event.emit(&"shield_break", details)
+
+
 func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: CombatShipView) -> void:
 	if not presentation_states.has(peer_id):
 		presentation_states[peer_id] = state.duplicate(true)
 		return
 	var previous := presentation_states[peer_id] as Dictionary
 	var health_drop := float(previous.get("health", 0.0)) - float(state.get("health", 0.0))
-	var shield_drop := float(previous.get("shield", 0.0)) - float(state.get("shield", 0.0))
 	if health_drop > 0.05:
 		ship.flash_damage()
 		var direction := -(state.get("velocity", Vector2.ZERO) as Vector2).normalized()
@@ -338,16 +363,6 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: CombatShip
 			view.hud_camera.trigger_camera_shake(5.0, 0.16)
 	if not bool(previous.get("shielding", false)) and bool(state.get("shielding", false)):
 		view.presentation_event.emit(&"shield_on", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
-	if shield_drop > 2.0 and bool(previous.get("shielding", false)):
-		ship.flash_shield_block()
-		view.presentation_event.emit(&"shield_block", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
-	var depletion_threshold := (
-		view.local_prediction.local_stats.shield_depletion_threshold
-		if peer_id == view.local_peer_id
-		else GameConstants.SHIELD_DEPLETION_THRESHOLD
-	)
-	if float(previous.get("shield", 0.0)) >= depletion_threshold and float(state.get("shield", 0.0)) < depletion_threshold:
-		view.presentation_event.emit(&"shield_break", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
 	if not bool(previous.get("kinetic_vent_active", false)) and bool(state.get("kinetic_vent_active", false)):
 		if effects_layer != null:
 			effects_layer.spawn_kinetic_vent(state.position)
@@ -476,6 +491,7 @@ func apply_mine_detonations(server_tick: int, events: Array) -> void:
 
 
 func reset_session() -> void:
+	_shield_feedback_ticks.clear()
 	for ship_value in ships.values():
 		(ship_value as CombatShipView).queue_free()
 	ships.clear()
@@ -552,6 +568,7 @@ func remove_missing_ships(present_ids: Dictionary) -> void:
 			# A cloak disappearance is not a death. Forget prior feedback as well
 			# as interpolation so reappearance cannot flash stale damage/guard FX.
 			presentation_states.erase(peer_id)
+			_shield_feedback_ticks.erase(peer_id)
 
 
 func apply_builds(builds: Dictionary) -> void:
@@ -575,6 +592,7 @@ func _build_for_peer(peer_id: int) -> Dictionary:
 	return builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary
 
 func reset_for_countdown() -> void:
+	_shield_feedback_ticks.clear()
 	# New heat positions must never interpolate from the preceding heat.
 	interpolation.clear()
 	presentation_states.clear()

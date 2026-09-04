@@ -175,6 +175,7 @@ func prepare_heat(
 				server_tick
 			)
 		else:
+			combatant.shield.drain_feedback()
 			combatant.alive = false
 			combatant.health = 0.0
 			combatant.velocity = Vector2.ZERO
@@ -337,9 +338,14 @@ func drain_kill_events() -> Array[Dictionary]:
 	return result
 
 
-# Private recipient feedback: deliberately contains no positions, directions,
-# projectile IDs or hit target identities that could expose cloaked opponents.
+# Raw participant feedback. Hit/guard totals are private; for_recipient filters
+# public shield cues against cloak visibility before anything goes on the wire.
 func drain_combat_feedback() -> Dictionary:
+	for peer_id in _ordered_peer_ids():
+		var combatant := combatants[peer_id] as CombatantState
+		var shield_events := combatant.shield.drain_feedback()
+		if shield_events != Vector2i.ZERO:
+			_combat_feedback.record_shield_events(peer_id, combatant.life_generation, shield_events)
 	return _combat_feedback.drain()
 
 

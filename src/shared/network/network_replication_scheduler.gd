@@ -67,11 +67,11 @@ func _send_player_snapshots() -> void:
 
 func _send_combat_feedback() -> void:
 	var feedback := bridge.world.drain_combat_feedback()
-	if bridge.lobby == null:
+	if bridge.lobby == null or feedback.is_empty():
 		return
 	for peer_id in bridge.lobby.human_peer_ids_view():
-		if feedback.has(peer_id):
-			var payload := feedback[peer_id] as Dictionary
+		var payload := CombatFeedbackBuffer.for_recipient(feedback, bridge.world.combatants, peer_id, bridge.world.server_tick)
+		if not payload.is_empty():
 			bridge.match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", bridge.world.server_tick, payload)
 			_outbound_bytes += var_to_bytes(payload).size()
 

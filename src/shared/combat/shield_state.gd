@@ -10,6 +10,17 @@ var perfect_guard_feedback_remaining: float = 0.0
 var kinetic_vent_charge: float = 0.0
 var kinetic_vent_release_pending: float = 0.0
 var depletion_triggered: bool = false
+# Fixed-size presentation accumulators. Only authority drains these; prediction
+# cannot publish feedback. Resetting a life discards any undelivered old cues.
+var _feedback_blocks: int = 0
+var _feedback_breaks: int = 0
+
+
+func drain_feedback() -> Vector2i:
+	var result := Vector2i(_feedback_blocks, _feedback_breaks)
+	_feedback_blocks = 0
+	_feedback_breaks = 0
+	return result
 
 
 func reset(stats: CombatStats) -> void:
@@ -22,6 +33,8 @@ func reset(stats: CombatStats) -> void:
 	kinetic_vent_charge = 0.0
 	kinetic_vent_release_pending = 0.0
 	depletion_triggered = false
+	_feedback_blocks = 0
+	_feedback_breaks = 0
 
 
 func step(held: bool, stats: CombatStats, delta: float) -> void:
@@ -135,6 +148,7 @@ func has_perfect_guard_feedback() -> bool:
 
 
 func _consume_impact_energy(stats: CombatStats, cost_factor: float) -> void:
+	_feedback_blocks = mini(_feedback_blocks + 1, 65535)
 	time_since_activity = 0.0
 	energy = maxf(energy - stats.shield_block_cost * maxf(cost_factor, 0.0), 0.0)
 	if energy <= 0.0:
@@ -144,6 +158,7 @@ func _consume_impact_energy(stats: CombatStats, cost_factor: float) -> void:
 func _mark_depleted() -> void:
 	if not depletion_locked:
 		depletion_triggered = true
+		_feedback_breaks = mini(_feedback_breaks + 1, 65535)
 	active = false
 	depletion_locked = true
 	perfect_guard_window_remaining = 0.0

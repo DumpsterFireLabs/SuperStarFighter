@@ -30,8 +30,12 @@ static func run(context: TestContext) -> void:
 	var card := CardDefinition.new()
 	card.additive_modifiers = {&"shield_damage_heal_fraction": 0.05, &"reload_duration": -0.2}
 	var rows := preload("res://src/client/ui/card_details_text.gd").modifier_rows(card, 2)
-	context.expect_equal(rows[1].each, "+5% each", "shared modifier rows use the same fraction formatter")
-	context.expect_equal(rows[1].total, "+10% total", "shared formatter scales stacks in display units")
+	var fraction_row: Dictionary = {}
+	for row in rows:
+		if row.name == StatMetadata.label(&"shield_damage_heal_fraction"):
+			fraction_row = row
+	context.expect_equal(fraction_row.get("each"), "+5% each", "shared modifier rows use the same fraction formatter")
+	context.expect_equal(fraction_row.get("total"), "+10% total", "shared formatter scales stacks in display units")
 	context.expect_true(preload("res://src/client/ui/card_details_text.gd").tooltip(card, 2).contains("+10% total"), "accessible tooltip consumes shared modifier rows")
 
 	var typed := StatSystem.compare_pick_typed({}, catalog.get_card(&"quick_loader"), catalog)

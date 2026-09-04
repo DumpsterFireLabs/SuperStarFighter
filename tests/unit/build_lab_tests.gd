@@ -5,6 +5,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	var lab := OfflineSandbox.new()
 	parent.add_child(lab)
 	lab.set_physics_process(false)
+	_shield_cues(context, lab)
 	context.expect_true(lab.player.combatant == lab.world.combatants[1], "lab ship renders the authoritative combatant directly")
 	context.expect_true(lab.projectile_registry == lab.world.projectile_registry, "lab renders the authoritative projectile registry")
 	context.expect_true(lab.editor_open, "lab opens paused with its build editor accessible")
@@ -101,6 +102,27 @@ static func run(context: TestContext, parent: Node) -> void:
 	profiles.set_scheme(previous_scheme, false)
 	lab.free()
 	profiles.free()
+
+
+static func _shield_cues(context: TestContext, lab: OfflineSandbox) -> void:
+	var events: Array[StringName] = []
+	lab.presentation_event.connect(func(event: StringName, _payload: Dictionary) -> void:
+		if event in [&"shield_block", &"shield_break"]:
+			events.append(event)
+	)
+	var defender := lab.player.combatant
+	defender.shield.active = true
+	defender.shield.energy = 26.0
+	defender.shield.step(true, defender.stats, 0.4)
+	lab._consume_feedback()
+	context.expect_empty(events, "offline continuous drain does not invent defensive cues")
+	defender.shield.energy = 0.1
+	defender.shield.try_absorb_contact(defender.stats)
+	lab._consume_feedback()
+	context.expect_equal(events, [&"shield_block", &"shield_break"], "offline contact depletion uses the same authoritative block and break events")
+	lab._consume_feedback()
+	context.expect_equal(events.size(), 2, "offline shield cues drain once")
+	lab._reset_combatants()
 
 
 static func _press_pad(viewport: Viewport, button: JoyButton) -> void:

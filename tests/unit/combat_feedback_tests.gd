@@ -8,6 +8,8 @@ static func run(context: TestContext) -> void:
 	_damage_resolution(context)
 	_world_feedback(context)
 	_shield_feedback(context)
+	_shield_presentation_contract(context)
+	_shield_delivery_contract(context)
 	_lethal_mechanics(context)
 	_profiling(context)
 	_bounds_and_presentation(context)
@@ -89,6 +91,7 @@ static func _shield_feedback(context: TestContext) -> void:
 		context.expect_true(damage_events.is_empty(), "%s does not produce hull hit confirmation" % reason)
 		context.expect_equal(int(feedback[1].blocked_count), 1, "%s confirms outgoing blocked shot" % reason)
 		context.expect_equal(int(feedback[2].guard_count), 1, "%s confirms defender shield block" % reason)
+		context.expect_equal(int(feedback[2].shield.blocks), 1, "%s records one authoritative visual impact" % reason)
 		context.expect_equal(String(feedback[1].last_block_reason), reason, "%s block reason is authoritative" % reason)
 		context.expect_equal(int(feedback[1].hit_count), 0, "%s shield block is distinct from hull damage" % reason)
 		if reason == "rebound":
@@ -128,6 +131,145 @@ static func _bounds_and_presentation(context: TestContext) -> void:
 	context.expect_true(Presentation.death_text({"source": "overtime"}, 1).contains("OVERTIME"), "environment death has readable source")
 	context.expect_true(Presentation.death_text({"killer_id": 1, "source": "mine"}, 1).contains("YOUR OWN"), "self damage is not attributed to another pilot")
 	context.expect_true(Presentation.death_text({"killer_id": 7, "source": "beam"}, 1).contains("Pilot 7"), "departed killer retains a stable fallback identity")
+	var panel := CombatFeedbackPanel.new()
+	panel._ready()
+	panel.apply_feedback({"hit_count": 1, "hit_damage": 10.0}, 1)
+	panel._process(0.8)
+	var remaining := panel._remaining
+	panel.apply_feedback({"shield_cues": [{"peer_id": 2, "blocks": 1}]}, 1)
+	context.expect_approx(panel._remaining, remaining, "remote shield activity cannot prolong a stale private hit readout")
+	panel.free()
+
+
+static func _shield_presentation_contract(context: TestContext) -> void:
+	for peer_id in [1, 2]:
+		var world := AuthoritativeWorld.new()
+		var stats := CombatStats.create_base()
+		stats.shield_capacity = 160.0
+		stats.shield_depletion_threshold = 45.0
+		stats.shield_continuous_drain = 10.0
+		stats.shield_block_cost = 1.0
+		var defender := world.add_peer(peer_id, stats)
+		var shield := defender.shield
+		shield.active = true
+		shield.energy = 26.0
+		var view := NetworkWorldView.new()
+		view.local_peer_id = 1
+		view.controls_enabled = true
+		var ship := CombatShipView.new()
+		# Deliberately use base presentation stats, even for the upgraded remote.
+		ship.setup(peer_id, CombatStats.create_base(), Vector2(400, 400), Color.WHITE, peer_id == 1, "Shield")
+		view.ships[peer_id] = ship
+		var events: Array[StringName] = []
+		view.presentation_event.connect(func(event: StringName, _payload: Dictionary) -> void:
+			if event in [&"shield_block", &"shield_break"]:
+				events.append(event)
+		)
+		_present_shield(world, view, ship, 1)
+		context.expect_empty(events, "first snapshot establishes shield feedback baseline")
+		shield.step(true, stats, 0.2)
+		_present_shield(world, view, ship, 13)
+		shield.step(true, stats, 0.4)
+		_present_shield(world, view, ship, 37)
+		context.expect_empty(events, "continuous drain across threshold and snapshot gaps invents no shield block or break")
+		shield.perfect_guard_window_remaining = 0.1
+		var energy_before := shield.energy
+		context.expect_true(shield.try_block(0.0, Vector2.RIGHT, stats), "low-cost Perfect Guard actually blocks")
+		context.expect_true(energy_before - shield.energy < 2.0, "Perfect Guard fixture costs less than the removed heuristic")
+		var impact_payload := _present_shield(world, view, ship, 38, false)
+		context.expect_equal(events, [&"shield_block"], "actual low-cost impact produces one cue for local and remote ships")
+		view.apply_combat_feedback(impact_payload)
+		context.expect_equal(events.size(), 1, "duplicate feedback cannot replay shield cues")
+		shield.try_block(0.0, Vector2.RIGHT, stats)
+		shield.try_absorb_contact(stats)
+		shield.step(false, stats, 10.0)
+		_present_shield(world, view, ship, 638)
+		context.expect_equal(events, [&"shield_block", &"shield_block"], "missed impacts coalesce into one cue even after energy regenerates")
+		shield.active = true
+		shield.energy = 0.1
+		shield.step(true, stats, 0.1)
+		shield.step(false, stats, 10.0)
+		context.expect_false(shield.depletion_locked, "depletion fixture fully recovers before next snapshot")
+		_present_shield(world, view, ship, 1244)
+		context.expect_equal(events.back(), &"shield_break", "actual drain depletion survives a missed zero-energy snapshot")
+		context.expect_equal(events.size(), 3, "drain depletion does not fabricate an impact")
+		shield.active = true
+		shield.energy = 0.1
+		shield.try_block(0.0, Vector2.RIGHT, stats)
+		_present_shield(world, view, ship, 1245)
+		context.expect_equal(events.slice(3), [&"shield_block", &"shield_break"], "depleting impact confirms both events once")
+		shield.step(true, stats, 0.1)
+		_present_shield(world, view, ship, 1251)
+		context.expect_equal(events.size(), 5, "remaining depletion-locked cannot repeat a break")
+		defender.reset_for_heat(stats, defender.position)
+		_present_shield(world, view, ship, 1252)
+		context.expect_equal(events.size(), 5, "heat or respawn reset cannot invent cues")
+		shield.active = true
+		shield.energy = 0.1
+		shield.try_absorb_contact(stats)
+		defender.reset_for_heat(stats, defender.position)
+		_present_shield(world, view, ship, 1253)
+		context.expect_equal(events.size(), 5, "life reset discards pending old-life shield events")
+		impact_payload.server_tick = 1000
+		view.apply_combat_feedback(impact_payload)
+		context.expect_equal(events.size(), 5, "feedback older than one second cannot replay after a blackout")
+		view.controls_enabled = false
+		impact_payload.server_tick = 1254
+		view.apply_combat_feedback(impact_payload)
+		context.expect_equal(events.size(), 5, "feedback cannot replay into countdown or results")
+		view.controls_enabled = true
+		view.match_payload = {"entered_tick": 1255}
+		view.apply_combat_feedback(impact_payload)
+		context.expect_equal(events.size(), 5, "previous-heat feedback cannot replay even without a fresh snapshot")
+		view.ships.clear()
+		ship.free()
+		view.free()
+
+
+static func _present_shield(world: AuthoritativeWorld, view: NetworkWorldView, ship: CombatShipView, tick: int, deliver_snapshot: bool = true) -> Dictionary:
+	# Snapshot delivery is independent of the authoritative reliable feedback.
+	if deliver_snapshot:
+		var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view())
+		var decoded := PlayerSnapshotCodec.decode(PlayerSnapshotCodec.assemble(tick, 0, body))
+		view.replicated_visuals._handle_snapshot_feedback(int(decoded.states[0].peer_id), decoded.states[0], ship)
+	view.latest_server_tick = tick
+	var payload := Buffer.for_recipient(world.drain_combat_feedback(), world.combatants, view.local_peer_id, tick)
+	view.apply_combat_feedback(payload)
+	return payload
+
+
+static func _shield_delivery_contract(context: TestContext) -> void:
+	var world := AuthoritativeWorld.new()
+	for peer_id in range(1, 33):
+		var defender := world.add_peer(peer_id)
+		defender.shield.active = true
+		defender.shield.try_absorb_contact(defender.stats)
+	var batch := world.drain_combat_feedback()
+	context.expect_equal(batch.size(), 32, "crowded shield feedback stays bounded to one record per participant")
+	var public := Buffer.for_recipient(batch, world.combatants, 100, 10)
+	context.expect_equal(public.shield_cues.size(), 32, "spectators receive visible authoritative shield cues")
+	context.expect_false(public.has("guard_count") or public.has("hit_damage"), "public cue delivery does not disclose private combat totals")
+	var hidden := world.combatants[2] as CombatantState
+	hidden.stats.cloak_enabled = true
+	hidden.cloak_remaining = 5.0
+	var filtered := Buffer.for_recipient(batch, world.combatants, 1, 10)
+	context.expect_equal(filtered.shield_cues.size(), 31, "cloaked remote shield events are omitted")
+	var owner := Buffer.for_recipient(batch, world.combatants, 2, 10)
+	context.expect_equal(owner.shield_cues.size(), 32, "cloaked owner retains its own shield confirmation")
+	owner.shield_cues[0].blocks = 999
+	context.expect_equal(public.shield_cues[0].blocks, 1, "recipient payloads cannot mutate another recipient's cues")
+	context.expect_empty(world.drain_combat_feedback(), "shield events drain exactly once")
+	context.expect_empty(Buffer.for_recipient({}, world.combatants, 1, 11), "quiet shields send no reliable messages")
+	hidden.reset_for_heat(hidden.stats, hidden.position)
+	context.expect_equal(Buffer.for_recipient(batch, world.combatants, 2, 11).shield_cues.size(), 31, "a drained old-life cue is excluded after respawn")
+	hidden.shield._feedback_blocks = 65534
+	hidden.shield._feedback_breaks = 65534
+	for index in 2:
+		hidden.shield.active = true
+		hidden.shield.depletion_locked = false
+		hidden.shield.energy = 0.1
+		hidden.shield.try_absorb_contact(hidden.stats)
+	context.expect_equal(hidden.shield.drain_feedback(), Vector2i(65535, 65535), "stalled shield feedback counters saturate rather than growing or wrapping")
 
 
 static func _lethal_mechanics(context: TestContext) -> void:

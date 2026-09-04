@@ -251,7 +251,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view.latest_server_tick = 21
 	view._handle_snapshot_feedback(1, {"health": 75.0, "shield": 20.0, "shielding": false, "alive": true, "ammunition": 8, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
 	context.expect_true(&"damage" in feedback_events, "snapshot deltas emit damage feedback once")
-	context.expect_true(&"shield_break" in feedback_events, "snapshot deltas distinguish shield breaks")
+	context.expect_false(&"shield_break" in feedback_events or &"shield_block" in feedback_events, "energy deltas alone cannot confirm shield impacts or depletion")
 	context.expect_true(&"reload" in feedback_events, "snapshot deltas distinguish reload completion")
 	local_ship.combatant.alive = false
 	local_ship.set_eliminated()

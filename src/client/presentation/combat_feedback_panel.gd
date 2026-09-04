@@ -47,6 +47,8 @@ func apply_feedback(payload: Dictionary, peer_id: int, names: Dictionary = {}) -
 	var hit := CombatFeedbackPresentation.hit_text(payload)
 	var blocked := CombatFeedbackPresentation.block_text(payload)
 	var guard := CombatFeedbackPresentation.guard_text(payload)
+	if hit.is_empty() and blocked.is_empty() and guard.is_empty() and not payload.has("death"):
+		return
 	if not hit.is_empty():
 		hit_label.text = hit
 	if not blocked.is_empty() or not guard.is_empty():

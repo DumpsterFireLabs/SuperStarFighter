@@ -221,10 +221,13 @@ func _consume_feedback() -> void:
 	for peer_id in recipients:
 		var event: Dictionary = recipients[peer_id]
 		var ship := ships_by_id.get(int(peer_id)) as CombatShipView
-		if int(event.get("guard_count", 0)) > 0 and ship != null:
+		var shield_event := event.get("shield", {}) as Dictionary
+		if int(shield_event.get("blocks", 0)) > 0 and ship != null:
 			if not bool(accessibility.get("reduced_flashes", false)):
 				ship.flash_shield_block()
 			_emit_effect(&"shield_block", {"peer_id": peer_id}, ship.global_position)
+		if int(shield_event.get("breaks", 0)) > 0 and ship != null:
+			_emit_effect(&"shield_break", {"peer_id": peer_id}, ship.global_position)
 		if int(peer_id) == 1:
 			if tutorial != null:
 				tutorial.observe_feedback(event)
