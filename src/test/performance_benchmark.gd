@@ -35,6 +35,9 @@ func _ready() -> void:
 	_fill_projectiles(world, npc_ids)
 	var samples: Array[int] = []
 	var phase_totals := {"npc": 0, "movement": 0, "overlaps": 0, "projectiles": 0, "cleanup_and_threats": 0}
+	var phase_samples: Dictionary = {}
+	for phase in phase_totals:
+		phase_samples[phase] = []
 	var maximum_projectiles := world.projectile_registry.size()
 	var collision_totals: Dictionary = {}
 	for tick in SAMPLE_TICKS + WARMUP_TICKS:
@@ -51,8 +54,10 @@ func _ready() -> void:
 				collision_totals[phase] = int(collision_totals.get(phase, 0)) + int(world.last_projectile_profile_usec[phase])
 			samples.append(elapsed_usec)
 			phase_totals.npc = int(phase_totals.npc) + npc_complete_usec - started_usec
+			(phase_samples.npc as Array).append(npc_complete_usec - started_usec)
 			for phase in ["movement", "overlaps", "projectiles", "cleanup_and_threats"]:
 				phase_totals[phase] = int(phase_totals[phase]) + int(world.last_step_profile_usec.get(phase, 0))
+				(phase_samples[phase] as Array).append(int(world.last_step_profile_usec.get(phase, 0)))
 	samples.sort()
 	var collision_means: Dictionary = {}
 	for phase in collision_totals:
@@ -72,6 +77,14 @@ func _ready() -> void:
 		int(phase_totals.projectiles) / SAMPLE_TICKS,
 		int(phase_totals.cleanup_and_threats) / SAMPLE_TICKS,
 	])
+	var phase_tails: Dictionary = {}
+	for phase in phase_samples:
+		var sorted: Array[int] = []
+		sorted.assign(phase_samples[phase])
+		sorted.sort()
+		phase_tails[phase] = {"p95_usec": _percentile(sorted, 0.95), "p99_usec": _percentile(sorted, 0.99), "max_usec": sorted.back()}
+	print("SSF_PERFORMANCE_PHASE_TAILS %s" % JSON.stringify(phase_tails))
+	print("SSF_PERFORMANCE_SCOPE samples=%d warmup=%d includes=npc_and_authoritative_world excludes=refill_replication_client_render" % [SAMPLE_TICKS, WARMUP_TICKS])
 	var mixed_mine_result := _run_mixed_mine_benchmark()
 	print("SSF_MINE_PERFORMANCE_RESULT p50_usec=%d p95_usec=%d p99_usec=%d max_usec=%d mines=%d projectiles=%d" % [
 		int(mixed_mine_result.p50),

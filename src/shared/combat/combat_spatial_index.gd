@@ -2,18 +2,26 @@ class_name CombatSpatialIndex
 extends RefCounted
 
 const CELL_SIZE: float = 200.0
+const GRID_WIDTH: int = ceili(GameConstants.ARENA_SIZE.x / CELL_SIZE) + 2
+const GRID_HEIGHT: int = ceili(GameConstants.ARENA_SIZE.y / CELL_SIZE) + 2
 const SHIP_SWEEP_PADDING: float = GameConstants.SHIP_COLLISION_RADIUS + maxf(7.0, GameConstants.MISSILE_RADIUS)
 const RESPAWN_THREAT_LOOKAHEAD_SECONDS: float = 0.6
 var projectile_revision: int = -1
 var maximum_projectile_speed: float = 0.0
 var _ship_cells: Dictionary = {}
 var _ship_sweep_cells: Dictionary = {}
+var _ship_sweep_grid: Array = []
 var _projectile_threat_cells: Dictionary = {}
 var _armed_mine_cells: Dictionary = {}
 var _empty_ids: Array[int] = []
 var _respawn_threat_cells: Dictionary = {}
 var _respawn_threat_tick: int = -1
 var _respawn_threat_revision: int = -1
+
+
+func _init() -> void:
+	_ship_sweep_grid.resize(GRID_WIDTH * GRID_HEIGHT)
+	_ship_sweep_grid.fill(_empty_ids)
 
 
 func respawn_threats_at(position: Vector2, registry: ProjectileRegistry, tick: int) -> Array:
@@ -42,6 +50,7 @@ func respawn_threats_at(position: Vector2, registry: ProjectileRegistry, tick: i
 func rebuild_ships(combatants: Dictionary, ordered_peer_ids: Array[int]) -> void:
 	_ship_cells.clear()
 	_ship_sweep_cells.clear()
+	_ship_sweep_grid.fill(_empty_ids)
 	for peer_id in ordered_peer_ids:
 		var combatant := combatants.get(peer_id) as CombatantState
 		if combatant == null or not combatant.alive:
@@ -54,6 +63,15 @@ func rebuild_ships(combatants: Dictionary, ordered_peer_ids: Array[int]) -> void
 		for y in range(minimum.y, maximum.y + 1):
 			for x in range(minimum.x, maximum.x + 1):
 				_append_cell_id(_ship_sweep_cells, Vector2i(x, y), peer_id)
+
+	# Ship cells occupy a small fixed arena grid. Reuse the same candidate arrays
+	# for short projectile sweeps without hashing/allocating Vector2i query keys.
+	# The sparse map remains the exact fallback for long/out-of-arena queries.
+	for cell in _ship_sweep_cells:
+		var grid_x := int(cell.x) + 1
+		var grid_y := int(cell.y) + 1
+		if grid_x >= 0 and grid_x < GRID_WIDTH and grid_y >= 0 and grid_y < GRID_HEIGHT:
+			_ship_sweep_grid[grid_y * GRID_WIDTH + grid_x] = _ship_sweep_cells[cell]
 
 
 func rebuild_projectile_threats(registry: ProjectileRegistry) -> void:
@@ -98,10 +116,18 @@ func query_ships_along_segment(start: Vector2, finish: Vector2, padding: float) 
 	if _ship_cells.is_empty():
 		return _empty_ids
 	if padding <= SHIP_SWEEP_PADDING:
-		var start_cell := _cell_for(start)
-		var end_cell := _cell_for(finish)
-		if start_cell == end_cell:
-			return _ship_sweep_cells.get(start_cell, _empty_ids) as Array[int]
+		var start_x := floori(start.x / CELL_SIZE)
+		var start_y := floori(start.y / CELL_SIZE)
+		var finish_x := floori(finish.x / CELL_SIZE)
+		var finish_y := floori(finish.y / CELL_SIZE)
+		if start_x == finish_x and start_y == finish_y:
+			var grid_x := start_x + 1
+			var grid_y := start_y + 1
+			if grid_x >= 0 and grid_x < GRID_WIDTH and grid_y >= 0 and grid_y < GRID_HEIGHT:
+				return _ship_sweep_grid[grid_y * GRID_WIDTH + grid_x] as Array[int]
+			return _ship_sweep_cells.get(Vector2i(start_x, start_y), _empty_ids) as Array[int]
+		var start_cell := Vector2i(start_x, start_y)
+		var end_cell := Vector2i(finish_x, finish_y)
 		var result: Array[int] = []
 		for y in range(mini(start_cell.y, end_cell.y), maxi(start_cell.y, end_cell.y) + 1):
 			for x in range(mini(start_cell.x, end_cell.x), maxi(start_cell.x, end_cell.x) + 1):
@@ -143,11 +169,11 @@ func query_projectile_threats(position: Vector2, radius: float, maximum_count: i
 
 
 func _query_cells(cells: Dictionary, minimum: Vector2, maximum: Vector2) -> Array[int]:
-	var result: Array[int] = []
 	var minimum_cell := _cell_for(minimum)
 	var maximum_cell := _cell_for(maximum)
 	if minimum_cell == maximum_cell:
 		return cells.get(minimum_cell, _empty_ids) as Array[int]
+	var result: Array[int] = []
 	for cell_y in range(minimum_cell.y, maximum_cell.y + 1):
 		for cell_x in range(minimum_cell.x, maximum_cell.x + 1):
 			var ids := cells.get(Vector2i(cell_x, cell_y), _empty_ids) as Array[int]
@@ -158,12 +184,11 @@ func _query_cells(cells: Dictionary, minimum: Vector2, maximum: Vector2) -> Arra
 
 
 func _append_cell_id(cells: Dictionary, cell: Vector2i, entity_id: int) -> void:
-	var ids: Array[int] = []
 	if cells.has(cell):
-		ids = cells[cell] as Array[int]
-	else:
-		cells[cell] = ids
-	ids.append(entity_id)
+		(cells[cell] as Array[int]).append(entity_id)
+		return
+	var ids: Array[int] = [entity_id]
+	cells[cell] = ids
 
 
 func _cell_for(position: Vector2) -> Vector2i:

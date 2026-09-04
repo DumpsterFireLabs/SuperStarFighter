@@ -192,6 +192,27 @@ func _capture_sequence() -> void:
 		{"killer_id": 0, "victim_id": 5, "reason": "disconnect"},
 	], 201)
 	await _capture(client, "combat")
+	var expanded_size := root.get_visible_rect().size
+	client.latest_match_payload["competitive_view"] = true
+	client.network_world.apply_match_state(client.latest_match_payload)
+	client._update_match_presentation()
+	await process_frame
+	await process_frame
+	var competitive_size := root.get_visible_rect().size
+	if not competitive_size.is_equal_approx(Vector2(1920, 1080)):
+		printerr("PRESENTATION_CAPTURE_ERROR=competitive_world_extent:%s" % competitive_size)
+		quit(5)
+		return
+	print("COMPETITIVE_VIEW_EVIDENCE physical=%s expanded=%s competitive=%s" % [capture_resolution, expanded_size, competitive_size])
+	await _capture(client, "competitive_combat")
+	client.latest_match_payload["competitive_view"] = false
+	client.network_world.apply_match_state(client.latest_match_payload)
+	await process_frame
+	if not root.get_visible_rect().size.is_equal_approx(expanded_size):
+		printerr("PRESENTATION_CAPTURE_ERROR=competitive_restore")
+		quit(5)
+		return
+	client._update_match_presentation()
 	var previous_combat_payload := client.latest_match_payload.duplicate(true) as Dictionary
 	client.network_world.set_physics_process(false)
 	client.latest_match_payload["game_mode"] = GameModeRules.Mode.TEAM_DEATH_MATCH
@@ -458,8 +479,10 @@ func _capture(_client: Node, screen_name: String) -> void:
 	RenderingServer.force_draw(false)
 	await process_frame
 	var image := root.get_texture().get_image()
-	if image.get_size() != capture_resolution:
-		printerr("PRESENTATION_CAPTURE_ERROR=%s:expected_%s:actual_%s" % [screen_name, capture_resolution, image.get_size()])
+	# KEEP renders only the fitted content; native window bars are outside this texture.
+	var expected_size := Vector2i(preload("res://src/client/presentation/competitive_view_policy.gd").physical_content_rect(Vector2(capture_resolution)).size) if screen_name == "competitive_combat" else capture_resolution
+	if image.get_size() != expected_size:
+		printerr("PRESENTATION_CAPTURE_ERROR=%s:expected_%s:actual_%s" % [screen_name, expected_size, image.get_size()])
 		quit(4)
 		return
 	var path := capture_directory.path_join("%s_%s.png" % [capture_label, screen_name])

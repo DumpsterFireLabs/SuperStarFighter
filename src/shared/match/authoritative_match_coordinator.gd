@@ -793,6 +793,7 @@ func _state_payload() -> Dictionary:
 		"random_spawn_powerups": lobby.config.random_spawn_powerups,
 		"random_powerup_interval_seconds": lobby.config.random_powerup_interval_seconds,
 		"random_powerups_permanent": lobby.config.random_powerups_permanent,
+		"competitive_view": machine.config.competitive_view,
 		"objective": _objective_snapshot(),
 		"overtime_center": _overtime_center(),
 		"overtime_minimum_radius": _overtime_minimum_radius(),

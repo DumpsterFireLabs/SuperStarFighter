@@ -15,11 +15,19 @@ const MatchObservationTestsScript = preload("res://tests/unit/match_observation_
 const NpcObjectiveTestsScript = preload("res://tests/unit/npc_objective_tests.gd")
 const VisualAccessibilityTestsScript = preload("res://tests/unit/visual_accessibility_tests.gd")
 const LobbyResultsTestsScript = preload("res://tests/unit/lobby_results_tests.gd")
+const CompetitiveViewTests = preload("res://tests/unit/competitive_view_tests.gd")
+const CollisionQueryOptimizationTests = preload("res://tests/unit/collision_query_optimization_tests.gd")
+const ScreenControllerTests = preload("res://tests/unit/screen_controller_tests.gd")
+const AudioMixTests = preload("res://tests/unit/audio_mix_tests.gd")
 var _context := TestContext.new()
 
 
 func _ready() -> void:
 	_run_foundation_tests()
+	CompetitiveViewTests.run(_context, self)
+	CollisionQueryOptimizationTests.run(_context)
+	ScreenControllerTests.run(_context, self)
+	AudioMixTests.run(_context, self)
 	CardStatTests.run(_context)
 	ClientDraftPresentationTests.run(_context, self)
 	DraftManagerTests.run(_context)
@@ -54,7 +62,7 @@ func _ready() -> void:
 func _run_foundation_tests() -> void:
 	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.10", "game version is pinned to Beta 10")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 29, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 30, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")

@@ -1,9 +1,15 @@
 extends Node
 
-const RESULTS_ACTION_EXPLANATION: String = "Fresh rematch resets cards, scores and objectives; keeps rules, teams and pilots.\nFive more rounds keeps all builds and scores. Lobby lets everyone change rules and ready up."
+const DraftScreenControllerScript = preload("res://src/client/ui/draft_screen_controller.gd")
+const StandingsScreenControllerScript = preload("res://src/client/ui/standings_screen_controller.gd")
+const RESULTS_ACTION_EXPLANATION = StandingsScreenControllerScript.RESULTS_ACTION_EXPLANATION
+const CardDetailsText = preload("res://src/client/ui/card_details_text.gd")
 
 const SettingsControllerScript = preload("res://src/client/ui/settings_controller.gd")
 const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
+
+var draft_controller := DraftScreenControllerScript.new()
+var standings_controller := StandingsScreenControllerScript.new()
 
 var settings_controller := SettingsControllerScript.new()
 var connection_controller := ConnectionControllerScript.new()
@@ -169,37 +175,99 @@ var heat_intro_panel: PanelContainer
 var heat_intro_kicker: Label
 var heat_intro_title: Label
 var heat_intro_subtitle: Label
-var draft_panel: PanelContainer
-var draft_title: Label
-var draft_buttons: Array[Button] = []
-var draft_rarity_labels: Array[Label] = []
-var draft_bye_label: Label
-var draft_confirmation_row: HBoxContainer
-var draft_confirmation_label: Label
-var draft_confirm_button: Button
-var draft_change_button: Button
-var scoreboard_panel: PanelContainer
-var scoreboard_label: Label
-var scoreboard_context_label: Label
-var scoreboard_media_label: Label
-var scoreboard_hill_heading: Label
-var scoreboard_rows_container: VBoxContainer
-var scoreboard_hint_label: Label
-var scoreboard_open: bool = false
-var _scoreboard_rows_dirty: bool = true
-var results_panel: PanelContainer
-var results_label: Label
-var results_winner_label: Label
-var results_standings_container: VBoxContainer
-var results_rematch_button: Button
-var results_action_note: Label
-var _rematch_requested: bool = false
-var results_extend_button: Button
-var results_return_button: Button
-var _results_rows_dirty: bool = true
-var _extend_match_requested: bool = false
-var _return_to_lobby_requested: bool = false
-var win_overlay: Control
+var draft_panel: PanelContainer:
+	get: return draft_controller.draft_panel
+	set(value): draft_controller.draft_panel = value
+var draft_title: Label:
+	get: return draft_controller.draft_title
+	set(value): draft_controller.draft_title = value
+var draft_buttons: Array[Button]:
+	get: return draft_controller.draft_buttons
+	set(value): draft_controller.draft_buttons = value
+var draft_rarity_labels: Array[Label]:
+	get: return draft_controller.draft_rarity_labels
+	set(value): draft_controller.draft_rarity_labels = value
+var draft_bye_label: Label:
+	get: return draft_controller.draft_bye_label
+	set(value): draft_controller.draft_bye_label = value
+var draft_confirmation_row: HBoxContainer:
+	get: return draft_controller.draft_confirmation_row
+	set(value): draft_controller.draft_confirmation_row = value
+var draft_confirmation_label: Label:
+	get: return draft_controller.draft_confirmation_label
+	set(value): draft_controller.draft_confirmation_label = value
+var draft_confirm_button: Button:
+	get: return draft_controller.draft_confirm_button
+	set(value): draft_controller.draft_confirm_button = value
+var draft_change_button: Button:
+	get: return draft_controller.draft_change_button
+	set(value): draft_controller.draft_change_button = value
+var scoreboard_panel: PanelContainer:
+	get: return standings_controller.scoreboard_panel
+	set(value): standings_controller.scoreboard_panel = value
+var scoreboard_label: Label:
+	get: return standings_controller.scoreboard_label
+	set(value): standings_controller.scoreboard_label = value
+var scoreboard_context_label: Label:
+	get: return standings_controller.scoreboard_context_label
+	set(value): standings_controller.scoreboard_context_label = value
+var scoreboard_media_label: Label:
+	get: return standings_controller.scoreboard_media_label
+	set(value): standings_controller.scoreboard_media_label = value
+var scoreboard_hill_heading: Label:
+	get: return standings_controller.scoreboard_hill_heading
+	set(value): standings_controller.scoreboard_hill_heading = value
+var scoreboard_rows_container: VBoxContainer:
+	get: return standings_controller.scoreboard_rows_container
+	set(value): standings_controller.scoreboard_rows_container = value
+var scoreboard_hint_label: Label:
+	get: return standings_controller.scoreboard_hint_label
+	set(value): standings_controller.scoreboard_hint_label = value
+var scoreboard_open: bool:
+	get: return standings_controller.scoreboard_open
+	set(value): standings_controller.scoreboard_open = value
+var _scoreboard_rows_dirty: bool:
+	get: return standings_controller._scoreboard_rows_dirty
+	set(value): standings_controller._scoreboard_rows_dirty = value
+var results_panel: PanelContainer:
+	get: return standings_controller.results_panel
+	set(value): standings_controller.results_panel = value
+var results_label: Label:
+	get: return standings_controller.results_label
+	set(value): standings_controller.results_label = value
+var results_winner_label: Label:
+	get: return standings_controller.results_winner_label
+	set(value): standings_controller.results_winner_label = value
+var results_standings_container: VBoxContainer:
+	get: return standings_controller.results_standings_container
+	set(value): standings_controller.results_standings_container = value
+var results_rematch_button: Button:
+	get: return standings_controller.results_rematch_button
+	set(value): standings_controller.results_rematch_button = value
+var results_action_note: Label:
+	get: return standings_controller.results_action_note
+	set(value): standings_controller.results_action_note = value
+var _rematch_requested: bool:
+	get: return standings_controller._rematch_requested
+	set(value): standings_controller._rematch_requested = value
+var results_extend_button: Button:
+	get: return standings_controller.results_extend_button
+	set(value): standings_controller.results_extend_button = value
+var results_return_button: Button:
+	get: return standings_controller.results_return_button
+	set(value): standings_controller.results_return_button = value
+var _results_rows_dirty: bool:
+	get: return standings_controller._results_rows_dirty
+	set(value): standings_controller._results_rows_dirty = value
+var _extend_match_requested: bool:
+	get: return standings_controller._extend_match_requested
+	set(value): standings_controller._extend_match_requested = value
+var _return_to_lobby_requested: bool:
+	get: return standings_controller._return_to_lobby_requested
+	set(value): standings_controller._return_to_lobby_requested = value
+var win_overlay: Control:
+	get: return standings_controller.win_overlay
+	set(value): standings_controller.win_overlay = value
 var pause_overlay: PanelContainer
 var pause_title: Label
 var settings_panel: Control:
@@ -279,9 +347,15 @@ var splash_stage: int = 0
 var splash_transitioning: bool = false
 var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
-var active_offer_token: String = ""
-var active_offer_deadline: int = -1
-var pending_draft_index: int = -1
+var active_offer_token: String:
+	get: return draft_controller.active_offer_token
+	set(value): draft_controller.active_offer_token = value
+var active_offer_deadline: int:
+	get: return draft_controller.active_offer_deadline
+	set(value): draft_controller.active_offer_deadline = value
+var pending_draft_index: int:
+	get: return draft_controller.pending_draft_index
+	set(value): draft_controller.pending_draft_index = value
 var latest_match_payload: Dictionary = {}
 
 var interface_theme: Theme
@@ -314,6 +388,12 @@ var _native_gameplay_cursor_active: bool = false
 
 
 func _init() -> void:
+	draft_controller.initialize(self)
+	draft_controller.name = "DraftScreenController"
+	add_child(draft_controller)
+	standings_controller.initialize(self)
+	standings_controller.name = "StandingsScreenController"
+	add_child(standings_controller)
 	settings_controller.initialize(self)
 	settings_controller.name = "SettingsController"
 	add_child(settings_controller)
@@ -499,317 +579,12 @@ func _create_match_ui() -> void:
 	heat_intro_subtitle.add_theme_color_override("font_color", Color("bdeeff"))
 	heat_intro_content.add_child(heat_intro_subtitle)
 
-	draft_panel = PanelContainer.new()
-	draft_panel.set_anchors_preset(Control.PRESET_CENTER)
-	draft_panel.position = Vector2(-600.0, -280.0)
-	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
-	draft_panel.theme = interface_theme
-	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
-	draft_panel.visible = false
-	draft_panel.resized.connect(func() -> void: draft_panel.position = (get_viewport().get_visible_rect().size - draft_panel.size) * 0.5)
-	connection_controller.connection_canvas.add_child(draft_panel)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 14)
-	draft_panel.add_child(content)
-	draft_title = Label.new()
-	draft_title.text = "CHOOSE YOUR UPGRADE"
-	draft_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	draft_title.add_theme_font_size_override("font_size", 34)
-	draft_title.add_theme_color_override("font_color", Color("d39cff"))
-	content.add_child(draft_title)
-	var cards := HBoxContainer.new()
-	cards.alignment = BoxContainer.ALIGNMENT_CENTER
-	cards.add_theme_constant_override("separation", 10)
-	content.add_child(cards)
-	for index in GameConstants.CARD_OFFER_SIZE:
-		var button := CardHoverButtonScript.new()
-		button.custom_minimum_size = Vector2(224.0, 720.0)
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-		button.add_theme_font_size_override("font_size", 1)
-		button.add_theme_color_override("font_color", Color.TRANSPARENT)
-		button.add_theme_color_override("font_hover_color", Color.TRANSPARENT)
-		button.add_theme_color_override("font_pressed_color", Color.TRANSPARENT)
-		button.add_theme_color_override("font_focus_color", Color.TRANSPARENT)
-		button.add_theme_color_override("font_disabled_color", Color.TRANSPARENT)
-		button.pressed.connect(_select_draft_card.bind(index))
-		cards.add_child(button)
-		draft_buttons.append(button)
-		_create_draft_card_content(button, index)
-		var rarity_label := Label.new()
-		rarity_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-		rarity_label.offset_left = 10.0
-		rarity_label.offset_top = -72.0
-		rarity_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		rarity_label.offset_right = -10.0
-		rarity_label.offset_bottom = -10.0
-		rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		rarity_label.add_theme_font_size_override("font_size", 14)
-		rarity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.add_child(rarity_label)
-		draft_rarity_labels.append(rarity_label)
-	draft_bye_label = Label.new()
-	draft_bye_label.text = "ROUND WINNER\n\nYou keep the build that won the round.\nEveryone else gets an upgrade this time.\n\nHold the lead."
-	draft_bye_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	draft_bye_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	draft_bye_label.add_theme_font_size_override("font_size", 28)
-	draft_bye_label.add_theme_color_override("font_color", Color("fff36a"))
-	draft_bye_label.custom_minimum_size.y = 390.0
-	draft_bye_label.visible = false
-	content.add_child(draft_bye_label)
-	draft_confirmation_row = HBoxContainer.new()
-	draft_confirmation_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	draft_confirmation_row.add_theme_constant_override("separation", 12)
-	draft_confirmation_row.visible = false
-	content.add_child(draft_confirmation_row)
-	draft_confirmation_label = Label.new()
-	draft_confirmation_label.add_theme_font_size_override("font_size", 18)
-	draft_confirmation_label.add_theme_color_override("font_color", Color("fff36a"))
-	draft_confirmation_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	draft_confirmation_row.add_child(draft_confirmation_label)
-	draft_change_button = Button.new()
-	draft_change_button.text = "CHOOSE ANOTHER"
-	draft_change_button.theme_type_variation = &"QuietButton"
-	draft_change_button.custom_minimum_size = Vector2(180.0, 48.0)
-	draft_change_button.pressed.connect(_cancel_draft_confirmation)
-	draft_confirmation_row.add_child(draft_change_button)
-	draft_confirm_button = Button.new()
-	draft_confirm_button.text = "CONFIRM PICK"
-	draft_confirm_button.theme_type_variation = &"PrimaryButton"
-	draft_confirm_button.custom_minimum_size = Vector2(180.0, 48.0)
-	draft_confirm_button.pressed.connect(_confirm_draft_card)
-	draft_confirmation_row.add_child(draft_confirm_button)
+	draft_controller.create_ui()
+	standings_controller.create_ui()
 
 
 func _create_draft_card_content(button: Button, index: int) -> void:
-	var margin := MarginContainer.new()
-	margin.name = "CardContent"
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_bottom", 82)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(margin)
-	var column := VBoxContainer.new()
-	column.name = "Details"
-	column.add_theme_constant_override("separation", 7)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(column)
-	var choice_key := Label.new()
-	choice_key.name = "ChoiceKey"
-	choice_key.text = "CHOICE %d" % (index + 1)
-	choice_key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	choice_key.add_theme_font_size_override("font_size", 13)
-	choice_key.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
-	column.add_child(choice_key)
-	var card_name := Label.new()
-	card_name.name = "CardName"
-	card_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	card_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_name.add_theme_font_size_override("font_size", 22)
-	card_name.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
-	column.add_child(card_name)
-	var category := Label.new()
-	category.name = "Category"
-	category.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	category.add_theme_font_size_override("font_size", 13)
-	column.add_child(category)
-	var rule := ColorRect.new()
-	rule.name = "Rule"
-	rule.custom_minimum_size.y = 2.0
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(rule)
-	var description := Label.new()
-	description.name = "Description"
-	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	description.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	description.add_theme_font_size_override("font_size", 16)
-	description.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
-	column.add_child(description)
-	var stack := Label.new()
-	stack.name = "Stack"
-	stack.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stack.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stack.add_theme_font_size_override("font_size", 15)
-	stack.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
-	column.add_child(stack)
-	var state := Label.new()
-	state.name = "State"
-	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	state.add_theme_font_size_override("font_size", 14)
-	state.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
-	column.add_child(state)
-
-	scoreboard_panel = PanelContainer.new()
-	scoreboard_panel.set_anchors_preset(Control.PRESET_CENTER)
-	scoreboard_panel.position = Vector2(-550.0, -330.0)
-	scoreboard_panel.custom_minimum_size = Vector2(1100.0, 660.0)
-	scoreboard_panel.theme = interface_theme
-	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.985))
-	scoreboard_panel.visible = false
-	connection_controller.connection_canvas.add_child(scoreboard_panel)
-	var scoreboard_content := VBoxContainer.new()
-	scoreboard_content.add_theme_constant_override("separation", 10)
-	scoreboard_panel.add_child(scoreboard_content)
-	var scoreboard_kicker := Label.new()
-	scoreboard_kicker.text = "✦  LIVE MATCH  ✦"
-	scoreboard_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_kicker.add_theme_font_size_override("font_size", 16)
-	scoreboard_kicker.add_theme_color_override("font_color", Color("ff8ee8"))
-	scoreboard_content.add_child(scoreboard_kicker)
-	scoreboard_label = Label.new()
-	scoreboard_label.text = "SCOREBOARD"
-	scoreboard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_label.add_theme_font_size_override("font_size", 38)
-	scoreboard_label.add_theme_color_override("font_color", Color("73f7ff"))
-	scoreboard_content.add_child(scoreboard_label)
-	scoreboard_context_label = Label.new()
-	scoreboard_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_context_label.add_theme_font_size_override("font_size", 17)
-	scoreboard_context_label.add_theme_color_override("font_color", Color("aebbd4"))
-	scoreboard_content.add_child(scoreboard_context_label)
-	scoreboard_media_label = Label.new()
-	scoreboard_media_label.name = "ScoreboardMedia"
-	scoreboard_media_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_media_label.add_theme_font_size_override("font_size", 16)
-	scoreboard_media_label.add_theme_color_override("font_color", Color("73f7ff"))
-	scoreboard_content.add_child(scoreboard_media_label)
-	var scoreboard_heading := HBoxContainer.new()
-	scoreboard_heading.add_theme_constant_override("separation", 12)
-	scoreboard_content.add_child(scoreboard_heading)
-	_add_results_column_heading(scoreboard_heading, "RANK / PILOT", 300.0)
-	_add_results_column_heading(scoreboard_heading, "HEATS", 90.0)
-	_add_results_column_heading(scoreboard_heading, "ROUNDS", 100.0)
-	_add_results_column_heading(scoreboard_heading, "KILLS", 80.0)
-	scoreboard_hill_heading = _add_results_column_heading(scoreboard_heading, "HILL TIME", 100.0)
-	scoreboard_hill_heading.visible = false
-	_add_results_column_heading(scoreboard_heading, "CURRENT BUILD", 0.0, true)
-	var scoreboard_scroll := ScrollContainer.new()
-	scoreboard_scroll.custom_minimum_size = Vector2(1060.0, 400.0)
-	scoreboard_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scoreboard_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scoreboard_content.add_child(scoreboard_scroll)
-	scoreboard_rows_container = VBoxContainer.new()
-	scoreboard_rows_container.add_theme_constant_override("separation", 7)
-	scoreboard_rows_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scoreboard_scroll.add_child(scoreboard_rows_container)
-	scoreboard_hint_label = Label.new()
-	scoreboard_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_hint_label.add_theme_font_size_override("font_size", 15)
-	scoreboard_hint_label.add_theme_color_override("font_color", Color("fff36a"))
-	scoreboard_content.add_child(scoreboard_hint_label)
-	_refresh_control_prompts()
-
-	win_overlay = Control.new()
-	win_overlay.name = "WinScreen"
-	win_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	win_overlay.visible = false
-	connection_controller.connection_canvas.add_child(win_overlay)
-	var win_background := NeonBackdrop.new()
-	win_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	win_overlay.add_child(win_background)
-	var win_tint := ColorRect.new()
-	win_tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	win_tint.color = Color("170b2f", 0.72)
-	win_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	win_overlay.add_child(win_tint)
-	results_panel = PanelContainer.new()
-	results_panel.set_anchors_preset(Control.PRESET_CENTER)
-	results_panel.position = Vector2(-560.0, -340.0)
-	results_panel.custom_minimum_size = Vector2(1120.0, 680.0)
-	results_panel.theme = interface_theme
-	results_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.FOCUS, 0.96))
-	results_panel.visible = true
-	win_overlay.add_child(results_panel)
-	var results_content := VBoxContainer.new()
-	results_content.add_theme_constant_override("separation", 10)
-	results_panel.add_child(results_content)
-	var results_kicker := Label.new()
-	results_kicker.text = "✦  MATCH COMPLETE  ✦"
-	results_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_kicker.add_theme_font_size_override("font_size", 18)
-	results_kicker.add_theme_color_override("font_color", Color("ff8ee8"))
-	results_content.add_child(results_kicker)
-	results_label = Label.new()
-	results_label.text = "VICTORY"
-	results_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_label.add_theme_font_size_override("font_size", 52)
-	results_label.add_theme_color_override("font_color", Color("fff36a"))
-	results_content.add_child(results_label)
-	var champion_panel := PanelContainer.new()
-	champion_panel.custom_minimum_size.y = 92.0
-	champion_panel.add_theme_stylebox_override("panel", _results_row_style(Color("fff36a"), true))
-	results_content.add_child(champion_panel)
-	var champion_content := VBoxContainer.new()
-	champion_content.alignment = BoxContainer.ALIGNMENT_CENTER
-	champion_content.add_theme_constant_override("separation", 2)
-	champion_panel.add_child(champion_content)
-	var champion_kicker := Label.new()
-	champion_kicker.text = "SUPER STAR CHAMPION"
-	champion_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	champion_kicker.add_theme_font_size_override("font_size", 17)
-	champion_kicker.add_theme_color_override("font_color", Color("d6e2f2"))
-	champion_content.add_child(champion_kicker)
-	results_winner_label = Label.new()
-	results_winner_label.text = "PILOT"
-	results_winner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_winner_label.add_theme_font_size_override("font_size", 34)
-	results_winner_label.add_theme_color_override("font_color", Color("fff36a"))
-	champion_content.add_child(results_winner_label)
-	var standings_heading := HBoxContainer.new()
-	standings_heading.add_theme_constant_override("separation", 12)
-	results_content.add_child(standings_heading)
-	_add_results_column_heading(standings_heading, "RANK", 72.0)
-	_add_results_column_heading(standings_heading, "PILOT", 230.0)
-	_add_results_column_heading(standings_heading, "ROUNDS WON", 150.0)
-	_add_results_column_heading(standings_heading, "KILLS", 100.0)
-	_add_results_column_heading(standings_heading, "FINAL BUILD", 0.0, true)
-	var results_scroll := ScrollContainer.new()
-	results_scroll.custom_minimum_size = Vector2(1060.0, 230.0)
-	results_scroll.follow_focus = true
-	results_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	results_content.add_child(results_scroll)
-	results_standings_container = VBoxContainer.new()
-	results_standings_container.add_theme_constant_override("separation", 7)
-	results_standings_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	results_scroll.add_child(results_standings_container)
-	results_action_note = Label.new()
-	results_action_note.name = "ResultsActionExplanation"
-	results_action_note.text = RESULTS_ACTION_EXPLANATION
-	results_action_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_action_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	results_action_note.add_theme_font_size_override("font_size", 16)
-	results_content.add_child(results_action_note)
-	var results_actions := HBoxContainer.new()
-	results_actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	results_actions.add_theme_constant_override("separation", 16)
-	results_content.add_child(results_actions)
-	results_rematch_button = Button.new()
-	results_rematch_button.name = "FreshRematchButton"
-	results_rematch_button.text = "FRESH REMATCH · SAME RULES"
-	results_rematch_button.theme_type_variation = &"PrimaryButton"
-	results_rematch_button.custom_minimum_size = Vector2(330.0, 52.0)
-	results_rematch_button.add_theme_font_size_override("font_size", 17)
-	results_rematch_button.pressed.connect(_on_results_rematch_pressed)
-	results_actions.add_child(results_rematch_button)
-	results_extend_button = Button.new()
-	results_extend_button.text = "PLAY 5 MORE ROUNDS"
-	results_extend_button.theme_type_variation = &"PrimaryButton"
-	results_extend_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
-	results_extend_button.custom_minimum_size = Vector2(300.0, 52.0)
-	results_extend_button.add_theme_font_size_override("font_size", 19)
-	results_extend_button.pressed.connect(_on_results_extend_pressed)
-	results_actions.add_child(results_extend_button)
-	results_return_button = Button.new()
-	results_return_button.text = "EXIT TO LOBBY"
-	results_return_button.custom_minimum_size = Vector2(300.0, 52.0)
-	results_return_button.add_theme_font_size_override("font_size", 19)
-	results_return_button.pressed.connect(_on_results_return_pressed)
-	results_actions.add_child(results_return_button)
+	draft_controller._create_draft_card_content(button, index)
 
 
 func _create_pause_overlay() -> void:
@@ -1300,13 +1075,11 @@ func _play_offline() -> void:
 	connection_controller.lobby_panel.visible = false
 	match_panel.visible = false
 	heat_intro_panel.visible = false
-	draft_panel.visible = false
-	scoreboard_panel.visible = false
-	results_panel.visible = false
+	draft_controller.clear_offer()
+	standings_controller.reset_session()
 	pause_overlay.visible = false
 	settings_controller.settings_panel.visible = false
 	credits_panel.visible = false
-	win_overlay.visible = false
 	offline_sandbox.set_sandbox_active(true)
 	audio_director.set_context(&"gameplay")
 
@@ -1333,8 +1106,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	_set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
 	latest_match_payload.clear()
-	active_offer_token = ""
-	active_offer_deadline = -1
+	draft_controller.clear_offer()
 	connection_controller.connection_screen.visible = true
 	connection_controller.connection_form_panel.visible = true
 	connection_controller.lobby_panel.visible = false
@@ -1344,13 +1116,11 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 		connection_controller._hide_ship_color(false)
 	match_panel.visible = false
 	heat_intro_panel.visible = false
-	draft_panel.visible = false
-	scoreboard_panel.visible = false
-	results_panel.visible = false
+	draft_controller.clear_offer()
+	standings_controller.reset_session()
 	pause_overlay.visible = false
 	settings_controller.settings_panel.visible = false
 	credits_panel.visible = false
-	win_overlay.visible = false
 	network_world.input_blocked = false
 	connection_controller.connection_status.text = message
 	connection_controller.connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
@@ -1416,23 +1186,11 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 	elif event_type == &"MINE_DETONATIONS":
 		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
 	elif event_type == &"REQUEST_REJECTED":
-		_extend_match_requested = false
-		_return_to_lobby_requested = false
-		_rematch_requested = false
+		standings_controller.reset_actions()
 		connection_controller.lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
 		connection_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
-		if win_overlay.visible:
-			results_action_note.text = "Could not continue: %s\nChoose another action or return to the lobby." % payload.get("message", "Unknown request")
-		if draft_panel.visible and not active_offer_token.is_empty():
-			for draft_button in draft_buttons:
-				if draft_button.visible:
-					draft_button.disabled = false
-					draft_button.text = draft_button.text.trim_suffix("\n\nSELECTED")
-					var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
-					draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
-					(draft_button.get_node("CardContent/Details/State") as Label).text = ""
-			pending_draft_index = -1
-			draft_confirmation_row.visible = false
+		standings_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
+		draft_controller.recover_rejected_offer()
 	elif event_type == &"DRAFT_OFFER":
 		_show_draft_offer(payload)
 	elif event_type == &"MATCH_START_ACCEPTED" and bool(payload.get("fresh_rematch", false)):
@@ -1454,17 +1212,14 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		if not entering_match:
 			connection_controller.connection_form_panel.visible = false
 		network_world.apply_match_state(payload)
+		audio_director.set_objective_baseline(payload.get("objective", {}) as Dictionary)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
 		latest_match_payload["builds"] = payload.get("builds", {})
 		_scoreboard_rows_dirty = true
 		_results_rows_dirty = true
-		active_offer_token = ""
-		active_offer_deadline = -1
-		pending_draft_index = -1
-		draft_confirmation_row.visible = false
-		draft_panel.visible = false
+		draft_controller.clear_offer()
 	elif event_type == &"PLAYER_ELIMINATED":
 		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
 		for peer_value in payload.get("peer_ids", []):
@@ -1491,6 +1246,7 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
 		_scoreboard_rows_dirty = true
 		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
+		audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)
 	elif event_type == &"CARD_POWERUP_REMOVED":
@@ -1533,10 +1289,13 @@ func _update_pointer_visibility() -> void:
 	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
+	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()
+	if gameplay_pointer_active and network_world.competitive_view_policy.active and not input_profiles.uses_controller() and DisplayServer.get_name() != "headless" and not pointer_position.is_equal_approx(get_viewport().get_mouse_position()):
+		get_viewport().warp_mouse(pointer_position)
 	if gameplay_cursor != null:
 		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller() and not native_gameplay_cursor
 		if gameplay_cursor.visible:
-			gameplay_cursor.position = get_viewport().get_mouse_position()
+			gameplay_cursor.position = pointer_position
 	if DisplayServer.get_name() == "headless":
 		return
 	_set_native_gameplay_cursor(native_gameplay_cursor)
@@ -1566,141 +1325,23 @@ func _pointer_mode_for_gameplay(gameplay_pointer_active: bool, native_gameplay_c
 
 
 func _show_draft_offer(payload: Dictionary) -> void:
-	active_offer_token = String(payload.get("offer_token", ""))
-	active_offer_deadline = int(payload.get("deadline_tick", -1))
-	pending_draft_index = -1
-	draft_confirmation_row.visible = false
-	draft_bye_label.visible = false
-	var card_ids := payload.get("card_ids", []) as Array
-	for index in draft_buttons.size():
-		var button := draft_buttons[index]
-		button.visible = index < card_ids.size()
-		draft_rarity_labels[index].visible = button.visible
-		button.disabled = false
-		button.set_meta("card_id", StringName(card_ids[index]) if index < card_ids.size() else &"")
-		if index >= card_ids.size():
-			continue
-		var card := card_catalog.get_card(StringName(card_ids[index]))
-		var current_stacks := _local_build_stack(card.card_id) if card != null else 0
-		button.text = "%d\n\n%s\n%s\n\n%s\n\nSTACK %d → %d" % [
-			index + 1,
-			card.display_name,
-			card.category_name().to_upper(),
-			card.description,
-			current_stacks,
-			current_stacks + 1,
-		] if card != null else String(card_ids[index])
-		if card != null:
-			var rarity_color := card.rarity_color()
-			var category_color := _draft_category_color(card.category)
-			(button.get_node("CardContent/Details/CardName") as Label).text = card.display_name.to_upper()
-			var category_label := button.get_node("CardContent/Details/Category") as Label
-			category_label.text = card.category_name().to_upper()
-			category_label.add_theme_color_override("font_color", category_color)
-			(button.get_node("CardContent/Details/Rule") as ColorRect).color = Color(rarity_color, 0.68)
-			(button.get_node("CardContent/Details/Description") as Label).text = card.description
-			(button.get_node("CardContent/Details/Stack") as Label).text = "STACKS  %d → %d" % [current_stacks, current_stacks + 1]
-			(button.get_node("CardContent/Details/State") as Label).text = ""
-			button.set_meta("rarity_color", rarity_color)
-			button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
-			button.add_theme_stylebox_override("hover", _draft_card_style(rarity_color.lightened(0.12), true))
-			button.add_theme_stylebox_override("pressed", _draft_card_style(rarity_color.lightened(0.22), true))
-			button.add_theme_stylebox_override("focus", _draft_card_focus_style(rarity_color))
-			button.add_theme_stylebox_override("disabled", _draft_card_style(rarity_color.darkened(0.25), false))
-			var rarity_label := draft_rarity_labels[index]
-			rarity_label.text = "%s  ·  %s TIER DROP" % [card.rarity_name().to_upper(), card.rarity_drop_chance_text()]
-			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
-			button.configure(card, current_stacks + 1, _result_card_tooltip(card, current_stacks + 1, "STACKS AFTER PICK"), "AFTER PICK")
-			button.configure_build_comparison(_local_build(), card_catalog)
-			if button.no_effective_benefit:
-				(button.get_node("CardContent/Details/Stack") as Label).text += "\nNO EFFECTIVE BENEFIT"
-				button.text += "\nNO EFFECTIVE BENEFIT"
-			elif button.has_limited_effect():
-				(button.get_node("CardContent/Details/Stack") as Label).text += "\nAT LIMIT · VIEW DETAILS"
-				button.text += "\nAT LIMIT · VIEW DETAILS"
-	draft_panel.visible = true
-	for button in draft_buttons:
-		if button.visible and not button.disabled:
-			button.grab_focus()
-			break
-	_update_match_presentation()
+	draft_controller._show_draft_offer(payload)
 
 
 func _select_draft_card(index: int) -> void:
-	if index < 0 or index >= draft_buttons.size():
-		return
-	var button := draft_buttons[index]
-	if not button.visible or button.disabled:
-		return
-	var card_id := button.get_meta("card_id", &"") as StringName
-	if card_id.is_empty():
-		return
-	pending_draft_index = index
-	var card := card_catalog.get_card(card_id)
-	var card_name := card.display_name.to_upper() if card != null else String(card_id).to_upper()
-	draft_confirmation_label.text = "LOCK IN %s?" % card_name
-	if button.no_effective_benefit:
-		draft_confirmation_label.text += "  NO EFFECTIVE BENEFIT · CHECK DRAWBACKS"
-	elif button.has_limited_effect():
-		draft_confirmation_label.text += "  SOME STATS ARE AT THEIR LIMIT"
-	draft_confirmation_row.visible = true
-	for button_index in draft_buttons.size():
-		var draft_button := draft_buttons[button_index]
-		if not draft_button.visible:
-			continue
-		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
-		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, button_index == index))
-		(draft_button.get_node("CardContent/Details/State") as Label).text = "AWAITING CONFIRMATION" if button_index == index else ""
-	draft_confirm_button.grab_focus()
+	draft_controller._select_draft_card(index)
 
 
 func _confirm_draft_card() -> void:
-	if pending_draft_index < 0 or pending_draft_index >= draft_buttons.size():
-		return
-	var button := draft_buttons[pending_draft_index]
-	if not button.visible or button.disabled or active_offer_token.is_empty():
-		return
-	var card_id := button.get_meta("card_id", &"") as StringName
-	if card_id.is_empty():
-		return
-	bridge.send_card_selection(active_offer_token, card_id)
-	audio_director.play_sfx(&"card_lock", "%s:%s" % [active_offer_token, card_id])
-	for draft_button in draft_buttons:
-		draft_button.disabled = true
-	button.text += "\n\nSELECTED"
-	(button.get_node("CardContent/Details/State") as Label).text = "SELECTED  ✓"
-	var selected_color: Color = button.get_meta("rarity_color", Color("42e8ff"))
-	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
-	pending_draft_index = -1
-	draft_confirmation_row.visible = false
+	draft_controller._confirm_draft_card()
 
 
 func _cancel_draft_confirmation() -> void:
-	var previous_index := pending_draft_index
-	pending_draft_index = -1
-	draft_confirmation_row.visible = false
-	for draft_button in draft_buttons:
-		if not draft_button.visible or draft_button.disabled:
-			continue
-		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
-		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
-		(draft_button.get_node("CardContent/Details/State") as Label).text = ""
-	if previous_index >= 0 and previous_index < draft_buttons.size():
-		var previous_button := draft_buttons[previous_index]
-		if previous_button.visible and not previous_button.disabled:
-			previous_button.grab_focus()
+	draft_controller._cancel_draft_confirmation()
 
 
 func _show_draft_bye(deadline_tick: int) -> void:
-	active_offer_token = ""
-	active_offer_deadline = deadline_tick
-	pending_draft_index = -1
-	draft_confirmation_row.visible = false
-	for index in draft_buttons.size():
-		draft_buttons[index].visible = false
-		draft_rarity_labels[index].visible = false
-	draft_bye_label.visible = true
-	draft_panel.visible = true
+	draft_controller._show_draft_bye(deadline_tick)
 
 
 func _update_match_presentation() -> void:
@@ -1755,14 +1396,7 @@ func _update_match_presentation() -> void:
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
-		var bye_peer_id := int(latest_match_payload.get("draft_bye_peer_id", 0))
-		var bye_peer_ids := latest_match_payload.get("draft_bye_peer_ids", []) as Array
-		if (bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id) or bridge.local_peer_id in bye_peer_ids:
-			if not draft_bye_label.visible or not draft_panel.visible:
-				_show_draft_bye(deadline)
-			draft_title.text = "ROUND WINNER — SKIPS THIS DRAFT · %.1fs" % seconds_left
-		elif not draft_bye_label.visible:
-			draft_title.text = "CHOOSE 1 OF 5 UPGRADES · %.1fs · PICK, THEN CONFIRM" % seconds_left
+		draft_controller.update_countdown(deadline, seconds_left)
 
 
 func _update_heat_intro(state_name: String, seconds_left: float) -> void:
@@ -1801,6 +1435,8 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	var state_label := state_name.replace("_", " ").to_upper()
 	var mode_label := String(latest_match_payload.get("game_mode_name", GameModeRules.mode_name(int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH))))).to_upper()
+	if bool(latest_match_payload.get("competitive_view", false)):
+		mode_label += " · COMPETITIVE 16:9"
 	var map_label := String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper()
 	var round_heat := "ROUND %d / HEAT %d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))]
 	var local_team := network_world.team_for_peer(bridge.local_peer_id) if bridge != null else 0
@@ -1907,44 +1543,23 @@ func _local_respawn_status_text() -> String:
 
 
 func _draft_category_color(category: int) -> Color:
-	match category:
-		CardDefinition.Category.SHIP:
-			return Color("38d9ff")
-		CardDefinition.Category.SHIELD:
-			return Color("ae7cff")
-		_:
-			return Color("ff4fd8")
+	return draft_controller._draft_category_color(category)
 
 
 func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(color.darkened(0.72), 0.94 if emphasized else 0.86)
-	style.border_color = Color(color, 0.95 if emphasized else 0.62)
-	style.set_border_width_all(3 if emphasized else 2)
-	style.set_corner_radius_all(12)
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_top = 12.0
-	style.content_margin_bottom = 12.0
-	return style
+	return draft_controller._draft_card_style(color, emphasized)
 
 
 func _draft_card_focus_style(rarity_color: Color) -> StyleBoxFlat:
-	var style := _draft_card_style(rarity_color, true)
-	style.border_color = DesignTokensScript.FOCUS
-	style.set_border_width_all(4)
-	style.shadow_color = Color(DesignTokensScript.FOCUS, 0.34)
-	style.shadow_size = 14
-	return style
+	return draft_controller._draft_card_focus_style(rarity_color)
 
 
 func _local_build_stack(card_id: StringName) -> int:
-	return int(_local_build().get(card_id, 0))
+	return draft_controller._local_build_stack(card_id)
 
 
 func _local_build() -> Dictionary:
-	var builds := latest_match_payload.get("builds", {}) as Dictionary
-	return builds.get(bridge.local_peer_id, builds.get(str(bridge.local_peer_id), {})) as Dictionary
+	return draft_controller._local_build()
 
 
 func _player_name(peer_id: int) -> String:
@@ -1969,39 +1584,11 @@ func _player_team(peer_id: int) -> int:
 
 
 func _update_scoreboard() -> void:
-	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
-	scoreboard_context_label.text = "%s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
-		state_name,
-		int(latest_match_payload.get("round_number", 0)),
-		int(latest_match_payload.get("heat_number", 0)),
-		_result_peer_ids().size(),
-	]
-	var track_name := audio_director.current_gameplay_track_name()
-	if track_name.is_empty():
-		track_name = "No Gameplay Music"
-	scoreboard_media_label.text = "MAP  ·  %s     ♫     NOW PLAYING  ·  %s" % [
-		String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
-		track_name.to_upper(),
-	]
-	scoreboard_hill_heading.visible = int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL
-	if not _scoreboard_rows_dirty:
-		return
-	_scoreboard_rows_dirty = false
-	for child in scoreboard_rows_container.get_children():
-		scoreboard_rows_container.remove_child(child)
-		child.free()
-	var peer_ids := _result_peer_ids()
-	for index in peer_ids.size():
-		_add_scoreboard_row(index + 1, peer_ids[index])
+	standings_controller._update_scoreboard()
 
 
 func _set_scoreboard_open(open: bool) -> void:
-	scoreboard_open = open and _scoreboard_available()
-	if scoreboard_panel != null:
-		scoreboard_panel.visible = scoreboard_open
-	if scoreboard_open:
-		_scoreboard_rows_dirty = true
-		_update_scoreboard()
+	standings_controller._set_scoreboard_open(open)
 
 
 func _scoreboard_available() -> bool:
@@ -2011,352 +1598,77 @@ func _scoreboard_available() -> bool:
 
 
 func _add_scoreboard_row(rank: int, peer_id: int) -> void:
-	var is_local := peer_id == bridge.local_peer_id
-	var team_id := _player_team(peer_id)
-	var accent := Color("fff36a") if is_local else GameModeRules.team_color(team_id) if team_id > 0 else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
-	var row_panel := PanelContainer.new()
-	row_panel.custom_minimum_size.y = 58.0
-	row_panel.set_meta("peer_id", peer_id)
-	row_panel.set_meta("rank", rank)
-	row_panel.add_theme_stylebox_override("panel", _results_row_style(accent, is_local))
-	scoreboard_rows_container.add_child(row_panel)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	row_panel.add_child(row)
-	var player_label := Label.new()
-	player_label.text = "#%02d   %s%s%s" % [rank, _player_name(peer_id), "  ·  %s" % GameModeRules.team_name(team_id) if team_id > 0 else "", "  ★ YOU" if is_local else ""]
-	player_label.custom_minimum_size.x = 300.0
-	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	player_label.add_theme_font_size_override("font_size", 19 if is_local else 17)
-	player_label.add_theme_color_override("font_color", accent if is_local else Color("f4fbff"))
-	row.add_child(player_label)
-	var score := _result_score(peer_id)
-	var heats_label := Label.new()
-	heats_label.text = str(score.get("heat_wins", 0))
-	heats_label.custom_minimum_size.x = 90.0
-	heats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heats_label.add_theme_color_override("font_color", Color("73f7ff"))
-	row.add_child(heats_label)
-	var rounds_label := Label.new()
-	rounds_label.text = str(score.get("round_wins", 0))
-	rounds_label.custom_minimum_size.x = 100.0
-	rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rounds_label.add_theme_color_override("font_color", Color("ff8ee8"))
-	row.add_child(rounds_label)
-	var kills_label := Label.new()
-	kills_label.name = "MatchKills"
-	kills_label.text = str(score.get("kills", 0))
-	kills_label.custom_minimum_size.x = 80.0
-	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kills_label.add_theme_color_override("font_color", Color("fff36a"))
-	row.add_child(kills_label)
-	if int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL:
-		var hill_label := Label.new()
-		hill_label.name = "HillTime"
-		hill_label.text = "%.1fs" % _hill_score(peer_id)
-		hill_label.custom_minimum_size.x = 100.0
-		hill_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hill_label.add_theme_color_override("font_color", Color("ffb45f"))
-		row.add_child(hill_label)
-	_add_result_build(row, peer_id, "ScoreboardBuildCards")
+	standings_controller._add_scoreboard_row(rank, peer_id)
 
 
 func _hill_score(peer_id: int) -> float:
-	var objective := latest_match_payload.get("objective", {}) as Dictionary
-	var progress := objective.get("progress", {}) as Dictionary
-	return float(progress.get(peer_id, progress.get(str(peer_id), 0.0)))
+	return standings_controller._hill_score(peer_id)
 
 
 func _update_results_screen() -> void:
-	var winner_id := int(latest_match_payload.get("match_winner", 0))
-	var winner_team := int(latest_match_payload.get("match_winner_team", 0))
-	results_winner_label.text = "★  %s  ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(winner_id).to_upper())
-	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
-	var action_requested := _extend_match_requested or _return_to_lobby_requested or _rematch_requested
-	var can_extend := bool(latest_match_payload.get("can_extend_match", true))
-	results_rematch_button.disabled = not is_leader or not can_extend or action_requested
-	results_rematch_button.text = "STARTING FRESH REMATCH…" if _rematch_requested else "FRESH REMATCH · SAME RULES"
-	results_rematch_button.tooltip_text = "The host starts a new match with the same rules and teams. Every build, score and objective total resets."
-	results_extend_button.disabled = not is_leader or not can_extend or action_requested
-	results_return_button.disabled = not is_leader or action_requested
-	if _extend_match_requested:
-		results_extend_button.text = "EXTENDING MATCH…"
-		results_extend_button.tooltip_text = "Waiting for server confirmation."
-	else:
-		results_extend_button.text = "PLAY 5 MORE ROUNDS"
-		results_extend_button.tooltip_text = "Continue this match for exactly five more rounds while keeping every player's cards and scores."
-	if _return_to_lobby_requested:
-		results_return_button.text = "RETURNING EVERYONE TO LOBBY…"
-		results_return_button.tooltip_text = "Waiting for server confirmation."
-	elif is_leader:
-		results_return_button.text = "EXIT TO LOBBY"
-		results_return_button.tooltip_text = "Close the final standings and return every connected player to the lobby."
-	else:
-		results_return_button.text = "WAITING FOR LOBBY LEADER"
-		results_return_button.tooltip_text = "The lobby leader controls when everyone leaves the final standings."
-	if not _results_rows_dirty:
-		return
-	_results_rows_dirty = false
-	for child in results_standings_container.get_children():
-		results_standings_container.remove_child(child)
-		child.free()
-	var peer_ids := _result_peer_ids()
-	for index in peer_ids.size():
-		var peer_team := _player_team(peer_ids[index])
-		_add_result_row(index + 1, peer_ids[index], peer_team == winner_team if winner_team > 0 else peer_ids[index] == winner_id)
+	standings_controller._update_results_screen()
 
 
 func _on_results_rematch_pressed() -> void:
-	if results_rematch_button.disabled:
-		return
-	_rematch_requested = true
-	_update_results_screen()
-	bridge.send_rematch()
+	standings_controller._on_results_rematch_pressed()
 
 
 func _on_results_extend_pressed() -> void:
-	if results_extend_button.disabled:
-		return
-	_extend_match_requested = true
-	_update_results_screen()
-	bridge.send_extend_match()
+	standings_controller._on_results_extend_pressed()
 
 
 func _on_results_return_pressed() -> void:
-	if results_return_button.disabled:
-		return
-	_return_to_lobby_requested = true
-	_update_results_screen()
-	bridge.send_return_to_lobby()
+	standings_controller._on_results_return_pressed()
 
 
 func _result_peer_ids() -> Array[int]:
-	return StandingsModelScript.peer_ids(latest_match_payload)
+	return standings_controller._result_peer_ids()
 
 
 func _result_score(peer_id: int) -> Dictionary:
-	return StandingsModelScript.score(latest_match_payload, peer_id)
+	return standings_controller._result_score(peer_id)
 
 
 func _result_build(peer_id: int) -> Dictionary:
-	return StandingsModelScript.build(latest_match_payload, peer_id)
+	return standings_controller._result_build(peer_id)
 
 
 func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: String = "FinalBuildCards") -> void:
-	var build := _result_build(peer_id)
-	var build_flow := HFlowContainer.new()
-	build_flow.name = container_name
-	build_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	build_flow.add_theme_constant_override("h_separation", 6)
-	build_flow.add_theme_constant_override("v_separation", 5)
-	parent.add_child(build_flow)
-	if build.is_empty():
-		var base_label := Label.new()
-		base_label.text = "BASE LOADOUT"
-		base_label.add_theme_font_size_override("font_size", 15)
-		base_label.add_theme_color_override("font_color", Color("8ba1c7"))
-		build_flow.add_child(base_label)
-		return
-	var card_ids := build.keys()
-	card_ids.sort_custom(func(first: Variant, second: Variant) -> bool:
-		var first_card := card_catalog.get_card(StringName(first))
-		var second_card := card_catalog.get_card(StringName(second))
-		var first_name := first_card.display_name if first_card != null else String(first)
-		var second_name := second_card.display_name if second_card != null else String(second)
-		return first_name < second_name
-	)
-	for card_value in card_ids:
-		var card_id := StringName(card_value)
-		var card := card_catalog.get_card(card_id)
-		var stacks := int(build[card_value])
-		var chip := CardHoverButtonScript.new()
-		chip.focus_mode = Control.FOCUS_ALL
-		chip.mouse_default_cursor_shape = Control.CURSOR_HELP
-		chip.text = "%s ×%d" % [card.display_name if card != null else String(card_id), stacks]
-		chip.set_meta("card_id", card_id)
-		chip.set_meta("stack_count", stacks)
-		chip.add_theme_font_size_override("font_size", 14)
-		if card != null:
-			var rarity_color := card.rarity_color()
-			chip.configure(card, stacks, _result_card_tooltip(card, stacks))
-			chip.add_theme_color_override("font_color", rarity_color.lightened(0.2))
-			chip.add_theme_color_override("font_hover_color", Color.WHITE)
-			chip.add_theme_stylebox_override("normal", _result_card_chip_style(rarity_color, false))
-			chip.add_theme_stylebox_override("hover", _result_card_chip_style(rarity_color, true))
-			chip.add_theme_stylebox_override("focus", _result_card_chip_focus_style(rarity_color))
-			chip.add_theme_stylebox_override("pressed", _result_card_chip_style(rarity_color, true))
-		build_flow.add_child(chip)
+	standings_controller._add_result_build(parent, peer_id, container_name)
 
 
 func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: String = "OWNED STACKS") -> String:
-	var lines := PackedStringArray([
-		card.display_name.to_upper(),
-		"%s · %s · %s TIER DROP" % [card.rarity_name().to_upper(), card.category_name().to_upper(), card.rarity_drop_chance_text()],
-		"",
-		card.description,
-		"",
-		"%s: %d" % [stack_heading, stacks],
-		"CARD STATS",
-	])
-	var stat_lines := PackedStringArray()
-	var additive_names := card.additive_modifiers.keys()
-	additive_names.sort()
-	for property_value in additive_names:
-		var property_name := String(property_value)
-		var per_stack := float(card.additive_modifiers[property_value])
-		stat_lines.append("%s  %+.2f each · %+.2f total" % [_card_stat_name(property_name), per_stack, per_stack * stacks])
-	var multiplier_names := card.multiplicative_modifiers.keys()
-	multiplier_names.sort()
-	for property_value in multiplier_names:
-		var property_name := String(property_value)
-		var per_stack := float(card.multiplicative_modifiers[property_value])
-		stat_lines.append("%s  ×%.2f each · ×%.2f total" % [_card_stat_name(property_name), per_stack, pow(per_stack, stacks)])
-	var integer_names := card.integer_modifiers.keys()
-	integer_names.sort()
-	for property_value in integer_names:
-		var property_name := String(property_value)
-		var per_stack := int(card.integer_modifiers[property_value])
-		stat_lines.append("%s  %+d each · %+d total" % [_card_stat_name(property_name), per_stack, per_stack * stacks])
-	if card.special_behavior_id == &"beam_weapon":
-		stat_lines.append("Weapon Form  Pulse beam")
-	elif card.special_behavior_id == &"auto_repair":
-		stat_lines.append("Special  Automatic hull repair")
-	elif card.special_behavior_id == &"afterburner":
-		stat_lines.append("Special  Forward burst on Special binding")
-	elif card.special_behavior_id == &"mine_layer":
-		stat_lines.append("Special  Drop an explosive mine on Special binding")
-	elif card.special_behavior_id == &"missile_launcher":
-		stat_lines.append("Special  Launch a limited-range seeker on Special binding")
-	elif card.special_behavior_id == &"cloak":
-		stat_lines.append("Special  Become invisible for 5 seconds on Special binding")
-	elif card.special_behavior_id == &"rebound_shield":
-		stat_lines.append("Shield Form  Rebound projectiles with stack-scaled damage and range")
-	elif card.special_behavior_id == &"kinetic_vent":
-		stat_lines.append("Shield Form  Release blocked damage as a defensive pulse")
-	elif card.special_behavior_id == &"breakaway_thrusters":
-		stat_lines.append("Escape System  Burst mobility after shield break or heavy hull damage")
-	if stat_lines.is_empty():
-		stat_lines.append("Special behavior described above")
-	lines.append_array(stat_lines)
-	return "\n".join(lines)
+	return CardDetailsText.tooltip(card, stacks, stack_heading)
 
 
 func _card_stat_name(property_name: String) -> String:
-	return property_name.replace("_", " ").capitalize()
+	return CardDetailsText._card_stat_name(property_name)
 
 
 func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
-	var team_id := _player_team(peer_id)
-	var accent := Color("fff36a") if winner else GameModeRules.team_color(team_id) if team_id > 0 else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
-	var row_panel := PanelContainer.new()
-	row_panel.custom_minimum_size.y = 58.0
-	row_panel.set_meta("peer_id", peer_id)
-	row_panel.set_meta("rank", rank)
-	row_panel.set_meta("winner", winner)
-	row_panel.add_theme_stylebox_override("panel", _results_row_style(accent, winner))
-	results_standings_container.add_child(row_panel)
-	var row_content := VBoxContainer.new()
-	row_content.add_theme_constant_override("separation", 6)
-	row_panel.add_child(row_content)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	row_content.add_child(row)
-	var rank_label := Label.new()
-	rank_label.text = "#%02d" % rank
-	rank_label.custom_minimum_size.x = 60.0
-	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rank_label.add_theme_font_size_override("font_size", 19)
-	rank_label.add_theme_color_override("font_color", accent)
-	row.add_child(rank_label)
-	var player_label := Label.new()
-	player_label.text = "%s%s%s" % [_player_name(peer_id), "  ·  %s" % GameModeRules.team_name(team_id) if team_id > 0 else "", "  ★" if winner else ""]
-	player_label.custom_minimum_size.x = 230.0
-	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	player_label.add_theme_font_size_override("font_size", 20 if winner else 18)
-	player_label.add_theme_color_override("font_color", Color("fff36a") if winner else Color("f4fbff"))
-	row.add_child(player_label)
-	var score := _result_score(peer_id)
-	var score_label := Label.new()
-	score_label.name = "RoundWins"
-	score_label.text = str(int(score.get("round_wins", 0)))
-	score_label.custom_minimum_size.x = 150.0
-	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	score_label.add_theme_font_size_override("font_size", 16)
-	score_label.add_theme_color_override("font_color", Color("73f7ff"))
-	row.add_child(score_label)
-	var kills_label := Label.new()
-	kills_label.name = "MatchKills"
-	kills_label.text = str(int(score.get("kills", 0)))
-	kills_label.custom_minimum_size.x = 100.0
-	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kills_label.add_theme_font_size_override("font_size", 16)
-	kills_label.add_theme_color_override("font_color", Color("fff36a"))
-	row.add_child(kills_label)
-	_add_result_build(row, peer_id)
-	var contribution := preload("res://src/client/ui/objective_contribution_text.gd").summary(latest_match_payload, peer_id)
-	if not contribution.is_empty():
-		var contribution_label := Label.new()
-		contribution_label.name = "ObjectiveContribution"
-		contribution_label.text = contribution
-		contribution_label.add_theme_font_size_override("font_size", 16)
-		contribution_label.add_theme_color_override("font_color", Color("bdefff"))
-		contribution_label.tooltip_text = "Server-recorded contribution over the whole match. Contested time is separate from scoring control; carrier stops count enemy flag carriers eliminated."
-		row_content.add_child(contribution_label)
+	standings_controller._add_result_row(rank, peer_id, winner)
 
 
 func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> Label:
-	var label := Label.new()
-	label.text = text_value
-	label.custom_minimum_size.x = width
-	label.add_theme_font_size_override("font_size", 14)
-	label.add_theme_color_override("font_color", Color("8ba1c7"))
-	if expand:
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(label)
-	return label
+	return standings_controller._add_results_column_heading(parent, text_value, width, expand)
 
 
 func _results_row_style(accent: Color, winner: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(accent.darkened(0.82), 0.9 if winner else 0.7)
-	style.border_color = Color(accent, 0.92 if winner else 0.38)
-	style.set_border_width_all(2 if winner else 1)
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
-	return style
+	return standings_controller._results_row_style(accent, winner)
 
 
 func _result_card_chip_style(color: Color, hovered: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(color.darkened(0.76), 0.92 if hovered else 0.72)
-	style.border_color = Color(color, 0.9 if hovered else 0.46)
-	style.set_border_width_all(2 if hovered else 1)
-	style.set_corner_radius_all(7)
-	style.content_margin_left = 8.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 4.0
-	style.content_margin_bottom = 4.0
-	return style
+	return standings_controller._result_card_chip_style(color, hovered)
 
 
 func _result_card_chip_focus_style(rarity_color: Color) -> StyleBoxFlat:
-	var style := _result_card_chip_style(rarity_color, true)
-	style.border_color = DesignTokensScript.FOCUS
-	style.set_border_width_all(3)
-	style.shadow_color = Color(DesignTokensScript.FOCUS, 0.26)
-	style.shadow_size = 8
-	return style
+	return standings_controller._result_card_chip_focus_style(rarity_color)
 
 
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
 	last_state_name = state_name
 	if state_name == "LOBBY":
-		_extend_match_requested = false
-		_return_to_lobby_requested = false
-		_rematch_requested = false
+		standings_controller.reset_actions()
 		audio_director.set_context(&"lobby")
 		_set_win_screen_visible(false)
 		return
@@ -2370,22 +1682,12 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	elif state_name == "ROUND_RESULT":
 		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
 	elif state_name == "MATCH_RESULT":
-		results_action_note.text = RESULTS_ACTION_EXPLANATION
-		_extend_match_requested = false
-		_return_to_lobby_requested = false
-		_rematch_requested = false
+		standings_controller.reset_actions(true)
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
 
 
 func _set_win_screen_visible(visible: bool) -> void:
-	if win_overlay != null:
-		win_overlay.visible = visible
-	if results_panel != null:
-		results_panel.visible = visible
-	if not visible:
-		_results_rows_dirty = true
-	elif results_return_button != null and not results_return_button.disabled:
-		results_return_button.grab_focus()
+	standings_controller._set_win_screen_visible(visible)
 
 
 func _update_timed_audio() -> void:
@@ -2406,6 +1708,7 @@ func _update_timed_audio() -> void:
 
 
 func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -> void:
+	payload = _world_audio_details(payload)
 	if event_name == &"weapon_fire":
 		audio_director.play_weapon_shot(
 			payload.get("profile"),
@@ -2427,7 +1730,27 @@ func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -
 			payload.get("position", Vector2.ZERO) as Vector2,
 			payload.get("listener_position", Vector2.ZERO) as Vector2
 		)
-	audio_director.play_sfx(event_name, unique_key, volume_db)
+	audio_director.play_sfx(event_name, unique_key, volume_db, payload)
+
+
+func _world_audio_details(payload: Dictionary) -> Dictionary:
+	var details := payload.duplicate()
+	if network_world == null or not network_world.visible:
+		return details
+	var peer_id := int(details.get("peer_id", details.get("owner_id", 0)))
+	if peer_id != 0:
+		if not details.has("local"):
+			details["local"] = peer_id == bridge.local_peer_id
+		var source_ship := network_world.ships.get(peer_id) as SandboxShip
+		if source_ship != null and not details.has("position"):
+			details["position"] = source_ship.global_position
+	if not details.has("listener_position"):
+		var local_ship := network_world.ships.get(bridge.local_peer_id) as SandboxShip
+		if local_ship != null:
+			details["listener_position"] = local_ship.global_position
+		elif network_world.camera != null:
+			details["listener_position"] = network_world.camera.global_position
+	return details
 
 
 func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:

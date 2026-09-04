@@ -55,6 +55,7 @@ var lobby_options_focus_return: Control
 var powerups_button: CheckButton
 var powerup_interval_control: SpinBox
 var powerups_permanent_button: CheckButton
+var competitive_view_control: CheckButton
 var overtime_start_control: SpinBox
 var game_mode_control: OptionButton
 var game_mode_note: Label
@@ -475,6 +476,12 @@ func _create_lobby_options_popup() -> void:
 	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color("d39cff"))
 	content.add_child(title)
+	competitive_view_control = CheckButton.new()
+	competitive_view_control.name = "CompetitiveView"
+	competitive_view_control.text = "Competitive view · equal 16:9 combat space"
+	competitive_view_control.tooltip_text = "Applies to every player and spectator. Wider or taller screens show bars during the match; normal menus retain their full layout."
+	competitive_view_control.toggled.connect(_on_competitive_view_changed)
+	content.add_child(competitive_view_control)
 	var mode_row := HBoxContainer.new()
 	mode_row.add_theme_constant_override("separation", 14)
 	content.add_child(mode_row)
@@ -993,6 +1000,7 @@ func render_lobby(state: Dictionary) -> void:
 	]
 	var is_leader: bool = int(state.get("leader_id", 0)) == client.bridge.local_peer_id
 	lobby_rules_label.text = "%s  ·  First to %d rounds  ·  %s" % [GameModeRules.mode_name(int(state.get("game_mode", 0))), int(state.get("rounds_to_win", 3)), "NPC fill enabled" if bool(state.get("npcs_enabled", false)) else "Human pilots only"]
+	lobby_rules_label.text += "  ·  Competitive 16:9" if bool(state.get("competitive_view", false)) else "  ·  Expanded view"
 	lobby_readiness_label.text = readiness_summary(state)
 	lobby_options_button.text = "MATCH SETUP" if is_leader else "VIEW MATCH SETUP"
 	lobby_options_button.tooltip_text = "Choose a solo or party preset, or configure advanced rules." if is_leader else "View current rules. Only the host may edit match setup."
@@ -1018,6 +1026,7 @@ func render_lobby(state: Dictionary) -> void:
 	powerups_button.button_pressed = bool(state.get("random_spawn_powerups", false))
 	powerup_interval_control.value = float(state.get("random_powerup_interval_seconds", 20.0))
 	powerups_permanent_button.button_pressed = bool(state.get("random_powerups_permanent", false))
+	competitive_view_control.set_pressed_no_signal(bool(state.get("competitive_view", false)))
 	overtime_start_control.value = float(state.get("overtime_start_seconds", GameConstants.OVERTIME_START_SECONDS))
 	ready_button.button_pressed = local_ready
 	for player_value in state.get("players", []):
@@ -1049,6 +1058,7 @@ func render_lobby(state: Dictionary) -> void:
 	powerup_interval_control.editable = settings_editable and bool(state.get("random_spawn_powerups", false))
 	powerups_permanent_button.disabled = not settings_editable or not bool(state.get("random_spawn_powerups", false))
 	overtime_start_control.editable = settings_editable
+	competitive_view_control.disabled = not settings_editable
 	var can_supply_opponent := total_count >= GameConstants.MIN_PLAYERS or bool(state.get("npcs_enabled", false))
 	var team_setup_valid := bool(state.get("team_setup_valid", true))
 	var team_setup_error := String(state.get("team_setup_error", ""))
@@ -1325,6 +1335,11 @@ func _on_powerup_interval_changed(value: float) -> void:
 func _on_powerups_permanent_toggled(permanent: bool) -> void:
 	if not _applying_lobby_state:
 		client.bridge.send_random_powerups_permanent(permanent)
+
+
+func _on_competitive_view_changed(enabled: bool) -> void:
+	if not _applying_lobby_state:
+		client.bridge.send_competitive_view(enabled)
 
 
 func _on_overtime_start_changed(value: float) -> void:

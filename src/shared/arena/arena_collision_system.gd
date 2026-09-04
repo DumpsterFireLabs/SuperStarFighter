@@ -121,22 +121,22 @@ static func projectile_obstacle_sweep_hit(
 	if start.y >= GameConstants.ARENA_SIZE.y - radius:
 		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.UP}
 	var geometry := geometry_override if not geometry_override.is_empty() else _projectile_geometry(map_id, radius)
-	var rectangles := geometry.rectangles as Array
-	var circles := geometry.circles as Array
-	var rectangle_cells := geometry.rectangle_cells as Dictionary
-	var circle_cells := geometry.circle_cells as Dictionary
 	var start_cell := _projectile_obstacle_cell(start)
-	# Most moving bullets remain in a single empty broad-phase cell. Expanded
-	# obstacle cells include the projectile radius, so this convex segment cannot
-	# hit cover; check arena bounds before skipping the detailed sweep.
+	var end_cell := _projectile_obstacle_cell(end)
+	# The common empty-cell path needs only one occupancy lookup. Defer typed
+	# geometry extraction until a sweep can actually reach an obstacle.
 	if (
-		start_cell == _projectile_obstacle_cell(end)
-		and not rectangle_cells.has(start_cell) and not circle_cells.has(start_cell)
+		start_cell == end_cell
+		and not (geometry.occupied_cells as Dictionary).has(start_cell)
 		and end.x > radius and end.y > radius
 		and end.x < GameConstants.ARENA_SIZE.x - radius
 		and end.y < GameConstants.ARENA_SIZE.y - radius
 	):
 		return null
+	var rectangles := geometry.rectangles as Array
+	var circles := geometry.circles as Array
+	var rectangle_cells := geometry.rectangle_cells as Dictionary
+	var circle_cells := geometry.circle_cells as Dictionary
 	for rectangle_index in rectangle_cells.get(start_cell, _empty_obstacle_indices) as Array:
 		var rectangle := rectangles[int(rectangle_index)] as Rect2
 		if rectangle.has_point(start):
@@ -170,8 +170,8 @@ static func projectile_obstacle_sweep_hit(
 		if candidate_fraction < best_fraction:
 			best_fraction = candidate_fraction
 			best_normal = Vector2.UP
-	var segment_minimum := _projectile_obstacle_cell(Vector2(minf(start.x, end.x), minf(start.y, end.y)))
-	var segment_maximum := _projectile_obstacle_cell(Vector2(maxf(start.x, end.x), maxf(start.y, end.y)))
+	var segment_minimum := Vector2i(mini(start_cell.x, end_cell.x), mini(start_cell.y, end_cell.y))
+	var segment_maximum := Vector2i(maxi(start_cell.x, end_cell.x), maxi(start_cell.y, end_cell.y))
 	if (
 		segment_minimum == segment_maximum and
 		not rectangle_cells.has(segment_minimum) and
@@ -235,7 +235,10 @@ static func _projectile_geometry(map_id: StringName, radius: float) -> Dictionar
 		var circle := circles[circle_index]
 		var extent := Vector2.ONE * circle.z
 		_append_obstacle_to_cells(circle_cells, Rect2(Vector2(circle.x, circle.y) - extent, extent * 2.0), circle_index)
+	var occupied_cells := rectangle_cells.duplicate()
+	occupied_cells.merge(circle_cells)
 	var result := {
+		"occupied_cells": occupied_cells,
 		"rectangles": rectangles,
 		"circles": circles,
 		"rectangle_cells": rectangle_cells,

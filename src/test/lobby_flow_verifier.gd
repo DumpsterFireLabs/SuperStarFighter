@@ -4,6 +4,8 @@ extends SceneTree
 var server: NetworkBridge
 var host: NetworkBridge
 var guest: NetworkBridge
+var spectator: NetworkBridge
+var spectator_state: Dictionary = {}
 var guest_rejections: int = 0
 var host_state: Dictionary = {}
 var guest_state: Dictionary = {}
@@ -32,6 +34,11 @@ func _run() -> void:
 	server = _runtime("Server")
 	host = _runtime("Host")
 	guest = _runtime("Guest")
+	spectator = _runtime("Spectator")
+	spectator.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
+		if event == &"STATE_CHANGED":
+			spectator_state = payload
+	)
 	host.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
 		if event == &"STATE_CHANGED":
 			host_state = payload
@@ -64,6 +71,19 @@ func _run() -> void:
 	if not await _until(func() -> bool: return int(guest.latest_lobby_state.get("game_mode", -1)) == GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG and int(guest.latest_lobby_state.get("player_limit", 0)) == 8):
 		_fail("host_preset_not_replicated")
 		return
+	# Keep free seats for the real late-spectator admission check.
+	host.send_npcs_enabled(false)
+	if not await _until(func() -> bool: return not bool(guest.latest_lobby_state.get("npcs_enabled", true))):
+		_fail("npc_fill_not_disabled")
+		return
+	guest.send_competitive_view(true)
+	if not await _until(func() -> bool: return guest_rejections == 2):
+		_fail("guest_competitive_view_not_rejected")
+		return
+	host.send_competitive_view(true)
+	if not await _until(func() -> bool: return bool(guest.latest_lobby_state.get("competitive_view", false)) and bool(host.latest_lobby_state.get("competitive_view", false))):
+		_fail("competitive_view_not_replicated")
+		return
 	host.send_ready_state(true)
 	guest.send_ready_state(true)
 	if not await _until(func() -> bool: return server.lobby.all_humans_ready()):
@@ -72,6 +92,21 @@ func _run() -> void:
 	host.send_start_match()
 	if not await _until(func() -> bool: return String(host_state.get("state_name", "")) == "DRAFT" and String(guest_state.get("state_name", "")) == "DRAFT"):
 		_fail("draft_not_replicated")
+		return
+	if not bool(host_state.get("competitive_view", false)) or not bool(guest_state.get("competitive_view", false)):
+		_fail("match_view_policy_missing")
+		return
+	host.send_competitive_view(false)
+	await create_timer(0.1).timeout
+	if not server.lobby.config.competitive_view:
+		_fail("view_policy_changed_midmatch")
+		return
+	spectator.start_client("127.0.0.1", verification_port, "LateViewer", GameConstants.PROTOCOL_VERSION, "flow-test")
+	if not await _until(func() -> bool: return spectator.local_peer_id != 0 and bool(spectator_state.get("competitive_view", false))):
+		_fail("late_spectator_view_policy_missing")
+		return
+	if not server.lobby.players[spectator.local_peer_id].spectator:
+		_fail("late_join_not_spectator")
 		return
 	# Results are a deterministic fixture; requests and their replication use
 	# actual remote sender identities, RPC checksums and reliable ENet channels.
@@ -85,7 +120,7 @@ func _run() -> void:
 		_fail("results_not_replicated")
 		return
 	guest.send_rematch()
-	if not await _until(func() -> bool: return guest_rejections == 2):
+	if not await _until(func() -> bool: return guest_rejections == 3):
 		_fail("guest_rematch_not_rejected")
 		return
 	if server.match_coordinator != prior:
@@ -101,7 +136,7 @@ func _run() -> void:
 		_fail("fresh_rematch_reset_or_rules")
 		return
 	var builds: Dictionary = host_state.get("builds", {})
-	if not (builds.get(host.local_peer_id, {}) as Dictionary).is_empty() or int(host_state.get("round_number", 0)) != 1:
+	if not (builds.get(host.local_peer_id, {}) as Dictionary).is_empty() or int(host_state.get("round_number", 0)) != 1 or not bool(host_state.get("competitive_view", false)) or not bool(guest_state.get("competitive_view", false)):
 		_fail("client_fresh_build_or_round")
 		return
 	print("SSF_LOBBY_FLOW_OK=host_preset_guest_rejections_fresh_rematch protocol=%d" % GameConstants.PROTOCOL_VERSION)
@@ -119,7 +154,7 @@ func _until(predicate: Callable) -> bool:
 
 
 func _cleanup() -> void:
-	for bridge in [guest, host, server]:
+	for bridge in [spectator, guest, host, server]:
 		if bridge != null:
 			bridge.stop()
 

@@ -34,6 +34,8 @@ var predicted_tracker := PredictedProjectileTracker.new()
 var predicted_projectile_ids: Dictionary = {}
 var local_weapon := WeaponState.new()
 var local_stats := CombatStats.create_base()
+var competitive_view_policy = preload("res://src/client/presentation/competitive_view_policy.gd").new()
+var _network_active: bool = false
 var camera: Camera2D
 var diagnostics_label: Label
 var hud_panel: PanelContainer
@@ -132,6 +134,8 @@ func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
 
 
 func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
+	_network_active = active
+	_update_competitive_view()
 	if not active:
 		action_latch.reset()
 	if not active and reset_when_inactive:
@@ -146,6 +150,7 @@ func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
 
 
 func reset_session() -> void:
+	competitive_view_policy.restore()
 	action_latch.reset()
 	if combat_feedback_panel != null:
 		combat_feedback_panel.clear_feedback(true)
@@ -441,6 +446,7 @@ func _sync_predicted_resources(ship: SandboxShip) -> void:
 
 func apply_match_state(payload: Dictionary) -> void:
 	match_payload = payload.duplicate(true)
+	_update_competitive_view()
 	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
 	if arena != null:
 		arena.set_map_id(payload_map_id)
@@ -482,6 +488,15 @@ func apply_match_state(payload: Dictionary) -> void:
 			effects_layer.clear_effects()
 		snap_camera_to_local_ship()
 	_update_spectator_target()
+
+
+func _update_competitive_view() -> void:
+	if is_inside_tree():
+		competitive_view_policy.apply(get_window(), _network_active and bool(match_payload.get("competitive_view", false)))
+
+
+func _exit_tree() -> void:
+	competitive_view_policy.restore()
 
 
 func apply_objective_state(objective: Dictionary) -> void:
@@ -1400,10 +1415,14 @@ func _update_camera_shake(delta: float) -> void:
 	camera.offset = desired_offset
 
 
+func gameplay_mouse_position() -> Vector2:
+	return competitive_view_policy.gameplay_point(get_viewport().get_mouse_position())
+
+
 func _unshaken_mouse_world_position() -> Vector2:
 	if camera == null:
-		return get_global_mouse_position()
-	var screen_offset := get_viewport().get_mouse_position() - get_viewport_rect().size * 0.5
+		return get_canvas_transform().affine_inverse() * gameplay_mouse_position()
+	var screen_offset := gameplay_mouse_position() - get_viewport_rect().size * 0.5
 	return camera.position + Vector2(screen_offset.x / camera.zoom.x, screen_offset.y / camera.zoom.y)
 
 

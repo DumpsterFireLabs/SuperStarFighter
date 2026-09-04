@@ -9,6 +9,7 @@ var draft_duration_seconds: float = GameConstants.DRAFT_DURATION_SECONDS
 var countdown_duration_seconds: float = GameConstants.COUNTDOWN_DURATION_SECONDS
 var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SECONDS
 var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
+var competitive_view: bool = false
 var random_spawn_powerups: bool = false
 var random_powerup_interval_seconds: float = 20.0
 var random_powerups_permanent: bool = false
@@ -71,6 +72,7 @@ func duplicate_config() -> MatchConfig:
 	copy.countdown_duration_seconds = countdown_duration_seconds
 	copy.heat_result_duration_seconds = heat_result_duration_seconds
 	copy.round_result_duration_seconds = round_result_duration_seconds
+	copy.competitive_view = competitive_view
 	copy.random_spawn_powerups = random_spawn_powerups
 	copy.random_powerup_interval_seconds = random_powerup_interval_seconds
 	copy.random_powerups_permanent = random_powerups_permanent

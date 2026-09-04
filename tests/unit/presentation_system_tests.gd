@@ -34,7 +34,9 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 			has_sfx_limiter = true
 	context.expect_true(has_sfx_limiter, "effects bus limits extreme overlapping weapon transients")
 	context.expect_true(FileAccess.file_exists("res://assets/audio/README.md"), "audio drop-in contract is documented beside the asset paths")
+	context.expect_equal(audio.resident_music_bytes(), 0, "startup discovers music without retaining its sample buffers")
 	if FileAccess.file_exists("res://assets/audio/music/main_menu.mp3.wav"):
+		audio.prepare_music_now(&"menu")
 		context.expect_true(audio.menu_player.stream != null, "authored menu music with a compound filename is discovered")
 		context.expect_equal(audio.menu_crossfade_player.stream, audio.menu_player.stream, "menu music is prepared on two players for a seamless crossfade")
 		if audio.menu_player.stream is AudioStreamWAV:
@@ -49,7 +51,8 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_equal(audio.authored_music_inventory().gameplay, expected_gameplay_tracks, "export diagnostics report the discovered gameplay inventory")
 	context.expect_equal(audio.gameplay_track_paths.size(), audio.gameplay_tracks.size(), "every gameplay stream retains its display-name source path")
 	context.expect_equal(AudioDirector.music_display_name("res://music/heavy_electronic-edge_main.mp3.wav"), "Heavy Electronic Edge Main", "compound gameplay filenames become readable song titles")
-	context.expect_true(audio.win_player.stream != null, "win music always has an authored or generated stream")
+	audio.prepare_music_now(&"win")
+	context.expect_true(audio.win_player.stream != null, "win music loads its authored or generated stream on demand")
 	audio.play_sfx(&"card_lock", "same-card")
 	audio.play_sfx(&"card_lock", "same-card")
 	context.expect_equal(audio._played_keys.size(), 1, "repeated reliable events cannot replay the same sound")

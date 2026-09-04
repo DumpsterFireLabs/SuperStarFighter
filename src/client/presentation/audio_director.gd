@@ -3,6 +3,8 @@ extends Node
 
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 
+const MixPolicy = preload("res://src/client/presentation/audio_mix_policy.gd")
+
 const MUSIC_DIRECTORY: String = "res://assets/audio/music"
 const GAMEPLAY_MUSIC_DIRECTORY: String = "res://assets/audio/music/gameplay"
 const SFX_DIRECTORY: String = "res://assets/audio/sfx"
@@ -16,7 +18,7 @@ const SFX_NAMES: Array[StringName] = [
 	&"fire", &"beam_fire", &"reload", &"shield_on", &"shield_block", &"shield_break",
 	&"damage", &"elimination", &"card_lock", &"countdown", &"overtime",
 	&"round_win", &"match_win", &"projectile_impact", &"ricochet", &"mine_detonated",
-	&"missile_launch", &"rebound", &"kinetic_vent", &"breakaway", &"afterburner",
+	&"missile_launch", &"rebound", &"kinetic_vent", &"breakaway", &"afterburner", &"objective_gain", &"objective_loss", &"objective_neutral",
 ]
 
 var menu_player: AudioStreamPlayer
@@ -37,6 +39,15 @@ var music_volume_percent: float = 72.0
 var sfx_volume_percent: float = 82.0
 var muted: bool = false
 var playback_enabled: bool = true
+var music_duck_db: float = 0.0
+var music_duck_hold: float = 0.0
+var dropped_voices: int = 0
+var stolen_voices: int = 0
+var peak_active_voices: int = 0
+var pending_music: Dictionary = {}
+var desired_music_path: String = ""
+var previous_objective: Dictionary = {}
+var sfx_panners: Dictionary = {}
 var _active_menu_player: AudioStreamPlayer
 var _menu_crossfade_in_progress: bool = false
 var _menu_crossfade_elapsed: float = 0.0
@@ -57,7 +68,7 @@ func _ready() -> void:
 	win_player = _make_player("WinMusic", MUSIC_BUS)
 	gameplay_player.finished.connect(_play_next_gameplay_track)
 	for index in SFX_PLAYER_COUNT:
-		sfx_players.append(_make_player("Sfx%02d" % index, SFX_BUS))
+		sfx_players.append(_make_player("Sfx%02d" % index, _ensure_voice_bus(index)))
 	_load_sfx()
 	_load_music()
 	_apply_volumes()
@@ -74,6 +85,9 @@ func _exit_tree() -> void:
 	for player in sfx_players:
 		player.stop()
 		player.stream = null
+	for path in pending_music:
+		ResourceLoader.load_threaded_get(path)
+	pending_music.clear()
 	gameplay_tracks.clear()
 	gameplay_track_paths.clear()
 	sfx_streams.clear()
@@ -84,22 +98,26 @@ func _exit_tree() -> void:
 func set_context(context: StringName) -> void:
 	if current_context == context:
 		return
+	if current_context in [&"menu", &"lobby"] and context in [&"menu", &"lobby"]:
+		current_context = context
+		return
 	current_context = context
+	_release_music_streams()
+	desired_music_path = ""
 	match context:
 		&"menu", &"lobby":
 			gameplay_player.stop()
 			win_player.stop()
-			_start_menu_music()
+			_request_music(String(loaded_music_paths.get(&"menu", "")))
 		&"gameplay":
 			_stop_menu_music()
 			win_player.stop()
-			if playback_enabled and not gameplay_tracks.is_empty() and not gameplay_player.playing:
+			if not gameplay_track_paths.is_empty():
 				_play_next_gameplay_track()
 		&"win":
 			_stop_menu_music()
 			gameplay_player.stop()
-			if playback_enabled and win_player.stream != null and not win_player.playing:
-				win_player.play()
+			_request_music(String(loaded_music_paths.get(&"win", "")))
 		_:
 			_stop_menu_music()
 			gameplay_player.stop()
@@ -107,6 +125,13 @@ func set_context(context: StringName) -> void:
 
 
 func _process(delta: float) -> void:
+	_poll_music_requests()
+	music_duck_hold = maxf(music_duck_hold - maxf(delta, 0.0), 0.0)
+	var target := MixPolicy.MUSIC_DUCK_DB if music_duck_hold > 0.0 else 0.0
+	var next_duck := move_toward(music_duck_db, target, maxf(delta, 0.0) * (175.0 if target < music_duck_db else 20.0))
+	if not is_equal_approx(next_duck, music_duck_db):
+		music_duck_db = next_duck
+		_apply_music_volume()
 	if not playback_enabled or current_context not in [&"menu", &"lobby"]:
 		return
 	if _menu_crossfade_in_progress:
@@ -149,7 +174,7 @@ func set_muted(enabled: bool, save: bool = true) -> void:
 		_save_settings()
 
 
-func play_sfx(event_name: StringName, unique_key: String = "", volume_db: float = 0.0) -> void:
+func play_sfx(event_name: StringName, unique_key: String = "", volume_db: float = 0.0, details: Dictionary = {}) -> void:
 	if not SFX_NAMES.has(event_name) or not sfx_streams.has(event_name):
 		return
 	if not unique_key.is_empty():
@@ -167,13 +192,20 @@ func play_sfx(event_name: StringName, unique_key: String = "", volume_db: float 
 	if now - int(_last_played_msec.get(cooldown_scope, -1000)) < cooldown:
 		return
 	_last_played_msec[cooldown_scope] = now
+	_trim_cooldowns()
 	if not playback_enabled:
 		return
-	var priority := 6 if event_name in [&"shield_break", &"elimination", &"match_win", &"mine_detonated"] else (4 if event_name in [&"afterburner", &"missile_launch"] else 2)
-	var player := _acquire_sfx_player(priority)
+	var local := bool(details.get("local", not details.has("position")))
+	var priority: int = MixPolicy.priority(event_name, local)
+	if not local and priority < 7 and details.has("position") and details.has("listener_position"):
+		if (details.position as Vector2).distance_to(details.listener_position as Vector2) > 2200.0:
+			return
+	var group: StringName = &"important" if priority >= 7 else &"local" if local else &"remote_effect"
+	var player := _acquire_sfx_player(priority, group)
 	if player == null:
 		return
-	_play_on_player(player, sfx_streams[event_name], randf_range(0.97, 1.03), volume_db, priority)
+	var panning := 0.0 if local else MixPolicy.pan(details.get("position", Vector2.ZERO), details.get("listener_position", Vector2.ZERO))
+	_play_on_player(player, sfx_streams[event_name], randf_range(0.97, 1.03), volume_db + MixPolicy.gain_db(event_name, local), priority, group, panning)
 
 
 func world_sfx_volume_db(source_position: Vector2, listener_position: Vector2) -> float:
@@ -203,10 +235,14 @@ func play_weapon_shot(
 	if now - int(_last_played_msec.get(cooldown_key, -1000)) < cooldown:
 		return
 	_last_played_msec[cooldown_key] = now
+	_trim_cooldowns()
 	if not playback_enabled:
 		return
+	if not is_local and source_position.distance_to(listener_position) > 2200.0:
+		return
 	var priority := 5 if is_local else 1 + mini(profile.power_tier, 2)
-	var player := _acquire_sfx_player(priority)
+	var group: StringName = &"local" if is_local else &"remote_weapon"
+	var player := _acquire_sfx_player(priority, group)
 	if player == null:
 		return
 	var variant := posmod(owner_id * 31 + shot_sequence * 17, WEAPON_VARIANT_COUNT)
@@ -214,10 +250,12 @@ func play_weapon_shot(
 	var pitch_offsets: Array[float] = [-0.018, 0.0, 0.015]
 	var pitch: float = 1.0 - profile.power_amount * 0.035 - profile.modification_amount * 0.018 + pitch_offsets[variant]
 	var volume_db: float = 0.5 + profile.power_amount * 0.8 if is_local else _remote_weapon_volume_db(source_position.distance_to(listener_position), profile.power_tier)
-	_play_on_player(player, stream, pitch, volume_db, priority)
+	_play_on_player(player, stream, pitch, volume_db - (3.0 if is_local else 7.0), priority, group, 0.0 if is_local else MixPolicy.pan(source_position, listener_position))
 
 
 func reset_match_deduplication() -> void:
+	previous_objective.clear()
+	music_duck_hold = 0.0
 	_played_keys.clear()
 	_last_played_msec.clear()
 
@@ -265,6 +303,14 @@ func _ensure_audio_buses() -> void:
 			break
 	if not has_limiter:
 		AudioServer.add_bus_effect(sfx_bus_index, AudioEffectLimiter.new())
+	var master := AudioServer.get_bus_index(&"Master")
+	var master_limited := false
+	for index in AudioServer.get_bus_effect_count(master):
+		master_limited = master_limited or AudioServer.get_bus_effect(master, index) is AudioEffectLimiter
+	if not master_limited:
+		var output_limiter := AudioEffectLimiter.new()
+		output_limiter.ceiling_db = -1.0
+		AudioServer.add_bus_effect(master, output_limiter)
 
 
 func _make_player(node_name: String, bus_name: StringName) -> AudioStreamPlayer:
@@ -277,7 +323,14 @@ func _make_player(node_name: String, bus_name: StringName) -> AudioStreamPlayer:
 	return player
 
 
-func _acquire_sfx_player(priority: int) -> AudioStreamPlayer:
+func _acquire_sfx_player(priority: int, group: StringName = &"local") -> AudioStreamPlayer:
+	var group_count := 0
+	for voice in sfx_players:
+		if voice.playing and voice.get_meta("sfx_group", &"") == group:
+			group_count += 1
+	if group_count >= MixPolicy.group_limit(group):
+		dropped_voices += 1
+		return null
 	for player in sfx_players:
 		if not player.playing:
 			return player
@@ -295,6 +348,9 @@ func _acquire_sfx_player(priority: int) -> AudioStreamPlayer:
 			candidate_started = player_started
 	if candidate != null:
 		candidate.stop()
+		stolen_voices += 1
+	else:
+		dropped_voices += 1
 	return candidate
 
 
@@ -303,7 +359,9 @@ func _play_on_player(
 	stream: AudioStream,
 	pitch: float,
 	volume_db: float,
-	priority: int
+	priority: int,
+	group: StringName = &"local",
+	pan: float = 0.0
 ) -> void:
 	if player == null or stream == null:
 		return
@@ -311,8 +369,17 @@ func _play_on_player(
 	player.pitch_scale = clampf(pitch, 0.72, 1.35)
 	player.volume_db = clampf(volume_db, -24.0, 2.0)
 	player.set_meta("sfx_priority", priority)
+	player.set_meta("sfx_group", group)
 	player.set_meta("sfx_started_msec", Time.get_ticks_msec())
+	if sfx_panners.has(player.bus):
+		(sfx_panners[player.bus] as AudioEffectPanner).pan = clampf(pan, -0.8, 0.8)
+	if priority >= 7:
+		music_duck_hold = maxf(MixPolicy.DUCK_HOLD_SECONDS, minf(stream.get_length(), 0.8))
 	player.play()
+	var active := 0
+	for voice in sfx_players:
+		active += 1 if voice.playing else 0
+	peak_active_voices = maxi(peak_active_voices, active)
 
 
 func _remote_weapon_volume_db(distance: float, power_tier: int) -> float:
@@ -328,7 +395,12 @@ func _trim_played_keys() -> void:
 func _weapon_stream(profile, variant: int) -> AudioStream:
 	var key := "%s:v%d" % [profile.cache_key(), variant]
 	if weapon_stream_cache.has(key):
-		return weapon_stream_cache[key] as AudioStream
+		var cached := weapon_stream_cache[key] as AudioStream
+		weapon_stream_cache.erase(key)
+		weapon_stream_cache[key] = cached
+		return cached
+	while weapon_stream_cache.size() >= MixPolicy.WEAPON_CACHE_LIMIT:
+		weapon_stream_cache.erase(weapon_stream_cache.keys()[0])
 	var override := _load_weapon_override(profile, variant)
 	if override != null:
 		weapon_stream_cache[key] = override
@@ -370,12 +442,17 @@ func _load_sfx() -> void:
 		&"missile_launch": [185.0, 920.0, 0.32],
 		&"kinetic_vent": [210.0, 1050.0, 0.24], &"breakaway": [330.0, 920.0, 0.22],
 		&"afterburner": [185.0, 1180.0, 0.48],
+		&"objective_gain": [760.0, 1520.0, 0.3], &"objective_loss": [620.0, 260.0, 0.3], &"objective_neutral": [660.0, 660.0, 0.24],
 	}
 	for event_name in SFX_NAMES:
 		var override := _load_audio_override(String(event_name))
 		if override != null:
 			sfx_streams[event_name] = override
 			sfx_generated[event_name] = false
+			continue
+		if event_name in [&"objective_gain", &"objective_loss"]:
+			sfx_streams[event_name] = _synthesize_objective(event_name == &"objective_gain")
+			sfx_generated[event_name] = true
 			continue
 		if event_name == &"afterburner":
 			sfx_streams[event_name] = _synthesize_afterburner()
@@ -395,36 +472,87 @@ func _load_audio_override(base_name: String) -> AudioStream:
 
 
 func _load_music() -> void:
+	# Discover paths without loading every compressed PCM buffer at startup.
 	var menu_path := _find_named_music("main_menu")
 	if not menu_path.is_empty():
-		menu_player.stream = load(menu_path) as AudioStream
-		_set_stream_looping(menu_player.stream, false)
-		menu_crossfade_player.stream = menu_player.stream
 		loaded_music_paths[&"menu"] = menu_path
 	var win_path := _find_named_music("win")
-	if not win_path.is_empty():
-		win_player.stream = load(win_path) as AudioStream
-		_set_stream_looping(win_player.stream, true)
-		loaded_music_paths[&"win"] = win_path
-	else:
-		win_player.stream = _synthesize_victory_theme()
-		loaded_music_paths[&"win"] = "generated:victory_theme"
+	loaded_music_paths[&"win"] = win_path if not win_path.is_empty() else "generated:victory_theme"
 	var files: Array = Array(ResourceLoader.list_directory(GAMEPLAY_MUSIC_DIRECTORY))
 	files.sort_custom(func(left: String, right: String) -> bool: return left.naturalnocasecmp_to(right) < 0)
 	for file_name in files:
-		if file_name.ends_with("/"):
-			continue
-		if not _is_supported_audio_file(file_name):
+		if file_name.ends_with("/") or not _is_supported_audio_file(file_name):
 			continue
 		var path := "%s/%s" % [GAMEPLAY_MUSIC_DIRECTORY, file_name]
-		if not ResourceLoader.exists(path):
-			continue
-		var stream := load(path) as AudioStream
-		if stream != null:
-			_set_stream_looping(stream, false)
-			gameplay_tracks.append(stream)
+		if ResourceLoader.exists(path):
 			gameplay_track_paths.append(path)
+			gameplay_tracks.append(null)
 			loaded_music_paths["gameplay_%02d" % gameplay_tracks.size()] = path
+
+
+func _release_music_streams() -> void:
+	_stop_menu_music()
+	for player in [menu_player, menu_crossfade_player, gameplay_player, win_player]:
+		player.stop()
+		player.stream = null
+	gameplay_tracks.fill(null)
+
+
+func _request_music(path: String) -> void:
+	desired_music_path = path
+	if path.is_empty() or not playback_enabled:
+		return
+	if path.begins_with("generated:"):
+		_install_music(_synthesize_victory_theme())
+	elif not pending_music.has(path):
+		var result := ResourceLoader.load_threaded_request(path, "AudioStream", false, ResourceLoader.CACHE_MODE_IGNORE)
+		if result == OK:
+			pending_music[path] = true
+
+
+func _poll_music_requests() -> void:
+	for path in pending_music.keys():
+		var status := ResourceLoader.load_threaded_get_status(path)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			var stream := ResourceLoader.load_threaded_get(path) as AudioStream
+			pending_music.erase(path)
+			if path == desired_music_path:
+				_install_music(stream)
+		elif status == ResourceLoader.THREAD_LOAD_FAILED or status == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			pending_music.erase(path)
+
+
+func _install_music(stream: AudioStream) -> void:
+	if stream == null:
+		return
+	match current_context:
+		&"menu", &"lobby":
+			_set_stream_looping(stream, false)
+			menu_player.stream = stream
+			menu_crossfade_player.stream = stream
+			_start_menu_music()
+		&"gameplay":
+			_set_stream_looping(stream, false)
+			gameplay_tracks.fill(null)
+			if current_gameplay_track >= 0 and current_gameplay_track < gameplay_tracks.size():
+				gameplay_tracks[current_gameplay_track] = stream
+			gameplay_player.stream = stream
+			if playback_enabled:
+				gameplay_player.play()
+		&"win":
+			_set_stream_looping(stream, true)
+			win_player.stream = stream
+			if playback_enabled:
+				win_player.play()
+
+
+## Synchronous fixture entry point; interactive context changes use the loader thread.
+func prepare_music_now(context: StringName) -> void:
+	set_context(context)
+	if desired_music_path.is_empty():
+		return
+	var stream: AudioStream = _synthesize_victory_theme() if desired_music_path.begins_with("generated:") else ResourceLoader.load(desired_music_path, "AudioStream", ResourceLoader.CACHE_MODE_IGNORE) as AudioStream
+	_install_music(stream)
 
 
 func _find_named_music(prefix: String) -> String:
@@ -458,11 +586,13 @@ func _set_stream_looping(stream: AudioStream, enabled: bool) -> void:
 
 
 func _play_next_gameplay_track() -> void:
-	if not playback_enabled or gameplay_tracks.is_empty() or current_context != &"gameplay":
+	if gameplay_track_paths.is_empty() or current_context != &"gameplay":
 		return
-	current_gameplay_track = (current_gameplay_track + 1) % gameplay_tracks.size()
-	gameplay_player.stream = gameplay_tracks[current_gameplay_track]
-	gameplay_player.play()
+	current_gameplay_track = (current_gameplay_track + 1) % gameplay_track_paths.size()
+	gameplay_player.stop()
+	gameplay_player.stream = null
+	gameplay_tracks.fill(null)
+	_request_music(gameplay_track_paths[current_gameplay_track])
 
 
 func _start_menu_music() -> void:
@@ -521,7 +651,7 @@ func _finish_menu_crossfade() -> void:
 
 func _apply_volumes() -> void:
 	_set_bus_percent(&"Master", master_volume_percent, muted)
-	_set_bus_percent(MUSIC_BUS, music_volume_percent, false)
+	_apply_music_volume()
 	_set_bus_percent(SFX_BUS, sfx_volume_percent, false)
 
 
@@ -733,3 +863,82 @@ func _synthesize_victory_theme() -> AudioStreamWAV:
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	stream.loop_end = sample_count
 	return stream
+
+
+func _apply_music_volume() -> void:
+	_set_bus_percent(MUSIC_BUS, music_volume_percent, false)
+	var index := AudioServer.get_bus_index(MUSIC_BUS)
+	if index >= 0:
+		AudioServer.set_bus_volume_db(index, AudioServer.get_bus_volume_db(index) + music_duck_db)
+
+
+func _ensure_voice_bus(index: int) -> StringName:
+	var bus_name := StringName("SSFVoice%02d" % index)
+	var bus := AudioServer.get_bus_index(bus_name)
+	if bus < 0:
+		AudioServer.add_bus()
+		bus = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(bus, bus_name)
+		AudioServer.set_bus_send(bus, SFX_BUS)
+		AudioServer.add_bus_effect(bus, AudioEffectPanner.new())
+	sfx_panners[bus_name] = AudioServer.get_bus_effect(bus, 0)
+	return bus_name
+
+
+func _trim_cooldowns() -> void:
+	while _last_played_msec.size() > 512:
+		_last_played_msec.erase(_last_played_msec.keys()[0])
+
+
+func resident_music_bytes() -> int:
+	var seen := {}
+	var bytes := 0
+	for player in [menu_player, gameplay_player, win_player]:
+		if player.stream is AudioStreamWAV and not seen.has(player.stream):
+			seen[player.stream] = true
+			bytes += (player.stream as AudioStreamWAV).data.size()
+	return bytes
+
+
+func observe_objective(objective: Dictionary, local_peer_id: int, teams: Dictionary = {}) -> void:
+	if not bool(objective.get("active", false)):
+		previous_objective.clear()
+		return
+	if previous_objective.is_empty():
+		previous_objective = objective.duplicate(true)
+		return # Joining or entering a heat establishes a baseline, not a cue.
+	var previous_carrier := int(previous_objective.get("flag_carrier_id", 0))
+	var carrier := int(objective.get("flag_carrier_id", 0))
+	var previous_controller := int(previous_objective.get("controller_id", 0))
+	var controller := int(objective.get("controller_id", 0))
+	var cue: StringName = &""
+	if carrier != previous_carrier:
+		var local_team := int(teams.get(local_peer_id, teams.get(str(local_peer_id), 0)))
+		var carrier_team := int(teams.get(carrier, teams.get(str(carrier), 0)))
+		var friendly_carrier := carrier == local_peer_id or (local_team > 0 and carrier_team == local_team)
+		cue = &"objective_neutral" if carrier == 0 else &"objective_gain" if friendly_carrier else &"objective_loss"
+	elif controller != previous_controller:
+		cue = &"objective_gain" if controller == local_peer_id else &"objective_loss" if previous_controller == local_peer_id else &""
+	if cue != &"":
+		# No unique key: the same ownership transition can legitimately recur.
+		play_sfx(cue, "", -2.0)
+	previous_objective = objective.duplicate(true)
+
+
+func _synthesize_objective(ascending: bool) -> AudioStreamWAV:
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = 22050
+	var bytes := PackedByteArray()
+	var notes := [660.0, 880.0, 1320.0] if ascending else [880.0, 660.0, 330.0]
+	for frequency in notes:
+		bytes.append_array(_synthesize_tone(frequency, frequency, 0.12).data)
+		var gap := PackedByteArray()
+		gap.resize(882 * 2)
+		bytes.append_array(gap)
+	stream.data = bytes
+	return stream
+
+
+func set_objective_baseline(objective: Dictionary) -> void:
+	previous_objective = objective.duplicate(true) if bool(objective.get("active", false)) else {}

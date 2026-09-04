@@ -94,6 +94,7 @@ func start_server(configuration: Dictionary) -> Error:
 		return ERR_INVALID_PARAMETER
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
+	match_config.competitive_view = bool(configuration.get("competitive_view", false))
 	if bool(configuration.get("test_fast_match", false)):
 		match_config.draft_duration_seconds = 0.75
 		match_config.countdown_duration_seconds = 0.25
@@ -341,6 +342,11 @@ func send_random_powerup_interval(seconds: float) -> void:
 func send_random_powerups_permanent(permanent: bool) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_random_powerups_permanent.rpc_id(NetworkProtocol.SERVER_PEER_ID, permanent)
+
+
+func send_competitive_view(enabled: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_competitive_view.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
 func send_overtime_start(seconds: float) -> void:
@@ -700,6 +706,20 @@ func request_random_powerups_permanent(permanent: bool) -> void:
 	if not _accept_control_request(sender_id, "random_powerups_permanent"):
 		return
 	var result := lobby.request_random_powerups_permanent(sender_id, permanent)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_competitive_view(enabled: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "competitive_view"):
+		return
+	var result := lobby.request_competitive_view(sender_id, enabled)
 	if not result.ok:
 		_send_request_rejected(sender_id, result.error)
 	elif bool(result.get("changed", false)):
@@ -1239,6 +1259,10 @@ func operator_set_setting(setting: String, value: Variant) -> Dictionary:
 			if not value is bool:
 				return _invalid_operator_setting_type(setting, "true or false")
 			result = lobby.request_random_powerups_permanent(ServerLobby.OPERATOR_AUTHORITY_ID, bool(value))
+		"competitive_view":
+			if not value is bool:
+				return _invalid_operator_setting_type(setting, "true or false")
+			result = lobby.request_competitive_view(ServerLobby.OPERATOR_AUTHORITY_ID, bool(value))
 		"overtime_start":
 			if not value is float and not value is int:
 				return _invalid_operator_setting_type(setting, "a number")

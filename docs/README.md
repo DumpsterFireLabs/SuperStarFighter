@@ -12,6 +12,7 @@ This directory separates practical guidance from the authoritative implementatio
 | Understand product intent and deliberate exclusions | [Product Plan](../plan.md) |
 | Review the planned ten-map roster and its full-capacity guarantees | [Ten-Map Expansion Plan](../maps.md) |
 | Review completed work and acceptance evidence | [Implementation Milestones](../milestones.md) |
+| Review audio startup, memory, crowded-mix evidence, and remaining listening checks | [Audio Study](./AUDIO-STUDY-2026-09-04.md) |
 | Add music or replace placeholder sound effects | [Audio Drop-in Contract](../assets/audio/README.md) |
 
 ## Document Authority

@@ -439,3 +439,11 @@ This ledger maps the major delivered increments to their local commits. Small co
 ## Vertical Slice Definition of Done
 
 The vertical slice is done only when Milestones 0–7 are complete, the exported client and server pass the release smoke and 32-client soak tests, and the implemented behavior matches the authoritative specification without undocumented exceptions.
+
+## Review follow-up — September 4, 2026, R11–R15
+
+Host-controlled competitive view, lazy music residency, measured collision-query optimizations, and draft/standings ownership extraction are implemented. Competitive sessions constrain standard clients to equal 16:9 world extents, preserving rules through rematches and spectator joins. Root screen extraction also fixes duplicated overlays and results focus resets. Compatibility protocol is 30; binary packets remain 12.
+
+Foundation verification passed 143 checks with 4,465 passing assertions and the expected failing-exit-path check. All six presentation resolutions passed. The isolated 32-client, 90-second ENet soak passed with active callback p95 at most 5.902 ms and p99 at most 7.816 ms. Broken Orbit overload median p95 improved 7.6%; p99 variability remains a release-performance concern. These are development-machine checks, not release-hardware acceptance.
+
+R12 mixing implementation and recorded evidence are delivered, with actual human listening still open. See [the review](docs/REVIEW-2026-09-03.md) and [audio study](docs/AUDIO-STUDY-2026-09-04.md). Remaining review inventory: R12 and R16–R28.

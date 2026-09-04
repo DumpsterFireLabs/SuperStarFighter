@@ -155,3 +155,7 @@ Run:
 `ArenaStaticLayer` uses station panel seams, cargo ribs, crystal facets, thermal vents, and stone fractures. Numbered material callouts identify landmarks. Material marks sit on actual solid cover with continuous outer collision boundaries; they must not imply traversable holes or new hazards. Static commands remain cached.
 
 `AccessibleInterface` applies a 21 logical-pixel minimum to interface text (about 14 physical pixels at 720p under the current canvas scale). Deliberately hidden native labels under custom card content are exempt. Wrapped card bodies and footers, a centered taller draft panel, and scrollable settings/rosters accommodate the larger text. High contrast strengthens text and surface boundaries without replacing team shapes or card rarity labels. This is an implementation floor, not human readability or formal contrast-conformance acceptance; those checks remain in the review's player-validation work.
+
+## Competitive canvas
+
+Competitive view is a host-selected match rule, separate from the HUD safe area. During these matches keep a fixed 1920×1080 logical world canvas, center the fitted content, and use native bars for wider/taller windows. Keep mouse aim and the gameplay crosshair inside that canvas. Preserve ordinary expanded menus after leaving a match. Presentation captures store the native content framebuffer, which excludes window bars; test the visible world extent as well as image dimensions.

@@ -23,6 +23,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"auto_start": false,
+		"competitive_view": false,
 		"bot_name": "",
 		"force_test_failure": false,
 		"test_protocol_version": GameConstants.PROTOCOL_VERSION,
@@ -121,6 +122,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if not parsed_rounds.ok:
 				return parsed_rounds
 			result.rounds_to_win = parsed_rounds.value
+		elif argument == "--competitive-view":
+			result.competitive_view = true
 		elif argument == "--auto-start":
 			result.auto_start = true
 		elif argument == "--force-test-failure":

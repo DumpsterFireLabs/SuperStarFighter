@@ -11,7 +11,8 @@ param(
     [ValidateRange(2, 32)]
     [int]$MaxPlayers = 32,
     [ValidateRange(1, 5)]
-    [int]$RoundsToWin = 3
+    [int]$RoundsToWin = 3,
+    [switch]$CompetitiveView
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,7 @@ $ErrorActionPreference = 'Stop'
 
 $godot = Get-SsfGodotExecutable
 $userArguments = @('--server', "--port=$Port", "--server-name=$ServerName", "--max-players=$MaxPlayers", "--rounds-to-win=$RoundsToWin")
+if ($CompetitiveView) { $userArguments += "--competitive-view" }
 if (-not [string]::IsNullOrWhiteSpace($PasswordFile)) {
     $resolvedPasswordFile = (Resolve-Path -LiteralPath $PasswordFile -ErrorAction Stop).Path
     $userArguments += "--password-file=$resolvedPasswordFile"

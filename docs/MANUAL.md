@@ -188,7 +188,7 @@ The admin listener accepts connections only on `127.0.0.1`. Do not expose it thr
 
 The tool prompts securely for the admin password unless `-AdminPasswordFile` or the process-scoped `SSF_ADMIN_PASSWORD` variable is present. `status` returns a compact health and lobby summary; `players` includes peer IDs and source addresses for moderation. `ban` immediately removes the selected peer and atomically persists its current source address; `kick` removes it without blocking reconnection. The block list accepts valid IP addresses only and is capped at 4,096 entries. Address blocks are useful but are not account bans: shared NATs can affect multiple players and a player can change addresses. Admin authentication failures are throttled across reconnects, authenticated connections expire after five idle minutes, and inbound and outbound messages are bounded. Repeated authentication failures temporarily lock the loopback endpoint, so do not run automated password guessing against a live server.
 
-The `set` command supports `rounds_to_win`, `player_limit`, `npcs_enabled`, `npc_difficulty` (0–4), `game_mode` (0–4), `team_count`, `random_spawn_powerups`, `random_powerup_interval`, `random_powerups_permanent`, `overtime_start`, `server_name`, and `auto_start`. Match-rule changes are rejected during an active match and clear ready states when accepted. Gameplay/admin ports and physical server capacity are restart-only because their sockets and allocation are created at startup. Admin activity is written to the server's JSON-line audit output without passwords or proofs.
+The `set` command supports `rounds_to_win`, `player_limit`, `npcs_enabled`, `npc_difficulty` (0–4), `game_mode` (0–4), `team_count`, `random_spawn_powerups`, `random_powerup_interval`, `random_powerups_permanent`, `competitive_view`, `overtime_start`, `server_name`, and `auto_start`. Match-rule changes are rejected during an active match and clear ready states when accepted. Gameplay/admin ports and physical server capacity are restart-only because their sockets and allocation are created at startup. Admin activity is written to the server's JSON-line audit output without passwords or proofs.
 
 Runtime setting and password changes apply to the current server process only. The server does not persist a rotated password. Before restarting, mirror intended long-term values in the launch arguments and update the operator-owned protected lobby-password source. Address blocks are the exception: they are saved immediately to the configured ban file.
 
@@ -232,6 +232,12 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 - Selects **Exit to Lobby** from final results after the match.
 
 The leader cannot eject players during an active match and cannot eject themselves. Ejected players return to the connection screen with a clear reason.
+
+### Competitive view
+
+For competitive sessions, enable **Competitive view · equal 16:9 combat space** in **Match Setup** before players ready up. Everyone, including spectators, gets the same combat view. Ultrawide and taller screens use bars during the match; normal menu layout returns when you leave. Casual sessions retain the existing expanded view by default.
+
+Only the host can change this before launch. Changing it clears readiness, and fresh rematches keep the same choice. Dedicated hosts can use `tools/start-server.ps1 -CompetitiveView` or `--competitive-view` with the game executable.
 
 ### Launch conditions
 
@@ -545,7 +551,7 @@ Supported selectable resolutions:
 
 Wider modes reveal additional horizontal arena space without stretching ships or UI nonuniformly. A 5120×1440 display is supported at 32:9; use Borderless Fullscreen when the desktop already runs at that resolution, or Exclusive Fullscreen to request it directly.
 
-Audio controls include master, music, and effects volume plus a mute toggle.
+Audio controls include master, music, and effects volume plus a mute toggle. Remote combat sounds pan toward their source; local damage, shields, and objective cues have priority over crowded gunfire and briefly lower the music. Rising objective notes indicate a friendly flag pickup or your hill control, falling notes indicate an enemy pickup or loss of your hill control, and a level tone marks a dropped flag. Music loads on demand when its screen or gameplay context starts.
 
 The Controls tab provides:
 

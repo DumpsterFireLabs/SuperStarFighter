@@ -274,6 +274,18 @@ func request_random_powerups_permanent(sender_id: int, permanent: bool) -> Dicti
 	return {"ok": true, "changed": true}
 
 
+func request_competitive_view(sender_id: int, enabled: bool) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty():
+		return {"ok": false, "error": authority_error}
+	if config.competitive_view == enabled:
+		return {"ok": true, "changed": false}
+	config.competitive_view = enabled
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
 func request_overtime_start(sender_id: int, seconds: float) -> Dictionary:
 	var authority_error := _settings_authority_error(sender_id)
 	if not authority_error.is_empty():
@@ -491,6 +503,7 @@ func serialize() -> Dictionary:
 		"random_spawn_powerups": config.random_spawn_powerups,
 		"random_powerup_interval_seconds": config.random_powerup_interval_seconds,
 		"random_powerups_permanent": config.random_powerups_permanent,
+		"competitive_view": config.competitive_view,
 		"overtime_start_seconds": config.overtime_start_seconds,
 		"npc_count": npc_count(),
 		"ready_human_count": ready_human_count(),
