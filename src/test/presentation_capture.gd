@@ -57,6 +57,9 @@ func _capture_sequence() -> void:
 	client._hide_credits()
 	client.connection_tabs.current_tab = 2
 	await _capture(client, "host_menu")
+	client.connection_controller.host_preset_control.select(2)
+	client.connection_controller.host_preset_control.item_selected.emit(2)
+	await _capture(client, "host_preset")
 	client.connection_tabs.current_tab = 0
 	client._show_settings(false)
 	await _capture(client, "settings")
@@ -72,6 +75,16 @@ func _capture_sequence() -> void:
 	await _capture(client, "controls")
 	client.settings_tabs.current_tab = 2
 	await _capture(client, "accessibility_settings")
+	client.accessibility_preferences.set_values({"high_contrast": true, "toggle_fire": true, "toggle_shield": true})
+	client._apply_accessibility_settings()
+	client.settings_controller.high_contrast_control.set_pressed_no_signal(true)
+	client.settings_controller.toggle_fire_control.set_pressed_no_signal(true)
+	client.settings_controller.toggle_shield_control.set_pressed_no_signal(true)
+	client.settings_controller.toggle_shield_control.grab_focus()
+	await process_frame
+	await _capture(client, "accessibility_contrast")
+	client.accessibility_preferences.set_values({"high_contrast": false, "toggle_fire": false, "toggle_shield": false})
+	client._apply_accessibility_settings()
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
 	client.settings_tabs.current_tab = 0
 	client.current_window_mode = client.WindowModeOption.WINDOWED
@@ -114,7 +127,12 @@ func _capture_sequence() -> void:
 	client.lobby_settings_button.pressed.emit()
 	await _capture(client, "lobby_settings")
 	client._hide_settings()
-	var local_color_swatch := client.lobby_roster.get_child(0).get_node("ShipColor") as Button
+	var local_color_swatch: Button
+	for row in client.lobby_roster.get_children():
+		var candidate := row.get_node_or_null("ShipColor") as Button
+		if candidate != null and not candidate.disabled:
+			local_color_swatch = candidate
+			break
 	local_color_swatch.pressed.emit()
 	client.ship_color_picker.color = Color("ff4ea3")
 	client.ship_pattern_control.select(3)
@@ -141,6 +159,9 @@ func _capture_sequence() -> void:
 	client._show_draft_offer({"offer_token": "capture-cap", "card_ids": [&"twin_shot", &"phase_thrusters", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft_capped")
 	await _capture_card_hover(client, client.draft_buttons[0] as Button, "draft_capped_hover")
+	client._select_draft_card(0)
+	await _capture(client, "draft_confirmation")
+	client._cancel_draft_confirmation()
 	client.latest_match_payload["draft_bye_peer_id"] = 2
 	client._show_draft_bye(1800)
 	client._update_match_presentation()
@@ -209,6 +230,13 @@ func _capture_sequence() -> void:
 	await _capture(client, "ability_selection")
 	client.network_world.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "combat_accessibility")
+	client.accessibility_preferences.set_values({"hud_scale": 1.5, "high_contrast": true, "reduced_flashes": true, "toggle_fire": true, "toggle_shield": true})
+	client._apply_accessibility_settings()
+	client.network_world.action_latch.active = {&"fire": true, &"shield": false}
+	client.network_world._update_diagnostics()
+	await _capture(client, "combat_contrast")
+	client.accessibility_preferences.set_values({"hud_scale": 1.0, "high_contrast": false, "reduced_flashes": false, "toggle_fire": false, "toggle_shield": false})
+	client._apply_accessibility_settings()
 	client.network_world.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
 	client._on_match_event(&"COMBAT_FEEDBACK", 201, {"hit_count": 3, "hit_damage": 68, "blocked_count": 1, "last_block_reason": "perfect_guard"})
 	await _capture(client, "hit_confirmation")
@@ -334,7 +362,13 @@ func _capture_sequence() -> void:
 	var result_cards := client.results_standings_container.find_child("FinalBuildCards", true, false) as HFlowContainer
 	await _capture_card_hover(client, result_cards.get_child(1) as Button, "results_card_hover")
 
+	client.latest_match_payload["game_mode"] = GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG
+	client._results_rows_dirty = true
+	client.latest_match_payload["objective_contributions"] = {2: {"flag_captures": 3, "carrier_stops": 2, "flag_carry_seconds": 46.5}, 3: {"flag_captures": 1, "carrier_stops": 1, "flag_carry_seconds": 28.0}, 4: {"flag_captures": 0, "carrier_stops": 4, "flag_carry_seconds": 19.0}}
+	client._update_match_presentation()
+	await _capture(client, "objective_results")
 	await _capture_crowded_combat(client)
+	await _capture_ship_families(client)
 	client._on_rejected(&"SERVER_FULL", "The server is full.")
 	await _capture(client, "error")
 	root.remove_meta("ssf_presentation_capture_resolution")
@@ -443,3 +477,40 @@ func _capture_card_hover(client: Node, button: Button, screen_name: String) -> v
 	await _capture(client, screen_name)
 	client.connection_canvas.remove_child(preview)
 	preview.free()
+
+
+func _capture_ship_families(client: Node) -> void:
+	client.network_world.set_network_active(false)
+	var canvas := CanvasLayer.new()
+	canvas.layer = 200
+	root.add_child(canvas)
+	var backdrop := ColorRect.new()
+	backdrop.color = Color("05091b")
+	backdrop.size = root.get_visible_rect().size
+	canvas.add_child(backdrop)
+	var title := Label.new()
+	title.text = "BUILD SILHOUETTES · SHARED HULL & HIT CIRCLE"
+	title.position = Vector2(90, 65)
+	title.add_theme_font_size_override("font_size", 36)
+	canvas.add_child(title)
+	var names := ["BASE", "BEAM", "SPREAD", "CANNON", "SHIELD", "DRIVE", "ORDNANCE", "REPAIR"]
+	for index in names.size():
+		var stats := CombatStats.create_base()
+		match index:
+			1: stats.beam_weapon = true
+			2: stats.projectile_count = 3
+			3: stats.projectile_damage = 50.0
+			4: stats.shield_ram_damage = 20.0
+			5: stats.afterburner_enabled = true
+			6: stats.mine_layer_enabled = true
+			7: stats.auto_repair_enabled = true
+		var position := Vector2(280 + index % 4 * 450, 350 + index / 4 * 430)
+		var ship := SandboxShip.new()
+		canvas.add_child(ship)
+		ship.setup(index + 2, stats, position, Color("42e8ff"), false, names[index])
+		ship.scale = Vector2.ONE * 2.4
+		ship.combatant.aim_angle = -PI * 0.5
+		ship.set_process(false)
+		ship.queue_redraw()
+	await _capture(client, "ship_families")
+	canvas.free()

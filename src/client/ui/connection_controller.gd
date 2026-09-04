@@ -3,6 +3,8 @@ extends Node
 ## Owns connection forms, LAN discovery, hosted runtime, lobby options and appearance.
 ## The client coordinates navigation between gameplay and these screens.
 
+const MatchPresetsScript = preload("res://src/shared/lobby/match_presets.gd")
+
 const NavigationScript = preload("res://src/client/ui/screen_navigation.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
@@ -30,6 +32,14 @@ var _lan_servers: Array[Dictionary] = []
 var _hosted_server_root: Node
 var _hosted_server_bridge: NetworkBridge
 var _hosted_server_multiplayer: MultiplayerAPI
+var host_preset_control: OptionButton
+var host_preset_note: Label
+var lobby_preset_control: OptionButton
+var lobby_preset_note: Label
+var lobby_readiness_label: Label
+var lobby_rules_label: Label
+var lobby_roster_scroll: ScrollContainer
+var lobby_host_controls: VBoxContainer
 var lobby_label: Label
 var version_label: Label
 var lobby_roster: VBoxContainer
@@ -245,14 +255,28 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	tab.name = "HOST GAME"
 	tab.add_theme_constant_override("separation", 10)
 	connection_tabs.add_child(tab)
-	server_name_field = _add_compact_labeled_field(tab, "Server name", "Super Star Arena")
+	var host_scroll := ScrollContainer.new()
+	host_scroll.custom_minimum_size.y = 260.0
+	host_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	host_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tab.add_child(host_scroll)
+	var fields := VBoxContainer.new()
+	fields.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fields.add_theme_constant_override("separation", 8)
+	host_scroll.add_child(fields)
+	host_preset_control = _create_preset_picker(fields)
+	host_preset_note = _create_preset_note(fields)
+	host_preset_control.item_selected.connect(func(index: int) -> void:
+		host_preset_note.text = _preset_description(index)
+	)
+	server_name_field = _add_compact_labeled_field(fields, "Server name", "Super Star Arena")
 	server_name_field.max_length = LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
-	host_port_field = _add_compact_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
-	host_password_field = _add_compact_labeled_field(tab, "Required lobby password", "")
+	host_port_field = _add_compact_labeled_field(fields, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	host_password_field = _add_compact_labeled_field(fields, "Required lobby password", "")
 	host_password_field.secret = true
 	host_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
 	var host_center := CenterContainer.new()
-	tab.add_child(host_center)
+	fields.add_child(host_center)
 	host_join_button = Button.new()
 	host_join_button.name = "HostJoinButton"
 	host_join_button.text = "HOST & JOIN"
@@ -276,28 +300,43 @@ func _create_modal_blocker(blocker_name: String) -> ColorRect:
 func _create_lobby_panel() -> void:
 	lobby_panel = PanelContainer.new()
 	lobby_panel.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_panel.position = Vector2(-390.0, -345.0)
-	lobby_panel.custom_minimum_size = Vector2(780.0, 690.0)
+	lobby_panel.position = Vector2(-550.0, -340.0)
+	lobby_panel.custom_minimum_size = Vector2(1100.0, 680.0)
 	lobby_panel.theme = client.interface_theme
 	lobby_panel.add_theme_stylebox_override("panel", client._panel_style(DesignTokensScript.INTERACTIVE, 0.96))
 	lobby_panel.visible = false
 	connection_canvas.add_child(lobby_panel)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
+	content.add_theme_constant_override("separation", 8)
 	lobby_panel.add_child(content)
 	var title := Label.new()
 	title.text = "✦  ONLINE LOBBY  ✦"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_font_size_override("font_size", 28)
 	content.add_child(title)
 	lobby_label = Label.new()
 	lobby_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lobby_label.add_theme_font_size_override("font_size", 20)
 	lobby_label.add_theme_color_override("font_color", Color("aebbd4"))
 	content.add_child(lobby_label)
+	lobby_rules_label = Label.new()
+	lobby_rules_label.name = "LobbyRulesSummary"
+	lobby_rules_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lobby_rules_label.add_theme_font_size_override("font_size", 16)
+	content.add_child(lobby_rules_label)
+	lobby_readiness_label = Label.new()
+	lobby_readiness_label.name = "LobbyReadinessSummary"
+	lobby_readiness_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lobby_readiness_label.custom_minimum_size.x = 1040.0
+	lobby_readiness_label.add_theme_font_size_override("font_size", 16)
+	content.add_child(lobby_readiness_label)
 	var player_scroll := ScrollContainer.new()
-	player_scroll.custom_minimum_size = Vector2(740.0, 220.0)
+	lobby_roster_scroll = player_scroll
+	player_scroll.name = "LobbyRosterScroll"
+	player_scroll.follow_focus = true
+	player_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	player_scroll.custom_minimum_size = Vector2(1040.0, 260.0)
 	player_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	player_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	content.add_child(player_scroll)
@@ -305,8 +344,11 @@ func _create_lobby_panel() -> void:
 	lobby_roster.add_theme_constant_override("separation", 7)
 	lobby_roster.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_scroll.add_child(lobby_roster)
+	lobby_host_controls = VBoxContainer.new()
+	lobby_host_controls.name = "HostConfiguration"
+	lobby_host_controls.add_theme_constant_override("separation", 10)
 	var rounds_row := HBoxContainer.new()
-	content.add_child(rounds_row)
+	lobby_host_controls.add_child(rounds_row)
 	var rounds_label := Label.new()
 	rounds_label.text = "Rounds to win"
 	rounds_row.add_child(rounds_label)
@@ -318,7 +360,7 @@ func _create_lobby_panel() -> void:
 	rounds_control.value_changed.connect(_on_rounds_changed)
 	rounds_row.add_child(rounds_control)
 	var limit_row := HBoxContainer.new()
-	content.add_child(limit_row)
+	lobby_host_controls.add_child(limit_row)
 	var limit_label := Label.new()
 	limit_label.text = "Player limit"
 	limit_row.add_child(limit_label)
@@ -334,10 +376,10 @@ func _create_lobby_panel() -> void:
 	npcs_button.theme_type_variation = &"SettingToggle"
 	npcs_button.custom_minimum_size.y = 48.0
 	npcs_button.toggled.connect(_on_npcs_toggled)
-	content.add_child(npcs_button)
+	lobby_host_controls.add_child(npcs_button)
 	var npc_difficulty_row := HBoxContainer.new()
 	npc_difficulty_row.add_theme_constant_override("separation", 14)
-	content.add_child(npc_difficulty_row)
+	lobby_host_controls.add_child(npc_difficulty_row)
 	var npc_difficulty_label := Label.new()
 	npc_difficulty_label.text = "Set all NPC difficulties"
 	npc_difficulty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -350,28 +392,35 @@ func _create_lobby_panel() -> void:
 	npc_all_difficulty_control.item_selected.connect(_on_all_npc_difficulty_selected)
 	npc_difficulty_row.add_child(npc_all_difficulty_control)
 	lobby_options_button = Button.new()
-	lobby_options_button.text = "MATCH OPTIONS"
+	lobby_options_button.text = "MATCH SETUP"
 	lobby_options_button.theme_type_variation = &"SecondaryButton"
 	lobby_options_button.custom_minimum_size.y = 48.0
 	lobby_options_button.pressed.connect(_show_lobby_options)
-	content.add_child(lobby_options_button)
+
 	_create_lobby_options_popup()
 	_create_ship_color_popup()
+	var launch_actions := HBoxContainer.new()
+	launch_actions.add_theme_constant_override("separation", 12)
+	content.add_child(launch_actions)
 	ready_button = CheckButton.new()
 	ready_button.text = "READY FOR LAUNCH"
 	ready_button.theme_type_variation = &"SuccessToggle"
 	ready_button.custom_minimum_size.y = 52.0
 	ready_button.toggled.connect(_on_ready_toggled)
-	content.add_child(ready_button)
+	ready_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	launch_actions.add_child(ready_button)
 	start_button = Button.new()
 	start_button.text = "Start Match"
 	start_button.theme_type_variation = &"PrimaryButton"
 	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(client.bridge.send_start_match)
-	content.add_child(start_button)
+	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	launch_actions.add_child(start_button)
 	var lobby_actions := HBoxContainer.new()
 	lobby_actions.add_theme_constant_override("separation", 12)
 	content.add_child(lobby_actions)
+	lobby_options_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lobby_actions.add_child(lobby_options_button)
 	lobby_settings_button = Button.new()
 	lobby_settings_button.name = "LobbySettingsButton"
 	lobby_settings_button.text = "Settings"
@@ -397,15 +446,29 @@ func _create_lobby_options_popup() -> void:
 	lobby_options_popup = PanelContainer.new()
 	lobby_options_popup.name = "LobbyOptions"
 	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_options_popup.position = Vector2(-340.0, -350.0)
-	lobby_options_popup.custom_minimum_size = Vector2(680.0, 700.0)
+	lobby_options_popup.position = Vector2(-400.0, -330.0)
+	lobby_options_popup.custom_minimum_size = Vector2(800.0, 660.0)
 	lobby_options_popup.theme = client.interface_theme
 	lobby_options_popup.add_theme_stylebox_override("panel", client._panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	lobby_options_popup.visible = false
 	connection_canvas.add_child(lobby_options_popup)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	lobby_options_popup.add_child(outer)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(750.0, 550.0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	outer.add_child(scroll)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 14)
-	lobby_options_popup.add_child(content)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 12)
+	scroll.add_child(content)
+	lobby_preset_control = _create_preset_picker(content)
+	lobby_preset_note = _create_preset_note(content)
+	lobby_preset_control.item_selected.connect(_on_lobby_preset_selected)
+	content.add_child(lobby_host_controls)
 	var title := Label.new()
 	title.text = "MATCH OPTIONS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -504,7 +567,7 @@ func _create_lobby_options_popup() -> void:
 	close_button.theme_type_variation = &"PrimaryButton"
 	close_button.custom_minimum_size.y = 48.0
 	close_button.pressed.connect(_hide_lobby_options)
-	content.add_child(close_button)
+	outer.add_child(close_button)
 
 
 func _create_ship_color_popup() -> void:
@@ -752,6 +815,7 @@ func _host_online() -> void:
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"server_name": server_name,
 		"lobby_password": lobby_password,
+		"match_preset": String(host_preset_control.get_item_metadata(host_preset_control.selected)),
 	})
 	if error != OK:
 		connection_status.text = _hosted_server_bridge.last_error if _hosted_server_bridge != null else "Could not start the local server."
@@ -870,14 +934,16 @@ func _add_lan_server_row(server: Dictionary) -> void:
 		server.get("address", ""), server.get("game_port", 0), server.get("human_count", 0),
 		server.get("npc_count", 0), server.get("player_limit", 0), state_text, server.get("ping_ms", 0),
 	]
-	detail_label.add_theme_font_size_override("font_size", 14)
+	detail_label.add_theme_font_size_override("font_size", 16)
+	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_label.add_theme_color_override("font_color", Color("aebbd4"))
 	identity.add_child(detail_label)
 	var join_button := Button.new()
-	join_button.text = ("JOIN" if not remembered_password.is_empty() else "PASSWORD") if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
+	join_button.text = ("JOIN" if not remembered_password.is_empty() else "JOIN LOCKED…") if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
+	join_button.tooltip_text = "Join using the saved password." if not remembered_password.is_empty() else "Enter this locked server's password on the next screen, then connect."
 	join_button.theme_type_variation = &"PrimaryButton" if compatible else &"QuietButton"
 	join_button.disabled = not compatible
-	join_button.custom_minimum_size = Vector2(140.0, 46.0)
+	join_button.custom_minimum_size = Vector2(175.0, 46.0)
 	join_button.pressed.connect(_join_lan_server.bind(String(server.get("address", "")), int(server.get("game_port", 0))))
 	row.add_child(join_button)
 
@@ -926,6 +992,10 @@ func render_lobby(state: Dictionary) -> void:
 		npc_count,
 	]
 	var is_leader: bool = int(state.get("leader_id", 0)) == client.bridge.local_peer_id
+	lobby_rules_label.text = "%s  ·  First to %d rounds  ·  %s" % [GameModeRules.mode_name(int(state.get("game_mode", 0))), int(state.get("rounds_to_win", 3)), "NPC fill enabled" if bool(state.get("npcs_enabled", false)) else "Human pilots only"]
+	lobby_readiness_label.text = readiness_summary(state)
+	lobby_options_button.text = "MATCH SETUP" if is_leader else "VIEW MATCH SETUP"
+	lobby_options_button.tooltip_text = "Choose a solo or party preset, or configure advanced rules." if is_leader else "View current rules. Only the host may edit match setup."
 	_rebuild_lobby_roster(state, is_leader)
 	var local_ready := false
 	for player_value in state.get("players", []):
@@ -968,6 +1038,7 @@ func render_lobby(state: Dictionary) -> void:
 	ready_button.disabled = match_active
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
 	var settings_editable: bool = is_leader and not match_active
+	lobby_preset_control.disabled = not settings_editable
 	game_mode_control.disabled = not settings_editable
 	team_count_control.editable = settings_editable and selected_game_mode == GameModeRules.Mode.TEAM_DEATH_MATCH
 	rounds_control.editable = settings_editable
@@ -1008,7 +1079,7 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 	var team_mode := GameModeRules.is_team_mode(game_mode)
 	var team_count := GameModeRules.team_count_for_mode(game_mode, int(state.get("team_count", GameModeRules.DEFAULT_TEAM_COUNT)))
 	var match_active := bool(state.get("match_active", false))
-	for player_value in state.get("players", []):
+	for player_value in ordered_roster(state):
 		var player := player_value as Dictionary
 		var peer_id := int(player.get("peer_id", 0))
 		var is_npc := bool(player.get("is_npc", false))
@@ -1041,7 +1112,8 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		row.add_child(color_swatch)
 		var name_label := Label.new()
 		name_label.text = String(player.get("display_name", "Pilot"))
-		name_label.custom_minimum_size.x = 190.0 if team_mode else 300.0
+		name_label.custom_minimum_size.x = 180.0 if team_mode else 280.0
+		name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_label.add_theme_color_override("font_color", Color("fff36a") if peer_id == int(state.get("leader_id", 0)) else Color("e8f5ff"))
 		row.add_child(name_label)
@@ -1313,3 +1385,69 @@ func shutdown() -> void:
 	if is_instance_valid(lan_browser):
 		lan_browser.stop()
 	_stop_hosted_server()
+
+
+func _create_preset_picker(parent: VBoxContainer) -> OptionButton:
+	var label := Label.new()
+	label.text = "SOLO OR PARTY PRESET"
+	label.add_theme_font_size_override("font_size", 16)
+	parent.add_child(label)
+	var picker := OptionButton.new()
+	picker.name = "MatchPreset"
+	picker.custom_minimum_size.y = 42.0
+	picker.add_item("Custom · configure in the lobby")
+	picker.set_item_metadata(0, "")
+	for preset in MatchPresetsScript.PRESETS:
+		picker.add_item(String(preset.name))
+		picker.set_item_metadata(picker.item_count - 1, String(preset.id))
+	parent.add_child(picker)
+	return picker
+
+
+func _create_preset_note(parent: VBoxContainer) -> Label:
+	var note := Label.new()
+	note.text = _preset_description(0)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_font_size_override("font_size", 16)
+	parent.add_child(note)
+	return note
+
+
+func _preset_description(index: int) -> String:
+	return "Choose a quick setup or adjust every rule in Advanced settings. All presets can be edited before launch." if index == 0 else String(MatchPresetsScript.PRESETS[index - 1].description)
+
+
+func _on_lobby_preset_selected(index: int) -> void:
+	lobby_preset_note.text = _preset_description(index)
+	lobby_preset_note.remove_theme_color_override("font_color")
+	if index > 0 and not _applying_lobby_state:
+		client.bridge.send_match_preset(String(lobby_preset_control.get_item_metadata(index)))
+
+
+func show_request_rejection(message: String) -> void:
+	if lobby_options_popup.visible:
+		lobby_preset_note.text = "Could not apply: %s" % message
+		lobby_preset_note.add_theme_color_override("font_color", Color("ffadb9"))
+
+
+static func ordered_roster(state: Dictionary) -> Array:
+	var roster: Array = state.get("players", []).duplicate(true)
+	# Unready humans first so blockers are visible even in a full 32-pilot lobby.
+	roster.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var a_group := 2 if bool(a.get("is_npc", false)) else 1 if bool(a.get("ready", false)) else 0
+		var b_group := 2 if bool(b.get("is_npc", false)) else 1 if bool(b.get("ready", false)) else 0
+		return a_group < b_group if a_group != b_group else int(a.get("peer_id", 0)) < int(b.get("peer_id", 0))
+	)
+	return roster
+
+
+static func readiness_summary(state: Dictionary) -> String:
+	var missing := PackedStringArray()
+	var missing_count := 0
+	for player in state.get("players", []):
+		if not bool(player.get("is_npc", false)) and not bool(player.get("ready", false)):
+			missing_count += 1
+			if missing.size() < 3:
+				missing.append(String(player.get("display_name", "Pilot")))
+	var status := "All human pilots ready." if missing_count == 0 else "Waiting for: %s%s." % [", ".join(missing), " +%d more" % (missing_count - missing.size()) if missing_count > missing.size() else ""]
+	return "%s  Unready pilots appear first · scroll roster for all %d pilots." % [status, (state.get("players", []) as Array).size()]

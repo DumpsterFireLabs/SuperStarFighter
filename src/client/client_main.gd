@@ -1,5 +1,7 @@
 extends Node
 
+const RESULTS_ACTION_EXPLANATION: String = "Fresh rematch resets cards, scores and objectives; keeps rules, teams and pilots.\nFive more rounds keeps all builds and scores. Lobby lets everyone change rules and ready up."
+
 const SettingsControllerScript = preload("res://src/client/ui/settings_controller.gd")
 const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
 
@@ -189,6 +191,9 @@ var results_panel: PanelContainer
 var results_label: Label
 var results_winner_label: Label
 var results_standings_container: VBoxContainer
+var results_rematch_button: Button
+var results_action_note: Label
+var _rematch_requested: bool = false
 var results_extend_button: Button
 var results_return_button: Button
 var _results_rows_dirty: bool = true
@@ -501,6 +506,7 @@ func _create_match_ui() -> void:
 	draft_panel.theme = interface_theme
 	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	draft_panel.visible = false
+	draft_panel.resized.connect(func() -> void: draft_panel.position = (get_viewport().get_visible_rect().size - draft_panel.size) * 0.5)
 	connection_controller.connection_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 14)
@@ -517,7 +523,7 @@ func _create_match_ui() -> void:
 	content.add_child(cards)
 	for index in GameConstants.CARD_OFFER_SIZE:
 		var button := CardHoverButtonScript.new()
-		button.custom_minimum_size = Vector2(224.0, 400.0)
+		button.custom_minimum_size = Vector2(224.0, 720.0)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		button.add_theme_font_size_override("font_size", 1)
@@ -533,7 +539,8 @@ func _create_match_ui() -> void:
 		var rarity_label := Label.new()
 		rarity_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 		rarity_label.offset_left = 10.0
-		rarity_label.offset_top = -38.0
+		rarity_label.offset_top = -72.0
+		rarity_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		rarity_label.offset_right = -10.0
 		rarity_label.offset_bottom = -10.0
 		rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -581,7 +588,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_right", 14)
 	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_bottom", 48)
+	margin.add_theme_constant_override("margin_bottom", 82)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(margin)
 	var column := VBoxContainer.new()
@@ -623,12 +630,14 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	column.add_child(description)
 	var stack := Label.new()
 	stack.name = "Stack"
+	stack.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_theme_font_size_override("font_size", 15)
 	stack.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	column.add_child(stack)
 	var state := Label.new()
 	state.name = "State"
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	state.add_theme_font_size_override("font_size", 14)
 	state.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
@@ -759,7 +768,8 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	_add_results_column_heading(standings_heading, "KILLS", 100.0)
 	_add_results_column_heading(standings_heading, "FINAL BUILD", 0.0, true)
 	var results_scroll := ScrollContainer.new()
-	results_scroll.custom_minimum_size = Vector2(1060.0, 300.0)
+	results_scroll.custom_minimum_size = Vector2(1060.0, 230.0)
+	results_scroll.follow_focus = true
 	results_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	results_content.add_child(results_scroll)
@@ -767,10 +777,25 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	results_standings_container.add_theme_constant_override("separation", 7)
 	results_standings_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	results_scroll.add_child(results_standings_container)
+	results_action_note = Label.new()
+	results_action_note.name = "ResultsActionExplanation"
+	results_action_note.text = RESULTS_ACTION_EXPLANATION
+	results_action_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_action_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	results_action_note.add_theme_font_size_override("font_size", 16)
+	results_content.add_child(results_action_note)
 	var results_actions := HBoxContainer.new()
 	results_actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	results_actions.add_theme_constant_override("separation", 16)
 	results_content.add_child(results_actions)
+	results_rematch_button = Button.new()
+	results_rematch_button.name = "FreshRematchButton"
+	results_rematch_button.text = "FRESH REMATCH · SAME RULES"
+	results_rematch_button.theme_type_variation = &"PrimaryButton"
+	results_rematch_button.custom_minimum_size = Vector2(330.0, 52.0)
+	results_rematch_button.add_theme_font_size_override("font_size", 17)
+	results_rematch_button.pressed.connect(_on_results_rematch_pressed)
+	results_actions.add_child(results_rematch_button)
 	results_extend_button = Button.new()
 	results_extend_button.text = "PLAY 5 MORE ROUNDS"
 	results_extend_button.theme_type_variation = &"PrimaryButton"
@@ -856,6 +881,7 @@ func _change_accessibility_setting(key: String, value: Variant) -> void:
 
 
 func _apply_accessibility_settings() -> void:
+	settings_controller.apply_accessible_theme()
 	if network_world != null:
 		network_world.apply_accessibility_settings(settings_controller.accessibility_preferences.values)
 	if offline_sandbox != null and offline_sandbox.has_method("apply_accessibility_settings"):
@@ -1392,7 +1418,11 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 	elif event_type == &"REQUEST_REJECTED":
 		_extend_match_requested = false
 		_return_to_lobby_requested = false
+		_rematch_requested = false
 		connection_controller.lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
+		connection_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
+		if win_overlay.visible:
+			results_action_note.text = "Could not continue: %s\nChoose another action or return to the lobby." % payload.get("message", "Unknown request")
 		if draft_panel.visible and not active_offer_token.is_empty():
 			for draft_button in draft_buttons:
 				if draft_button.visible:
@@ -1405,6 +1435,10 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 			draft_confirmation_row.visible = false
 	elif event_type == &"DRAFT_OFFER":
 		_show_draft_offer(payload)
+	elif event_type == &"MATCH_START_ACCEPTED" and bool(payload.get("fresh_rematch", false)):
+		network_world.reset_match_presentation()
+		audio_director.reset_match_deduplication()
+		_rematch_requested = false
 	elif event_type == &"STATE_CHANGED":
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		latest_match_payload = payload.duplicate(true)
@@ -2038,8 +2072,11 @@ func _update_results_screen() -> void:
 	var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 	results_winner_label.text = "★  %s  ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(winner_id).to_upper())
 	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
-	var action_requested := _extend_match_requested or _return_to_lobby_requested
+	var action_requested := _extend_match_requested or _return_to_lobby_requested or _rematch_requested
 	var can_extend := bool(latest_match_payload.get("can_extend_match", true))
+	results_rematch_button.disabled = not is_leader or not can_extend or action_requested
+	results_rematch_button.text = "STARTING FRESH REMATCH…" if _rematch_requested else "FRESH REMATCH · SAME RULES"
+	results_rematch_button.tooltip_text = "The host starts a new match with the same rules and teams. Every build, score and objective total resets."
 	results_extend_button.disabled = not is_leader or not can_extend or action_requested
 	results_return_button.disabled = not is_leader or action_requested
 	if _extend_match_requested:
@@ -2067,6 +2104,14 @@ func _update_results_screen() -> void:
 	for index in peer_ids.size():
 		var peer_team := _player_team(peer_ids[index])
 		_add_result_row(index + 1, peer_ids[index], peer_team == winner_team if winner_team > 0 else peer_ids[index] == winner_id)
+
+
+func _on_results_rematch_pressed() -> void:
+	if results_rematch_button.disabled:
+		return
+	_rematch_requested = true
+	_update_results_screen()
+	bridge.send_rematch()
 
 
 func _on_results_extend_pressed() -> void:
@@ -2210,9 +2255,12 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	row_panel.set_meta("winner", winner)
 	row_panel.add_theme_stylebox_override("panel", _results_row_style(accent, winner))
 	results_standings_container.add_child(row_panel)
+	var row_content := VBoxContainer.new()
+	row_content.add_theme_constant_override("separation", 6)
+	row_panel.add_child(row_content)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
-	row_panel.add_child(row)
+	row_content.add_child(row)
 	var rank_label := Label.new()
 	rank_label.text = "#%02d" % rank
 	rank_label.custom_minimum_size.x = 60.0
@@ -2245,6 +2293,15 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	kills_label.add_theme_color_override("font_color", Color("fff36a"))
 	row.add_child(kills_label)
 	_add_result_build(row, peer_id)
+	var contribution := preload("res://src/client/ui/objective_contribution_text.gd").summary(latest_match_payload, peer_id)
+	if not contribution.is_empty():
+		var contribution_label := Label.new()
+		contribution_label.name = "ObjectiveContribution"
+		contribution_label.text = contribution
+		contribution_label.add_theme_font_size_override("font_size", 16)
+		contribution_label.add_theme_color_override("font_color", Color("bdefff"))
+		contribution_label.tooltip_text = "Server-recorded contribution over the whole match. Contested time is separate from scoring control; carrier stops count enemy flag carriers eliminated."
+		row_content.add_child(contribution_label)
 
 
 func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> Label:
@@ -2299,6 +2356,7 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	if state_name == "LOBBY":
 		_extend_match_requested = false
 		_return_to_lobby_requested = false
+		_rematch_requested = false
 		audio_director.set_context(&"lobby")
 		_set_win_screen_visible(false)
 		return
@@ -2312,8 +2370,10 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	elif state_name == "ROUND_RESULT":
 		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
 	elif state_name == "MATCH_RESULT":
+		results_action_note.text = RESULTS_ACTION_EXPLANATION
 		_extend_match_requested = false
 		_return_to_lobby_requested = false
+		_rematch_requested = false
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
 
 

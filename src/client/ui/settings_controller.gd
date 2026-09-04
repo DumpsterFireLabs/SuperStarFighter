@@ -45,6 +45,11 @@ var hud_scale_value: Label
 var reduced_shake_control: CheckButton
 var reduced_flashes_control: CheckButton
 var constrain_hud_control: CheckButton
+var high_contrast_control: CheckButton
+var toggle_fire_control: CheckButton
+var toggle_shield_control: CheckButton
+var accessible_refresh_pending: bool = false
+var accessible_pending_nodes: Array[WeakRef] = []
 var settings_back_button: Button
 var window_mode_control: OptionButton
 var resolution_control: OptionButton
@@ -66,6 +71,11 @@ var current_resolution: Vector2i = Vector2i(1280, 720)
 
 func initialize(client_root: Node) -> void:
 	client = client_root
+
+
+func _ready() -> void:
+	get_tree().node_added.connect(_on_accessible_node_added)
+	apply_accessible_theme.call_deferred()
 
 
 func _create_settings_overlay() -> void:
@@ -121,10 +131,15 @@ func _create_settings_overlay() -> void:
 
 
 func _create_accessibility_settings_tab() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.name = "ACCESSIBILITY"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	settings_tabs.add_child(scroll)
 	var tab := VBoxContainer.new()
-	tab.name = "ACCESSIBILITY"
-	tab.add_theme_constant_override("separation", 16)
-	settings_tabs.add_child(tab)
+	tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab.add_theme_constant_override("separation", 10)
+	scroll.add_child(tab)
 	var heading := Label.new()
 	heading.text = "COMBAT READABILITY & COMFORT"
 	heading.add_theme_font_size_override("font_size", 23)
@@ -156,8 +171,11 @@ func _create_accessibility_settings_tab() -> void:
 	reduced_shake_control = _add_accessibility_toggle(tab, "Disable camera shake and boost kick", "reduced_shake")
 	reduced_flashes_control = _add_accessibility_toggle(tab, "Reduce combat flashes", "reduced_flashes")
 	constrain_hud_control = _add_accessibility_toggle(tab, "Keep HUD within a centered 16:9 area", "constrain_hud")
+	high_contrast_control = _add_accessibility_toggle(tab, "Stronger text, panel and obstacle contrast", "high_contrast")
+	toggle_fire_control = _add_accessibility_toggle(tab, "Toggle fire: press to start / stop", "toggle_fire")
+	toggle_shield_control = _add_accessibility_toggle(tab, "Toggle shield: press to raise / lower", "toggle_shield")
 	var note := Label.new()
-	note.text = "Applies immediately to online play and the build laboratory.\nReduced flashes keeps impact outlines and damage information visible.\nUse Tab / Shift+Tab or controller D-pad to navigate; Left / Right adjusts size."
+	note.text = "Toggles reset on menus, elimination and session changes.\nApplies immediately to online play and the build laboratory.\nReduced flashes keeps impact outlines and damage information visible.\nUse Tab / Shift+Tab or controller D-pad to navigate; Left / Right adjusts size."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	tab.add_child(note)
@@ -194,7 +212,7 @@ func _change_accessibility_setting(key: String, value: Variant) -> void:
 
 
 func _configure_accessibility_focus() -> void:
-	var controls: Array[Control] = [settings_tabs.get_tab_bar(), hud_scale_control, reduced_shake_control, reduced_flashes_control, constrain_hud_control, settings_back_button]
+	var controls: Array[Control] = [settings_tabs.get_tab_bar(), hud_scale_control, reduced_shake_control, reduced_flashes_control, constrain_hud_control, high_contrast_control, toggle_fire_control, toggle_shield_control, settings_back_button]
 	for index in range(1, controls.size() - 1):
 		controls[index].focus_previous = controls[index].get_path_to(controls[index - 1])
 		controls[index].focus_neighbor_top = controls[index].focus_previous
@@ -610,3 +628,34 @@ func _process(delta: float) -> void:
 	binding_capture_seconds = maxf(binding_capture_seconds - delta, 0.0)
 	if binding_capture_seconds <= 0.0:
 		_cancel_binding_capture()
+
+
+func _on_accessible_node_added(node: Node) -> void:
+	if not node is Control or not is_instance_valid(client) or not client.is_ancestor_of(node):
+		return
+	# Apply only new interface subtrees, rather than rescanning the game for every
+	# kill-feed entry. Defer until constructors have assigned semantic colours.
+	for reference in accessible_pending_nodes:
+		var pending := reference.get_ref() as Node
+		if pending != null and (pending == node or pending.is_ancestor_of(node)):
+			return
+	accessible_pending_nodes.append(weakref(node))
+	if not accessible_refresh_pending:
+		accessible_refresh_pending = true
+		_refresh_accessible_nodes.call_deferred()
+
+
+func _refresh_accessible_nodes() -> void:
+	accessible_refresh_pending = false
+	var pending := accessible_pending_nodes.duplicate()
+	accessible_pending_nodes.clear()
+	for reference in pending:
+		var node: Node = reference.get_ref()
+		if is_instance_valid(node):
+			preload("res://src/client/presentation/accessible_interface.gd").apply(node, bool(accessibility_preferences.values.high_contrast))
+
+
+func apply_accessible_theme() -> void:
+	if not is_instance_valid(client):
+		return
+	preload("res://src/client/presentation/accessible_interface.gd").apply(client, bool(accessibility_preferences.values.high_contrast))

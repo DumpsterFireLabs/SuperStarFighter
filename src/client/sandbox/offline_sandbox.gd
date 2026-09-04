@@ -69,6 +69,8 @@ var camera_kick_remaining: float = 0.0
 var camera_kick_duration: float = 0.0
 var camera_kick_offset: Vector2 = Vector2.ZERO
 var accessibility: Dictionary = {}
+var toggle_status_label: Label
+var action_latch = preload("res://src/client/input/combat_action_latch.gd").new()
 var tutorial: RefCounted
 
 
@@ -96,6 +98,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if editor_open or (tutorial != null and tutorial.blocks_simulation()):
+		action_latch.reset()
 		_update_camera(delta)
 		return
 	if not combat_input_armed:
@@ -109,7 +112,7 @@ func _physics_process(delta: float) -> void:
 	var pressed := Input.is_action_just_pressed("special")
 	if pressed:
 		special_sequence = SequenceMath.increment(special_sequence)
-	var frame := PlayerInputFrame.new(input_sequence, world.server_tick, movement, aim_angle, Input.is_action_pressed("fire"), Input.is_action_pressed("shield"), Input.is_action_pressed("manual_reload"), pressed, special_sequence)
+	var frame := PlayerInputFrame.new(input_sequence, world.server_tick, movement, aim_angle, action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(accessibility.get("toggle_fire", false)), player.combatant.alive), action_latch.sample(&"shield", Input.is_action_pressed("shield"), bool(accessibility.get("toggle_shield", false)), player.combatant.alive), Input.is_action_pressed("manual_reload"), pressed, special_sequence)
 	# Selection is shared with the network client; the authoritative step activates
 	# exactly the selected ability, including its inventory and cooldown rules.
 	if InputMap.has_action("special_previous") and Input.is_action_just_pressed("special_previous"):
@@ -253,6 +256,7 @@ func _emit_effect(event_name: StringName, payload: Dictionary, origin: Vector2) 
 
 
 func set_sandbox_active(active: bool) -> void:
+	action_latch.reset()
 	if not active and tutorial != null and tutorial.active:
 		tutorial.stop()
 	visible = active
@@ -376,6 +380,7 @@ func _create_hud() -> void:
 
 
 func set_editor_open(value: bool) -> void:
+	action_latch.reset()
 	editor_open = value
 	combat_input_armed = false
 	lab_panel.visible = value
@@ -423,6 +428,10 @@ func stop_tutorial() -> void:
 
 func apply_accessibility_settings(values: Dictionary) -> void:
 	accessibility = values.duplicate()
+	action_latch.reset()
+	if arena != null and arena.static_layer != null:
+		arena.static_layer.high_contrast = bool(values.get("high_contrast", false))
+		arena.static_layer.queue_redraw()
 	if bool(values.get("reduced_shake", false)):
 		camera_kick_remaining = 0.0
 		if camera != null:
@@ -430,6 +439,8 @@ func apply_accessibility_settings(values: Dictionary) -> void:
 	if effects_layer != null:
 		effects_layer.set("reduced_flashes", bool(values.get("reduced_flashes", false)))
 	for ship_value in ships_by_id.values():
+		(ship_value as SandboxShip).high_contrast = bool(values.get("high_contrast", false))
+		(ship_value as SandboxShip).queue_redraw()
 		(ship_value as SandboxShip).reduced_flashes = bool(values.get("reduced_flashes", false))
 	_layout_hud()
 
@@ -472,6 +483,10 @@ func _update_hud() -> void:
 		special_name += " ×%d" % charges if charges >= 0 else ""
 		special_name += " (%.1fs)" % cooldown if cooldown > 0.0 else " READY" if charges != 0 else " EMPTY"
 	status_label.text = "COMBAT LAB · %s · HP %.0f/%.0f · Ammo %d/%d · Ability: %s\n%d shots · %d hull hits · %d blocked · %.1f damage / %.1fs = %.1f DPS" % ["PAUSED" if editor_open else "LIVE", state.health, state.stats.max_health, state.weapon.ammunition, state.stats.magazine_size, special_name, shots_fired, hull_hits, blocked_shots, measured_damage, measurement_seconds, measured_dps()]
+	if toggle_status_label == null and hud_root != null:
+		toggle_status_label = action_latch.create_status_label(hud_root)
+	if toggle_status_label != null:
+		toggle_status_label.text = action_latch.status(accessibility)
 	if lab_panel != null:
 		lab_panel.refresh_telemetry()
 
@@ -551,6 +566,7 @@ func set_target_settings(count_value: int, health_value: float, distance_value: 
 
 
 func _reset_combatants() -> void:
+	action_latch.reset()
 	world.clear_projectiles()
 	# A clear firing lane beside the core map's center cover makes the initial
 	# target visible and reachable, unlike the old far-side spawn anchors.

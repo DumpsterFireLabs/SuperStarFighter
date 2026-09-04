@@ -32,7 +32,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.10 |
-| Protocol version | 28 (binary packets 12) |
+| Protocol version | 29 (binary packets 12) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 
@@ -430,3 +430,12 @@ The source-playable vertical slice and hardening milestone are complete. Beta 10
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
 Until those pieces land, treat the repository bootstrap/start scripts as the supported distribution path for playtests.
+
+
+## Gameplay observations and repeatable studies
+
+`tools/measure-gameplay.ps1 -Section pacing -Seeds 2` simulates three complete heats for each supported mode at 2, 8, and 32 pilots. `-Section balance -Seeds 10` records target-aware draft availability, derived-stat saturation, mirrored archetype bouts, and controlled next-heat bye/pickup comparisons. `-Section fairness -Seeds 3` runs paired temporary/permanent pickup matches. `-OutputPath reports/name.json` selects the output; directories are created automatically. These are exploratory measurements, not pass/fail balance targets. See [the dated study](./GAMEPLAY-STUDY-2026-09-03.md) for methods, results, and limits.
+
+`MatchObservations` keeps at most 128 completed heat rows per coordinator. It records actual first combat contact (shield blocks count; overtime does not), post-respawn eliminated time, actual draft time, turnaround, starting/ending builds, draft byes, and both temporary and permanent pickup cohorts. Missing contact or a next-round transition remains null. Production servers emit `heat_observation` summaries and `heat_player_observation` cohort rows at heat results; these study rows are not additional client RPCs. Existing logger bounds retain at most 16 card types per logged build and set `build_log_truncated` if larger; the 128-row in-memory history and JSON study outputs retain complete builds. Objective contributions are a separate public, cumulative match payload and reset with a fresh coordinator.
+
+Run the real preset/rematch RPC acceptance with Godot `--headless --path . --script res://src/test/lobby_flow_verifier.gd`. It verifies host and guest authority, atomic presets, replicated fresh results, and build/score resets over localhost ENet. Compatibility 29 is required because the RPC surface changed; binary input and snapshot formats remain version 12.

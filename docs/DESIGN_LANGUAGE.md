@@ -146,3 +146,12 @@ Run:
 .\tools\run-tests.ps1
 .\tools\verify-presentation.ps1
 ```
+
+
+## Build geometry, world materials, and readable text
+
+`ShipBuildGeometry` derives up to three restrained modules from actual effective stats: beam, spread, cannon, shield, drive, ordnance, and repair. Modules stay within the existing hull envelope; collision, directional shields, and allegiance shapes retain their meaning. They supplement cosmetic paint rather than redefine teams.
+
+`ArenaStaticLayer` uses station panel seams, cargo ribs, crystal facets, thermal vents, and stone fractures. Numbered material callouts identify landmarks. Material marks sit on actual solid cover with continuous outer collision boundaries; they must not imply traversable holes or new hazards. Static commands remain cached.
+
+`AccessibleInterface` applies a 21 logical-pixel minimum to interface text (about 14 physical pixels at 720p under the current canvas scale). Deliberately hidden native labels under custom card content are exempt. Wrapped card bodies and footers, a centered taller draft panel, and scrollable settings/rosters accommodate the larger text. High contrast strengthens text and surface boundaries without replacing team shapes or card rarity labels. This is an implementation floor, not human readability or formal contrast-conformance acceptance; those checks remain in the review's player-validation work.

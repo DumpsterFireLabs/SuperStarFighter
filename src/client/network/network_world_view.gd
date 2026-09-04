@@ -58,7 +58,13 @@ var match_payload: Dictionary = {}
 var spectator_target_id: int = 0
 var controls_enabled: bool = false
 var card_catalog := CardCatalog.create_default()
-var input_blocked: bool = false
+var toggle_status_label: Label
+var action_latch = preload("res://src/client/input/combat_action_latch.gd").new()
+var input_blocked: bool = false:
+	set(value):
+		input_blocked = value
+		if value:
+			action_latch.reset()
 var presentation_states: Dictionary = {}
 var camera_shake_remaining: float = 0.0
 var camera_shake_intensity: float = 0.0
@@ -126,6 +132,8 @@ func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
 
 
 func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
+	if not active:
+		action_latch.reset()
 	if not active and reset_when_inactive:
 		reset_session()
 	visible = active
@@ -138,6 +146,7 @@ func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
 
 
 func reset_session() -> void:
+	action_latch.reset()
 	if combat_feedback_panel != null:
 		combat_feedback_panel.clear_feedback(true)
 	for ship_value in ships.values():
@@ -277,8 +286,8 @@ func _physics_process(delta: float) -> void:
 		client_tick,
 		local_movement,
 		aim_angle,
-		controls_enabled and not input_blocked and local_alive and local_cloak_remaining <= 0.0 and Input.is_action_pressed("fire"),
-		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("shield"),
+		action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(accessibility_settings.toggle_fire), controls_enabled and not input_blocked and local_alive and local_cloak_remaining <= 0.0),
+		action_latch.sample(&"shield", Input.is_action_pressed("shield"), bool(accessibility_settings.toggle_shield), controls_enabled and not input_blocked and local_alive),
 		controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
 		special_activation_sends_remaining > 0,
 		special_activation_sequence,
@@ -628,6 +637,7 @@ func _ensure_ship(peer_id: int, state: Dictionary) -> SandboxShip:
 		return existing
 	var ship := SandboxShip.new()
 	ship.reduced_flashes = bool(accessibility_settings.reduced_flashes)
+	ship.high_contrast = bool(accessibility_settings.high_contrast)
 	var color := _player_color(peer_id)
 	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == local_peer_id, _display_name(peer_id), _player_pattern(peer_id))
 	ship.set_team_identity(team_for_peer(peer_id), team_for_peer(local_peer_id))
@@ -1066,9 +1076,14 @@ func apply_accessibility_settings(values: Dictionary) -> void:
 	var normalized = AccessibilityPreferencesScript.new()
 	normalized.set_values(values)
 	accessibility_settings = normalized.values.duplicate()
+	action_latch.reset()
+	if arena != null and arena.static_layer != null:
+		arena.static_layer.high_contrast = bool(accessibility_settings.high_contrast)
+		arena.static_layer.queue_redraw()
 	if effects_layer != null:
 		effects_layer.reduced_flashes = bool(accessibility_settings.reduced_flashes)
 	for ship_value in ships.values():
+		(ship_value as SandboxShip).high_contrast = bool(accessibility_settings.high_contrast)
 		(ship_value as SandboxShip).reduced_flashes = bool(accessibility_settings.reduced_flashes)
 		(ship_value as SandboxShip).queue_redraw()
 	if bool(accessibility_settings.reduced_shake):
@@ -1154,6 +1169,10 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			spectator_label.visible = false
 	resources_label.text = resources
 	combat_status_label.text = combat_status
+	if toggle_status_label == null and hud_root != null:
+		toggle_status_label = action_latch.create_status_label(hud_root)
+	if toggle_status_label != null:
+		toggle_status_label.text = action_latch.status(accessibility_settings)
 	_diagnostics_refresh_accumulator += maxf(delta, 0.0)
 	if diagnostics_visible and _diagnostics_refresh_accumulator >= 0.25:
 		_diagnostics_refresh_accumulator = fmod(_diagnostics_refresh_accumulator, 0.25)

@@ -3,6 +3,7 @@ extends CharacterBody2D
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
+const BuildGeometry = preload("res://src/client/presentation/ship_build_geometry.gd")
 const DEFAULT_SHIELD_COLOR: Color = Color("5cf6ff")
 const AFTERBURNER_IGNITION_SECONDS: float = 0.12
 const AFTERBURNER_ECHO_LIFETIME_SECONDS: float = 0.30
@@ -18,6 +19,7 @@ var display_name: String = "Pilot"
 var identity_pattern: int = 0
 var damage_flash_remaining: float = 0.0
 var reduced_flashes: bool = false
+var high_contrast: bool = false
 var shield_flash_remaining: float = 0.0
 var elimination_pulse_remaining: float = 0.0
 var thruster_particles: CPUParticles2D
@@ -312,6 +314,8 @@ func _draw() -> void:
 	var forward := Vector2.from_angle(combatant.aim_angle)
 	var side := forward.orthogonal()
 	var points := PackedVector2Array([forward * 29.0, -forward * 19.0 + side * 17.0, -forward * 11.0, -forward * 19.0 - side * 17.0])
+	if high_contrast:
+		draw_circle(Vector2.ZERO, 30.0, Color("02040d"))
 	_draw_team_marker()
 	_draw_afterburner_echoes()
 	_draw_maneuvering_jets(forward, side)
@@ -319,7 +323,8 @@ func _draw() -> void:
 	draw_polyline(points + PackedVector2Array([points[0]]), Color(ship_color, 0.18), 12.0)
 	draw_colored_polygon(points, Color(ship_color.darkened(0.45), 0.82))
 	_draw_cosmetic_pattern(forward, side)
-	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 and not reduced_flashes else ship_color, 6.0 if local_control else 4.0)
+	_draw_build_modules(forward, side)
+	draw_polyline(points + PackedVector2Array([points[0]]), Color.WHITE if damage_flash_remaining > 0.0 and not reduced_flashes else (ship_color.lightened(0.55) if high_contrast else ship_color), 6.0 if local_control else 4.0)
 	draw_circle(Vector2.ZERO, 6.0, Color("ffffff"))
 	for mark in identity_pattern + 1:
 		var offset := (float(mark) - identity_pattern * 0.5) * 8.0
@@ -503,3 +508,13 @@ func ammo_indicator_text() -> String:
 		return ""
 	var weapon := combatant.weapon
 	return "RELOAD %.1fs" % weapon.reload_remaining if weapon.reloading else "AMMO %d/%d" % [weapon.ammunition, maxi(combatant.stats.magazine_size, 1)]
+
+
+func _draw_build_modules(forward: Vector2, side: Vector2) -> void:
+	for family in BuildGeometry.families(combatant.stats):
+		for polygon in BuildGeometry.polygons(family):
+			var transformed := PackedVector2Array()
+			for point in polygon:
+				transformed.append(forward * point.x + side * point.y)
+			draw_colored_polygon(transformed, Color("071024"))
+			draw_polyline(transformed + PackedVector2Array([transformed[0]]), ship_color.lightened(0.3), 1.5, true)

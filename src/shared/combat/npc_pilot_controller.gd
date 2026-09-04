@@ -69,6 +69,8 @@ const DIFFICULTY_PROFILES := {
 var _sequences: Dictionary = {}
 var _next_decision_ticks: Dictionary = {}
 var _blocked_engagements: Dictionary = {}
+var _objective_navigation := NpcObjectiveNavigation.new()
+var objective_roles: Dictionary = {}
 
 
 func submit_inputs(
@@ -106,7 +108,9 @@ func submit_inputs(
 			overtime_minimum_radius
 		)
 		var objective_steering := _objective_steering(world, combatant, objective_state)
-		var target := _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
+		var target := _objective_target(world, combatant, objective_state)
+		if target == null:
+			target = _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
 		if target == null:
 			_blocked_engagements.erase(peer_id)
 			var idle_steering := (zone_steering + objective_steering).limit_length(1.0)
@@ -184,8 +188,15 @@ func submit_inputs(
 			var outside_boundary := combatant.position.distance_to(overtime_center) > boundary_radius
 			var tactical_weight := 0.08 if outside_boundary else 0.28
 			tactical_movement = (zone_steering + tactical_movement * tactical_weight).limit_length(1.0)
-		elif not objective_steering.is_zero_approx():
-			tactical_movement = (objective_steering + tactical_movement * 0.4).limit_length(1.0)
+		elif objective_roles.has(peer_id):
+			# Arrival still means hold/escort, not a return to full combat kiting.
+			# Preserve close-contact separation: otherwise two objective seekers
+			# pin each other inside the no-fire escape radius indefinitely.
+			tactical_movement = (
+				(tactical_movement + objective_steering * 0.15).limit_length(1.0)
+				if escaping_close_contact else
+				(objective_steering + tactical_movement * 0.12).limit_length(1.0)
+			)
 		var projectile_threat := _projectile_evasion(world, combatant, profile)
 		var evasion := projectile_threat.get("steering", Vector2.ZERO) as Vector2
 		if not evasion.is_zero_approx():
@@ -232,27 +243,83 @@ func submit_inputs(
 
 
 func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, objective: Dictionary) -> Vector2:
+	var intent := objective_intent(world, combatant, objective)
+	if intent.is_empty():
+		objective_roles.erase(combatant.peer_id)
+		_objective_navigation.remove_peer(combatant.peer_id)
+		return Vector2.ZERO
+	if objective_roles.get(combatant.peer_id, &"") != intent.role:
+		_objective_navigation.remove_peer(combatant.peer_id)
+	objective_roles[combatant.peer_id] = intent.role
+	return _objective_navigation.steering(combatant.peer_id, combatant.position, intent.destination, world.map_id, world.server_tick)
+
+
+func objective_intent(world: AuthoritativeWorld, combatant: CombatantState, objective: Dictionary) -> Dictionary:
 	if objective.is_empty() or not bool(objective.get("active", false)):
-		return Vector2.ZERO
+		return {}
 	var mode := int(objective.get("mode", GameModeRules.Mode.DEATH_MATCH))
-	var destination := Vector2.ZERO
-	if mode == GameModeRules.Mode.KING_OF_THE_HILL:
-		destination = objective.get("position", Vector2.ZERO) as Vector2
-	elif GameModeRules.uses_flag(mode):
-		var carrier_id := int(objective.get("flag_carrier_id", 0))
-		if carrier_id == combatant.peer_id:
-			var team_id := int(world.team_assignments.get(combatant.peer_id, 0))
-			var capture_zone_id := team_id if GameModeRules.is_team_mode(mode) else combatant.peer_id
-			var zones := objective.get("capture_zones", {}) as Dictionary
-			destination = zones.get(capture_zone_id, zones.get(str(capture_zone_id), Vector2.ZERO)) as Vector2
-		else:
-			destination = objective.get("flag_position", Vector2.ZERO) as Vector2
-	if destination.is_zero_approx():
-		return Vector2.ZERO
-	var offset := destination - combatant.position
-	if offset.length() <= GameConstants.SHIP_COLLISION_RADIUS * 2.5:
-		return Vector2.ZERO
-	return offset.normalized()
+	if GameModeRules.uses_hill(mode):
+		return {"role": &"defend" if int(objective.get("controller_id", 0)) == combatant.peer_id else &"contest", "destination": objective.get("position", Vector2.ZERO)}
+	if not GameModeRules.uses_flag(mode):
+		return {}
+	var carrier_id := int(objective.get("flag_carrier_id", 0))
+	var team_id := int(world.team_assignments.get(combatant.peer_id, 0))
+	var zones := objective.get("capture_zones", {}) as Dictionary
+	var zone_id := team_id if GameModeRules.is_team_mode(mode) else combatant.peer_id
+	var home: Vector2 = zones.get(zone_id, zones.get(str(zone_id), combatant.position))
+	if carrier_id == combatant.peer_id:
+		return {"role": &"runner", "destination": home}
+	var carrier := world.combatants.get(carrier_id) as CombatantState
+	var flag_position: Vector2 = objective.get("flag_position", Vector2.ZERO)
+	var members: Array[int] = []
+	for member_id in world.ordered_peer_ids_view():
+		if member_id == combatant.peer_id or world.are_allies(combatant.peer_id, member_id):
+			members.append(member_id)
+	var role := NpcDraftPolicy.team_role(combatant.peer_id, members)
+	if carrier != null and carrier.alive:
+		if not world.are_allies(combatant.peer_id, carrier_id):
+			# Flag ownership is public even when its carrier has cloak equipped.
+			var intercept := carrier.position + carrier.velocity.limit_length(350.0) * 0.45
+			if not NpcObjectiveNavigation._point_clear(intercept, world.map_id):
+				intercept = carrier.position
+			return {"role": &"intercept", "destination": intercept}
+		var travel := (home - carrier.position).normalized()
+		# Separate escorts across the return corridor; the defender clears home.
+		if role == &"defend":
+			return {"role": &"defend", "destination": home}
+		var side := -1.0 if posmod(combatant.peer_id, 2) == 0 else 1.0
+		var escort_position := carrier.position + travel * 120.0 + travel.orthogonal() * side * 100.0
+		if not NpcObjectiveNavigation._point_clear(escort_position, world.map_id):
+			escort_position = carrier.position
+		return {"role": &"escort", "destination": escort_position}
+	if role == &"defend" and members.size() >= 3:
+		# Guard the return corridor rather than waiting behind the scoring base.
+		var corridor := home.lerp(flag_position, 0.32)
+		return {"role": role, "destination": corridor if NpcObjectiveNavigation._point_clear(corridor, world.map_id) else home}
+	return {"role": &"retrieve", "destination": flag_position}
+
+
+func _objective_target(world: AuthoritativeWorld, source: CombatantState, objective: Dictionary) -> CombatantState:
+	if not bool(objective.get("active", false)):
+		return null
+	var carrier_id := int(objective.get("flag_carrier_id", 0))
+	var carrier := world.combatants.get(carrier_id) as CombatantState
+	if carrier == null or not carrier.alive or carrier_id == source.peer_id:
+		return null
+	if not world.are_allies(source.peer_id, carrier_id):
+		return carrier
+	# Escorts engage the threat closest to their carrier, not a distant duel.
+	var nearest: CombatantState
+	var closest := 900.0 * 900.0
+	for peer_id in world.ordered_peer_ids_view():
+		var candidate := world.combatants[peer_id] as CombatantState
+		if not candidate.alive or candidate.is_cloaked() or peer_id == source.peer_id or world.are_allies(source.peer_id, peer_id):
+			continue
+		var distance := candidate.position.distance_squared_to(carrier.position)
+		if distance < closest:
+			closest = distance
+			nearest = candidate
+	return nearest
 
 
 func _projectile_evasion(world: AuthoritativeWorld, combatant: CombatantState, profile: Dictionary) -> Dictionary:
@@ -321,12 +388,16 @@ func remove_peer(peer_id: int) -> void:
 	_sequences.erase(peer_id)
 	_next_decision_ticks.erase(peer_id)
 	_blocked_engagements.erase(peer_id)
+	_objective_navigation.remove_peer(peer_id)
+	objective_roles.erase(peer_id)
 
 
 func clear() -> void:
 	_sequences.clear()
 	_next_decision_ticks.clear()
 	_blocked_engagements.clear()
+	_objective_navigation.clear()
+	objective_roles.clear()
 
 
 func _blocked_engagement_requires_breakout(

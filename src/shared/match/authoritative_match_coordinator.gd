@@ -5,6 +5,8 @@ const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_sy
 const RespawnPlacementScript = preload("res://src/shared/combat/respawn_placement.gd")
 const MAX_RESPAWN_ATTEMPTS_PER_TICK: int = 2
 
+var observations = preload("res://src/shared/match/match_observations.gd").new()
+
 var lobby: ServerLobby
 var world: AuthoritativeWorld
 var machine: MatchStateMachine
@@ -131,6 +133,7 @@ func step(delta: float) -> void:
 			for powerup_event in powerups.step(tick, world, machine.players, _overtime_center(), safe_radius):
 				var payload := (powerup_event.payload as Dictionary).duplicate(true)
 				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
+					observations.record_pickup(int(payload.peer_id), lobby.config.random_powerups_permanent)
 					payload["builds"] = _public_builds()
 				_events.append({
 					"event_type": powerup_event.event_type,
@@ -145,6 +148,7 @@ func step(delta: float) -> void:
 				_heat_time_limit_reached = true
 				machine.finish_timed_heat(tick, _objective_progress)
 				_capture_transitions()
+			observations.observe(tick, machine, world)
 		_:
 			machine.advance_time(tick)
 			_capture_transitions()
@@ -284,6 +288,7 @@ func _capture_transitions() -> void:
 	while _emitted_history_count < machine.event_history.size():
 		var transition := machine.event_history[_emitted_history_count] as Dictionary
 		_emitted_history_count += 1
+		observations.enter_state(int(transition.state), int(transition.entered_tick), machine, world, current_map_id)
 		if int(transition.state) == MatchStateMachine.State.HEAT_RESULT and not lobby.config.random_powerups_permanent:
 			for player_value in machine.players.values():
 				(player_value as PlayerMatchState).clear_temporary_cards()
@@ -306,6 +311,8 @@ func _handle_state_entry(new_state: int) -> void:
 		MatchStateMachine.State.COUNTDOWN:
 			powerups.clear()
 			_prepare_world_heat()
+			if GameModeRules.uses_objective(lobby.config.game_mode):
+				NpcObjectiveNavigation._graph(current_map_id)
 		MatchStateMachine.State.ACTIVE_HEAT:
 			powerups.begin_heat(
 				world.server_tick,
@@ -353,11 +360,12 @@ func _start_draft() -> void:
 		var offer := offers[peer_id] as DraftOffer
 		var player := machine.players[peer_id] as PlayerMatchState
 		if offer.skipped:
+			observations.record_bye(peer_id)
 			continue
 		if player.is_npc:
 			if not offer.locked and not offer.card_ids.is_empty():
 				var choices := draft.automatic_card_ids(peer_id)
-				var chosen_id := choices[_rng.randi_range(0, choices.size() - 1)]
+				var chosen_id := NpcDraftPolicy.choose_card(player, choices, catalog, lobby.config.game_mode, machine.players)
 				draft.select_card(peer_id, offer.token, chosen_id)
 			continue
 		_private_offers.append({
@@ -463,6 +471,8 @@ func _sync_combat_and_resolve(tick: int) -> void:
 	var kill_events := world.drain_kill_events()
 	for kill_event in kill_events:
 		machine.scores.award_kill(int(kill_event.killer_id))
+		if int(kill_event.target_id) == _flag_carrier_id:
+			observations.add_contribution(int(kill_event.killer_id), "carrier_stops")
 	var newly_eliminated: Array[int] = []
 	for peer_id in machine.participant_ids():
 		var player := machine.players[peer_id] as PlayerMatchState
@@ -608,12 +618,16 @@ func _step_hill(delta: float, tick: int) -> void:
 			combatant.cloak_remaining = 0.0
 			occupants.append(peer_id)
 	_objective_contested = occupants.size() > 1
+	if _objective_contested:
+		for peer_id in occupants:
+			observations.add_contribution(peer_id, "hill_contest_seconds", delta)
 	if occupants.size() != 1:
 		if _objective_controller_id != 0:
 			_objective_controller_id = 0
 			_emit_objective_transition(tick, &"HILL_CONTROL_LOST")
 		return
 	var controller_id := occupants[0]
+	observations.add_contribution(controller_id, "hill_control_seconds", delta)
 	if controller_id != _objective_controller_id:
 		_objective_controller_id = controller_id
 		if not _objective_progress.has(controller_id):
@@ -635,12 +649,14 @@ func _step_flag(delta: float, tick: int) -> void:
 			_flag_dropped_seconds = 0.0
 			_emit_objective_transition(tick, &"FLAG_DROPPED")
 		else:
+			observations.add_contribution(_flag_carrier_id, "flag_carry_seconds", delta)
 			carrier.cloak_remaining = 0.0
 			_flag_position = carrier.position
 			var carrier_team := int(_team_assignments_cache.get(_flag_carrier_id, 0))
 			var capture_zone_id := carrier_team if GameModeRules.is_team_mode(lobby.config.game_mode) else _flag_carrier_id
 			var capture_position := _capture_zones_cache.get(capture_zone_id, Vector2.ZERO) as Vector2
 			if carrier.position.distance_to(capture_position) <= GameModeRules.OBJECTIVE_ZONE_RADIUS:
+				observations.add_contribution(_flag_carrier_id, "flag_captures")
 				if GameModeRules.is_team_mode(lobby.config.game_mode):
 					machine.finish_team_heat(carrier_team, tick)
 				else:
@@ -660,6 +676,7 @@ func _step_flag(delta: float, tick: int) -> void:
 				nearest_distance = distance
 		if pickup_id != 0:
 			_flag_carrier_id = pickup_id
+			observations.add_contribution(pickup_id, "flag_pickups")
 			(world.combatants[pickup_id] as CombatantState).cloak_remaining = 0.0
 			_flag_position = (world.combatants[pickup_id] as CombatantState).position
 			_flag_dropped_seconds = 0.0
@@ -738,6 +755,7 @@ func _rebuild_objective_static_cache() -> void:
 
 func _state_payload() -> Dictionary:
 	return {
+		"objective_contributions": observations.contributions.duplicate(true),
 		"state": machine.state,
 		"state_name": machine.state_name(),
 		"entered_tick": machine.state_entered_tick,

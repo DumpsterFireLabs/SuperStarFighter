@@ -19,6 +19,9 @@ var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
 var _kills_since_drain: Array[Dictionary] = []
+var combat_contact_serial: int = 0
+var combat_hull_damage: float = 0.0
+
 var _combat_feedback := CombatFeedbackBufferScript.new()
 var _mine_detonations: Array[Dictionary] = []
 var _ordered_peer_ids_cache: Array[int] = []
@@ -1158,6 +1161,8 @@ func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 		var target_id := int(impact.target_id)
 		var killer_id := int(impact.attacker_id)
 		if killer_id != target_id and combatants.has(killer_id):
+			combat_contact_serial += 1
+			combat_hull_damage += float(impact.damage)
 			_combat_feedback.record_hit(killer_id, float(impact.damage), String(impact.source))
 		if not bool(impact.lethal):
 			continue
@@ -1173,6 +1178,8 @@ func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 
 
 func _record_shield_feedback(attacker_id: int, defender_id: int, reason: String) -> void:
+	if attacker_id != defender_id and combatants.has(attacker_id):
+		combat_contact_serial += 1
 	_combat_feedback.record_block(attacker_id if combatants.has(attacker_id) else 0, defender_id, reason)
 
 

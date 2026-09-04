@@ -725,3 +725,12 @@ After the session:
 The current vertical slice does not include public matchmaking, a public server directory, accounts, stable player identity, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, manual map selection/voting, advanced map-specific hazards, anti-DDoS infrastructure, replays, or console/mobile/web builds. Server authority rejects invalid state-changing requests, but without stable identity and replay evidence the current build should be treated as suitable for organized semi-competitive play rather than prize-bearing tournament administration.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.
+
+
+## Quick setup, fresh rematches, and accessibility
+
+Hosting offers **Duel (2)**, **Skirmish (4)**, **Team objective (8)**, and **Chaos (32)** presets. Each describes its rules and fills empty seats with NPCs. Presets restore their team assignments and readiness; they cannot remove connected human players. **Match Setup** in the lobby contains the preset picker and advanced controls. The main roster puts unready humans first, names who is missing, and scrolls to show everyone. A locked LAN server still has a **Join** action; its label explains whether a password is needed or remembered.
+
+Results distinguish three actions: **Fresh rematch · same rules** resets cards, scores, and objectives while retaining current participants, teams, and rules; **Play 5 more rounds** retains builds and scores; **Exit to lobby** allows rule changes and lets waiting spectators enter the next match. Only the host controls these actions. Objective results report hill control/contest time or flag captures, carrier stops, carrying time, and pickups. These contributions describe play and do not award extra score.
+
+Accessibility settings include high contrast and independent toggle options for fire and shield, alongside HUD scale and reduced effects. Toggle once to start, again to stop; the HUD displays each latched state. Menus, death, and session changes clear toggles and require release before another activation. Default hold behavior remains available. The settings list scrolls and follows keyboard/controller focus.

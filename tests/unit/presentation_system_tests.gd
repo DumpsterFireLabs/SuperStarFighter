@@ -476,7 +476,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.lobby_disconnect_button != null and client.lobby_disconnect_button.pressed.is_connected(client._disconnect_online), "waiting lobby Disconnect button is wired to the shared disconnect action")
 	context.expect_true(client.pause_disconnect_button != null and client.pause_disconnect_button.pressed.is_connected(client._return_from_pause), "pause-menu Disconnect button is wired to the shared menu-return action")
 	context.expect_true(client.lobby_options_popup != null and client.powerups_button != null, "lobby exposes a dedicated match options menu")
-	context.expect_equal(client.lobby_options_button.text, "MATCH OPTIONS", "ship colour is no longer presented as a separate lobby option")
+	context.expect_equal(client.lobby_options_button.text, "MATCH SETUP", "ship colour is no longer presented as a separate lobby option")
 	context.expect_false(client.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
 	context.expect_approx(client.powerup_interval_control.value, 20.0, "random drop interval visibly defaults to twenty seconds")
 	context.expect_false(client.powerups_permanent_button.button_pressed, "random drop permanence visibly defaults off")
@@ -641,7 +641,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 3, "display_name": "Pilot 02", "spectator": false, "is_npc": false, "ready": false, "team_id": 1, "team_selection": 1},
 	]
 	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 3, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "team_setup_valid": true, "team_setup_error": "", "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
-	var difficulty_control := client.lobby_roster.get_child(1).get_node("NpcDifficulty") as OptionButton
+	var difficulty_control := client.lobby_roster.get_child(2).get_node("NpcDifficulty") as OptionButton
 	context.expect_true(difficulty_control != null, "each waiting NPC renders an individual difficulty dropdown")
 	context.expect_equal(difficulty_control.item_count, 5, "NPC dropdown exposes passive through insane")
 	context.expect_equal(difficulty_control.get_selected_id(), NpcPilotController.Difficulty.SKILLED, "NPC dropdown reflects authoritative per-NPC difficulty")
@@ -655,12 +655,12 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.game_mode_note.text.contains("neutral center flag"), "game-mode selection explains its objective")
 	context.expect_false(client.team_count_row.visible, "Team Capture the Flag remains a fixed two-team mode")
 	context.expect_false((client.lobby_roster.get_child(0).get_node("TeamAssignment") as OptionButton).disabled, "host may assign a human team")
-	context.expect_false((client.lobby_roster.get_child(1).get_node("TeamAssignment") as OptionButton).disabled, "host may assign an NPC team")
+	context.expect_false((client.lobby_roster.get_child(2).get_node("TeamAssignment") as OptionButton).disabled, "host may assign an NPC team")
 	client.bridge.local_peer_id = 3
 	client._rebuild_lobby_roster({"players": configurable_players, "leader_id": 2, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "match_active": false}, false)
 	context.expect_true((client.lobby_roster.get_child(0).get_node("TeamAssignment") as OptionButton).disabled, "non-host cannot change another human's team")
-	context.expect_false((client.lobby_roster.get_child(1).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign an NPC team")
-	context.expect_false((client.lobby_roster.get_child(2).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign their own team")
+	context.expect_false((client.lobby_roster.get_child(2).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign an NPC team")
+	context.expect_false((client.lobby_roster.get_child(1).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign their own team")
 	client.bridge.local_peer_id = 2
 	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": false, "team_setup_error": "Every configured team needs at least one participant.", "match_active": false, "rounds_to_win": 3})
 	context.expect_true(client.team_count_row.visible, "Team Death Match reveals the team-count option")

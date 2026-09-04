@@ -11,6 +11,10 @@ const AccessibilityTestsScript = preload("res://tests/unit/accessibility_tests.g
 const PerformanceReadabilityTestsScript = preload("res://tests/unit/performance_readability_tests.gd")
 const CombatTutorialTestsScript = preload("res://tests/unit/combat_tutorial_tests.gd")
 const CardIdentityTestsScript = preload("res://tests/unit/card_identity_tests.gd")
+const MatchObservationTestsScript = preload("res://tests/unit/match_observation_tests.gd")
+const NpcObjectiveTestsScript = preload("res://tests/unit/npc_objective_tests.gd")
+const VisualAccessibilityTestsScript = preload("res://tests/unit/visual_accessibility_tests.gd")
+const LobbyResultsTestsScript = preload("res://tests/unit/lobby_results_tests.gd")
 var _context := TestContext.new()
 
 
@@ -24,6 +28,10 @@ func _ready() -> void:
 	CombatCorrectnessTestsScript.run(_context)
 	NetworkProtocolTests.run(_context)
 	MatchCoordinatorTests.run(_context)
+	MatchObservationTestsScript.run(_context)
+	LobbyResultsTestsScript.run(_context, self)
+	NpcObjectiveTestsScript.run(_context)
+	VisualAccessibilityTestsScript.run(_context, self)
 	GameplayGapTestsScript.run(_context, self)
 	ReviewFollowupTestsScript.run(_context, self)
 	AbilityBudgetTestsScript.run(_context, self)
@@ -46,7 +54,7 @@ func _ready() -> void:
 func _run_foundation_tests() -> void:
 	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.10", "game version is pinned to Beta 10")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 28, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 29, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")

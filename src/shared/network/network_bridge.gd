@@ -101,6 +101,14 @@ func start_server(configuration: Dictionary) -> Error:
 		match_config.round_result_duration_seconds = 0.25
 	lobby = ServerLobby.new(match_config)
 	world = AuthoritativeWorld.new()
+	var preset_id := String(configuration.get("match_preset", ""))
+	if not preset_id.is_empty():
+		var preset_result := preload("res://src/shared/lobby/match_presets.gd").apply(lobby, ServerLobby.OPERATOR_AUTHORITY_ID, preset_id)
+		if not bool(preset_result.ok):
+			last_error = String(preset_result.error)
+			role = Role.NONE
+			return ERR_INVALID_PARAMETER
+		_activate_added_npcs(preset_result)
 	match_coordinator = null
 	_reset_metrics_window()
 	_metrics_window = 0
@@ -353,6 +361,16 @@ func send_eject_player(peer_id: int) -> void:
 func send_start_match() -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_start_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
+
+
+func send_match_preset(preset_id: String) -> void:
+	if role == Role.CLIENT:
+		request_match_preset.rpc_id(NetworkProtocol.SERVER_PEER_ID, preset_id)
+
+
+func send_rematch() -> void:
+	if role == Role.CLIENT:
+		request_rematch.rpc_id(NetworkProtocol.SERVER_PEER_ID)
 
 
 func send_return_to_lobby() -> void:
@@ -756,6 +774,61 @@ func request_start_match() -> void:
 		_start_match_coordinator(sender_id)
 	else:
 		_send_request_rejected(sender_id, result.error)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_match_preset(preset_id: String) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "match_preset"):
+		return
+	if preset_id.length() > 32:
+		_reject_malformed_control(sender_id, "oversized_match_preset")
+		return
+	var result := preload("res://src/shared/lobby/match_presets.gd").apply(lobby, sender_id, preset_id)
+	if not bool(result.ok):
+		_send_request_rejected(sender_id, String(result.error))
+		return
+	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
+	_activate_added_npcs(result)
+	_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_rematch() -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "rematch"):
+		return
+	var result := _prepare_fresh_rematch(sender_id)
+	if not bool(result.ok):
+		_send_request_rejected(sender_id, String(result.error))
+		return
+	_broadcast_lobby_state()
+	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": sender_id, "fresh_rematch": true})
+	_drain_match_coordinator()
+
+
+func _prepare_fresh_rematch(sender_id: int) -> Dictionary:
+	if lobby == null or sender_id != lobby.leader_id:
+		return {"ok": false, "error": "Only the lobby leader may start a fresh rematch."}
+	if match_coordinator == null or not match_coordinator.machine.can_extend_match():
+		return {"ok": false, "error": "A fresh rematch needs final results and at least two competing participants."}
+	# Build and validate the replacement before touching the finished match.
+	var configured_seed := int(_configuration.get("test_match_seed", 0))
+	var seed_value := configured_seed if configured_seed > 0 else _secure_match_seed()
+	var replacement := AuthoritativeMatchCoordinator.new(lobby, world, seed_value, match_coordinator.overtime_start_seconds)
+	if not replacement.start(world.server_tick):
+		return {"ok": false, "error": "The current rules cannot start a rematch. Return to the lobby to adjust them."}
+	for player_value in lobby.players.values():
+		(player_value as PlayerMatchState).reset_match()
+	world.reset_match_inventories()
+	npc_controller.clear()
+	match_coordinator = replacement
+	_logged_overtime_key = ""
+	return {"ok": true}
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -1419,6 +1492,12 @@ func _drain_match_coordinator() -> void:
 		var event_type := event.event_type as StringName
 		var server_tick_value := int(event.server_tick)
 		var payload := event.payload as Dictionary
+		if event_type == &"STATE_CHANGED" and String(payload.get("state_name", "")) == "HEAT_RESULT":
+			if not match_coordinator.observations.heats.is_empty():
+				# Server-local study rows survive normal play without enlarging RPCs.
+				var rows := MatchObservations.log_rows(match_coordinator.observations.heats.back())
+				for index in rows.size():
+					_log("info", "heat_observation" if index == 0 else "heat_player_observation", rows[index])
 		if event_type == &"OBJECTIVE_UPDATED":
 			objective_snapshot.rpc(server_tick_value, payload)
 		else:
@@ -1647,7 +1726,7 @@ static func _bounded_log_value(value: Variant, depth: int = 0) -> Variant:
 		var source_dictionary := value as Dictionary
 		var keys := source_dictionary.keys()
 		for index in mini(keys.size(), NetworkProtocol.MAX_LOG_COLLECTION_LENGTH):
-			var key := String(keys[index]).left(NetworkProtocol.MAX_LOG_STRING_LENGTH)
+			var key := str(keys[index]).left(NetworkProtocol.MAX_LOG_STRING_LENGTH)
 			bounded_dictionary[key] = _bounded_log_value(source_dictionary[keys[index]], depth + 1)
 		return bounded_dictionary
 	return value

@@ -67,6 +67,7 @@ func _update_draft_identity() -> void:
 		child.queue_free()
 	var heading := Label.new()
 	heading.text = "YOUR BUILD AFTER PICK"
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	heading.add_theme_font_size_override("font_size", 11)
 	heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 	summary.add_child(heading)
@@ -78,7 +79,14 @@ func _update_draft_identity() -> void:
 		label.add_theme_color_override("font_color", DesignTokensScript.WARNING if row.kind == &"drawback" else DesignTokensScript.TEXT_PRIMARY)
 		summary.add_child(label)
 	var note := Label.new()
-	note.text = String(effective_summary.note)
+	var note_parts := PackedStringArray()
+	if has_limited_effect():
+		note_parts.append("* AT LIMIT")
+	if String(effective_summary.note).contains("tradeoffs"):
+		note_parts.append("MORE TRADEOFFS")
+	if int(effective_summary.get("omitted", 0)) > 0:
+		note_parts.append("+%d IN DETAILS" % int(effective_summary.omitted))
+	note.text = "\n".join(note_parts)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_font_size_override("font_size", 11)
 	note.add_theme_color_override("font_color", DesignTokensScript.WARNING)
