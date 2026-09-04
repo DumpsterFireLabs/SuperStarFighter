@@ -19,8 +19,7 @@ static func _heat_limits(context: TestContext) -> void:
 			var world := fixture.world as AuthoritativeWorld
 			coordinator.current_map_id = map_id
 			world.set_map_id(map_id)
-			coordinator._reset_objective_for_heat()
-			coordinator._prepare_world_heat()
+			coordinator._prepare_countdown()
 			coordinator.overtime_start_seconds = 30.0
 			var deadline := coordinator.heat_end_tick()
 			context.expect_equal(deadline - coordinator.machine.state_entered_tick, 90 * 60, "heat deadline follows configured overtime start on %s / %s" % [GameModeRules.mode_name(mode), map_id])

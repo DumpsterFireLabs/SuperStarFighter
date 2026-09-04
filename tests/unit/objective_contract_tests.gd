@@ -6,6 +6,101 @@ static func run(context: TestContext) -> void:
 	_flag_transitions(context)
 	_capture_ownership(context)
 	_transport_boundary(context)
+	_npc_contract(context)
+	_countdown_contract(context)
+
+
+static func _npc_contract(context: TestContext) -> void:
+	for mode in [GameModeRules.Mode.KING_OF_THE_HILL, GameModeRules.Mode.CAPTURE_THE_FLAG, GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG]:
+		var fixture := MatchCoordinatorTests._objective_fixture(mode, 8, 12345)
+		var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+		var world := fixture.world as AuthoritativeWorld
+		var controller := NpcPilotController.new()
+		var ids := coordinator.machine.participant_ids()
+		var snapshot := coordinator.npc_objective_state()
+		var original := coordinator.current_state_payload().objective as Dictionary
+		# A consumer may retain or alter its snapshot without writing into authority.
+		snapshot.active = false
+		snapshot.position = Vector2(-1, -1)
+		snapshot.progress[1] = 999.0
+		snapshot.capture_zones[1] = Vector2(-1, -1)
+		context.expect_equal(coordinator.current_state_payload().objective, original, "NPC snapshot cannot mutate authoritative objective data")
+		if GameModeRules.uses_flag(mode):
+			for peer_id in ids:
+				var intent_state := coordinator.npc_objective_state()
+				intent_state.flag_carrier_id = peer_id
+				var intent := controller.objective_intent(world, world.combatants[peer_id], intent_state)
+				var zone_id := (coordinator.machine.players[peer_id] as PlayerMatchState).team_id if GameModeRules.is_team_mode(mode) else peer_id
+				context.expect_equal(intent.role, &"runner", "typed flag carrier receives runner role")
+				context.expect_equal(intent.destination, original.capture_zones[zone_id], "typed carrier uses its authoritative personal or team base")
+		for tick in 180:
+			controller.submit_inputs(world, ids, {}, coordinator.npc_overtime_elapsed(), coordinator.npc_objective_state())
+			world.step(1.0 / 60.0, coordinator.controls_enabled())
+			coordinator.step(1.0 / 60.0)
+			world.drain_projectile_batch()
+			world.drain_combat_feedback()
+			coordinator.drain_events()
+		for peer_id in ids:
+			context.expect_true(world.acknowledged_input(peer_id) > 0, "production objective snapshot supports repeated NPC decisions")
+		context.expect_false(snapshot.active, "retained NPC snapshot does not track later authority changes")
+
+
+static func _countdown_contract(context: TestContext) -> void:
+	for mode in [GameModeRules.Mode.KING_OF_THE_HILL, GameModeRules.Mode.CAPTURE_THE_FLAG, GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG]:
+		var config := MatchCoordinatorTests._fast_config()
+		config.game_mode = mode
+		config.rounds_to_win = 3
+		var lobby := ServerLobby.new(config)
+		var world := AuthoritativeWorld.new()
+		for peer_id in [1, 2]:
+			lobby.admit(peer_id, "Countdown%d" % peer_id)
+			world.add_peer(peer_id)
+		MatchCoordinatorTests._ready_all(lobby)
+		context.expect_true(lobby.request_start(1).ok, "countdown fixture starts through lobby rules")
+		var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 12345)
+		context.expect_true(coordinator.start(0), "countdown fixture starts coordinator")
+		var first_map: StringName
+		var published: Array[Dictionary] = []
+		var frozen: Array[Dictionary] = []
+		for heat in 3:
+			MatchCoordinatorTests._advance_until_state(world, coordinator, MatchStateMachine.State.COUNTDOWN)
+			context.expect_equal(coordinator.state(), MatchStateMachine.State.COUNTDOWN, "next heat reaches countdown")
+			var countdown: Dictionary = {}
+			for event in coordinator.drain_events():
+				if event.event_type == &"STATE_CHANGED" and event.payload.state == MatchStateMachine.State.COUNTDOWN:
+					countdown = event.payload
+			context.expect_false(countdown.is_empty(), "countdown is published after preparation")
+			if countdown.is_empty():
+				return
+			context.expect_equal(countdown.objective, coordinator.current_state_payload().objective, "published countdown equals fully prepared objective")
+			context.expect_true(countdown.objective.active, "countdown displays active navigation")
+			if heat == 0:
+				first_map = coordinator.current_map_id
+			if heat == 2:
+				context.expect_true(coordinator.current_map_id != first_map, "third heat exercises a new round map")
+			if mode == GameModeRules.Mode.CAPTURE_THE_FLAG:
+				for peer_id in [1, 2]:
+					context.expect_equal(countdown.objective.capture_zones[peer_id], (world.combatants[peer_id] as CombatantState).position, "personal countdown base matches this heat's actual launch position")
+			elif mode == GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG:
+				for team_id in [1, 2]:
+					context.expect_equal(countdown.objective.capture_zones[team_id], GameModeRules.capture_zone(mode, team_id, coordinator.current_map_id), "team countdown base matches the selected map")
+			else:
+				context.expect_equal(countdown.objective.progress, {1: 0.0, 2: 0.0}, "hill countdown resets progress")
+			published.append(countdown)
+			frozen.append(countdown.duplicate(true))
+			MatchCoordinatorTests._advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+			var first := world.combatants[1] as CombatantState
+			(world.combatants[2] as CombatantState).position = Vector2(50, 50)
+			first.position = coordinator._objective_position
+			if GameModeRules.uses_flag(mode):
+				coordinator._step_flag(1.0 / 60.0, world.server_tick)
+				var zone_id := first.peer_id if not GameModeRules.is_team_mode(mode) else (coordinator.machine.players[1] as PlayerMatchState).team_id
+				first.position = coordinator.npc_objective_state().capture_zones[zone_id]
+				coordinator._step_flag(1.0 / 60.0, world.server_tick)
+			else:
+				coordinator._step_hill(GameModeRules.HILL_HOLD_SECONDS, world.server_tick)
+			context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "objective completion resolves heat")
+		context.expect_equal(published, frozen, "later heats and maps do not mutate published countdowns")
 
 
 static func _hill_transitions(context: TestContext) -> void:

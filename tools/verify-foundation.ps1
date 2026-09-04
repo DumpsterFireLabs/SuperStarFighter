@@ -3,8 +3,6 @@ $ErrorActionPreference = 'Stop'
 
 $godot = Get-SsfGodotExecutable
 $verificationCount = 0
-$verificationLogRoot = Join-Path $SsfToolsRoot 'verification-logs'
-New-Item -ItemType Directory -Path $verificationLogRoot -Force | Out-Null
 
 function Invoke-FoundationCheck {
     param(
@@ -18,8 +16,7 @@ function Invoke-FoundationCheck {
     )
 
     Write-Host "`n== $Name =="
-    $logName = ($Name -replace '[^a-zA-Z0-9]+', '-').Trim('-').ToLowerInvariant() + '.log'
-    $logPath = ((Join-Path $verificationLogRoot $logName) -replace '\\', '/')
+    $logPath = New-SsfVerificationLogPath -Name $Name
     $separatorIndex = [Array]::IndexOf($Arguments, '--')
     if ($separatorIndex -ge 0) {
         $engineArguments = @($Arguments[0..($separatorIndex - 1)]) + @('--log-file', $logPath) + @($Arguments[$separatorIndex..($Arguments.Length - 1)])
@@ -39,27 +36,12 @@ function Invoke-FoundationCheck {
         $ErrorActionPreference = $previousErrorActionPreference
     }
     Write-Host $output.TrimEnd()
-    if ($exitCode -ne $ExpectedExitCode) {
-        throw "$Name exited with $exitCode; expected $ExpectedExitCode."
-    }
-    if ($ExpectedMarker -and -not $output.Contains($ExpectedMarker)) {
-        throw "$Name did not emit expected marker: $ExpectedMarker"
-    }
-    $allowedErrors = @('Failed to read the root certificate store.') + $AllowedErrorFragments
-    $unexpectedErrors = $output -split "`r?`n" | Where-Object {
-        if (-not $_.StartsWith('ERROR:') -and -not $_.StartsWith('SCRIPT ERROR:')) {
-            return $false
-        }
-        foreach ($allowedFragment in $allowedErrors) {
-            if ($_.Contains($allowedFragment)) {
-                return $false
-            }
-        }
-        return $true
-    }
-    if ($unexpectedErrors) {
-        throw "$Name emitted unexpected Godot errors: $($unexpectedErrors -join ' | ')"
-    }
+    $allowedPatterns = @($AllowedErrorFragments | ForEach-Object {
+        '^ERROR: .*' + [regex]::Escape($_) + '.*$'
+    })
+    Assert-SsfGodotResult -Output $output -ExitCode $exitCode -Name $Name `
+        -ExpectedExitCode $ExpectedExitCode -ExpectedPattern ([regex]::Escape($ExpectedMarker)) `
+        -AllowedErrorPatterns $allowedPatterns
     $script:verificationCount += 1
 }
 
@@ -97,5 +79,8 @@ Invoke-FoundationCheck -Name 'Failing test exit path' -Arguments @(
     '--headless', '--path', $SsfRepositoryRoot, '--', '--run-tests', '--force-test-failure'
 ) -ExpectedExitCode 1 -ExpectedMarker 'failed=1'
 
+& (Join-Path $PSScriptRoot 'verify-test-gate.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Verification gate regression checks failed.' }
+$verificationCount += 1
 Write-Host "`nProject verification passed ($verificationCount checks)."
 exit 0

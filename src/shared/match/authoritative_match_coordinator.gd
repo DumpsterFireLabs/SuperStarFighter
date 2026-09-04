@@ -48,7 +48,6 @@ var _team_assignments_cache: Dictionary = {}
 var _capture_zones_cache: Dictionary:
 	get:
 		return _flag.state.capture_zones
-var _objective_view_cache: Dictionary = {}
 var _spawn_assignments_cache: Dictionary = {}
 var _respawn_deadlines: Dictionary = {}
 var _respawn_retry_ticks: Dictionary = {}
@@ -221,8 +220,9 @@ func npc_overtime_elapsed() -> float:
 	)
 
 
-func npc_objective_state() -> Dictionary:
-	return _objective_state_view()
+func npc_objective_state() -> ObjectiveState:
+	_sync_objective_activity()
+	return _mode_state().snapshot()
 
 
 func _overtime_center() -> Vector2:
@@ -293,7 +293,7 @@ func _capture_transitions() -> void:
 		if int(transition.state) == MatchStateMachine.State.DRAFT:
 			_select_map_for_round(int(transition.round_number))
 		if int(transition.state) == MatchStateMachine.State.COUNTDOWN:
-			_reset_objective_for_heat()
+			_prepare_countdown()
 		_events.append(MatchEvent.new(&"STATE_CHANGED", int(transition.entered_tick), _state_payload()))
 		_handle_state_entry(int(transition.state))
 
@@ -302,11 +302,6 @@ func _handle_state_entry(new_state: int) -> void:
 	match new_state:
 		MatchStateMachine.State.DRAFT:
 			_start_draft()
-		MatchStateMachine.State.COUNTDOWN:
-			powerups.clear()
-			_prepare_world_heat()
-			if GameModeRules.uses_objective(lobby.config.game_mode):
-				NpcObjectiveNavigation._graph(current_map_id)
 		MatchStateMachine.State.ACTIVE_HEAT:
 			powerups.begin_heat(
 				world.server_tick,
@@ -372,6 +367,16 @@ func _start_draft() -> void:
 	_events.append(MatchEvent.new(&"DRAFT_READY", world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
 
 
+func _prepare_countdown() -> void:
+	# Prepare the full playable state before publishing countdown navigation.
+	# Other transitions retain their event-before-entry ordering (notably draft).
+	powerups.clear()
+	_prepare_world_heat()
+	_reset_objective_for_heat()
+	if GameModeRules.uses_objective(lobby.config.game_mode):
+		NpcObjectiveNavigation._graph(current_map_id)
+
+
 func _prepare_world_heat() -> void:
 	var participant_stats: Dictionary = {}
 	var anchors := ArenaLayout.spawn_anchors(current_map_id)
@@ -390,8 +395,6 @@ func _prepare_world_heat() -> void:
 			spawn_assignments[peer_id] = anchors[index]
 	world.set_team_assignments(_team_assignments_cache)
 	_spawn_assignments_cache = spawn_assignments.duplicate(true)
-	if lobby.config.game_mode == GameModeRules.Mode.CAPTURE_THE_FLAG:
-		_rebuild_objective_static_cache()
 	world.prepare_heat(participant_stats, spawn_assignments)
 
 
@@ -619,12 +622,6 @@ func _objective_snapshot() -> Dictionary:
 	return _mode_state().to_dictionary()
 
 
-func _objective_state_view() -> Dictionary:
-	_sync_objective_activity()
-	_mode_state().write_view(_objective_view_cache)
-	return _objective_view_cache
-
-
 func _team_assignments() -> Dictionary:
 	return _team_assignments_cache.duplicate()
 
@@ -638,7 +635,6 @@ func _rebuild_team_assignments_cache() -> void:
 func _rebuild_objective_static_cache() -> void:
 	_flag.configure(lobby.config.game_mode, current_map_id, lobby.config.team_count,
 		machine.participant_ids(), _team_assignments_cache, _spawn_assignments_cache)
-	_objective_view_cache.clear()
 
 
 func _state_payload() -> Dictionary:

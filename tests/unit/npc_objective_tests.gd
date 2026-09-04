@@ -14,7 +14,11 @@ static func _roles(context: TestContext) -> void:
 		world.add_peer(peer_id)
 	world.set_team_assignments({1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2})
 	var controller := NpcPilotController.new()
-	var objective := {"active": true, "mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "flag_position": Vector2(1600, 900), "flag_carrier_id": 0, "capture_zones": {1: Vector2(300, 900), 2: Vector2(2900, 900)}}
+	var objective := ObjectiveState.new()
+	objective.active = true
+	objective.mode = GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG
+	objective.flag_position = Vector2(1600, 900)
+	objective.capture_zones = {1: Vector2(300, 900), 2: Vector2(2900, 900)}
 	context.expect_equal(controller.objective_intent(world, world.combatants[1], objective).role, &"retrieve", "lead NPC retrieves a loose flag")
 	context.expect_equal(controller.objective_intent(world, world.combatants[3], objective).role, &"defend", "three-pilot team keeps a corridor defender")
 	(world.combatants[1] as CombatantState).position = Vector2(1000, 900)
@@ -55,7 +59,10 @@ static func _routes(context: TestContext) -> void:
 		pilot.position = start
 		var controller := NpcPilotController.new()
 		var peers: Array[int] = [1]
-		var objective := {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": destination}
+		var objective := ObjectiveState.new()
+		objective.active = true
+		objective.mode = GameModeRules.Mode.KING_OF_THE_HILL
+		objective.position = destination
 		for tick in 1800:
 			controller.submit_inputs(world, peers, {1: NpcPilotController.Difficulty.NEUTRAL}, -1.0, objective)
 			world.step(1.0 / 60.0)
@@ -102,7 +109,11 @@ static func _holding(context: TestContext) -> void:
 	var target := world.add_peer(3, durable)
 	target.position = center + Vector2(600, 0)
 	var controller := NpcPilotController.new()
-	var objective := {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": center, "controller_id": 2}
+	var objective := ObjectiveState.new()
+	objective.active = true
+	objective.mode = GameModeRules.Mode.KING_OF_THE_HILL
+	objective.position = center
+	objective.controller_id = 2
 	var ids: Array[int] = [2]
 	var maximum_distance := 0.0
 	for tick in 1200:

@@ -142,7 +142,7 @@ The client may predict local movement and shots for responsiveness, but it never
 - `ProjectileRegistry` keeps indexed global/owner order, O(1) live counts, tombstoned removal, and allocation-free ordered views for simulation and rendering loops. The existing 64-per-owner/1,024-global budgets include reserved mine allowances of 16 per owner and 512 globally. Ordinary fire evicts moving ordnance rather than deployed mines; excess mine deployment retires the oldest mine at the applicable allowance. Owner/global eviction counters make budget pressure observable.
 - Arena layouts and radius-expanded projectile geometry are immutable shared caches. A world may retain a cache entry but must never mutate or clear it.
 - Projectile messages are divided into messages no larger than 1,200 bytes. Four rotating partial corrections keep positions fresh; the fifth correction is a complete, chunk-assembled recovery snapshot.
-- Player snapshot bodies, roster views, team assignments, objective views, standings data, and common UI rows are reused until their source revision changes.
+- Player snapshot bodies, roster views, team assignments, standings data, and common UI rows are reused until their source revision changes. NPC objective readers receive detached typed snapshots.
 - Each player snapshot reuses the common body and appends a 57-byte recipient correction trailer (1,187 bytes at 32 players), including the owner's active ordnance, active mines, and budget eviction count. `CombatantState.step_input` is shared by authority and replay; local weapon, shield, and ability clocks restore from this trailer before replay. A 21-byte input packet carries a selected ability slot and a stable press identity distinct from its frame sequence. One owned ability is attempted per press; retransmissions retain both slot and identity. `SpecialAbilitySelection` cycles owned abilities, with remappable Q/E or controller D-pad left/right defaults. Human input expires after 0.5 seconds without a fresh frame.
 - `ProjectileCorrectionAssembler` and `StandingsModel` keep packet reconstruction and result ordering out of the bridge and screen controller respectively.
 
@@ -332,7 +332,7 @@ All commands run from the repository root after bootstrap.
 
 | Command | Purpose | Typical use |
 | --- | --- | --- |
-| `.\tools\run-tests.ps1` | Complete deterministic suite; reports actual assertion count and rejects script errors | After any gameplay/model/UI logic edit |
+| `.\tools\run-tests.ps1` | Complete deterministic suite; reports actual assertion count and rejects unexpected engine and script errors | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, and project checks | Before commit/handoff |
 | `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
@@ -355,7 +355,7 @@ Examples:
 .\tools\verify-milestone6.ps1 -ClientCount 32 -SoakDurationSeconds 600 -BasePort 18100
 ```
 
-Integration outputs live only under `.tools/*-verification/` and are ignored by Git.
+Integration logs live under `.tools/*-verification/` or `.tools/verification-logs/` and are ignored by Git. Tests, foundation checks, and gameplay studies share an error gate and use unique absolute engine log paths. The gate requires the expected exit code and completion marker and rejects `ERROR:` and `SCRIPT ERROR:` lines. Its default exception is the exact Windows root-certificate-store diagnostic; foundation import checks retain their explicit directory-diagnostic allowances. `verify-test-gate.ps1`, also run by foundation verification, confirms that a real engine error fails the gate even with a passing summary and zero exit code. Gameplay study JSON is written to the requested `-OutputPath`.
 
 ### Choosing proportional verification
 
@@ -448,7 +448,7 @@ All ten shipped maps are explicit `MapDefinition` resources under `resources/map
 
 `StatSystem.compare_pick_typed` returns `StatChange` values directly to card preview, lab and tutorial logic; `CardIdentity.summarize_typed` consumes them. The old dictionary comparison/summary APIs are compatibility adapters. `CardDetailsText.modifier_rows` supplies one nominal effect formatter to accessible tooltips and graphical hovers; `StatMetadata` also formats effective values and lab stats. Counts, seconds, degrees, rates, multipliers and fractional percentages have explicit units.
 
-Typed contracts deliberately focus on mutable objectives, transitions, queued event envelopes and effective stat comparisons. General match payload contents, score/build dictionaries, observation rows and existing transport decoders remain explicit compatibility boundaries; this is not a claim that every dictionary has been removed. RPC schemas, packet layouts and protocol 30 remain unchanged.
+Typed contracts deliberately focus on mutable objectives, transitions, queued event envelopes and effective stat comparisons. NPC steering consumes detached `ObjectiveState` snapshots with integer-keyed capture zones. Dictionary serialization occurs at the transport boundary. The coordinator prepares heat spawns, resets objectives, and warms navigation before publishing countdown state, so the first payload contains the current heat's bases and map. Draft and result events retain their existing ordering. Objective contract tests exercise all three objective modes across multiple heats and a round map change, as well as snapshot mutation isolation. General match payload contents, score/build dictionaries, observation rows and existing transport decoders remain explicit compatibility boundaries. These objective changes preserve the existing RPC schemas and packet layouts.
 
 Regression fixtures in `tests/fixtures/map_layout_baseline.json` and `stat_derivation_baseline.json` were captured from `bca4185` before this extraction. They preserve every shipped map coordinate/palette and full-precision hashes for all 136 cards at 1/3/20 stacks. They detect unintended geometry or gameplay drift; update them only alongside a deliberate reviewed rules/content change.
 

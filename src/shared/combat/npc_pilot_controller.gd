@@ -78,7 +78,7 @@ func submit_inputs(
 	npc_peer_ids: Array[int],
 	difficulties: Dictionary = {},
 	overtime_elapsed: float = -1.0,
-	objective_state: Dictionary = {}
+	objective_state: ObjectiveState = null
 ) -> void:
 	for peer_id in npc_peer_ids:
 		var combatant := world.combatants.get(peer_id) as CombatantState
@@ -97,8 +97,8 @@ func submit_inputs(
 		)
 		var overtime_center := ArenaLayout.center(world.map_id)
 		var overtime_minimum_radius := GameConstants.OVERTIME_MINIMUM_RADIUS
-		if int(objective_state.get("mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL:
-			overtime_center = objective_state.get("position", overtime_center) as Vector2
+		if objective_state != null and GameModeRules.uses_hill(objective_state.mode):
+			overtime_center = objective_state.position
 			overtime_minimum_radius = GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
 		var zone_steering := overtime_steering(
 			combatant.position,
@@ -242,7 +242,7 @@ func submit_inputs(
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special, slot)
 
 
-func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, objective: Dictionary) -> Vector2:
+func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, objective: ObjectiveState) -> Vector2:
 	var intent := objective_intent(world, combatant, objective)
 	if intent.is_empty():
 		objective_roles.erase(combatant.peer_id)
@@ -254,23 +254,22 @@ func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, o
 	return _objective_navigation.steering(combatant.peer_id, combatant.position, intent.destination, world.map_id, world.server_tick)
 
 
-func objective_intent(world: AuthoritativeWorld, combatant: CombatantState, objective: Dictionary) -> Dictionary:
-	if objective.is_empty() or not bool(objective.get("active", false)):
+func objective_intent(world: AuthoritativeWorld, combatant: CombatantState, objective: ObjectiveState) -> Dictionary:
+	if objective == null or not objective.active:
 		return {}
-	var mode := int(objective.get("mode", GameModeRules.Mode.DEATH_MATCH))
+	var mode := objective.mode
 	if GameModeRules.uses_hill(mode):
-		return {"role": &"defend" if int(objective.get("controller_id", 0)) == combatant.peer_id else &"contest", "destination": objective.get("position", Vector2.ZERO)}
+		return {"role": &"defend" if objective.controller_id == combatant.peer_id else &"contest", "destination": objective.position}
 	if not GameModeRules.uses_flag(mode):
 		return {}
-	var carrier_id := int(objective.get("flag_carrier_id", 0))
+	var carrier_id := objective.flag_carrier_id
 	var team_id := int(world.team_assignments.get(combatant.peer_id, 0))
-	var zones := objective.get("capture_zones", {}) as Dictionary
 	var zone_id := team_id if GameModeRules.is_team_mode(mode) else combatant.peer_id
-	var home: Vector2 = zones.get(zone_id, zones.get(str(zone_id), combatant.position))
+	var home: Vector2 = objective.capture_zones.get(zone_id, combatant.position)
 	if carrier_id == combatant.peer_id:
 		return {"role": &"runner", "destination": home}
 	var carrier := world.combatants.get(carrier_id) as CombatantState
-	var flag_position: Vector2 = objective.get("flag_position", Vector2.ZERO)
+	var flag_position := objective.flag_position
 	var members: Array[int] = []
 	for member_id in world.ordered_peer_ids_view():
 		if member_id == combatant.peer_id or world.are_allies(combatant.peer_id, member_id):
@@ -299,10 +298,10 @@ func objective_intent(world: AuthoritativeWorld, combatant: CombatantState, obje
 	return {"role": &"retrieve", "destination": flag_position}
 
 
-func _objective_target(world: AuthoritativeWorld, source: CombatantState, objective: Dictionary) -> CombatantState:
-	if not bool(objective.get("active", false)):
+func _objective_target(world: AuthoritativeWorld, source: CombatantState, objective: ObjectiveState) -> CombatantState:
+	if objective == null or not objective.active:
 		return null
-	var carrier_id := int(objective.get("flag_carrier_id", 0))
+	var carrier_id := objective.flag_carrier_id
 	var carrier := world.combatants.get(carrier_id) as CombatantState
 	if carrier == null or not carrier.alive or carrier_id == source.peer_id:
 		return null
