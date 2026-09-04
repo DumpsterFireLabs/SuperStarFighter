@@ -1151,7 +1151,6 @@ func _on_connected(peer_id: int) -> void:
 
 
 func _on_lobby_state(state: Dictionary) -> void:
-	bridge.latest_lobby_state = state.duplicate(true)
 	_scoreboard_rows_dirty = true
 	_results_rows_dirty = true
 	if not bool(state.get("match_active", false)):

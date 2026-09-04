@@ -125,8 +125,9 @@ func _capture_sequence() -> void:
 	var players: Array[Dictionary] = []
 	for index in 32:
 		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "ship_pattern": SHIP_PATTERNS[(index + 3) % SHIP_PATTERNS.size()], "spectator": false, "is_npc": index >= 8, "npc_difficulty": index % NpcPilotController.DIFFICULTY_NAMES.size(), "ready": index != 5, "team_id": 1 + index % 4, "team_selection": 0})
-	client.bridge.local_peer_id = 2
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": true, "team_setup_error": ""})
+	client.bridge.session.local_peer_id = 2
+	client.bridge.session.latest_lobby_state = {"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": true, "team_setup_error": ""}
+	client._on_lobby_state(client.bridge.latest_lobby_state)
 	await _capture(client, "lobby_32")
 	client.lobby_settings_button.pressed.emit()
 	await _capture(client, "lobby_settings")
@@ -416,7 +417,7 @@ func _capture_sequence() -> void:
 func _capture_crowded_combat(client: Node) -> void:
 	client._show_connection_screen("Stress capture")
 	client.connection_screen.hide()
-	client.bridge.local_peer_id = 2
+	client.bridge.session.local_peer_id = 2
 	client.network_world.set_network_active(true)
 	client.network_world.set_physics_process(false)
 	var view := client.network_world as NetworkWorldView

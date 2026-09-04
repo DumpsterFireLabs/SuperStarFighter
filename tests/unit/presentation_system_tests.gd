@@ -184,12 +184,12 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_false(ship.thruster_particles.emitting, "eliminated ships stop emitting thruster particles")
 	ship.free()
 	var bridge := NetworkBridge.new()
-	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "42e8ff", "ship_pattern": "solid"}]}
+	bridge.session.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "42e8ff", "ship_pattern": "solid"}]}
 	var identity_view := NetworkWorldView.new()
 	identity_view.bridge = bridge
 	var guest_ship := identity_view._ensure_ship(8, {"position": Vector2.ZERO})
 	context.expect_equal(guest_ship.ship_color.to_html(false), "42e8ff", "guest ship can spawn from the lobby state available with its first snapshot")
-	bridge.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "ff4ea3", "ship_pattern": "zebra"}]}
+	bridge.session.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "ff4ea3", "ship_pattern": "zebra"}]}
 	identity_view._ensure_ship(8, {"position": Vector2.ZERO})
 	context.expect_equal(guest_ship.ship_color.to_html(false), "ff4ea3", "the next snapshot applies a later reliable lobby colour to an existing guest ship")
 	context.expect_equal(guest_ship.ship_pattern, ShipAppearanceScript.ZEBRA, "the next snapshot applies a later reliable lobby pattern to an existing guest ship")
@@ -589,10 +589,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var players: Array[Dictionary] = []
 	for index in 32:
 		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": false, "ready": true})
-	client.bridge.local_peer_id = 2
+	client.bridge.session.local_peer_id = 2
 	client._on_connected(2)
 	client.network_world._on_connected(2)
-	client._on_lobby_state({"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "ready_human_count": 32, "all_humans_ready": true, "npcs_enabled": false, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3})
+	client.bridge.session.latest_lobby_state = {"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 0, "ready_human_count": 32, "all_humans_ready": true, "npcs_enabled": false, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3}
+	client._on_lobby_state(client.bridge.latest_lobby_state)
 	context.expect_equal(client.lobby_roster.get_child_count(), 32, "scrollable lobby roster renders all 32 participants")
 	context.expect_true(client.lobby_roster.get_parent() is ScrollContainer, "32-player lobby roster is scrollable")
 	context.expect_true(client.connection_screen.visible and not client.connection_form_panel.visible, "waiting lobby uses the centered menu backdrop instead of the connect form")
@@ -630,11 +631,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.lobby_options_popup.visible and client.lobby_options_blocker.visible and not client.lobby_panel.visible, "match options behaves as a focused modal surface")
 	client._hide_lobby_options()
 	context.expect_true(not client.lobby_options_blocker.visible and client.lobby_panel.visible, "closing match options restores the waiting lobby")
-	client.bridge.local_peer_id = 3
+	client.bridge.session.local_peer_id = 3
 	client._rebuild_lobby_roster({"players": players, "leader_id": 2, "match_active": false}, false)
 	context.expect_true(not (client.lobby_roster.get_child(1).get_node("ShipColor") as Button).disabled, "a non-leader human can edit their own roster colour")
 	context.expect_true((client.lobby_roster.get_child(0).get_node("ShipColor") as Button).disabled, "the non-leader still cannot edit the host's colour")
-	client.bridge.local_peer_id = 2
+	client.bridge.session.local_peer_id = 2
 	client._rebuild_lobby_roster({"players": players, "leader_id": 2, "match_active": false}, true)
 	context.expect_false(client.start_button.disabled, "leader can launch once all humans are ready")
 	context.expect_equal(client.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
@@ -643,7 +644,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true, "team_id": 2, "team_selection": 2},
 		{"peer_id": 3, "display_name": "Pilot 02", "spectator": false, "is_npc": false, "ready": false, "team_id": 1, "team_selection": 1},
 	]
-	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 3, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "team_setup_valid": true, "team_setup_error": "", "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3})
+	client.bridge.session.latest_lobby_state = {"players": configurable_players, "leader_id": 2, "player_limit": 3, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "default_npc_difficulty": NpcPilotController.Difficulty.INSANE, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "team_setup_valid": true, "team_setup_error": "", "random_spawn_powerups": true, "random_powerup_interval_seconds": 12.0, "random_powerups_permanent": true, "overtime_start_seconds": 75.0, "match_active": false, "rounds_to_win": 3}
+	client._on_lobby_state(client.bridge.latest_lobby_state)
 	var difficulty_control := client.lobby_roster.get_child(2).get_node("NpcDifficulty") as OptionButton
 	context.expect_true(difficulty_control != null, "each waiting NPC renders an individual difficulty dropdown")
 	context.expect_equal(difficulty_control.item_count, 5, "NPC dropdown exposes passive through insane")
@@ -659,20 +661,23 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.team_count_row.visible, "Team Capture the Flag remains a fixed two-team mode")
 	context.expect_false((client.lobby_roster.get_child(0).get_node("TeamAssignment") as OptionButton).disabled, "host may assign a human team")
 	context.expect_false((client.lobby_roster.get_child(2).get_node("TeamAssignment") as OptionButton).disabled, "host may assign an NPC team")
-	client.bridge.local_peer_id = 3
+	client.bridge.session.local_peer_id = 3
 	client._rebuild_lobby_roster({"players": configurable_players, "leader_id": 2, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "team_count": 2, "match_active": false}, false)
 	context.expect_true((client.lobby_roster.get_child(0).get_node("TeamAssignment") as OptionButton).disabled, "non-host cannot change another human's team")
 	context.expect_false((client.lobby_roster.get_child(2).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign an NPC team")
 	context.expect_false((client.lobby_roster.get_child(1).get_node("TeamAssignment") as OptionButton).disabled, "non-host may assign their own team")
-	client.bridge.local_peer_id = 2
-	client._on_lobby_state({"players": configurable_players, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": false, "team_setup_error": "Every configured team needs at least one participant.", "match_active": false, "rounds_to_win": 3})
+	client.bridge.session.local_peer_id = 2
+	client.bridge.session.latest_lobby_state = {"players": configurable_players, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 1, "ready_human_count": 0, "all_humans_ready": false, "npcs_enabled": true, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": false, "team_setup_error": "Every configured team needs at least one participant.", "match_active": false, "rounds_to_win": 3}
+	client._on_lobby_state(client.bridge.latest_lobby_state)
 	context.expect_true(client.team_count_row.visible, "Team Death Match reveals the team-count option")
 	context.expect_equal(int(client.team_count_control.value), 4, "team-count option reflects authoritative lobby state")
 	context.expect_true(client.start_button.disabled and client.start_button.text == "Configure All Teams", "host cannot launch until every configured team is populated")
 	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
-	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3})
+	client.bridge.session.latest_lobby_state = {"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3}
+	client._on_lobby_state(client.bridge.latest_lobby_state)
 	context.expect_true(client.start_button.disabled and client.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")
-	client._on_lobby_state({"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3})
+	client.bridge.session.latest_lobby_state = {"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3}
+	client._on_lobby_state(client.bridge.latest_lobby_state)
 	context.expect_false(client.start_button.disabled, "ready solo human may start after enabling NPCs")
 	context.expect_equal(client.start_button.text, "Start Match with NPCs", "solo NPC launch uses descriptive wording")
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
@@ -894,8 +899,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.connection_screen.visible and client.connection_status.text.contains("try again"), "connection rejection returns to a usable recovery screen")
 	var disconnect_host_error: Error = client._start_hosted_server({"port": 17459, "max_players": 32, "rounds_to_win": 3, "server_name": "Disconnect Test Arena", "lobby_password": "test-lobby"})
 	context.expect_equal(disconnect_host_error, OK, "host-disconnect acceptance path starts an embedded authority")
-	client.bridge.role = NetworkBridge.Role.CLIENT
-	client.bridge.latest_lobby_state = {"revision": 500, "match_active": false}
+	client.bridge.session.role = NetworkBridge.Role.CLIENT
+	client.bridge.session.latest_lobby_state = {"revision": 500, "match_active": false}
 	client.connection_form_panel.visible = false
 	client.lobby_panel.visible = true
 	client.lobby_disconnect_button.pressed.emit()

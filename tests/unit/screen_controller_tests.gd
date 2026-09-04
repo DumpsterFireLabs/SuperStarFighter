@@ -14,8 +14,8 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(client.draft_buttons.size(), 5, "draft controller owns exactly five offer controls")
 	context.expect_equal(client.draft_panel, client.draft_controller.draft_panel, "legacy draft accessor exposes the owned surface")
 	context.expect_equal(client.results_panel, client.standings_controller.results_panel, "legacy results accessor exposes the owned surface")
-	client.bridge.local_peer_id = 2
-	client.bridge.latest_lobby_state = {"leader_id": 2, "players": [{"peer_id": 2, "display_name": "Host"}, {"peer_id": 3, "display_name": "Guest"}]}
+	client.bridge.session.local_peer_id = 2
+	client.bridge.session.latest_lobby_state = {"leader_id": 2, "players": [{"peer_id": 2, "display_name": "Host"}, {"peer_id": 3, "display_name": "Guest"}]}
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "builds": {2: {}}}
 	client._show_draft_offer({"offer_token": "owned-offer", "deadline_tick": 1800, "card_ids": [&"heavy_rounds", &"quick_loader"]})
 	client._select_draft_card(0)

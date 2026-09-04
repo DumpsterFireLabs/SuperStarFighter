@@ -23,6 +23,12 @@ var observed_timeout: bool = false
 var active: bool = false
 var failed: bool = false
 var latest_correction: Dictionary = {}
+var final_input: PlayerInputFrame
+var neutral_send_attempts: int = 0
+var final_acknowledged: bool = false
+var authority_reload_observed: bool = false
+var authority_shield_observed: bool = false
+var correction_errors: Array[float] = []
 
 
 func _initialize() -> void:
@@ -90,6 +96,7 @@ func _run() -> void:
 	# Long held actions, manual reload, shield, each selected ability, then idle.
 	# The normal client retries one identity until consumed or its deadline.
 	for phase in 12:
+		var shots_before := ship.weapon.shot_sequence
 		_release_inputs()
 		await create_timer(0.05).timeout
 		if phase in [0, 1, 8, 9]: Input.action_press("fire")
@@ -99,21 +106,34 @@ func _run() -> void:
 		if phase >= 4 and phase <= 7:
 			view.selected_special_slot = [SpecialAbilitySelection.Slot.MINE, SpecialAbilitySelection.Slot.MISSILE, SpecialAbilitySelection.Slot.CLOAK, SpecialAbilitySelection.Slot.AFTERBURNER][phase - 4]
 			Input.action_press("special")
-		await create_timer(1.0).timeout
+		await _until(func() -> bool: return false, 1.0)
+		if not await _until(func() -> bool: return _phase_covered(phase, shots_before, ship), 2.0):
+			_fail("delivery coverage missing in phase %d: %s" % [phase, _comparison()])
+			return
 		print("IMPAIRMENT_PHASE=%d shots=%d ammo=%d fire=%s shield=%s pending=%d" % [phase, ship.weapon.shot_sequence, ship.weapon.ammunition, str(Input.is_action_pressed("fire")), str(ship.shield.active), view.prediction.buffered_inputs.size()])
 		if failed: return
 	_release_inputs()
-	# Explicitly stop producing inputs. Server neutralizes stale held actions;
-	# final snapshots must prune all replay and agree on durable resources.
+	# Stop sampling and create one neutral barrier. Retry that exact sequence at
+	# the normal send cadence until authority acknowledges it; a lost final UDP
+	# sample must not strand replay or be misreported as resource divergence.
 	view.set_physics_process(false)
-	# Flush the last 60 Hz sample that may fall between the 30 Hz sends.
-	if not view.prediction.buffered_inputs.is_empty():
-		client.send_input(view.prediction.buffered_inputs.back().frame)
+	final_input = PlayerInputFrame.new(SequenceMath.increment(view.input_sequence), SequenceMath.increment(view.client_tick), Vector2.ZERO, ship.aim_angle)
+	view.prediction.push(final_input, 0.0)
+	print("IMPAIRMENT_SETTLEMENT_BEGIN sequence=%d" % final_input.sequence)
+	await create_timer(0.1).timeout
+	var acknowledgment_deadline := Time.get_ticks_msec() + 8000
+	while not final_acknowledged and Time.get_ticks_msec() < acknowledgment_deadline and not failed:
+		client.send_input(final_input)
+		neutral_send_attempts += 1
+		await create_timer(1.0 / GameConstants.INPUT_SEND_RATE).timeout
+	if not final_acknowledged:
+		_fail("neutral input barrier was not acknowledged")
+		return
 	if not await _until(_settled, 8.0):
 		_fail("resources did not converge: %s" % _comparison())
 		return
-	if snapshots < 30 or not observed_reload or not observed_shield or ship.weapon.shot_sequence < 3:
-		_fail("missing combat coverage")
+	if snapshots < 30 or not authority_reload_observed or not authority_shield_observed or ship.weapon.shot_sequence < 3:
+		_fail("missing delivery coverage")
 		return
 	if ship.mine_charges_remaining != 2 or ship.missile_charges_remaining != 2 or ship.cloak_charges_remaining != 2:
 		_fail("ability was lost or spent multiple charges: %s" % _comparison())
@@ -122,7 +142,7 @@ func _run() -> void:
 	if not view.predicted_projectile_ids.is_empty():
 		_fail("unconfirmed predicted volleys leaked")
 		return
-	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "comparison": _comparison()}))
+	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "comparison": _comparison(), "delivery": _delivery_diagnostics(), "movement": _movement_diagnostics()}))
 	_cleanup()
 	quit(0)
 
@@ -135,6 +155,8 @@ func _snapshot(decoded: Dictionary) -> void:
 		_fail("snapshot or acknowledgement regressed")
 		return
 	previous_ack = ack
+	if final_input != null:
+		final_acknowledged = ack == final_input.sequence or SequenceMath.is_newer(ack, final_input.sequence)
 	previous_tick = tick
 	snapshots += 1
 	latest_correction = decoded.local_state
@@ -143,6 +165,7 @@ func _snapshot(decoded: Dictionary) -> void:
 		_fail("unbounded replay")
 		return
 	if not active: return
+	correction_errors.append(view.prediction.last_reconciliation_error)
 	var ship := server.world.combatants[client.local_peer_id] as CombatantState
 	max_ammo_error = maxi(max_ammo_error, absi(ship.weapon.ammunition - view.local_weapon.ammunition))
 	observed_reload = observed_reload or bool(decoded.local_state.get("reloading", false))
@@ -165,9 +188,51 @@ func _settled() -> bool:
 	return not authority.weapon.reloading and not authority.shield.active and authority.weapon.cooldown_remaining <= 0.0
 
 
+func _phase_covered(phase: int, shots_before: int, ship: CombatantState) -> bool:
+	# The later fire phases intentionally overlap cloak, which inhibits weapons.
+	# Establish shot coverage before cloak rather than demanding illegal fire.
+	if phase in [0, 1]: return ship.weapon.shot_sequence >= shots_before + 2
+	if phase == 2: return authority_reload_observed
+	if phase == 3: return authority_shield_observed
+	if phase == 4: return ship.mine_charges_remaining == 2
+	if phase == 5: return ship.missile_charges_remaining == 2
+	if phase == 6: return ship.cloak_charges_remaining == 2
+	if phase == 7: return ship.afterburner_cooldown_remaining > 0.0
+	return true
+
+
+func _movement_diagnostics() -> Dictionary:
+	var sorted := correction_errors.duplicate()
+	sorted.sort()
+	return {"samples": sorted.size(), "snap_count": view.prediction.snap_count,
+		"correction_p95_pixels": sorted[clampi(ceili(sorted.size() * 0.95) - 1, 0, sorted.size() - 1)] if not sorted.is_empty() else 0.0,
+		"correction_p99_pixels": sorted[clampi(ceili(sorted.size() * 0.99) - 1, 0, sorted.size() - 1)] if not sorted.is_empty() else 0.0,
+		"max_correction_pixels": sorted.back() if not sorted.is_empty() else 0.0}
+
+
+func _delivery_diagnostics() -> Dictionary:
+	var buffered := view.prediction.buffered_inputs
+	var authority := server.world.combatants.get(client.local_peer_id) as CombatantState
+	return {"pending_count": buffered.size(),
+		"final_sequence": final_input.sequence if final_input != null else -1,
+		"neutral_send_attempts": neutral_send_attempts, "final_acknowledged": final_acknowledged,
+		"oldest_sequence": buffered.front().frame.sequence if not buffered.is_empty() else -1,
+		"newest_sequence": buffered.back().frame.sequence if not buffered.is_empty() else -1,
+		"snapshot_ack": previous_ack, "server_ack": server.world.acknowledged_input(client.local_peer_id),
+		"input_age": server.world.input_ages.get(client.local_peer_id, -1.0),
+		"shield_active": authority.shield.active if authority != null else false,
+		"weapon_cooldown": authority.weapon.cooldown_remaining if authority != null else -1.0,
+		"snapshots": snapshots, "reload_observed": observed_reload, "shield_observed": observed_shield,
+		"authority_reload_observed": authority_reload_observed, "authority_shield_observed": authority_shield_observed}
+
+
 func _until(predicate: Callable, seconds: float) -> bool:
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000)
 	while Time.get_ticks_msec() < deadline and not failed:
+		if active:
+			var authority := server.world.combatants[client.local_peer_id] as CombatantState
+			authority_reload_observed = authority_reload_observed or authority.weapon.reloading
+			authority_shield_observed = authority_shield_observed or authority.shield.active
 		if predicate.call(): return true
 		await process_frame
 	return false
@@ -192,5 +257,7 @@ func _fail(reason: String) -> void:
 	if failed: return
 	failed = true
 	printerr("SSF_IMPAIRMENT_ERROR=%s" % reason)
+	if server != null and server.world != null and client != null and view != null:
+		printerr("SSF_IMPAIRMENT_DIAGNOSTICS=%s" % JSON.stringify(_delivery_diagnostics()))
 	_cleanup()
 	quit(1)

@@ -147,7 +147,7 @@ static func _team_presentation(context: TestContext, parent: Node) -> void:
 	parent.add_child(client)
 	var view := client.network_world as NetworkWorldView
 	view.local_peer_id = 1
-	client.bridge.local_peer_id = 1
+	client.bridge.session.local_peer_id = 1
 	var payload := {"state_name": "ACTIVE_HEAT", "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "teams": {"1": 1, "2": 1, "3": 8}, "builds": {}, "players": []}
 	view.apply_match_state(payload)
 	var world := AuthoritativeWorld.new()

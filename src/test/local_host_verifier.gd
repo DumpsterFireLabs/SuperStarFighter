@@ -26,6 +26,22 @@ func _run() -> void:
 	client.server_name_field.text = "Verified Local Arena"
 	client.host_port_field.text = str(verification_port)
 	client.host_password_field.text = "test-lobby"
+	for attempt in 2:
+		client.host_password_field.text = "test-lobby"
+		if not await _host_once(client):
+			quit(4)
+			return
+		client._disconnect_online()
+		await process_frame
+		if client.bridge.multiplayer.connected_to_server.is_connected(client.bridge.session._on_client_transport_connected):
+			printerr("SSF_LOCAL_HOST_ERROR=transport callback survived teardown")
+			quit(4)
+			return
+	print("SSF_LOCAL_HOST_OK=connected_admitted_discovered port=%d reconnects=1" % verification_port)
+	quit(0)
+
+
+func _host_once(client: Node) -> bool:
 	client._host_online()
 	var started_at := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
@@ -42,11 +58,7 @@ func _run() -> void:
 				discovered = true
 				break
 		if connected and admitted and discovered:
-			print("SSF_LOCAL_HOST_OK=connected_admitted_discovered port=%d" % verification_port)
-			client._disconnect_online()
-			await process_frame
-			quit(0)
-			return
+			return true
 	printerr("SSF_LOCAL_HOST_ERROR=timeout status=%s connected=%s servers=%s" % [
 		client.connection_status.text,
 		str(client.bridge.local_peer_id != 0),
@@ -54,4 +66,4 @@ func _run() -> void:
 	])
 	client._disconnect_online()
 	await process_frame
-	quit(4)
+	return false

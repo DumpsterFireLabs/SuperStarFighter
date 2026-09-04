@@ -11,10 +11,12 @@ if ($Port -lt 1024 -or $Port -gt 65535) {
 }
 
 $godot = Get-SsfGodotExecutable
-$output = & $godot --headless --path $SsfRepositoryRoot --script res://src/test/local_host_verifier.gd -- "--verification-port=$Port" 2>&1
-$exitCode = $LASTEXITCODE
-$combined = $output -join [Environment]::NewLine
-if ($exitCode -ne 0 -or -not $combined.Contains('SSF_LOCAL_HOST_OK=connected_admitted_discovered') -or $combined.Contains('SCRIPT ERROR:')) {
-    throw "Local host verification failed (exit $exitCode):`n$combined"
+$logPath = New-SsfVerificationLogPath -Name 'local-host'
+$ErrorActionPreference = 'Continue'
+try {
+    $combined = (& $godot --headless --path $SsfRepositoryRoot --log-file $logPath --script res://src/test/local_host_verifier.gd -- "--verification-port=$Port" 2>&1 | Out-String)
+    $exitCode = $LASTEXITCODE
 }
-Write-Host "Local host verification passed: in-process authority started, loopback client was admitted, LAN discovery found the server, and both sides shut down cleanly."
+finally { $ErrorActionPreference = 'Stop' }
+Assert-SsfGodotResult -Output $combined -ExitCode $exitCode -Name 'Local host verification' -ExpectedPattern 'SSF_LOCAL_HOST_OK=connected_admitted_discovered.*reconnects=1'
+Write-Host 'Local host verification passed: admission, LAN discovery, teardown and reconnect on the same client.'

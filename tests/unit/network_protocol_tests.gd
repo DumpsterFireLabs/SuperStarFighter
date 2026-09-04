@@ -1547,9 +1547,9 @@ static func _validate_connection_admission(context: TestContext) -> void:
 
 static func _validate_reconnect_reset(context: TestContext) -> void:
 	var bridge := NetworkBridge.new()
-	bridge.role = NetworkBridge.Role.CLIENT
-	bridge.local_peer_id = 99
-	bridge.latest_lobby_state = {"revision": 500, "match_active": false}
+	bridge.session.role = NetworkBridge.Role.CLIENT
+	bridge.session.local_peer_id = 99
+	bridge.session.latest_lobby_state = {"revision": 500, "match_active": false}
 	bridge.stop()
 	context.expect_equal(bridge.role, NetworkBridge.Role.NONE, "disconnect marks transport inactive before teardown callbacks can re-enter")
 	context.expect_equal(bridge.local_peer_id, 0, "disconnect clears the prior network peer identity")

@@ -75,7 +75,7 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	})
 	context.expect_true(client.draft_rarity_labels[0].text.contains("0.50%"), "unobtanium card badge renders the rebalanced fractional chance")
 	context.expect_true(client.draft_rarity_labels[1].text.contains("1.2%"), "mythical card badge renders fractional chance precision")
-	client.bridge.local_peer_id = 7
+	client.bridge.session.local_peer_id = 7
 	client.latest_match_payload["draft_bye_peer_id"] = 7
 	client._update_match_presentation()
 	context.expect_true(client.draft_title.text.contains("SKIPS THIS DRAFT"), "round winner sees a plain explanation of the draft bye")

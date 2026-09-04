@@ -20,8 +20,8 @@ static func run(context: TestContext, parent: Node) -> void:
 	var host_scroll := connection.connection_tabs.get_child(2).get_child(0) as ScrollContainer
 	context.expect_true(host_scroll.get_global_rect().encloses(connection.host_password_field.get_global_rect()), "keyboard focus scrolls the required hosting password into view")
 
-	client.bridge.local_peer_id = 2
-	client.bridge.latest_lobby_state = {"leader_id": 2}
+	client.bridge.session.local_peer_id = 2
+	client.bridge.session.latest_lobby_state = {"leader_id": 2}
 	connection.connection_form_panel.hide()
 	connection.lobby_panel.show()
 	connection.lobby_options_button.grab_focus()
