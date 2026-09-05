@@ -451,11 +451,14 @@ func _display_name(peer_id: int) -> String:
 
 
 func _player_identity(peer_id: int) -> Dictionary:
-	var identity_sources: Array = [view.match_payload.get("players", [])]
+	# The bridge observation is a defensive deep copy. Request it only when
+	# the match has no identity for this peer, not for every snapshot field.
+	for player_value in view.match_payload.get("players", []):
+		var player := player_value as Dictionary
+		if int(player.get("peer_id", 0)) == peer_id:
+			return player
 	if view.bridge != null:
-		identity_sources.append(view.bridge.latest_lobby_state.get("players", []))
-	for players_value in identity_sources:
-		for player_value in players_value as Array:
+		for player_value in view.bridge.latest_lobby_state.get("players", []):
 			var player := player_value as Dictionary
 			if int(player.get("peer_id", 0)) == peer_id:
 				return player
