@@ -1,12 +1,15 @@
 [CmdletBinding()]
-param([ValidateRange(30, 300)][int]$DurationSeconds = 45)
+param(
+    [ValidateRange(30, 300)][int]$DurationSeconds = 45,
+    [ValidateRange(1, 240)][double]$ExpectedFps = 60
+)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 $godot = Get-SsfGodotExecutable
 foreach ($fixture in @(
-    @{ Name = 'frame-control'; Script = 'frame_pacing_control.gd'; Marker = 'SSF_FRAME_CONTROL='; Arguments = @() },
-    @{ Name = 'frame-live'; Script = 'live_render_verifier.gd'; Marker = 'SSF_LIVE_RENDER_RESULT='; Arguments = @('--', "--duration=$DurationSeconds", '--frame-cap=0') }
+    @{ Name = 'frame-control'; Script = 'frame_pacing_control.gd'; Marker = 'SSF_FRAME_CONTROL='; Arguments = @('--', "--expected-fps=$ExpectedFps") },
+    @{ Name = 'frame-live'; Script = 'live_render_verifier.gd'; Marker = 'SSF_LIVE_RENDER_RESULT='; Arguments = @('--', "--duration=$DurationSeconds", '--frame-cap=0', "--expected-fps=$ExpectedFps") }
 )) {
     $frameLog = New-SsfVerificationLogPath -Name $fixture.Name
     Write-Host "Evidence: $frameLog"
@@ -21,4 +24,4 @@ foreach ($fixture in @(
     Write-Output $row
     $row.Substring($fixture.Marker.Length) | Set-Content -LiteralPath ($frameLog + '.json') -Encoding UTF8
 }
-Write-Host 'Frame measurements completed. Coverage and error checks passed; compare reported intervals with the 16.67 ms target.'
+Write-Host "Frame measurements completed. Coverage and error checks passed; expected cadence is $ExpectedFps FPS. Late frames exceed its budget by 1 ms; severe frames exceed 1.5 intervals. These are diagnostic thresholds, not a timing acceptance pass."

@@ -6,6 +6,24 @@ class MeasuredWorldView extends NetworkWorldView:
 	var snapshot_usec: Array[int] = []
 	var physics_usec: Array[int] = []
 	var measuring: bool = false
+	var operations: Dictionary = {}
+
+	func record_operation(operation: StringName, began: int) -> void:
+		if not measuring: return
+		if not operations.has(operation): operations[operation] = []
+		operations[operation].append(Time.get_ticks_usec() - began)
+
+	func operation_summary() -> Dictionary:
+		var result := {}
+		for operation in operations:
+			var times: Array[int] = []
+			times.assign(operations[operation])
+			times.sort()
+			var total := 0
+			for time in times: total += time
+			result[operation] = {"calls": times.size(), "total_usec": total,
+				"p95_usec": NetworkBridge.percentile_usec(times, 0.95), "max_usec": times.back()}
+		return result
 
 	func _on_snapshot(decoded: Dictionary) -> void:
 		var began := Time.get_ticks_usec()
@@ -17,6 +35,45 @@ class MeasuredWorldView extends NetworkWorldView:
 		super._physics_process(delta)
 		if measuring: physics_usec.append(Time.get_ticks_usec() - began)
 
+class MeasuredVisuals extends NetworkReplicatedVisuals:
+	func _ensure_ship_from_identity(peer_id: int, state: Dictionary, identity: Dictionary) -> CombatShipView:
+		var began := Time.get_ticks_usec()
+		var result := super._ensure_ship_from_identity(peer_id, state, identity)
+		(view as MeasuredWorldView).record_operation(&"ship_identity", began)
+		return result
+
+	func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
+		var began := Time.get_ticks_usec()
+		super._apply_snapshot_resources(ship, state)
+		(view as MeasuredWorldView).record_operation(&"ship_resources", began)
+
+	func _update_remote_ships() -> void:
+		var began := Time.get_ticks_usec()
+		super._update_remote_ships()
+		(view as MeasuredWorldView).record_operation(&"remote_motion", began)
+
+	func _step_projectile_visuals(delta: float) -> void:
+		var began := Time.get_ticks_usec()
+		super._step_projectile_visuals(delta)
+		(view as MeasuredWorldView).record_operation(&"projectile_motion", began)
+
+class MeasuredPrediction extends NetworkLocalPrediction:
+	func step(delta: float, ship: CombatShipView) -> void:
+		var began := Time.get_ticks_usec()
+		super.step(delta, ship)
+		(view as MeasuredWorldView).record_operation(&"local_prediction", began)
+
+	func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatShipView, revived: bool) -> void:
+		var began := Time.get_ticks_usec()
+		super.apply_local_snapshot(decoded, state, ship, revived)
+		(view as MeasuredWorldView).record_operation(&"local_reconciliation", began)
+
+class MeasuredHud extends NetworkHudCamera:
+	func _update_diagnostics(delta: float = 0.0) -> void:
+		var began := Time.get_ticks_usec()
+		super._update_diagnostics(delta)
+		(view as MeasuredWorldView).record_operation(&"hud", began)
+
 var server: NetworkBridge
 var client: NetworkBridge
 var view: MeasuredWorldView
@@ -26,6 +83,7 @@ var peak_projectiles: int = 0
 var peak_ships: int = 0
 var duration: float = 90.0
 var frame_cap: int = 120
+var expected_fps: float = 60.0
 var hide_world: bool = false
 var pre_draw_usec: int = 0
 var draw_samples: Array[int] = []
@@ -58,6 +116,7 @@ func _run() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--duration="): duration = clampf(float(arg.get_slice("=", 1)), 30.0, 300.0)
 		if arg.begins_with("--frame-cap="): frame_cap = clampi(int(arg.get_slice("=", 1)), 0, 240)
+		if arg.begins_with("--expected-fps="): expected_fps = clampf(float(arg.get_slice("=", 1)), 1.0, 240.0)
 		if arg == "--hide-world": hide_world = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = frame_cap
@@ -65,6 +124,12 @@ func _run() -> void:
 	server = _runtime("Server")
 	client = _runtime("Client")
 	view = MeasuredWorldView.new()
+	view.replicated_visuals = MeasuredVisuals.new()
+	view.replicated_visuals.view = view
+	view.local_prediction = MeasuredPrediction.new()
+	view.local_prediction.view = view
+	view.hud_camera = MeasuredHud.new()
+	view.hud_camera.view = view
 	root.add_child(view)
 	view.setup(client)
 	client.client_snapshot_received.connect(func(_snapshot: Dictionary) -> void: snapshots += 1)
@@ -95,6 +160,7 @@ func _run() -> void:
 	await process_frame
 	RenderingServer.frame_pre_draw.disconnect(_before_draw)
 	Input.action_release("fire")
+	var pacing := preload("res://src/test/frame_timing_summary.gd").summarize(samples, expected_fps)
 	samples.sort()
 	draw_samples.sort()
 	process_samples.sort()
@@ -108,6 +174,7 @@ func _run() -> void:
 	print("SSF_LIVE_RENDER_RESULT=%s" % JSON.stringify({"samples": samples.size(), "duration_seconds": duration,
 		"viewport": str(root.size), "vsync_mode": DisplayServer.window_get_vsync_mode(),
 		"frame_cap": frame_cap, "hide_world": hide_world,
+		"pacing": pacing, "client_operations": view.operation_summary(),
 		"pre_to_post_draw_p95_usec": NetworkBridge.percentile_usec(draw_samples, 0.95),
 		"engine_process_p95_usec": NetworkBridge.percentile_usec(process_samples, 0.95),
 		"engine_physics_p95_usec": NetworkBridge.percentile_usec(physics_samples, 0.95),

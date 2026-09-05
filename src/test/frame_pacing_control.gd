@@ -6,6 +6,7 @@ var draw: Array[int] = []
 var began: int = 0
 var previous: int = 0
 var pre_draw: int = 0
+var expected_fps: float = 60.0
 
 
 func _initialize() -> void:
@@ -13,6 +14,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--expected-fps="): expected_fps = clampf(float(arg.get_slice("=", 1)), 1.0, 240.0)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	began = Time.get_ticks_usec()
@@ -23,6 +26,7 @@ func _run() -> void:
 	await create_timer(8.0).timeout
 	RenderingServer.frame_pre_draw.disconnect(_before_draw)
 	RenderingServer.frame_post_draw.disconnect(_after_draw)
+	var pacing := preload("res://src/test/frame_timing_summary.gd").summarize(frames, expected_fps)
 	frames.sort()
 	draw.sort()
 	print("SSF_FRAME_CONTROL=%s" % JSON.stringify({
@@ -32,6 +36,7 @@ func _run() -> void:
 		"frame_cap": Engine.max_fps, "window_mode": DisplayServer.window_get_mode(),
 		"viewport": str(root.size), "low_processor": OS.low_processor_usage_mode,
 		"samples": frames.size(), "p50_usec": NetworkBridge.percentile_usec(frames, 0.5),
+		"pacing": pacing,
 		"p95_usec": NetworkBridge.percentile_usec(frames, 0.95),
 		"draw_p95_usec": NetworkBridge.percentile_usec(draw, 0.95),
 		"scope": "Empty viewport, 7 measured seconds after 1s warmup; no gameplay, audio, physics actors or network. Draw includes presentation wait; not physical display latency."

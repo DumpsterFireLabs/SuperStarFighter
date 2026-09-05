@@ -1,0 +1,50 @@
+[
+  {
+    "measured_batches": 300,
+    "scope": "300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering.",
+    "ships": 32,
+    "shot_batch_p50_usec": 5955,
+    "shot_batch_p95_usec": 6592,
+    "shot_events": 10880,
+    "snapshot_p50_usec": 1543,
+    "snapshot_p95_usec": 1961,
+    "variant": "baseline",
+    "run_index": 0
+  },
+  {
+    "measured_batches": 300,
+    "scope": "300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering.",
+    "ships": 32,
+    "shot_batch_p50_usec": 1005,
+    "shot_batch_p95_usec": 1186,
+    "shot_events": 10880,
+    "snapshot_p50_usec": 794,
+    "snapshot_p95_usec": 990,
+    "variant": "changed",
+    "run_index": 1
+  },
+  {
+    "measured_batches": 300,
+    "scope": "300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering.",
+    "ships": 32,
+    "shot_batch_p50_usec": 1002,
+    "shot_batch_p95_usec": 1372,
+    "shot_events": 10880,
+    "snapshot_p50_usec": 800,
+    "snapshot_p95_usec": 1067,
+    "variant": "changed",
+    "run_index": 2
+  },
+  {
+    "measured_batches": 300,
+    "scope": "300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering.",
+    "ships": 32,
+    "shot_batch_p50_usec": 5946,
+    "shot_batch_p95_usec": 6536,
+    "shot_events": 10880,
+    "snapshot_p50_usec": 1545,
+    "snapshot_p95_usec": 1856,
+    "variant": "baseline",
+    "run_index": 3
+  }
+]

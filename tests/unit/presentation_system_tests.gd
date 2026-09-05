@@ -197,6 +197,19 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_equal(guest_ship.ship_pattern, ShipAppearanceScript.CHEVRON, "authoritative match identity applies the selected pattern without waiting for another lobby update")
 	context.expect_equal(guest_ship.ship_color.to_html(false), "62ff9b", "authoritative match identity supersedes stale lobby appearance data")
 	context.expect_equal(guest_ship.display_name, "Match Guest", "authoritative match identity updates the in-world nameplate")
+	var snapshot_peers := [{"peer_id": 8}, {"peer_id": 9}, {"peer_id": 10}]
+	bridge.session.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Stale Guest"}, {"peer_id": 9, "display_name": "Late Pilot", "ship_color": "ff4ea3", "ship_pattern": "zebra"}]}
+	var identities := identity_view.replicated_visuals.snapshot_identities(snapshot_peers)
+	context.expect_equal(identities[8].display_name, "Match Guest", "batched identities preserve authoritative match precedence")
+	context.expect_equal(identities[9].display_name, "Late Pilot", "batched identities resolve missing peers from the current lobby")
+	context.expect_false(identities.has(10), "unknown snapshot peers retain the default identity path")
+	bridge.session.latest_lobby_state = {"players": [{"peer_id": 9, "display_name": "Updated Pilot", "ship_color": "62ff9b", "ship_pattern": "chevron"}]}
+	var next_identities := identity_view.replicated_visuals.snapshot_identities(snapshot_peers)
+	context.expect_equal(next_identities[9].display_name, "Updated Pilot", "the next snapshot observes a late reliable roster update")
+	context.expect_equal(identities[9].display_name, "Late Pilot", "a snapshot's fallback roster remains a detached observation")
+	var late_ship := identity_view.replicated_visuals._ensure_ship_from_identity(9, {"position": Vector2.ZERO}, next_identities[9])
+	context.expect_equal(late_ship.ship_color.to_html(false), "62ff9b", "batched ship creation uses the resolved colour")
+	context.expect_equal(late_ship.ship_pattern, ShipAppearanceScript.CHEVRON, "batched ship creation uses the resolved pattern")
 	identity_view.free()
 	bridge.free()
 

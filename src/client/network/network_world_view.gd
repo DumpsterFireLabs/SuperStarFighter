@@ -332,11 +332,12 @@ func _on_snapshot(decoded: Dictionary) -> void:
 	replicated_visuals._record_snapshot_arrival(int(decoded.server_tick), receive_time)
 	latest_server_tick = int(decoded.server_tick)
 	var present_ids: Dictionary = {}
+	var identities := replicated_visuals.snapshot_identities(decoded.states)
 	for state_value in decoded.states:
 		var state := state_value as Dictionary
 		var peer_id := int(state.peer_id)
 		present_ids[peer_id] = true
-		var ship := replicated_visuals._ensure_ship(peer_id, state)
+		var ship := replicated_visuals._ensure_ship_from_identity(peer_id, state, identities.get(peer_id, {}))
 		var revived := bool(state.alive) and not ship.combatant.alive
 		ship.visible = String(match_payload.get("state_name", "")) != "DRAFT"
 		replicated_visuals._handle_snapshot_feedback(peer_id, state, ship)

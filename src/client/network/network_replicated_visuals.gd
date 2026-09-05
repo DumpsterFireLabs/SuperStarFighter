@@ -98,20 +98,44 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 
 
 func _ensure_ship(peer_id: int, state: Dictionary) -> CombatShipView:
+	return _ensure_ship_from_identity(peer_id, state, _player_identity(peer_id))
+
+
+func snapshot_identities(states: Array) -> Dictionary:
+	# This lookup lives for one synchronous snapshot application. Reliable lobby
+	# updates can precede/follow snapshots, so do not cache it across packets.
+	var identities := {}
+	for player: Dictionary in view.match_payload.get("players", []):
+		var peer_id := int(player.get("peer_id", 0))
+		if not identities.has(peer_id): identities[peer_id] = player
+	for state: Dictionary in states:
+		if identities.has(int(state.peer_id)) or view.bridge == null: continue
+		# One detached roster at most, only if the match omits a snapshot peer.
+		for player: Dictionary in view.bridge.latest_lobby_state.get("players", []):
+			var peer_id := int(player.get("peer_id", 0))
+			if not identities.has(peer_id): identities[peer_id] = player
+		break
+	return identities
+
+
+func _ensure_ship_from_identity(peer_id: int, state: Dictionary, identity: Dictionary) -> CombatShipView:
+	var pilot_name := String(identity.get("display_name", "Pilot %d" % peer_id))
+	var color := Color.from_string("#%s" % String(identity.get("ship_color", "42e8ff")), Color("42e8ff"))
+	var pattern := ShipAppearanceScript.normalized_pattern(String(identity.get("ship_pattern", ShipAppearanceScript.SOLID)))
+	if pattern.is_empty(): pattern = ShipAppearanceScript.SOLID
 	if ships.has(peer_id):
 		var existing := ships[peer_id] as CombatShipView
-		existing.display_name = _display_name(peer_id)
+		existing.display_name = pilot_name
 		# Lobby state and snapshots use independent ENet channels. A guest can
 		# receive the first snapshot before the final reliable lobby update, so
 		# refresh identity data instead of freezing whatever was available when
 		# the presentation node happened to be created.
-		existing.set_ship_appearance(_player_color(peer_id), _player_pattern(peer_id))
+		existing.set_ship_appearance(color, pattern)
 		return existing
 	var ship := CombatShipView.new()
 	ship.reduced_flashes = bool(view.accessibility_settings.reduced_flashes)
 	ship.high_contrast = bool(view.accessibility_settings.high_contrast)
-	var color := _player_color(peer_id)
-	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == view.local_peer_id, _display_name(peer_id), _player_pattern(peer_id))
+	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == view.local_peer_id, pilot_name, pattern)
 	ship.set_team_identity(team_for_peer(peer_id), team_for_peer(view.local_peer_id))
 	ship.set_shield_build(_build_for_peer(peer_id), view.card_catalog)
 	view.add_child(ship)
@@ -171,7 +195,13 @@ func _emit_weapon_shot(
 	position: Vector2,
 	projectile: ProjectileState = null
 ) -> void:
-	var stats := view.local_prediction.local_stats.duplicate_stats() if owner_id == view.local_peer_id else _stats_for_peer(owner_id).duplicate_stats()
+	var shooter := ships.get(owner_id) as CombatShipView
+	var source_stats := view.local_prediction.local_stats if owner_id == view.local_peer_id else (
+		shooter.combatant.stats if shooter != null else _stats_for_peer(owner_id)
+	)
+	# Build derivation already happens when ships spawn or their build changes.
+	# Only this sound's projectile overrides need a private copy on each shot.
+	var stats := source_stats.duplicate_stats()
 	if projectile != null:
 		stats.projectile_damage = projectile.damage
 		stats.projectile_speed = projectile.velocity.length()

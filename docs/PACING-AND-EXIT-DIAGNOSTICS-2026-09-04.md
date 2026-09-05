@@ -17,7 +17,7 @@ Sequential 45-second visible-window runs used the same seed, fixture, 32 pilots,
 | Frame p95 | 17.497 ms | 17.570 ms |
 | Frame p99 | 22.982 ms | 20.894 ms |
 
-CPU callback measurements improved in this pair; frame p95 is effectively unchanged. **Steady 60 Hz remains unproven.** The result does not justify a renderer switch or hiding additional threats/shields.
+CPU callback measurements improved in this pair; frame p95 is effectively unchanged. **Subsequent user clarification: this workstation is hard-capped at 58 FPS**, so the 17.24 ms floor is expected and a 60 FPS comparison is inappropriate here. See [cap-aware follow-up](CAPPED-FRAME-PACING-2026-09-04.md). The result does not justify a renderer switch or hiding additional threats/shields.
 
 ## Windows termination report
 

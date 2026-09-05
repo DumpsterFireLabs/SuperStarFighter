@@ -2,8 +2,52 @@ extends RefCounted
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	_frame_cadence(context)
+	_shot_profile_reuse(context)
 	_sweep_parity(context)
 	_effect_pressure(context, parent)
+
+
+static func _frame_cadence(context: TestContext) -> void:
+	var intervals: Array[int] = [17241, 17242, 20000, 28000, 17241, 20000]
+	var summary := preload("res://src/test/frame_timing_summary.gd").summarize(intervals, 58.0)
+	context.expect_approx(summary.budget_usec, 1000000.0 / 58.0, "frame diagnostics honor an external 58 FPS cap")
+	context.expect_equal(summary.late_frames, 3, "normal capped intervals are not reported as late frames")
+	context.expect_equal(summary.severe_frames, 1, "frame diagnostics distinguish severe stalls from smaller overruns")
+	context.expect_equal(summary.longest_late_streak, 2, "late streaks use chronological frames before percentile sorting")
+	context.expect_equal(intervals[0], 17241, "summarizing frame intervals leaves caller data unchanged")
+
+
+static func _shot_profile_reuse(context: TestContext) -> void:
+	var view := NetworkWorldView.new()
+	view.local_peer_id = 1
+	var builds := {1: {&"heavy_rounds": 2}, 2: {&"rapid_cycling": 2, &"twin_shot": 1}, 3: {&"heavy_rounds": 1}}
+	view.match_payload = {"builds": builds}
+	view.local_prediction.local_stats = StatSystem.derive(builds[1], view.card_catalog)
+	var ship := view._ensure_ship(2, {"position": Vector2.ZERO})
+	var profiles: Array = []
+	view.presentation_event.connect(func(event: StringName, payload: Dictionary) -> void:
+		if event == &"weapon_fire": profiles.append(payload.profile)
+	)
+	for peer in [1, 2, 3]:
+		var expected = WeaponSoundProfile.from_stats(StatSystem.derive(builds[peer], view.card_catalog), builds[peer], view.card_catalog)
+		view.replicated_visuals._emit_weapon_shot(peer, 1, Vector2.ZERO)
+		context.expect_equal(profiles.back().cache_key(), expected.cache_key(), "local, existing remote and pre-snapshot shots retain their sound family")
+		context.expect_approx(profiles.back().power_amount, expected.power_amount, "reused shooter stats preserve sound power")
+	builds[2] = {&"heavy_rounds": 3}
+	view.apply_builds(builds)
+	view.replicated_visuals._emit_weapon_shot(2, 2, Vector2.ZERO)
+	var expected_updated = WeaponSoundProfile.from_stats(StatSystem.derive(builds[2], view.card_catalog), builds[2], view.card_catalog)
+	context.expect_equal(profiles.back().cache_key(), expected_updated.cache_key(), "a changed build immediately updates the reused sound profile")
+	var original_damage := ship.combatant.stats.projectile_damage
+	var projectile := ProjectileState.create(1, 2, 3, Vector2.ZERO, 0.0, CombatStats.create_base())
+	projectile.damage = 12.0
+	projectile.velocity = Vector2(1300, 0)
+	view.replicated_visuals._emit_weapon_shot(2, 3, Vector2.ZERO, projectile)
+	context.expect_approx(profiles.back().damage_ratio, 12.0 / 25.0, "authoritative projectile damage still overrides current build for its sound")
+	context.expect_approx(profiles.back().speed_ratio, 1300.0 / 900.0, "authoritative projectile velocity still overrides current build for its sound")
+	context.expect_approx(ship.combatant.stats.projectile_damage, original_damage, "sound overrides cannot modify the ship's live combat stats")
+	view.free()
 
 
 static func _sweep_parity(context: TestContext) -> void:

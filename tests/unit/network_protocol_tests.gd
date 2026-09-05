@@ -822,6 +822,16 @@ static func _validate_prediction_and_interpolation(context: TestContext) -> void
 	var extrapolated := interpolation.sample(3, 0.5)
 	context.expect_approx((extrapolated.position as Vector2).x, 30.0, "remote extrapolation is capped at 100 ms")
 	context.expect_true(extrapolated.extrapolated, "late remote sample reports extrapolation")
+	var mutable_state := {"position": Vector2(40, 0), "velocity": Vector2(100, 0), "aim_angle": PI, "resources": {"shield": 80}}
+	interpolation.add_sample(3, 0.4, 24, mutable_state)
+	mutable_state.position = Vector2(900, 900)
+	mutable_state.velocity = Vector2.ZERO
+	mutable_state.aim_angle = 0.0
+	mutable_state.resources.shield = 0
+	var retained := interpolation.sample(3, 0.6)
+	context.expect_approx(retained.position.x, 50.0, "remote motion remains detached from reused snapshot dictionaries")
+	context.expect_approx(retained.velocity.x, 100.0, "interpolation retains the sampled velocity independently")
+	context.expect_approx(retained.aim_angle, PI, "interpolation retains sampled aim independently")
 	interpolation.clear()
 	context.expect_false(bool(interpolation.sample(3, 0.5).get("ok", false)), "heat reset discards stale remote interpolation samples")
 	var jittered_interpolation := RemoteInterpolator.new()

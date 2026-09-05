@@ -15,7 +15,11 @@ func add_sample(peer_id: int, receive_time: float, server_tick: int, state: Dict
 	var server_time := float(server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND
 	_update_clock_offset(receive_time, server_time, server_tick)
 	var peer_samples: Array = _samples.get(peer_id, [])
-	peer_samples.append({"time": server_time, "state": state.duplicate(true)})
+	# Only motion participates in interpolation. Copy these value types rather
+	# than retaining every resource/correction field from each snapshot.
+	peer_samples.append({"time": server_time, "state": {
+		"position": state.position, "velocity": state.velocity, "aim_angle": state.aim_angle,
+	}})
 	while peer_samples.size() > MAX_SAMPLES_PER_PEER:
 		peer_samples.pop_front()
 	_samples[peer_id] = peer_samples
@@ -38,7 +42,7 @@ func sample(peer_id: int, now_seconds: float) -> Dictionary:
 			break
 	var before_state := before.state as Dictionary
 	var after_state := after.state as Dictionary
-	if before != after and float(after.time) > float(before.time):
+	if float(after.time) > float(before.time):
 		var weight := clampf(
 			(render_time - float(before.time)) / (float(after.time) - float(before.time)),
 			0.0,
