@@ -333,7 +333,10 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 				_remove_predicted_volley(int(shot_sequence))
 			predicted_tracker = PredictedProjectileTracker.new()
 		ship.global_position = state.position
-		view.hud_camera.camera.position = state.position
+		# Dead snapshots still reset replay/resources, but the HUD owns the
+		# spectator camera. Recentring on the corpse fights its follow each tick.
+		if bool(state.alive):
+			view.hud_camera.camera.position = state.position
 		prediction_initialized = true
 	else:
 		prediction.reconcile(

@@ -44,6 +44,7 @@ func _ready() -> void:
 	NetworkOwnershipTests.run(_context)
 	ObjectiveContractTests.run(_context)
 	NetworkViewOwnershipTests.run(_context, self)
+	preload("res://tests/unit/spectator_camera_tests.gd").run(_context, self)
 	ArenaMovementFieldTests.run(_context, self)
 	CompetitiveViewTests.run(_context, self)
 	CollisionQueryOptimizationTests.run(_context)
