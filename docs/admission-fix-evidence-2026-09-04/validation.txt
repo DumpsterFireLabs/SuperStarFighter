@@ -1,0 +1,6 @@
+TEST_SUMMARY passed=7238 failed=0
+Shipping resource allowlists are current.
+Soak passed: 32 initial clients, 11 windows, maximum callback p95 7520 us; overtime, combat disconnect, late spectator, bounded entities, clean shutdown. See soak.json for active-only timing and memory limitations.
+Admission burst wrapper passed at 300 ms challenge delay: 3 cycles, 96 initial admissions, 3 late spectators, zero rejections and unexpected engine errors.
+Hardening verification passed: malformed and excessive peers were isolated while healthy clients continued; bounded structured logs and clean shutdown verified.
+Match-loop verification passed: private picks, timeout auto-pick, two full matches, reset, rematch, and clean shutdown.

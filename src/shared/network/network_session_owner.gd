@@ -74,6 +74,10 @@ func start_server(configuration: Dictionary, match_config: MatchConfig) -> Error
 		log_requested.emit("error", "server_bind_failed", {"port": match_config.port, "error": error})
 		role = NetworkBridge.Role.NONE
 		return error
+	# All game traffic goes through the authoritative server. Disable Godot's
+	# unused peer-to-peer announcements, including relays to closing peers.
+	var scene_multiplayer := runtime.multiplayer as SceneMultiplayer
+	if scene_multiplayer != null: scene_multiplayer.server_relay = false
 	runtime.multiplayer.multiplayer_peer = _enet_peer
 	if not runtime.multiplayer.peer_connected.is_connected(_on_server_peer_connected):
 		runtime.multiplayer.peer_connected.connect(_on_server_peer_connected)
@@ -221,6 +225,13 @@ func get_network_statistics() -> Dictionary:
 	}
 
 
+func can_send_to(peer_id: int) -> bool:
+	if _enet_peer == null or not runtime.is_inside_tree(): return false
+	if not runtime.multiplayer.get_peers().has(peer_id): return false
+	var peer := _enet_peer.get_peer(peer_id)
+	return peer != null and peer.get_state() == ENetPacketPeer.STATE_CONNECTED
+
+
 func _on_server_peer_connected(peer_id: int) -> void:
 	var source := _peer_auth_source(peer_id)
 	_peer_auth_sources[peer_id] = source
@@ -236,17 +247,14 @@ func _on_server_peer_connected(peer_id: int) -> void:
 		_pending_handshakes.begin(peer_id, now)
 		reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
 		return
-	if _pending_auth_count_for_source(source, peer_id) >= NetworkProtocol.AUTH_MAX_PENDING_PER_SOURCE:
-		_pending_handshakes.begin(peer_id, now)
-		reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
-		return
 	if _authentication_attempt_limiter.is_blocked(source, now):
 		_pending_handshakes.begin(peer_id, now)
 		reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
 		return
-	var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
-	_pending_handshakes.begin(peer_id, now, challenge)
-	challenge_requested.emit(peer_id, challenge)
+	_pending_handshakes.begin(peer_id, now)
+	_start_queued_handshakes()
+	if _pending_handshakes.has(peer_id) and _pending_handshakes.challenge_for(peer_id).is_empty():
+		log_requested.emit("info", "authentication_queued", {"peer_id": peer_id})
 
 
 func _on_server_peer_disconnected(peer_id: int) -> void:
@@ -274,9 +282,29 @@ func _pending_auth_count_for_source(source: String, excluded_peer_id: int) -> in
 	var count := 0
 	for peer_value in _peer_auth_sources.keys():
 		var peer_id := int(peer_value)
-		if peer_id != excluded_peer_id and _pending_handshakes.has(peer_id) and _normalized_source(String(_peer_auth_sources[peer_id])) == normalized:
+		if peer_id != excluded_peer_id and not _pending_handshakes.challenge_for(peer_id).is_empty() and _normalized_source(String(_peer_auth_sources[peer_id])) == normalized:
 			count += 1
 	return count
+
+
+func _start_queued_handshakes() -> void:
+	# Keep the per-source in-flight proof budget while accommodating cohorts
+	# behind one NAT. ENet bounds total peers; the original admission deadline
+	# also bounds queue residence and is never extended by promotion.
+	var now := _now_seconds()
+	for peer_id in _pending_handshakes.queued_peers():
+		var source := String(_peer_auth_sources.get(peer_id, "peer:%d" % peer_id))
+		if _blocked_sources.has(_normalized_source(source)):
+			reject_connection(peer_id, NetworkProtocol.REJECT_BLOCKED)
+			continue
+		if _authentication_attempt_limiter.is_blocked(source, now):
+			reject_connection(peer_id, NetworkProtocol.REJECT_AUTH_RATE_LIMITED)
+			continue
+		if _pending_auth_count_for_source(source, peer_id) >= NetworkProtocol.AUTH_MAX_PENDING_PER_SOURCE:
+			continue
+		var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
+		if _pending_handshakes.start_challenge(peer_id, challenge, now):
+			challenge_requested.emit(peer_id, challenge)
 
 
 func operator_kick(peer_id: int, display_name: String, block_source: bool = false) -> Dictionary:
@@ -412,6 +440,7 @@ func process_pending_connections() -> void:
 	if _pending_handshakes.size() > 0:
 		for peer_id in _pending_handshakes.expired(now):
 			reject_connection(peer_id, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT)
+	_start_queued_handshakes()
 	if not _pending_disconnects.is_empty():
 		for peer_value in _pending_disconnects.keys():
 			var peer_id := int(peer_value)
@@ -470,6 +499,9 @@ func validate_hello(sender_id: int, protocol_version: int, display_name: String,
 		reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
 		return false
 	var challenge := _pending_handshakes.challenge_for(sender_id)
+	if not NetworkProtocol.is_valid_auth_challenge(challenge):
+		reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return false
 	var expected_proof := NetworkProtocol.lobby_password_proof(
 		challenge,
 		String(_configuration.get("lobby_password", ""))

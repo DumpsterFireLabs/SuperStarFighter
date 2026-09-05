@@ -1,0 +1,2 @@
+{"event":"connection_rejected","level":"warning","peer_id":1462945992,"reason":"AUTH_RATE_LIMITED","timestamp":"2026-09-05T00:57:04"}
+SSF_ADMISSION_FAILED=initial admission: 0/32, rejected=[{ "client": 2, "reason": &"AUTH_RATE_LIMITED" }]

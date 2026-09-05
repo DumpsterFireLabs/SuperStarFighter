@@ -24,6 +24,20 @@ func complete(peer_id: int) -> bool:
 	return _records.erase(peer_id)
 
 
+func queued_peers() -> Array[int]:
+	var result: Array[int] = []
+	for peer_id in _records:
+		if challenge_for(peer_id).is_empty(): result.append(peer_id)
+	return result
+
+
+func start_challenge(peer_id: int, challenge: String, now_seconds: float) -> bool:
+	if not _records.has(peer_id) or not challenge_for(peer_id).is_empty(): return false
+	if now_seconds >= float(_records[peer_id].deadline): return false
+	_records[peer_id].challenge = challenge
+	return true
+
+
 func expired(now_seconds: float) -> Array[int]:
 	var result: Array[int] = []
 	for peer_value in _records.keys():

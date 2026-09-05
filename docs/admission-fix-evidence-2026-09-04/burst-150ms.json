@@ -1,0 +1,34 @@
+{
+  "unexpected_engine_errors": 0,
+  "cycles": [
+    {
+      "admitted": 32,
+      "cycle": 0,
+      "elapsed_ms": 7827,
+      "late_spectator": true,
+      "pending_handshakes": 0
+    },
+    {
+      "admitted": 32,
+      "cycle": 1,
+      "elapsed_ms": 7769,
+      "late_spectator": true,
+      "pending_handshakes": 0
+    },
+    {
+      "admitted": 32,
+      "cycle": 2,
+      "elapsed_ms": 7769,
+      "late_spectator": true,
+      "pending_handshakes": 0
+    }
+  ],
+  "challenge_delay_is_not_full_network_latency": true,
+  "result": {
+    "challenge_delay_ms": 150,
+    "cycles": 3,
+    "initial_admissions": 96,
+    "late_spectators": 3,
+    "rejections": 0
+  }
+}

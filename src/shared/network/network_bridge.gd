@@ -65,10 +65,10 @@ func _init() -> void:
 	session.stopped.connect(_on_session_stopped)
 	replication = NetworkReplicationScheduler.new()
 	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: world_snapshot.rpc_id(peer_id, packet))
-	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: projectile_batch.rpc(packet))
-	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: projectile_correction.rpc(packet))
+	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
+	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet]))
 	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
-	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: mine_detonations.rpc(tick, events))
+	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
 
 
 func start_server(configuration: Dictionary) -> Error:
@@ -1023,17 +1023,31 @@ func _send_request_rejected(peer_id: int, message_text: String) -> void:
 	match_event.rpc_id(peer_id, &"REQUEST_REJECTED", world.server_tick if world != null else 0, {"message": message_text})
 
 
+func _broadcast_to_admitted(method: StringName, arguments: Array) -> void:
+	if role != Role.SERVER or lobby == null: return
+	var recipients: Array[int] = []
+	for peer_id in lobby.human_peer_ids_view():
+		if session.can_send_to(peer_id): recipients.append(peer_id)
+	if recipients.is_empty(): return
+	# Retain one serialization/fan-out in steady play. During admission or a
+	# disconnect burst, exclude unauthenticated and already-closing transports.
+	if recipients.size() == multiplayer.get_peers().size():
+		callv(&"rpc", [method] + arguments)
+	else:
+		for peer_id in recipients: callv(&"rpc_id", [peer_id, method] + arguments)
+
+
 func _broadcast_lobby_state() -> void:
 	if lobby == null:
 		return
 	var state := lobby.serialize()
-	lobby_state.rpc(state)
+	_broadcast_to_admitted(&"lobby_state", [state])
 	replication.record_outbound_bytes(JSON.stringify(state).length() * maxi(lobby.human_count(), 1))
 
 
 func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void:
 	var tick := world.server_tick if world != null else 0
-	match_event.rpc(event_type, tick, payload)
+	_broadcast_to_admitted(&"match_event", [event_type, tick, payload])
 	_log("info", "match_event", {"event_type": String(event_type), "server_tick": tick})
 
 
@@ -1101,9 +1115,9 @@ func _drain_match_coordinator() -> void:
 				for index in rows.size():
 					_log("info", "heat_observation" if index == 0 else "heat_player_observation", rows[index])
 		if event_type == &"OBJECTIVE_UPDATED":
-			objective_snapshot.rpc(server_tick_value, payload)
+			_broadcast_to_admitted(&"objective_snapshot", [server_tick_value, payload])
 		else:
-			match_event.rpc(event_type, server_tick_value, payload)
+			_broadcast_to_admitted(&"match_event", [event_type, server_tick_value, payload])
 		if event_type != &"OBJECTIVE_UPDATED":
 			_log("info", "match_event", {
 				"event_type": String(event_type),

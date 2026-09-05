@@ -21,6 +21,7 @@ class RecordingReplication extends NetworkReplicationScheduler:
 
 
 static func run(context: TestContext) -> void:
+	_admission_queue(context)
 	var first := NetworkBridge.new()
 	var second := NetworkBridge.new()
 	context.expect_true(first.session != second.session and first.replication != second.replication, "each bridge owns an independent session and packet scheduler")
@@ -172,3 +173,40 @@ static func _ban_persistence(context: TestContext) -> void:
 	first.free()
 	reopened.free()
 	DirAccess.remove_absolute(path)
+
+
+static func _admission_queue(context: TestContext) -> void:
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	var challenged: Array[int] = []
+	var rejected: Array[Dictionary] = []
+	owner.challenge_requested.connect(func(id: int, challenge: String) -> void:
+		context.expect_true(NetworkProtocol.is_valid_auth_challenge(challenge), "queued admission generates a fresh valid challenge")
+		challenged.append(id)
+	)
+	owner.rejection_requested.connect(func(id: int, reason: StringName, _message: String) -> void: rejected.append({"id": id, "reason": reason}))
+	var now := Time.get_ticks_msec() / 1000.0
+	for id in range(1, 8):
+		owner._peer_auth_sources[id] = "198.51.100.1" if id < 7 else "198.51.100.2"
+		owner._pending_handshakes.begin(id, now)
+	owner._start_queued_handshakes()
+	context.expect_equal(challenged, [1, 2, 7], "shared-address cohort queues without blocking another source")
+	context.expect_equal(owner._pending_auth_count_for_source("198.51.100.1", 0), 2, "queue preserves the two-proof per-source budget")
+	context.expect_empty(rejected, "legitimate concurrency alone is not a failed-password rejection")
+	owner.complete_handshake(1)
+	owner.process_pending_connections()
+	context.expect_equal(challenged, [1, 2, 7, 3], "completing authentication promotes the oldest waiting peer")
+	context.expect_equal(owner._pending_handshakes.expired(now + NetworkProtocol.HANDSHAKE_TIMEOUT_SECONDS), [2, 3, 4, 5, 6, 7], "promotion does not extend the original connection deadline")
+	context.expect_false(owner.validate_hello(4, GameConstants.PROTOCOL_VERSION, "Premature", "0".repeat(64), 0, 32), "queued peers cannot authenticate before receiving a challenge")
+	context.expect_equal(rejected.back().reason, NetworkProtocol.REJECT_MALFORMED_TRAFFIC, "premature proof is isolated without granting authority")
+	owner._pending_handshakes.begin(8, now - NetworkProtocol.HANDSHAKE_TIMEOUT_SECONDS - 1)
+	owner._peer_auth_sources[8] = "198.51.100.3"
+	owner.process_pending_connections()
+	context.expect_false(challenged.has(8), "expired queued peer never receives a challenge")
+	context.expect_equal(rejected.back().reason, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT, "queue wait remains bounded by the handshake timeout")
+	owner._blocked_sources["198.51.100.1"] = true
+	owner.process_pending_connections()
+	context.expect_false(owner._pending_handshakes.has(5) or owner._pending_handshakes.has(6), "source bans also reject waiting handshakes")
+	owner.stop()
+	context.expect_equal(owner._pending_handshakes.size(), 0, "session stop clears queued and active handshakes")
+	runtime.free()
