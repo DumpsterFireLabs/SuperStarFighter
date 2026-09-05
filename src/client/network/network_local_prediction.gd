@@ -20,6 +20,7 @@ var input_sequence: int = 0
 var client_tick: int = 0
 var input_send_accumulator: float = 0.0
 var _shield_was_held: bool = false
+var _movement_was_active: bool = false
 var _shield_press_sequence: int = -1
 var prediction_initialized: bool = false
 var next_predicted_id: int = -1
@@ -214,7 +215,7 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 		aim_angle = aim_vector.angle()
 	var local_movement: Vector2 = view.input_profiles.movement_input_for_aim(aim_angle) if view.input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var local_alive := local_ship.combatant.alive
-	if not view.controls_enabled or input_blocked:
+	if not view.controls_enabled or input_blocked or not local_alive:
 		local_movement = Vector2.ZERO
 	local_ship.set_thrust_input(local_movement)
 	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
@@ -267,7 +268,11 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	if _shield_press_sequence >= 0 and ((input_sequence - _shield_press_sequence) & 0xffffffff) > GameConstants.SHIELD_PRESS_RETENTION_TICKS:
 		_shield_press_sequence = -1
 	frame.shield_press_sequence = _shield_press_sequence
-	var action_edge := shield_changed or special_just_pressed
+	# Preserve thrust start/stop through loss; held movement stays unreliable.
+	var movement_active := not frame.movement.is_zero_approx()
+	var movement_changed := movement_active != _movement_was_active
+	_movement_was_active = movement_active
+	var action_edge := shield_changed or special_just_pressed or movement_changed
 	if action_edge:
 		# Edges bypass unreliable throttling. Ordinary samples still carry the
 		# press identity; shared sequence checks discard late reliable frames.
@@ -364,6 +369,7 @@ func _expire_special_activation(now_msec: int) -> void:
 
 
 func reset_session() -> void:
+	_movement_was_active = false
 	_shield_press_sequence = -1
 	_shield_was_held = false
 	action_latch.reset()
@@ -402,6 +408,7 @@ func reset_session() -> void:
 
 
 func reset_for_countdown() -> void:
+	_movement_was_active = false
 	local_weapon.reset(local_stats)
 	prediction_initialized = false
 	special_activation_sends_remaining = 0
