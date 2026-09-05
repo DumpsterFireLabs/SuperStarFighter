@@ -46,33 +46,6 @@ var heat_intro_panel: PanelContainer
 var heat_intro_kicker: Label
 var heat_intro_title: Label
 var heat_intro_subtitle: Label
-var draft_panel: PanelContainer:
-	get: return draft_controller.draft_panel
-	set(value): draft_controller.draft_panel = value
-var draft_title: Label:
-	get: return draft_controller.draft_title
-	set(value): draft_controller.draft_title = value
-var draft_buttons: Array[Button]:
-	get: return draft_controller.draft_buttons
-	set(value): draft_controller.draft_buttons = value
-var draft_rarity_labels: Array[Label]:
-	get: return draft_controller.draft_rarity_labels
-	set(value): draft_controller.draft_rarity_labels = value
-var draft_bye_label: Label:
-	get: return draft_controller.draft_bye_label
-	set(value): draft_controller.draft_bye_label = value
-var draft_confirmation_row: HBoxContainer:
-	get: return draft_controller.draft_confirmation_row
-	set(value): draft_controller.draft_confirmation_row = value
-var draft_confirmation_label: Label:
-	get: return draft_controller.draft_confirmation_label
-	set(value): draft_controller.draft_confirmation_label = value
-var draft_confirm_button: Button:
-	get: return draft_controller.draft_confirm_button
-	set(value): draft_controller.draft_confirm_button = value
-var draft_change_button: Button:
-	get: return draft_controller.draft_change_button
-	set(value): draft_controller.draft_change_button = value
 var scoreboard_panel: PanelContainer:
 	get: return standings_controller.scoreboard_panel
 	set(value): standings_controller.scoreboard_panel = value
@@ -141,57 +114,6 @@ var win_overlay: Control:
 	set(value): standings_controller.win_overlay = value
 var pause_overlay: PanelContainer
 var pause_title: Label
-var settings_panel: Control:
-	get:
-		return settings_controller.settings_panel
-var settings_tabs: TabContainer:
-	get:
-		return settings_controller.settings_tabs
-var accessibility_preferences:
-	get:
-		return settings_controller.accessibility_preferences
-var hud_scale_control: HSlider:
-	get:
-		return settings_controller.hud_scale_control
-
-var reduced_shake_control: CheckButton:
-	get:
-		return settings_controller.reduced_shake_control
-var reduced_flashes_control: CheckButton:
-	get:
-		return settings_controller.reduced_flashes_control
-
-
-var window_mode_control: OptionButton:
-	get:
-		return settings_controller.window_mode_control
-var resolution_control: OptionButton:
-	get:
-		return settings_controller.resolution_control
-
-var control_scheme_control: OptionButton:
-	get:
-		return settings_controller.control_scheme_control
-var flight_mode_control: OptionButton:
-	get:
-		return settings_controller.flight_mode_control
-
-
-var binding_rows: GridContainer:
-	get:
-		return settings_controller.binding_rows
-
-
-var current_window_mode: int:
-	get:
-		return settings_controller.current_window_mode
-	set(value):
-		settings_controller.current_window_mode = value
-var current_resolution: Vector2i:
-	get:
-		return settings_controller.current_resolution
-	set(value):
-		settings_controller.current_resolution = value
 
 var settings_return_to_pause: bool = false
 var settings_return_to_lobby: bool = false
@@ -206,15 +128,6 @@ var splash_stage: int = 0
 var splash_transitioning: bool = false
 var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
-var active_offer_token: String:
-	get: return draft_controller.active_offer_token
-	set(value): draft_controller.active_offer_token = value
-var active_offer_deadline: int:
-	get: return draft_controller.active_offer_deadline
-	set(value): draft_controller.active_offer_deadline = value
-var pending_draft_index: int:
-	get: return draft_controller.pending_draft_index
-	set(value): draft_controller.pending_draft_index = value
 var latest_match_payload: Dictionary = {}
 
 var interface_theme: Theme
@@ -232,7 +145,8 @@ var _native_gameplay_cursor_active: bool = false
 
 
 func _init() -> void:
-	draft_controller.initialize(self)
+	draft_controller.inspection_requested.connect(_inspect_card)
+	draft_controller.presentation_changed.connect(_update_match_presentation)
 	draft_controller.name = "DraftScreenController"
 	add_child(draft_controller)
 	standings_controller.initialize(self)
@@ -313,8 +227,8 @@ func _inspect_card(button: CardHoverButton) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if draft_panel != null and draft_panel.visible and pending_draft_index >= 0 and (event.is_action_pressed("pause_overlay") or event.is_action_pressed(&"ui_cancel")) and not (event is InputEventKey and event.echo):
-		_cancel_draft_confirmation()
+	if draft_controller.draft_panel != null and draft_controller.draft_panel.visible and draft_controller.pending_draft_index >= 0 and (event.is_action_pressed("pause_overlay") or event.is_action_pressed(&"ui_cancel")) and not (event is InputEventKey and event.echo):
+		draft_controller._cancel_draft_confirmation()
 		get_viewport().set_input_as_handled()
 		return
 	if (event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"pause_overlay")) and not (event is InputEventKey and event.echo):
@@ -343,10 +257,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_request_f2_return_to_menu()
 		get_viewport().set_input_as_handled()
 		return
-	if draft_panel != null and draft_panel.visible:
-		for index in draft_buttons.size():
+	if draft_controller.draft_panel != null and draft_controller.draft_panel.visible:
+		for index in draft_controller.draft_buttons.size():
 			if event.is_action_pressed("draft_%d" % (index + 1)):
-				_select_draft_card(index)
+				draft_controller._select_draft_card(index)
 				get_viewport().set_input_as_handled()
 				break
 
@@ -431,12 +345,9 @@ func _create_match_ui() -> void:
 	heat_intro_subtitle.add_theme_color_override("font_color", Color("bdeeff"))
 	heat_intro_content.add_child(heat_intro_subtitle)
 
+	draft_controller.configure(bridge, audio_director, card_catalog, interface_theme, connection_controller.connection_canvas, _draft_context)
 	draft_controller.create_ui()
 	standings_controller.create_ui()
-
-
-func _create_draft_card_content(button: Button, index: int) -> void:
-	draft_controller._create_draft_card_content(button, index)
 
 
 func _create_pause_overlay() -> void:
@@ -503,10 +414,6 @@ func _create_f2_return_confirmation() -> void:
 	f2_return_confirmation.get_ok_button().theme_type_variation = &"DangerButton"
 
 
-func _change_accessibility_setting(key: String, value: Variant) -> void:
-	settings_controller._change_accessibility_setting(key, value)
-
-
 func _apply_accessibility_settings() -> void:
 	settings_controller.apply_accessible_theme()
 	if network_world != null:
@@ -515,17 +422,9 @@ func _apply_accessibility_settings() -> void:
 		offline_sandbox.apply_accessibility_settings(settings_controller.accessibility_preferences.values)
 
 
-func _refresh_input_settings_ui() -> void:
-	settings_controller._refresh_input_settings_ui()
-
-
 func _refresh_control_prompts() -> void:
 	if scoreboard_hint_label != null:
 		scoreboard_hint_label.text = "HOLD %s · ARROWS SELECT · I / Y INSPECT · THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
-
-
-func _update_resolution_control_state() -> void:
-	settings_controller._update_resolution_control_state()
 
 
 func _show_settings(return_to_pause: bool) -> void:
@@ -972,7 +871,7 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		standings_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
 		draft_controller.recover_rejected_offer()
 	elif event_type == &"DRAFT_OFFER":
-		_show_draft_offer(payload)
+		draft_controller._show_draft_offer(payload)
 	elif event_type == &"MATCH_START_ACCEPTED" and bool(payload.get("fresh_rematch", false)):
 		network_world.reset_match_presentation()
 		audio_director.reset_match_deduplication()
@@ -1066,7 +965,7 @@ func _update_pointer_visibility() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
+	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()
@@ -1104,33 +1003,13 @@ func _pointer_mode_for_gameplay(gameplay_pointer_active: bool, native_gameplay_c
 	return Input.MOUSE_MODE_CONFINED if native_gameplay_cursor else Input.MOUSE_MODE_CONFINED_HIDDEN
 
 
-func _show_draft_offer(payload: Dictionary) -> void:
-	draft_controller._show_draft_offer(payload)
-
-
-func _select_draft_card(index: int) -> void:
-	draft_controller._select_draft_card(index)
-
-
-func _confirm_draft_card() -> void:
-	draft_controller._confirm_draft_card()
-
-
-func _cancel_draft_confirmation() -> void:
-	draft_controller._cancel_draft_confirmation()
-
-
-func _show_draft_bye(deadline_tick: int) -> void:
-	draft_controller._show_draft_bye(deadline_tick)
-
-
 func _update_match_presentation() -> void:
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
 	if state_name == "LOBBY":
 		match_panel.visible = false
 		heat_intro_panel.visible = false
 		network_world.set_match_status("")
-		draft_panel.visible = false
+		draft_controller.draft_panel.visible = false
 		_set_win_screen_visible(false)
 		connection_controller.lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
 		connection_controller.connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
@@ -1141,11 +1020,11 @@ func _update_match_presentation() -> void:
 	connection_controller.lobby_panel.visible = false
 	match_panel.visible = false
 	if state_name != "DRAFT":
-		draft_panel.visible = false
+		draft_controller.draft_panel.visible = false
 	_set_win_screen_visible(state_name == "MATCH_RESULT")
 	var deadline := int(latest_match_payload.get("deadline_tick", -1))
-	if state_name == "DRAFT" and active_offer_deadline >= 0:
-		deadline = active_offer_deadline
+	if state_name == "DRAFT" and draft_controller.active_offer_deadline >= 0:
+		deadline = draft_controller.active_offer_deadline
 	var seconds_left := maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0) if deadline >= 0 else 0.0
 	_update_heat_intro(state_name, seconds_left)
 	var status := "%s · %s · %s · Round %d · Heat %d" % [
@@ -1336,26 +1215,6 @@ func _local_respawn_status_text() -> String:
 		0.0
 	)
 	return "RESPAWN · WAITING FOR CLEAR SPACE" if seconds <= 0.0 else "RESPAWN %.1fs" % seconds
-
-
-func _draft_category_color(category: int) -> Color:
-	return draft_controller._draft_category_color(category)
-
-
-func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
-	return draft_controller._draft_card_style(color, emphasized)
-
-
-func _draft_card_focus_style(rarity_color: Color) -> StyleBoxFlat:
-	return draft_controller._draft_card_focus_style(rarity_color)
-
-
-func _local_build_stack(card_id: StringName) -> int:
-	return draft_controller._local_build_stack(card_id)
-
-
-func _local_build() -> Dictionary:
-	return draft_controller._local_build()
 
 
 func _player_name(peer_id: int) -> String:
@@ -1586,3 +1445,13 @@ func _exit_tree() -> void:
 		connection_controller.shutdown()
 	if bridge != null:
 		bridge.stop()
+
+
+func _draft_context() -> Dictionary:
+	var builds := latest_match_payload.get("builds", {}) as Dictionary
+	var peer_id := bridge.local_peer_id
+	return {
+		"build": (builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary).duplicate(),
+		"bye": (peer_id != 0 and int(latest_match_payload.get("draft_bye_peer_id", 0)) == peer_id)
+			or peer_id in latest_match_payload.get("draft_bye_peer_ids", []),
+	}

@@ -33,8 +33,8 @@ func _capture_sequence() -> void:
 	var client := packed_scene.instantiate()
 	root.add_child(client)
 	root.size = capture_resolution
-	client.current_resolution = capture_resolution
-	client.resolution_control.select(client.RESOLUTION_OPTIONS.find(capture_resolution))
+	client.settings_controller.current_resolution = capture_resolution
+	client.settings_controller.resolution_control.select(client.RESOLUTION_OPTIONS.find(capture_resolution))
 	await process_frame
 	await process_frame
 	await _capture(client, "splash")
@@ -63,19 +63,19 @@ func _capture_sequence() -> void:
 	client.connection_controller.connection_tabs.current_tab = 0
 	client._show_settings(false)
 	await _capture(client, "settings")
-	client.current_window_mode = client.WindowModeOption.EXCLUSIVE_FULLSCREEN
-	client.window_mode_control.select(client.WindowModeOption.EXCLUSIVE_FULLSCREEN)
-	client.current_resolution = Vector2i(5120, 1440)
-	client.resolution_control.select(client.RESOLUTION_OPTIONS.find(client.current_resolution))
-	client._update_resolution_control_state()
+	client.settings_controller.current_window_mode = client.WindowModeOption.EXCLUSIVE_FULLSCREEN
+	client.settings_controller.window_mode_control.select(client.WindowModeOption.EXCLUSIVE_FULLSCREEN)
+	client.settings_controller.current_resolution = Vector2i(5120, 1440)
+	client.settings_controller.resolution_control.select(client.RESOLUTION_OPTIONS.find(client.settings_controller.current_resolution))
+	client.settings_controller._update_resolution_control_state()
 	await _capture(client, "fullscreen_settings")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
-	client.settings_tabs.current_tab = 1
-	client._refresh_input_settings_ui()
+	client.settings_controller.settings_tabs.current_tab = 1
+	client.settings_controller._refresh_input_settings_ui()
 	await _capture(client, "controls")
-	client.settings_tabs.current_tab = 2
+	client.settings_controller.settings_tabs.current_tab = 2
 	await _capture(client, "accessibility_settings")
-	client.accessibility_preferences.set_values({"high_contrast": true, "toggle_fire": true, "toggle_shield": true})
+	client.settings_controller.accessibility_preferences.set_values({"high_contrast": true, "toggle_fire": true, "toggle_shield": true})
 	client._apply_accessibility_settings()
 	client.settings_controller.high_contrast_control.set_pressed_no_signal(true)
 	client.settings_controller.toggle_fire_control.set_pressed_no_signal(true)
@@ -83,13 +83,13 @@ func _capture_sequence() -> void:
 	client.settings_controller.toggle_shield_control.grab_focus()
 	await process_frame
 	await _capture(client, "accessibility_contrast")
-	client.accessibility_preferences.set_values({"high_contrast": false, "toggle_fire": false, "toggle_shield": false})
+	client.settings_controller.accessibility_preferences.set_values({"high_contrast": false, "toggle_fire": false, "toggle_shield": false})
 	client._apply_accessibility_settings()
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
-	client.settings_tabs.current_tab = 0
-	client.current_window_mode = client.WindowModeOption.WINDOWED
-	client.current_resolution = capture_resolution
-	client._update_resolution_control_state()
+	client.settings_controller.settings_tabs.current_tab = 0
+	client.settings_controller.current_window_mode = client.WindowModeOption.WINDOWED
+	client.settings_controller.current_resolution = capture_resolution
+	client.settings_controller._update_resolution_control_state()
 	client._hide_settings()
 	client._play_offline()
 	await _capture(client, "build_lab")
@@ -157,22 +157,22 @@ func _capture_sequence() -> void:
 	client.network_world.set_network_active(true)
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}
 	client.network_world.latest_server_tick = 0
-	client._show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
+	client.draft_controller._show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft")
-	await _capture_card_hover(client, client.draft_buttons[1] as Button, "draft_card_hover")
+	await _capture_card_hover(client, client.draft_controller.draft_buttons[1] as Button, "draft_card_hover")
 	client.latest_match_payload["builds"] = {2: {&"twin_shot": 5, &"heavy_rounds": 2}}
-	client._show_draft_offer({"offer_token": "capture-cap", "card_ids": [&"twin_shot", &"phase_thrusters", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
+	client.draft_controller._show_draft_offer({"offer_token": "capture-cap", "card_ids": [&"twin_shot", &"phase_thrusters", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft_capped")
-	await _capture_card_hover(client, client.draft_buttons[0] as Button, "draft_capped_hover")
-	client._select_draft_card(0)
+	await _capture_card_hover(client, client.draft_controller.draft_buttons[0] as Button, "draft_capped_hover")
+	client.draft_controller._select_draft_card(0)
 	await _capture(client, "draft_confirmation")
-	client._cancel_draft_confirmation()
+	client.draft_controller._cancel_draft_confirmation()
 	client.latest_match_payload["draft_bye_peer_id"] = 2
-	client._show_draft_bye(1800)
+	client.draft_controller._show_draft_bye(1800)
 	client._update_match_presentation()
 	await _capture(client, "draft_bye")
-	client.draft_panel.visible = false
-	client.draft_bye_label.visible = false
+	client.draft_controller.draft_panel.visible = false
+	client.draft_controller.draft_bye_label.visible = false
 	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 100, "deadline_tick": 280, "round_number": 1, "heat_number": 1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {}, 3: {}}, "map_id": &"solar_tide", "map_name": "Solar Tide"}
 	client.network_world.latest_server_tick = 160
 	client.network_world.apply_match_state(client.latest_match_payload)
@@ -256,12 +256,12 @@ func _capture_sequence() -> void:
 	await _capture(client, "ability_selection")
 	client.network_world.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "combat_accessibility")
-	client.accessibility_preferences.set_values({"hud_scale": 1.5, "high_contrast": true, "reduced_flashes": true, "toggle_fire": true, "toggle_shield": true})
+	client.settings_controller.accessibility_preferences.set_values({"hud_scale": 1.5, "high_contrast": true, "reduced_flashes": true, "toggle_fire": true, "toggle_shield": true})
 	client._apply_accessibility_settings()
 	client.network_world.action_latch.active = {&"fire": true, &"shield": false}
 	client.network_world._update_diagnostics()
 	await _capture(client, "combat_contrast")
-	client.accessibility_preferences.set_values({"hud_scale": 1.0, "high_contrast": false, "reduced_flashes": false, "toggle_fire": false, "toggle_shield": false})
+	client.settings_controller.accessibility_preferences.set_values({"hud_scale": 1.0, "high_contrast": false, "reduced_flashes": false, "toggle_fire": false, "toggle_shield": false})
 	client._apply_accessibility_settings()
 	client.network_world.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
 	client._on_match_event(&"COMBAT_FEEDBACK", 201, {"hit_count": 3, "hit_damage": 68, "blocked_count": 1, "last_block_reason": "perfect_guard"})
@@ -335,10 +335,10 @@ func _capture_sequence() -> void:
 	client._update_match_presentation()
 	client.network_world.set_physics_process(false)
 	client.network_world.camera.position = ArenaLayout.center(&"solar_tide")
-	client.accessibility_preferences.set_values({"high_contrast": true})
+	client.settings_controller.accessibility_preferences.set_values({"high_contrast": true})
 	client._apply_accessibility_settings()
 	await _capture(client, "map_solar_tide_contrast")
-	client.accessibility_preferences.set_values({"high_contrast": false})
+	client.settings_controller.accessibility_preferences.set_values({"high_contrast": false})
 	client._apply_accessibility_settings()
 	client.network_world.set_physics_process(true)
 	client.latest_match_payload["participant_peer_ids"] = [2, 3, 4, 5]

@@ -6,17 +6,14 @@ const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd"
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const CardDetailsText = preload("res://src/client/ui/card_details_text.gd")
 
-var client: Node
-var bridge: NetworkBridge:
-	get: return client.bridge
-var audio_director: AudioDirector:
-	get: return client.audio_director
-var card_catalog: CardCatalog:
-	get: return client.card_catalog
-var latest_match_payload: Dictionary:
-	get: return client.latest_match_payload
-var interface_theme: Theme:
-	get: return client.interface_theme
+signal inspection_requested(button: CardHoverButton)
+signal presentation_changed
+var bridge: NetworkBridge
+var audio_director: AudioDirector
+var card_catalog: CardCatalog
+var interface_theme: Theme
+var _canvas: CanvasLayer
+var _context: Callable
 
 
 var draft_panel: PanelContainer
@@ -36,8 +33,13 @@ var inspect_button: Button
 var comparison_hint: Label
 
 
-func initialize(client_root: Node) -> void:
-	client = client_root
+func configure(network: NetworkBridge, audio: AudioDirector, catalog: CardCatalog, theme: Theme, canvas: CanvasLayer, context: Callable) -> void:
+	bridge = network
+	audio_director = audio
+	card_catalog = catalog
+	interface_theme = theme
+	_canvas = canvas
+	_context = context
 
 
 func create_ui() -> void:
@@ -52,7 +54,7 @@ func create_ui() -> void:
 	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	draft_panel.visible = false
 	draft_panel.resized.connect(func() -> void: draft_panel.position = (get_viewport().get_visible_rect().size - draft_panel.size) * 0.5)
-	client.connection_controller.connection_canvas.add_child(draft_panel)
+	_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 14)
 	draft_panel.add_child(content)
@@ -83,7 +85,7 @@ func create_ui() -> void:
 		button.add_theme_color_override("font_focus_color", Color.TRANSPARENT)
 		button.add_theme_color_override("font_disabled_color", Color.TRANSPARENT)
 		button.pressed.connect(_select_draft_card.bind(index))
-		button.inspection_requested.connect(client._inspect_card)
+		button.inspection_requested.connect(inspection_requested.emit)
 		button.focus_entered.connect(_set_inspected_card.bind(index))
 		button.mouse_entered.connect(_set_inspected_card.bind(index))
 		cards.add_child(button)
@@ -264,7 +266,7 @@ func _show_draft_offer(payload: Dictionary) -> void:
 		if button.visible and not button.disabled:
 			button.grab_focus()
 			break
-	client._update_match_presentation()
+	presentation_changed.emit()
 
 
 func _set_inspected_card(index: int) -> void:
@@ -396,12 +398,11 @@ func _local_build_stack(card_id: StringName) -> int:
 
 
 func _local_build() -> Dictionary:
-	var builds := latest_match_payload.get("builds", {}) as Dictionary
-	return builds.get(bridge.local_peer_id, builds.get(str(bridge.local_peer_id), {})) as Dictionary
+	return (_context.call() as Dictionary).get("build", {}) as Dictionary
 
 
 func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
-	return client._panel_style(accent, opacity)
+	return DesignTokensScript.panel_style(accent, opacity)
 
 
 func clear_offer() -> void:
@@ -426,9 +427,7 @@ func recover_rejected_offer() -> void:
 
 
 func update_countdown(deadline: int, seconds_left: float) -> void:
-	var bye_peer_id := int(latest_match_payload.get("draft_bye_peer_id", 0))
-	var bye_peer_ids := latest_match_payload.get("draft_bye_peer_ids", []) as Array
-	if (bye_peer_id != 0 and bye_peer_id == bridge.local_peer_id) or bridge.local_peer_id in bye_peer_ids:
+	if bool((_context.call() as Dictionary).get("bye", false)):
 		if not draft_bye_label.visible or not draft_panel.visible:
 			_show_draft_bye(deadline)
 		draft_title.text = "ROUND WINNER — SKIPS THIS DRAFT · %.1fs" % seconds_left

@@ -494,7 +494,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.connection_controller.ship_color_popup != null and client.connection_controller.random_color_button != null and client.connection_controller.ship_color_picker != null and client.connection_controller.ship_pattern_control != null and client.connection_controller.apply_ship_color_button != null, "roster appearance selection owns colour, pattern, Random, and explicit Apply controls")
 	context.expect_equal(client.connection_controller.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
 	context.expect_equal(client.connection_controller.ship_pattern_control.item_count, ShipAppearanceScript.PATTERNS.size(), "ship customization exposes every supported hull pattern")
-	context.expect_true(client.draft_panel != null, "production draft screen exists")
+	context.expect_true(client.draft_controller.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
 	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")
 	context.expect_true(client.network_world.match_status_label != null, "match timing and state integrate into the combat HUD")
@@ -505,7 +505,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.results_panel != null, "production results screen exists")
 	context.expect_true(client.results_winner_label != null and client.results_standings_container != null, "victory screen uses a structured champion and standings composition")
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
-	context.expect_true(client.settings_panel != null, "shared display and audio settings screen exists")
+	context.expect_true(client.settings_controller.settings_panel != null, "shared display and audio settings screen exists")
 	context.expect_true(client.credits_panel != null and client.credits_button != null, "main menu exposes the dedicated credits screen")
 	context.expect_true(client.credits_button.pressed.is_connected(client._show_credits), "Credits button is wired to the credits screen")
 	var credits_text := ""
@@ -545,25 +545,25 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.offline_sandbox.set_sandbox_active(false)
 	client.connection_controller.connection_screen.visible = true
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
-	context.expect_equal(client.settings_tabs.get_tab_count(), 3, "settings separates display/audio, controls, and accessibility")
-	context.expect_equal(client.control_scheme_control.item_count, 2, "settings can switch between keyboard/mouse and controller profiles")
-	context.expect_equal(client.flight_mode_control.item_count, 2, "settings exposes Newtonian and Relative flight modes")
-	context.expect_equal(client.flight_mode_control.get_selected_id(), client.InputProfileManagerScript.FlightMode.RELATIVE, "Relative screen-aligned flight is selected by default")
+	context.expect_equal(client.settings_controller.settings_tabs.get_tab_count(), 3, "settings separates display/audio, controls, and accessibility")
+	context.expect_equal(client.settings_controller.control_scheme_control.item_count, 2, "settings can switch between keyboard/mouse and controller profiles")
+	context.expect_equal(client.settings_controller.flight_mode_control.item_count, 2, "settings exposes Newtonian and Relative flight modes")
+	context.expect_equal(client.settings_controller.flight_mode_control.get_selected_id(), client.InputProfileManagerScript.FlightMode.RELATIVE, "Relative screen-aligned flight is selected by default")
 	context.expect_equal(client.input_profiles.binding_text(&"manual_reload"), "R", "controls screen reserves R for manual reload by default")
-	context.expect_equal(client.binding_rows.get_child_count(), client.input_profiles.rebind_actions().size() * 2, "controls tab exposes every active-profile binding")
-	context.expect_equal(client.window_mode_control.item_count, 3, "settings exposes windowed, borderless fullscreen, and exclusive fullscreen")
-	context.expect_equal(client.window_mode_control.get_item_id(0), client.WindowModeOption.WINDOWED, "windowed remains the default display mode")
-	context.expect_equal(client.resolution_control.item_count, client.RESOLUTION_OPTIONS.size(), "settings exposes every supported resolution")
+	context.expect_equal(client.settings_controller.binding_rows.get_child_count(), client.input_profiles.rebind_actions().size() * 2, "controls tab exposes every active-profile binding")
+	context.expect_equal(client.settings_controller.window_mode_control.item_count, 3, "settings exposes windowed, borderless fullscreen, and exclusive fullscreen")
+	context.expect_equal(client.settings_controller.window_mode_control.get_item_id(0), client.WindowModeOption.WINDOWED, "windowed remains the default display mode")
+	context.expect_equal(client.settings_controller.resolution_control.item_count, client.RESOLUTION_OPTIONS.size(), "settings exposes every supported resolution")
 	context.expect_true(Vector2i(3840, 2160) in client.RESOLUTION_OPTIONS and Vector2i(5120, 2160) in client.RESOLUTION_OPTIONS, "settings includes common 4K and 5K2K resolutions")
 	context.expect_true(Vector2i(2560, 1080) in client.RESOLUTION_OPTIONS and Vector2i(3440, 1440) in client.RESOLUTION_OPTIONS, "settings preserves common ultrawide resolutions")
 	context.expect_true(Vector2i(3840, 1080) in client.RESOLUTION_OPTIONS and Vector2i(5120, 1440) in client.RESOLUTION_OPTIONS, "settings includes 32:9 super-ultrawide resolutions")
 	context.expect_true(Vector2i(2880, 1920) in client.RESOLUTION_OPTIONS, "settings includes the requested 2880x1920 resolution")
-	client.current_window_mode = client.WindowModeOption.BORDERLESS_FULLSCREEN
-	client._update_resolution_control_state()
-	context.expect_true(client.resolution_control.disabled, "borderless fullscreen clearly defers resolution selection to the desktop")
-	client.current_window_mode = client.WindowModeOption.WINDOWED
-	client._update_resolution_control_state()
-	context.expect_false(client.resolution_control.disabled, "windowed mode restores explicit resolution selection")
+	client.settings_controller.current_window_mode = client.WindowModeOption.BORDERLESS_FULLSCREEN
+	client.settings_controller._update_resolution_control_state()
+	context.expect_true(client.settings_controller.resolution_control.disabled, "borderless fullscreen clearly defers resolution selection to the desktop")
+	client.settings_controller.current_window_mode = client.WindowModeOption.WINDOWED
+	client.settings_controller._update_resolution_control_state()
+	context.expect_false(client.settings_controller.resolution_control.disabled, "windowed mode restores explicit resolution selection")
 	context.expect_equal(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand", "ultrawide windows reveal space without nonuniform stretching")
 	context.expect_true(client.splash_screen != null, "animated splash screen exists")
 	context.expect_equal(client.splash_screen.find_child("StudioQuote", true, false).text, "“Now with 1000% more slop!”", "studio splash includes the requested quote")
@@ -584,7 +584,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client._is_start_input(controller_start), "controller buttons can advance the splash immediately")
 	client.splash_screen.visible = false
 	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
-	context.expect_true(client.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
+	context.expect_true(client.draft_controller.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_controller.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
 	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
 	var players: Array[Dictionary] = []
 	for index in 32:
@@ -600,9 +600,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.network_world.visible, "arena remains hidden while players wait in the lobby")
 	context.expect_equal(client.network_world.local_peer_id, 2, "hidden lobby preserves the connected renderer's local identity")
 	client.connection_controller.lobby_settings_button.pressed.emit()
-	context.expect_true(client.settings_panel.visible and client.settings_return_to_lobby, "lobby players can open their saved display, audio, and control settings")
+	context.expect_true(client.settings_controller.settings_panel.visible and client.settings_return_to_lobby, "lobby players can open their saved display, audio, and control settings")
 	client._hide_settings()
-	context.expect_true(client.connection_controller.lobby_panel.visible and not client.settings_panel.visible and not client.settings_return_to_lobby, "Back from player settings restores the waiting lobby")
+	context.expect_true(client.connection_controller.lobby_panel.visible and not client.settings_controller.settings_panel.visible and not client.settings_return_to_lobby, "Back from player settings restores the waiting lobby")
 	context.expect_equal(client.connection_controller.lobby_roster.get_child(1).get_child_count(), 5, "leader receives colour identity and an eject control for another human")
 	context.expect_true(client.connection_controller.powerups_button.button_pressed and not client.connection_controller.powerups_button.disabled, "lobby leader sees and can edit the authoritative powerup option")
 	var local_color_swatch := client.connection_controller.lobby_roster.get_child(0).get_node("ShipColor") as Button
@@ -681,8 +681,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.connection_controller.start_button.disabled, "ready solo human may start after enabling NPCs")
 	context.expect_equal(client.connection_controller.start_button.text, "Start Match with NPCs", "solo NPC launch uses descriptive wording")
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
-	client._show_draft_offer({"offer_token": "test", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
-	var first_draft_card := client.draft_buttons[0] as Button
+	client.draft_controller._show_draft_offer({"offer_token": "test", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
+	var first_draft_card := client.draft_controller.draft_buttons[0] as Button
 	context.expect_true(first_draft_card.get_node_or_null("CardContent/Details/CardName") != null, "draft choices expose a structured and scannable content hierarchy")
 	context.expect_true(first_draft_card.has_theme_stylebox_override(&"focus"), "draft choices expose a dedicated focus treatment")
 	context.expect_true(client.network_world.visible and client.network_world.process_mode != Node.PROCESS_MODE_DISABLED, "match start reactivates world rendering and prediction")

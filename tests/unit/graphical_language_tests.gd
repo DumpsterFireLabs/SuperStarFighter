@@ -43,9 +43,9 @@ static func run(context: TestContext, parent: Node) -> void:
 
 	connection.connection_screen.hide()
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "builds": {2: {&"twin_shot": 5}}, "deadline_tick": 1800}
-	client._show_draft_offer({"offer_token": "review", "deadline_tick": 1800, "card_ids": [&"twin_shot", &"reinforced_hull", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"]})
+	client.draft_controller._show_draft_offer({"offer_token": "review", "deadline_tick": 1800, "card_ids": [&"twin_shot", &"reinforced_hull", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"]})
 	await parent.get_tree().process_frame
-	var card := client.draft_buttons[0] as CardHoverButton
+	var card := client.draft_controller.draft_buttons[0] as CardHoverButton
 	card.grab_focus()
 	_press_key(client.get_viewport(), KEY_I)
 	await parent.get_tree().process_frame
@@ -53,7 +53,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(client.card_inspector.preview.get_meta("card_id"), &"twin_shot", "inspector presents the focused card's actual data")
 	context.expect_true(client.network_world.input_blocked, "inspection blocks combat input")
 	_press_key(client.get_viewport(), KEY_2)
-	context.expect_equal(client.pending_draft_index, -1, "modal inspection cannot accidentally select a draft choice")
+	context.expect_equal(client.draft_controller.pending_draft_index, -1, "modal inspection cannot accidentally select a draft choice")
 	_press_key(client.get_viewport(), KEY_ESCAPE)
 	context.expect_false(client.card_inspector.visible, "Escape closes card inspection")
 	context.expect_equal(client.get_viewport().gui_get_focus_owner(), card, "closing inspection restores the source card")
@@ -64,17 +64,17 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_false(client.card_inspector.visible, "controller Back closes inspection")
 	context.expect_false(client.network_world.input_blocked, "closing inspection releases its gameplay block")
 	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
-	client._select_draft_card(0)
+	client.draft_controller._select_draft_card(0)
 	await parent.get_tree().process_frame
 	await parent.get_tree().process_frame
 	var state := card.get_node("CardContent/Details/State") as Label
 	context.expect_true(card.get_global_rect().encloses(state.get_global_rect()), "capped-card confirmation stays inside its card")
-	var rarity := client.draft_rarity_labels[0] as Label
+	var rarity := client.draft_controller.draft_rarity_labels[0] as Label
 	context.expect_true(state.get_global_rect().end.y <= rarity.get_global_rect().position.y, "card selection and rarity footer do not overlap")
 	for card_id in client.card_catalog.all_ids():
 		client.latest_match_payload["builds"] = {2: {card_id: 20}}
-		client._show_draft_offer({"offer_token": "fit", "deadline_tick": 1800, "card_ids": [card_id]})
-		client._select_draft_card(0)
+		client.draft_controller._show_draft_offer({"offer_token": "fit", "deadline_tick": 1800, "card_ids": [card_id]})
+		client.draft_controller._select_draft_card(0)
 		await parent.get_tree().process_frame
 		await parent.get_tree().process_frame
 		var margin := card.get_node("CardContent") as MarginContainer
