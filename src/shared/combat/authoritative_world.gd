@@ -131,6 +131,7 @@ func step(
 	for peer_id in _resolve_ship_overlaps(peer_ids):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	spatial_index.rebuild_ships(combatants, peer_ids)
+	_resolve_rebound_shield_damage(peer_ids, delta)
 	_resolve_kinetic_vents(peer_ids)
 	var overlaps_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	_step_projectiles(delta, peer_ids)
@@ -488,7 +489,33 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			map_id,
 			GameConstants.MISSILE_RADIUS
 		)
+	# Guide once, then test shots against missile motion over this same tick.
+	# Bullets resolve first so insertion order cannot protect incoming missiles.
+	var missile_paths: Dictionary = {}
+	var shot_ids: Array[int] = []
+	var missile_ids: Array[int] = []
 	for projectile_id in projectile_ids:
+		var candidate := projectile_registry.get_projectile(projectile_id)
+		if candidate == null or candidate.is_mine:
+			continue
+		if not candidate.is_missile:
+			shot_ids.append(projectile_id)
+			continue
+		missile_ids.append(projectile_id)
+		var guidance_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
+		_step_missile_guidance(candidate, safe_delta)
+		if performance_profiling_enabled:
+			last_projectile_profile_usec.guidance += Time.get_ticks_usec() - guidance_started
+		if candidate.lifetime_remaining <= safe_delta:
+			continue
+		var finish := candidate.position + candidate.velocity * safe_delta
+		var obstacle: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(candidate.position, finish, candidate.radius, map_id, _projectile_geometry_missile)
+		var ship: Variant = _nearest_projectile_ship_hit(candidate, candidate.position, finish, peer_ids)
+		var end_fraction := minf(float(obstacle.fraction) if obstacle != null else 1.0, float(ship.fraction) if ship != null else 1.0)
+		missile_paths[projectile_id] = {"start": candidate.position, "finish": finish, "end_fraction": end_fraction}
+	spatial_index.rebuild_missile_sweeps(missile_paths)
+	shot_ids.append_array(missile_ids)
+	for projectile_id in shot_ids:
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
 		var projectile := projectile_registry.get_projectile(projectile_id)
@@ -496,11 +523,6 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			continue
 		if projectile.is_mine:
 			continue
-		if projectile.is_missile:
-			var guidance_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
-			_step_missile_guidance(projectile, safe_delta)
-			if performance_profiling_enabled:
-				last_projectile_profile_usec.guidance += Time.get_ticks_usec() - guidance_started
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			_remove_projectile(projectile.projectile_id)
@@ -543,6 +565,15 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 				if performance_profiling_enabled:
 					last_projectile_profile_usec.mine_sweep += Time.get_ticks_usec() - sweep_started
 			var mine_fraction := clampf(float(mine_hit.get("fraction", INF)), 0.0, 1.0) if mine_hit != null else INF
+			var missile_hit: Variant = null
+			if not projectile.is_missile and not missile_paths.is_empty():
+				var start_fraction := clampf(1.0 - travel_remaining / (projectile_speed * safe_delta), 0.0, 1.0)
+				missile_hit = _nearest_projectile_missile_hit(projectile, start, finish, start_fraction, missile_paths)
+			if missile_hit != null and float(missile_hit.fraction) <= minf(obstacle_fraction, minf(ship_fraction, mine_fraction)):
+				projectile.position = missile_hit.position as Vector2
+				_remove_projectile(int(missile_hit.missile_id))
+				_remove_projectile(projectile.projectile_id)
+				break
 			if mine_hit != null and mine_fraction <= obstacle_fraction and mine_fraction <= ship_fraction:
 				projectile.position = mine_hit.position as Vector2
 				var mine := projectile_registry.get_projectile(int(mine_hit.mine_id))
@@ -584,6 +615,26 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	_step_mine_activation(safe_delta, mine_ids)
 	if performance_profiling_enabled:
 		last_projectile_profile_usec.damage_resolution = Time.get_ticks_usec() - damage_started
+
+
+func _nearest_projectile_missile_hit(projectile: ProjectileState, start: Vector2, finish: Vector2, start_fraction: float, paths: Dictionary) -> Variant:
+	var nearest: Variant = null
+	var nearest_fraction := INF
+	for missile_id in spatial_index.query_missiles_along_segment(start, finish, projectile.radius):
+		var missile := projectile_registry.get_projectile(missile_id)
+		if missile == null or missile.owner_id == projectile.owner_id or are_allies(projectile.owner_id, missile.owner_id):
+			continue
+		var path: Dictionary = paths[missile_id]
+		var missile_start: Vector2 = (path.start as Vector2).lerp(path.finish as Vector2, start_fraction)
+		var fraction := _segment_circle_hit_fraction(start - missile_start, finish - (path.finish as Vector2), Vector2.ZERO, projectile.radius + missile.radius)
+		if fraction < 0.0 or fraction >= nearest_fraction:
+			continue
+		# A missile that already reached a wall or ship cannot be intercepted.
+		if lerpf(start_fraction, 1.0, fraction) > float(path.end_fraction):
+			continue
+		nearest_fraction = fraction
+		nearest = {"missile_id": missile_id, "fraction": fraction, "position": start.lerp(finish, fraction)}
+	return nearest
 
 
 func _step_missile_guidance(missile: ProjectileState, delta: float) -> void:
@@ -926,6 +977,28 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 		if not overlap_found:
 			break
 	return _resolve_damage_events(ram_damage_events)
+
+
+func _resolve_rebound_shield_damage(peer_ids: Array[int], delta: float) -> void:
+	var events: Array[Dictionary] = []
+	var radius := GameConstants.REBOUND_SHIELD_RADIUS + GameConstants.SHIP_COLLISION_RADIUS
+	for peer_id in peer_ids:
+		var source := combatants[peer_id] as CombatantState
+		if not source.alive or not source.shield.active or not source.stats.rebound_shield_enabled:
+			continue
+		for target_id in spatial_index.query_nearby_ships(source.position, radius):
+			if target_id == peer_id or are_allies(peer_id, target_id):
+				continue
+			var target := combatants[target_id] as CombatantState
+			if not target.alive or source.position.distance_to(target.position) > radius:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, target.position, map_id):
+				continue
+			events.append({"attacker_id": peer_id, "target_id": target_id,
+				"damage": GameConstants.REBOUND_SHIELD_DAMAGE_PER_SECOND * maxf(delta, 0.0),
+				"source": "rebound_shield", "mechanic": "rebound_contact"})
+	for peer_id in _resolve_damage_events(events):
+		projectile_registry.schedule_owner_cleanup(peer_id)
 
 
 func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:

@@ -32,3 +32,12 @@ static func cycle(slot: int, stats: CombatStats, direction: int) -> int:
 
 static func label(slot: int) -> String:
 	return ["AFTERBURNER", "MINES", "MISSILES", "CLOAK"][slot] if slot >= 0 and slot <= Slot.CLOAK else "NONE"
+
+
+## Capture individual presses, including taps between simulation ticks.
+static func direction_for_event(event: InputEvent) -> int:
+	if event.is_action_pressed(&"special_previous"):
+		return -1
+	if event.is_action_pressed(&"special_next"):
+		return 1
+	return 0

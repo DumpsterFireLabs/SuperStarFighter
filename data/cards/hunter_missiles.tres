@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"hunter_missiles"
 display_name = "Hunter Missiles"
-description = "Special launches a missile that acquires visible targets in flight. Per stack: +20 per heat; 1s cooldown."
+description = "Special launches a seeker; enemy shots can destroy it. Per stack: +20 per heat; 1s cooldown."
 category = 2
 rarity = 4
 integer_modifiers = {"missile_capacity": 20}

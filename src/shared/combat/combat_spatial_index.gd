@@ -13,6 +13,7 @@ var _ship_sweep_cells: Dictionary = {}
 var _ship_sweep_grid: Array = []
 var _projectile_threat_cells: Dictionary = {}
 var _armed_mine_cells: Dictionary = {}
+var _missile_sweep_cells: Dictionary = {}
 var _empty_ids: Array[int] = []
 var _respawn_threat_cells: Dictionary = {}
 var _respawn_threat_tick: int = -1
@@ -99,6 +100,26 @@ func rebuild_armed_mines(registry: ProjectileRegistry, armed_mine_ids: Array[int
 		var mine := registry.get_projectile(mine_id)
 		if mine != null:
 			_append_cell_id(_armed_mine_cells, _cell_for(mine.position), mine_id)
+
+
+func rebuild_missile_sweeps(paths: Dictionary) -> void:
+	_missile_sweep_cells.clear()
+	for id in paths:
+		var path: Dictionary = paths[id]
+		var start: Vector2 = path.start
+		var finish: Vector2 = path.finish
+		var radius := GameConstants.MISSILE_RADIUS
+		var minimum := _cell_for(Vector2(minf(start.x, finish.x) - radius, minf(start.y, finish.y) - radius))
+		var maximum := _cell_for(Vector2(maxf(start.x, finish.x) + radius, maxf(start.y, finish.y) + radius))
+		for y in range(minimum.y, maximum.y + 1):
+			for x in range(minimum.x, maximum.x + 1):
+				_append_cell_id(_missile_sweep_cells, Vector2i(x, y), id)
+
+
+func query_missiles_along_segment(start: Vector2, finish: Vector2, padding: float) -> Array[int]:
+	return _query_cells(_missile_sweep_cells,
+		Vector2(minf(start.x, finish.x) - padding, minf(start.y, finish.y) - padding),
+		Vector2(maxf(start.x, finish.x) + padding, maxf(start.y, finish.y) + padding))
 
 
 func query_mines_along_segment(start: Vector2, finish: Vector2, padding: float) -> Array[int]:

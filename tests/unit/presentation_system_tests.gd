@@ -818,6 +818,13 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.audio_director.current_context = &"gameplay"
 	client._input(tab_event)
 	context.expect_true(client.standings_controller.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
+	var scoreboard_focus := client.get_viewport().gui_get_focus_owner()
+	context.expect_true(scoreboard_focus is CardHoverButton, "scoreboard has an inspectable card focused")
+	tab_event.echo = true
+	for repeat_index in 5:
+		client.get_viewport().push_input(tab_event)
+	context.expect_equal(client.get_viewport().gui_get_focus_owner(), scoreboard_focus, "held Tab repeats never navigate between player cards")
+	tab_event.echo = false
 	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
 	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("NOW PLAYING  ·  EDGE"), "scoreboard identifies the active gameplay song")
 	var live_kills := client.standings_controller.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label

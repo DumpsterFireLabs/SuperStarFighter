@@ -359,6 +359,8 @@ func _draw() -> void:
 		var perfect_guard := combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()
 		# Rarity belongs to the outer shield. A separate inner timing cue avoids
 		# making every Perfect Guard window look like a Legendary upgrade.
+		if combatant.stats.rebound_shield_enabled:
+			draw_arc(Vector2.ZERO, GameConstants.REBOUND_SHIELD_RADIUS, 0.0, TAU, 40, Color(shield_color, 0.45), 2.0)
 		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(shield_color, 0.22), 14.0)
 		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 and not reduced_flashes else shield_color, 7.0)
 		if perfect_guard:

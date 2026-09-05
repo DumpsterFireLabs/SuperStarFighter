@@ -62,6 +62,7 @@ static func source_name(source: String) -> String:
 		"mine": return "MINE BLAST"
 		"missile": return "HOMING MISSILE"
 		"shield_ram": return "SHIELD RAM"
+		"rebound_shield": return "REBOUND SHIELD"
 		"overtime": return "OVERTIME"
 	return "COMBAT DAMAGE"
 
@@ -73,6 +74,7 @@ static func mechanic_text(mechanic: String) -> String:
 		"shield_depleted": return "Your shield was depleted"
 		"blast_ignores_shield": return "Mine blasts bypass shields"
 		"ram_contact": return "Shield Ram contact damage"
+		"rebound_contact": return "Rebound Shield radius damage"
 	return ""
 
 

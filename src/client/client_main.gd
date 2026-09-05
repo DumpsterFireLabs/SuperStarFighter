@@ -218,6 +218,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Consume key-repeat before either the inspector or GUI focus traversal.
+	if standings_controller.scoreboard_open and event.is_action_pressed(&"scoreboard", true):
+		get_viewport().set_input_as_handled()
+		return
 	if card_inspector != null and card_inspector.visible:
 		if event.is_action_released(&"scoreboard") and standings_controller.scoreboard_open:
 			card_inspector.close(false)

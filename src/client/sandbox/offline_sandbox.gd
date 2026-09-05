@@ -116,10 +116,6 @@ func _physics_process(delta: float) -> void:
 	var frame := PlayerInputFrame.new(input_sequence, world.server_tick, movement, aim_angle, action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(accessibility.get("toggle_fire", false)), player.combatant.alive), action_latch.sample(&"shield", Input.is_action_pressed("shield"), bool(accessibility.get("toggle_shield", false)), player.combatant.alive), Input.is_action_pressed("manual_reload"), pressed, special_sequence)
 	# Selection is shared with the network client; the authoritative step activates
 	# exactly the selected ability, including its inventory and cooldown rules.
-	if InputMap.has_action("special_previous") and Input.is_action_just_pressed("special_previous"):
-		_cycle_special(-1)
-	if InputMap.has_action("special_next") and Input.is_action_just_pressed("special_next"):
-		_cycle_special(1)
 	frame.special_slot = selected_special_slot
 	step_lab(delta, frame)
 	_update_camera(delta)
@@ -283,6 +279,15 @@ func set_input_profile_manager(profile_manager: Node) -> void:
 	if not input_profiles.bindings_changed.is_connected(_update_help_text):
 		input_profiles.bindings_changed.connect(_update_help_text)
 	_update_help_text()
+
+
+func _input(event: InputEvent) -> void:
+	if editor_open or not combat_input_armed or not player.combatant.alive or (tutorial != null and tutorial.blocks_simulation()):
+		return
+	var direction := SpecialAbilitySelection.direction_for_event(event)
+	if direction != 0:
+		_cycle_special(direction)
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:

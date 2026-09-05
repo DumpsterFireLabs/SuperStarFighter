@@ -223,11 +223,6 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	var missile_ready := local_stats.missile_launcher_enabled and local_missile_charges_remaining > 0 and local_missile_cooldown_remaining <= 0.0
 	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
 	selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
-	if view.controls_enabled and not input_blocked and local_alive:
-		if Input.is_action_just_pressed("special_previous"):
-			selected_special_slot = SpecialAbilitySelection.cycle(selected_special_slot, local_stats, -1)
-		if Input.is_action_just_pressed("special_next"):
-			selected_special_slot = SpecialAbilitySelection.cycle(selected_special_slot, local_stats, 1)
 	var readiness := [afterburner_ready, mine_ready, missile_ready, cloak_ready]
 	var special_just_pressed := (
 		view.controls_enabled
@@ -252,7 +247,7 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 		client_tick,
 		local_movement,
 		aim_angle,
-		action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(view.accessibility_settings.toggle_fire), view.controls_enabled and not input_blocked and local_alive and local_cloak_remaining <= 0.0),
+		action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(view.accessibility_settings.toggle_fire), view.controls_enabled and not input_blocked and local_alive),
 		action_latch.sample(&"shield", Input.is_action_pressed("shield"), bool(view.accessibility_settings.toggle_shield), view.controls_enabled and not input_blocked and local_alive),
 		view.controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
 		special_activation_sends_remaining > 0,

@@ -226,7 +226,8 @@ func step_input_with_movement(
 		release_special_activation()
 	if frame.manual_reload:
 		request_reload()
-	if frame.firing and try_fire():
+	# Activating cloak wins over fire held on the activation tick.
+	if frame.firing and not (actions & ACTION_CLOAK) and try_fire():
 		actions |= ACTION_SHOT
 	return actions
 
@@ -290,7 +291,11 @@ func restore_prediction_state(state: Dictionary, combat_stats: CombatStats) -> v
 
 
 func try_fire() -> bool:
-	if not alive or is_cloaked():
+	if not alive:
+		return false
+	if is_cloaked():
+		cloak_remaining = 0.0
+		weapon.cooldown_remaining = maxf(weapon.cooldown_remaining, GameConstants.CLOAK_ATTACK_DELAY_SECONDS)
 		return false
 	return weapon.try_fire(stats, shield.active)
 

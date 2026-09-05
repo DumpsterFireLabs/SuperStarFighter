@@ -417,6 +417,20 @@ func set_match_status(status: String) -> void:
 	hud_camera.set_match_status(status)
 
 
+func _input(event: InputEvent) -> void:
+	if local_prediction.input_blocked or (not controls_enabled and String(match_payload.get("state_name", "")) != "COUNTDOWN"):
+		return
+	var ship := replicated_visuals.ships.get(local_peer_id) as CombatShipView
+	if ship == null or not ship.combatant.alive:
+		return
+	var direction := SpecialAbilitySelection.direction_for_event(event)
+	if direction != 0:
+		local_prediction.selected_special_slot = SpecialAbilitySelection.cycle(
+			SpecialAbilitySelection.ensure_owned(local_prediction.selected_special_slot, local_prediction.local_stats),
+			local_prediction.local_stats, direction)
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	hud_camera._unhandled_input(event)
 
