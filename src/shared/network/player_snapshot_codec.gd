@@ -14,7 +14,7 @@ const LOCAL_FIELDS: Array[StringName] = [
 	&"weapon_cooldown", &"reload_remaining", &"cadence_remainder",
 	&"shield_inactivity", &"guard_window", &"guard_feedback", &"vent_release", &"burst_damage",
 ]
-const LOCAL_STATE_SIZE: int = 61 # Combat correction, ordnance usage and consumed shield press.
+const LOCAL_STATE_SIZE: int = 63 # Combat correction, ordnance, shield press and input age.
 
 
 static func encode(server_tick: int, acknowledged_input: int, states: Array[Dictionary], local_state: Dictionary = {}) -> PackedByteArray:
@@ -82,6 +82,7 @@ static func _append_local_state(bytes: PackedByteArray, state: Dictionary) -> vo
 	ByteCodec.append_u8(bytes, clampi(int(state.get("active_mines", 0)), 0, 255))
 	ByteCodec.append_u32(bytes, int(state.get("budget_evictions", 0)) & 0xffffffff)
 	ByteCodec.append_u32(bytes, maxi(int(state.get("last_shield_press_sequence", 0)), 0))
+	ByteCodec.append_u16(bytes, clampi(int(state.get("input_age_ticks", 0)), 0, 65535))
 
 
 static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
@@ -260,6 +261,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	local_state["active_mines"] = ByteCodec.read_u8(bytes, offset + 52)
 	local_state["budget_evictions"] = ByteCodec.read_u32(bytes, offset + 53)
 	local_state["last_shield_press_sequence"] = ByteCodec.read_u32(bytes, offset + 57) if local_flags & 32 else -1
+	local_state["input_age_ticks"] = ByteCodec.read_u16(bytes, offset + 61)
 	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states, "local_state": local_state}
 
 

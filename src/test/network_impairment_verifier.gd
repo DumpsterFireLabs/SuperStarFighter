@@ -47,6 +47,8 @@ var final_acknowledged: bool = false
 var authority_reload_observed: bool = false
 var authority_shield_observed: bool = false
 var correction_errors: Array[float] = []
+var large_corrections: Array[Dictionary] = []
+var before_prediction: Vector2
 var shield_tap_attempts: int = 0
 var shield_tap_latencies_ms: Array[int] = []
 var shield_only: bool = false
@@ -84,6 +86,7 @@ func _run() -> void:
 	client = _runtime("Client")
 	view = NetworkWorldView.new()
 	root.add_child(view)
+	client.client_snapshot_received.connect(func(_decoded: Dictionary) -> void: before_prediction = view.prediction.predicted_position)
 	view.setup(client)
 	client.client_snapshot_received.connect(_snapshot)
 	client.client_connection_lost.connect(func(_message: String) -> void: _fail("unexpected disconnect"))
@@ -239,6 +242,19 @@ func _snapshot(decoded: Dictionary) -> void:
 	if not active: return
 	correction_errors.append(view.prediction.last_reconciliation_error)
 	var ship := server.world.combatants[client.local_peer_id] as CombatantState
+	if view.prediction.last_reconciliation_error > 64.0 and large_corrections.size() < 64:
+		var snapshot_position := Vector2.ZERO
+		for state in decoded.states:
+			if int(state.peer_id) == client.local_peer_id: snapshot_position = state.position
+		var trace := {"tick": tick, "ack": ack, "client_tick": view.client_tick,
+			"error": view.prediction.last_reconciliation_error, "pending": view.prediction.buffered_inputs.size(),
+			"current_server_input_age": server.world.input_ages.get(client.local_peer_id, 0.0),
+			"snapshot_input_age_ticks": decoded.local_state.get("input_age_ticks", 0),
+			"position": str(view.prediction.predicted_position), "authority_position": str(ship.position),
+			"snapshot_position": str(snapshot_position), "before_prediction": str(before_prediction),
+			"boost": ship.afterburner_remaining, "predicted_boost": view.prediction.simulated_combatant.afterburner_remaining}
+		large_corrections.append(trace)
+		print("IMPAIRMENT_CORRECTION=%s" % JSON.stringify(trace))
 	max_ammo_error = maxi(max_ammo_error, absi(ship.weapon.ammunition - view.local_weapon.ammunition))
 	observed_reload = observed_reload or bool(decoded.local_state.get("reloading", false))
 	for state in decoded.states:
@@ -277,6 +293,7 @@ func _movement_diagnostics() -> Dictionary:
 	var sorted := correction_errors.duplicate()
 	sorted.sort()
 	return {"samples": sorted.size(), "snap_count": view.prediction.snap_count,
+		"large_corrections": large_corrections,
 		"correction_p95_pixels": sorted[clampi(ceili(sorted.size() * 0.95) - 1, 0, sorted.size() - 1)] if not sorted.is_empty() else 0.0,
 		"correction_p99_pixels": sorted[clampi(ceili(sorted.size() * 0.99) - 1, 0, sorted.size() - 1)] if not sorted.is_empty() else 0.0,
 		"max_correction_pixels": sorted.back() if not sorted.is_empty() else 0.0}

@@ -43,6 +43,7 @@ func _send_player_snapshots(lobby: ServerLobby, world: AuthoritativeWorld) -> vo
 		var combatant := world.combatants.get(peer_id) as CombatantState
 		var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), peer_id) if combatant != null and combatant.is_cloaked() else public_body
 		var correction := combatant.prediction_state() if combatant != null else {}
+		correction["input_age_ticks"] = roundi(float(world.input_ages.get(peer_id, 0.0)) * GameConstants.PHYSICS_TICKS_PER_SECOND)
 		correction["active_ordnance"] = world.projectile_registry.count_for_owner(peer_id)
 		correction["active_mines"] = world.projectile_registry.mine_count_for_owner(peer_id)
 		correction["budget_evictions"] = world.projectile_registry.budget_evictions_for_owner(peer_id)

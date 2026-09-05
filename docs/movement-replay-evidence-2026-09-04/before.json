@@ -1,0 +1,36 @@
+[
+  {
+    "profile": "latency",
+    "seed": 230926,
+    "configuration": {
+      "delay": 0.1,
+      "jitter": 0.035
+    },
+    "passed": true,
+    "movement": {
+      "p95": 23.9896697998047,
+      "p99": 24.0440616607666,
+      "maximum": 232.188369750977,
+      "snaps": 1
+    }
+  },
+  {
+    "profile": "combined",
+    "seed": 230926,
+    "configuration": {
+      "delay": 0.06,
+      "jitter": 0.025,
+      "loss": 0.08,
+      "reorder": 0.2,
+      "duplicate": 0.05,
+      "blackout": true
+    },
+    "passed": true,
+    "movement": {
+      "p95": 0.0122071839869022,
+      "p99": 9.85522651672363,
+      "maximum": 269.476837158203,
+      "snaps": 1
+    }
+  }
+]

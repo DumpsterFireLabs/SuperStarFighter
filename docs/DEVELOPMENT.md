@@ -32,7 +32,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.10 |
-| Protocol version | 33 (binary packets 14) |
+| Protocol version | 35 (binary packets 15) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 
@@ -143,7 +143,7 @@ The client may predict local movement and shots for responsiveness, but it never
 - Arena layouts and radius-expanded projectile geometry are immutable shared caches. A world may retain a cache entry but must never mutate or clear it.
 - Projectile messages are divided into messages no larger than 1,200 bytes. Four rotating partial corrections keep positions fresh; the fifth correction is a complete, chunk-assembled recovery snapshot.
 - Player snapshot bodies, roster views, team assignments, standings data, and common UI rows are reused until their source revision changes. NPC objective readers receive detached typed snapshots.
-- Each player snapshot reuses the common body and appends a 61-byte recipient correction trailer (1,191 bytes at 32 players), including the owner's active ordnance, active mines, and budget eviction count. `CombatantState.step_input` is shared by authority and replay; local weapon, shield, and ability clocks restore from this trailer before replay. A 25-byte input packet carries a selected ability slot and a stable press identity distinct from its frame sequence. One owned ability is attempted per press; retransmissions retain both slot and identity. `SpecialAbilitySelection` cycles owned abilities, with remappable Q/E or controller D-pad left/right defaults. Human input expires after 0.5 seconds without a fresh frame.
+- Each player snapshot reuses the common body and appends a 63-byte recipient correction trailer (1,193 bytes at 32 players), including the owner's active ordnance, active mines, budget eviction count and elapsed input age in physics ticks. Replay excludes time already simulated by authority under a stalled acknowledgement; those input identities remain buffered until acknowledged. `CombatantState.step_input` is shared by authority and replay; local weapon, shield, and ability clocks restore from this trailer before replay. A 25-byte input packet carries a selected ability slot and a stable press identity distinct from its frame sequence. One owned ability is attempted per press; retransmissions retain both slot and identity. `SpecialAbilitySelection` cycles owned abilities, with remappable Q/E or controller D-pad left/right defaults. Human input expires after 0.5 seconds without a fresh frame.
 - `ProjectileCorrectionAssembler` and `StandingsModel` keep packet reconstruction and result ordering out of the bridge and screen controller respectively.
 
 ### Match state

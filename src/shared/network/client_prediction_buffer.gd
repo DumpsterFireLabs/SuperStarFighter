@@ -59,15 +59,25 @@ func reconcile(
 	authoritative_state: Dictionary = {}
 ) -> Dictionary:
 	var previous_prediction := predicted_position
+	var previous_visual := predicted_position + smoothing_offset
 	_prune_acknowledged(acknowledged_sequence)
 	_ensure_simulation(stats, breakaway_active)
 	if not authoritative_state.is_empty():
 		simulated_combatant.restore_prediction_state(authoritative_state, stats)
 	simulated_combatant.position = authoritative_position
 	simulated_combatant.velocity = authoritative_velocity
+	# Authority continues stepping a held sample while its acknowledgement is
+	# unchanged. Those elapsed ticks are already in this snapshot. Keep their
+	# frames pending for acknowledgement, but do not simulate that time twice.
+	# The first input-age tick is the acknowledged frame itself, already pruned.
+	var covered_seconds := maxf(int(authoritative_state.get("input_age_ticks", 0)) - 1, 0) / GameConstants.PHYSICS_TICKS_PER_SECOND
 	for item in buffered_inputs:
 		var frame := item.frame as PlayerInputFrame
 		var delta := float(item.delta)
+		var covered := minf(covered_seconds, delta)
+		covered_seconds -= covered
+		delta -= covered
+		if delta <= 0.000001: continue
 		_step_simulation(frame, stats, delta, map_id)
 	last_reconciliation_error = previous_prediction.distance_to(simulated_combatant.position)
 	predicted_position = simulated_combatant.position
@@ -78,7 +88,9 @@ func reconcile(
 		smoothing_remaining = 0.0
 		snap_count += 1
 	else:
-		smoothing_offset = previous_prediction - predicted_position
+		# Preserve the displayed position when another correction arrives before
+		# smoothing completes. Dropping the remaining offset creates a new jump.
+		smoothing_offset = previous_visual - predicted_position
 		smoothing_remaining = SMOOTHING_DURATION_SECONDS
 	return {
 		"snapped": snapped,
