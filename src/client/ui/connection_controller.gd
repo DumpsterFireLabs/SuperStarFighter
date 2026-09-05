@@ -92,7 +92,6 @@ func initialize(client_root: Node) -> void:
 
 
 func _create_connection_ui(configuration: Dictionary) -> void:
-	client.interface_theme = DesignTokensScript.create_interface_theme()
 	connection_canvas = CanvasLayer.new()
 	connection_canvas.layer = 20
 	connection_canvas.name = "ConnectionUI"

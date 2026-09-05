@@ -361,11 +361,11 @@ func _capture_sequence() -> void:
 	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
-	client._set_scoreboard_open(true)
+	client.standings_controller._set_scoreboard_open(true)
 	await _capture(client, "scoreboard")
-	var scoreboard_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
+	var scoreboard_cards := client.standings_controller.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
 	await _capture_card_hover(client, scoreboard_cards.get_child(1) as Button, "scoreboard_card_hover")
-	client._set_scoreboard_open(false)
+	client.standings_controller._set_scoreboard_open(false)
 
 	client.network_world._on_snapshot({"server_tick": 240, "acknowledged_input": 12, "states": [
 		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 0.0, "shield": 0.0, "ammunition": 0, "alive": false, "shielding": false},
@@ -400,11 +400,11 @@ func _capture_sequence() -> void:
 	client.network_world.latest_server_tick = 500
 	client._update_match_presentation()
 	await _capture(client, "results")
-	var result_cards := client.results_standings_container.find_child("FinalBuildCards", true, false) as HFlowContainer
+	var result_cards := client.standings_controller.results_standings_container.find_child("FinalBuildCards", true, false) as HFlowContainer
 	await _capture_card_hover(client, result_cards.get_child(1) as Button, "results_card_hover")
 
 	client.latest_match_payload["game_mode"] = GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG
-	client._results_rows_dirty = true
+	client.standings_controller._results_rows_dirty = true
 	client.latest_match_payload["objective_contributions"] = {2: {"flag_captures": 3, "carrier_stops": 2, "flag_carry_seconds": 46.5}, 3: {"flag_captures": 1, "carrier_stops": 1, "flag_carry_seconds": 28.0}, 4: {"flag_captures": 0, "carrier_stops": 4, "flag_carry_seconds": 19.0}}
 	client._update_match_presentation()
 	await _capture(client, "objective_results")

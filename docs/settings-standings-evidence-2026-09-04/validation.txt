@@ -1,0 +1,3 @@
+TEST_SUMMARY passed=7276 failed=0
+PASS UI ownership capture 1280x720
+PASS UI ownership capture 5120x1440

@@ -501,9 +501,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.network_world.hud_panel.custom_minimum_size.x < 520.0 and client.network_world.hud_panel.custom_minimum_size.y < 190.0, "upper-left combat HUD uses the compact footprint")
 	context.expect_true(client.network_world.spectator_label != null, "production spectator banner exists")
 	context.expect_false(client.offline_sandbox.camera.enabled, "inactive offline camera cannot steal the online viewport")
-	context.expect_true(client.scoreboard_panel != null, "production scoreboard exists")
-	context.expect_true(client.results_panel != null, "production results screen exists")
-	context.expect_true(client.results_winner_label != null and client.results_standings_container != null, "victory screen uses a structured champion and standings composition")
+	context.expect_true(client.standings_controller.scoreboard_panel != null, "production scoreboard exists")
+	context.expect_true(client.standings_controller.results_panel != null, "production results screen exists")
+	context.expect_true(client.standings_controller.results_winner_label != null and client.standings_controller.results_standings_container != null, "victory screen uses a structured champion and standings composition")
 	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
 	context.expect_true(client.settings_controller.settings_panel != null, "shared display and audio settings screen exists")
 	context.expect_true(client.credits_panel != null and client.credits_button != null, "main menu exposes the dedicated credits screen")
@@ -583,9 +583,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	controller_start.pressed = true
 	context.expect_true(client._is_start_input(controller_start), "controller buttons can advance the splash immediately")
 	client.splash_screen.visible = false
-	context.expect_true(client.win_overlay != null, "dedicated victory screen exists")
+	context.expect_true(client.standings_controller.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_controller.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_controller.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
-	context.expect_true(client.results_panel.custom_minimum_size.x <= 1280.0 and client.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
+	context.expect_true(client.standings_controller.results_panel.custom_minimum_size.x <= 1280.0 and client.standings_controller.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
 	var players: Array[Dictionary] = []
 	for index in 32:
 		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": false, "ready": true})
@@ -711,11 +711,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.latest_match_payload["scores"] = {2: {"heat_wins": 0, "round_wins": 0, "kills": 0}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 0}}
 	client.latest_match_payload["objective"] = {"mode": GameModeRules.Mode.KING_OF_THE_HILL, "controller_id": 0, "progress": {2: 7.5, 3: 3.0}, "target_seconds": 20.0}
 	context.expect_true(client._objective_status_text().contains("LEADER") and client._objective_status_text().contains("7.5/20s"), "contested hill HUD preserves and identifies the leading cumulative score")
-	client._set_scoreboard_open(true)
-	var hill_time := client.scoreboard_rows_container.get_child(0).find_child("HillTime", true, false) as Label
-	context.expect_true(client.scoreboard_hill_heading.visible and hill_time != null, "King of the Hill scoreboard exposes a dedicated live hill-time column")
+	client.standings_controller._set_scoreboard_open(true)
+	var hill_time := client.standings_controller.scoreboard_rows_container.get_child(0).find_child("HillTime", true, false) as Label
+	context.expect_true(client.standings_controller.scoreboard_hill_heading.visible and hill_time != null, "King of the Hill scoreboard exposes a dedicated live hill-time column")
 	context.expect_equal(hill_time.text, "7.5s", "King of the Hill scoreboard displays cumulative control time")
-	client._set_scoreboard_open(false)
+	client.standings_controller._set_scoreboard_open(false)
 	client.latest_match_payload["respawn_deadlines"] = {2: 302}
 	client.network_world.latest_server_tick = 2
 	context.expect_equal(client._objective_status_text(), "RESPAWN 5.0s", "combat HUD shows the local five-second objective respawn countdown")
@@ -786,10 +786,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
 	client._input(tab_event)
-	context.expect_true(client.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
-	context.expect_true(client.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
-	context.expect_true(client.scoreboard_media_label.text.contains("NOW PLAYING  ·  EDGE"), "scoreboard identifies the active gameplay song")
-	var live_kills := client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
+	context.expect_true(client.standings_controller.scoreboard_panel.visible, "holding Tab opens the live scoreboard without relying on UI focus")
+	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
+	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("NOW PLAYING  ·  EDGE"), "scoreboard identifies the active gameplay song")
+	var live_kills := client.standings_controller.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
 	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})
 	context.expect_equal(client.network_world.kill_feed.entries.size(), 1, "reliable elimination event adds one top-right kill-feed entry")
@@ -813,44 +813,45 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(int(client.network_world.kill_feed.entries[0].victim_id), 106, "newest elimination stays at the top of the feed")
 	client.network_world.kill_feed.advance(KillFeedScript.ENTRY_LIFETIME_SECONDS + 0.1)
 	context.expect_empty(client.network_world.kill_feed.entries, "kill-feed entries expire after their display lifetime")
-	client._update_scoreboard()
-	live_kills = client.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
+	client.standings_controller._update_scoreboard()
+	live_kills = client.standings_controller.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "5", "live elimination score payload refreshes cached scoreboard rows immediately")
-	context.expect_equal(client.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
-	context.expect_true(client.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
-	var scoreboard_build_cards := client.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
+	context.expect_equal(client.standings_controller.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
+	context.expect_true(client.standings_controller.scoreboard_rows_container.get_child(0).get_meta("peer_id") in [2, 3], "scoreboard rows retain player identity")
+	var scoreboard_build_cards := client.standings_controller.scoreboard_rows_container.find_child("ScoreboardBuildCards", true, false) as HFlowContainer
 	context.expect_true(scoreboard_build_cards != null and scoreboard_build_cards.get_child_count() == 1, "scoreboard build renders rarity-styled card hover targets")
 	var scoreboard_card_chip := scoreboard_build_cards.get_child(0) as Button
 	context.expect_true(scoreboard_card_chip.focus_mode == Control.FOCUS_ALL and scoreboard_card_chip.has_theme_stylebox_override(&"focus"), "scoreboard card details are keyboard and controller discoverable")
 	tab_event.pressed = false
 	client._input(tab_event)
-	context.expect_false(client.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
+	context.expect_false(client.standings_controller.scoreboard_panel.visible, "releasing Tab immediately returns to combat")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
 	context.expect_true(client.input_profiles.uses_controller(), "production client switches to the controller profile without changing the network path")
 	var controller_scoreboard := InputEventJoypadButton.new()
 	controller_scoreboard.button_index = JOY_BUTTON_BACK
 	controller_scoreboard.pressed = true
 	client._input(controller_scoreboard)
-	context.expect_true(client.scoreboard_panel.visible, "configured controller button opens the momentary scoreboard")
+	context.expect_true(client.standings_controller.scoreboard_panel.visible, "configured controller button opens the momentary scoreboard")
 	controller_scoreboard.pressed = false
 	client._input(controller_scoreboard)
-	context.expect_false(client.scoreboard_panel.visible, "releasing the configured controller button closes the scoreboard")
+	context.expect_false(client.standings_controller.scoreboard_panel.visible, "releasing the configured controller button closes the scoreboard")
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "participant_peer_ids": [1, 2], "scores": {1: {"heat_wins": 0, "round_wins": 3}, 2: {"heat_wins": 0, "round_wins": 3}}}
-	context.expect_equal(client._result_peer_ids()[0], 2, "declared extension winner leads standings when total round wins are tied")
+	client.standings_controller.refresh_context()
+	context.expect_equal(client.standings_controller._result_peer_ids()[0], 2, "declared extension winner leads standings when total round wins are tied")
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "deadline_tick": -1, "participant_peer_ids": [2], "scores": {2: {"heat_wins": 0, "round_wins": 1, "kills": 7}}, "builds": {2: {&"heavy_rounds": 2}}, "round_number": 1, "heat_number": 2, "rounds_to_win": 1, "can_extend_match": true}
 	client.network_world.latest_server_tick = 300
 	client._update_match_presentation()
-	context.expect_true(client.win_overlay.visible and client.results_panel.visible, "match result opens the dedicated final standings screen")
-	context.expect_true(client.results_label.text.contains("VICTORY"), "results screen clearly identifies the winner")
-	context.expect_equal(client.results_standings_container.get_child_count(), 1, "structured standings renders one row per participant")
-	context.expect_equal(client.results_standings_container.get_child(0).get_meta("peer_id"), 2, "winner occupies the first highlighted standings row")
-	var round_wins_label := client.results_standings_container.get_child(0).find_child("RoundWins", true, false) as Label
+	context.expect_true(client.standings_controller.win_overlay.visible and client.standings_controller.results_panel.visible, "match result opens the dedicated final standings screen")
+	context.expect_true(client.standings_controller.results_label.text.contains("VICTORY"), "results screen clearly identifies the winner")
+	context.expect_equal(client.standings_controller.results_standings_container.get_child_count(), 1, "structured standings renders one row per participant")
+	context.expect_equal(client.standings_controller.results_standings_container.get_child(0).get_meta("peer_id"), 2, "winner occupies the first highlighted standings row")
+	var round_wins_label := client.standings_controller.results_standings_container.get_child(0).find_child("RoundWins", true, false) as Label
 	context.expect_equal(round_wins_label.text, "1", "victory standings retain round wins without the always-reset heat-win value")
 	context.expect_false(round_wins_label.text.contains("HEAT"), "victory standings omit the unnecessary heat-wins column")
-	var result_kills_label := client.results_standings_container.get_child(0).find_child("MatchKills", true, false) as Label
+	var result_kills_label := client.standings_controller.results_standings_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(result_kills_label.text, "7", "victory standings retain the pilot's full-match kill total")
-	var final_build_cards := client.results_standings_container.get_child(0).find_child("FinalBuildCards", true, false) as HFlowContainer
+	var final_build_cards := client.standings_controller.results_standings_container.get_child(0).find_child("FinalBuildCards", true, false) as HFlowContainer
 	context.expect_true(final_build_cards != null and final_build_cards.get_child_count() == 1, "final build renders each owned card as an individual hover target")
 	var result_card_chip := final_build_cards.get_child(0) as Button
 	context.expect_equal(result_card_chip.get_meta("card_id"), &"heavy_rounds", "final-build hover target retains its authoritative card identity")
@@ -863,15 +864,15 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var preview_style := card_preview.get_theme_stylebox("panel") as StyleBoxFlat
 	context.expect_approx(preview_style.border_color.r, client.card_catalog.get_card(&"heavy_rounds").rarity_color().r, "visual card preview border reflects card rarity")
 	card_preview.free()
-	context.expect_true(client.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
-	context.expect_false(client.results_extend_button.disabled, "lobby leader receives an actionable five-more-rounds button")
-	context.expect_equal(client.results_extend_button.text, "PLAY 5 MORE ROUNDS", "results screen clearly labels the match extension action")
-	context.expect_true(client.results_extend_button.tooltip_text.contains("exactly five more rounds"), "match extension tooltip describes the fixed five-round limit")
-	context.expect_equal(client.results_extend_button.action_mode, BaseButton.ACTION_MODE_BUTTON_PRESS, "match extension activates on mouse-down before the results layout can swallow its release action")
-	context.expect_false(client.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
-	context.expect_equal(client.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")
-	client.results_extend_button.pressed.emit()
-	context.expect_true(client._extend_match_requested, "five-more-rounds button dispatches the extension request")
+	context.expect_true(client.standings_controller.results_winner_label.text.contains(client._player_name(2).to_upper()), "champion plate names the winner independently of the standings table")
+	context.expect_false(client.standings_controller.results_extend_button.disabled, "lobby leader receives an actionable five-more-rounds button")
+	context.expect_equal(client.standings_controller.results_extend_button.text, "PLAY 5 MORE ROUNDS", "results screen clearly labels the match extension action")
+	context.expect_true(client.standings_controller.results_extend_button.tooltip_text.contains("exactly five more rounds"), "match extension tooltip describes the fixed five-round limit")
+	context.expect_equal(client.standings_controller.results_extend_button.action_mode, BaseButton.ACTION_MODE_BUTTON_PRESS, "match extension activates on mouse-down before the results layout can swallow its release action")
+	context.expect_false(client.standings_controller.results_return_button.disabled, "lobby leader receives an actionable exit-to-lobby button")
+	context.expect_equal(client.standings_controller.results_return_button.text, "EXIT TO LOBBY", "final screen replaces the automatic countdown with an explicit exit")
+	client.standings_controller.results_extend_button.pressed.emit()
+	context.expect_true(client.standings_controller._extend_match_requested, "five-more-rounds button dispatches the extension request")
 	context.expect_false(client.connection_controller.lobby_panel.visible, "lobby menu remains hidden throughout the game loop")
 	client.network_world._on_snapshot({"server_tick": 400, "acknowledged_input": 20, "states": [
 		{"peer_id": 2, "position": Vector2(500.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},

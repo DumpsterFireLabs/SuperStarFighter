@@ -36,7 +36,13 @@ const RESOLUTION_OPTIONS: Array[Vector2i] = [
 	Vector2i(5120, 2160),
 ]
 
-var client: Node
+signal close_requested
+signal accessibility_changed
+signal control_prompts_changed
+var audio_director: AudioDirector
+var input_profiles: InputProfileManager
+var interface_theme: Theme
+var _interface_scopes: Array[WeakRef] = []
 var settings_panel: Control
 var settings_tabs: TabContainer
 var accessibility_preferences = AccessibilityPreferencesScript.new()
@@ -69,8 +75,23 @@ var current_window_mode: int = WindowModeOption.WINDOWED
 var current_resolution: Vector2i = Vector2i(1280, 720)
 
 
-func initialize(client_root: Node) -> void:
-	client = client_root
+func configure(audio: AudioDirector, profiles: InputProfileManager, theme: Theme) -> void:
+	audio_director = audio
+	input_profiles = profiles
+	interface_theme = theme
+
+
+func register_interface_scope(scope: Node) -> void:
+	_interface_scopes.append(weakref(scope))
+	preload("res://src/client/presentation/accessible_interface.gd").apply(scope, bool(accessibility_preferences.values.high_contrast))
+
+
+func _owns_interface_node(node: Node) -> bool:
+	for reference in _interface_scopes:
+		var scope := reference.get_ref() as Node
+		if scope != null and (scope == node or scope.is_ancestor_of(node)):
+			return true
+	return false
 
 
 func _ready() -> void:
@@ -78,12 +99,12 @@ func _ready() -> void:
 	apply_accessible_theme.call_deferred()
 
 
-func _create_settings_overlay() -> void:
+func _create_settings_overlay(canvas: CanvasLayer) -> void:
 	settings_panel = Control.new()
 	settings_panel.name = "SettingsScreen"
 	settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	settings_panel.visible = false
-	client.connection_controller.connection_canvas.add_child(settings_panel)
+	canvas.add_child(settings_panel)
 	var dim := ColorRect.new()
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color("02040d", 0.88)
@@ -93,8 +114,8 @@ func _create_settings_overlay() -> void:
 	settings_panel.add_child(center)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(920.0, 690.0)
-	panel.theme = client.interface_theme
-	panel.add_theme_stylebox_override("panel", client._panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
+	panel.theme = interface_theme
+	panel.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	center.add_child(panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 10)
@@ -124,7 +145,7 @@ func _create_settings_overlay() -> void:
 	back_button.text = "Back"
 	back_button.theme_type_variation = &"QuietButton"
 	back_button.custom_minimum_size.y = 52.0
-	back_button.pressed.connect(client._hide_settings)
+	back_button.pressed.connect(close_requested.emit)
 	content.add_child(back_button)
 	settings_back_button = back_button
 	_configure_accessibility_focus()
@@ -209,7 +230,7 @@ func _on_hud_scale_gui_input(event: InputEvent) -> void:
 func _change_accessibility_setting(key: String, value: Variant) -> void:
 	accessibility_preferences.set_values({key: value})
 	accessibility_preferences.save_settings()
-	client._apply_accessibility_settings()
+	accessibility_changed.emit()
 
 
 func _configure_accessibility_focus() -> void:
@@ -287,15 +308,15 @@ func _create_display_audio_settings_tab() -> void:
 	audio_title.add_theme_font_size_override("font_size", 23)
 	audio_title.add_theme_color_override("font_color", Color("73f7ff"))
 	tab.add_child(audio_title)
-	_add_volume_setting(tab, "Master Volume", &"master", client.audio_director.master_volume_percent)
-	_add_volume_setting(tab, "Music Volume", &"music", client.audio_director.music_volume_percent)
-	_add_volume_setting(tab, "Effects Volume", &"sfx", client.audio_director.sfx_volume_percent)
+	_add_volume_setting(tab, "Master Volume", &"master", audio_director.master_volume_percent)
+	_add_volume_setting(tab, "Music Volume", &"music", audio_director.music_volume_percent)
+	_add_volume_setting(tab, "Effects Volume", &"sfx", audio_director.sfx_volume_percent)
 	var mute_button := CheckButton.new()
 	mute_button.text = "Mute all audio"
 	mute_button.theme_type_variation = &"SettingToggle"
-	mute_button.button_pressed = client.audio_director.muted
+	mute_button.button_pressed = audio_director.muted
 	mute_button.custom_minimum_size.y = 48.0
-	mute_button.toggled.connect(client.audio_director.set_muted)
+	mute_button.toggled.connect(audio_director.set_muted)
 	tab.add_child(mute_button)
 
 
@@ -316,7 +337,7 @@ func _create_controls_settings_tab() -> void:
 	control_scheme_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	control_scheme_control.add_item("Keyboard & Mouse", InputProfileManagerScript.Scheme.KEYBOARD_MOUSE)
 	control_scheme_control.add_item("Controller / Joystick", InputProfileManagerScript.Scheme.CONTROLLER)
-	control_scheme_control.select(int(client.input_profiles.active_scheme))
+	control_scheme_control.select(int(input_profiles.active_scheme))
 	control_scheme_control.item_selected.connect(_on_control_scheme_selected)
 	scheme_row.add_child(control_scheme_control)
 	var flight_mode_row := HBoxContainer.new()
@@ -331,7 +352,7 @@ func _create_controls_settings_tab() -> void:
 	flight_mode_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	flight_mode_control.add_item("Newtonian · movement follows ship heading", InputProfileManagerScript.FlightMode.NEWTONIAN)
 	flight_mode_control.add_item("Relative · movement follows the screen", InputProfileManagerScript.FlightMode.RELATIVE)
-	flight_mode_control.select(int(client.input_profiles.flight_mode))
+	flight_mode_control.select(int(input_profiles.flight_mode))
 	flight_mode_control.item_selected.connect(_on_flight_mode_selected)
 	flight_mode_row.add_child(flight_mode_control)
 	controller_status_label = Label.new()
@@ -349,7 +370,7 @@ func _create_controls_settings_tab() -> void:
 	controller_deadzone_slider.min_value = InputProfileManagerScript.MIN_CONTROLLER_DEADZONE
 	controller_deadzone_slider.max_value = InputProfileManagerScript.MAX_CONTROLLER_DEADZONE
 	controller_deadzone_slider.step = 0.01
-	controller_deadzone_slider.value = client.input_profiles.controller_deadzone
+	controller_deadzone_slider.value = input_profiles.controller_deadzone
 	controller_deadzone_slider.custom_minimum_size = Vector2(460.0, 40.0)
 	controller_deadzone_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controller_deadzone_row.add_child(controller_deadzone_slider)
@@ -386,11 +407,11 @@ func _create_controls_settings_tab() -> void:
 func _refresh_input_settings_ui() -> void:
 	if control_scheme_control == null:
 		return
-	control_scheme_control.select(int(client.input_profiles.active_scheme))
-	flight_mode_control.select(int(client.input_profiles.flight_mode))
-	controller_deadzone_row.visible = client.input_profiles.uses_controller()
-	controller_deadzone_slider.set_value_no_signal(client.input_profiles.controller_deadzone)
-	controller_deadzone_value.text = "%d%%" % roundi(client.input_profiles.controller_deadzone * 100.0)
+	control_scheme_control.select(int(input_profiles.active_scheme))
+	flight_mode_control.select(int(input_profiles.flight_mode))
+	controller_deadzone_row.visible = input_profiles.uses_controller()
+	controller_deadzone_slider.set_value_no_signal(input_profiles.controller_deadzone)
+	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
 	_update_controller_status()
 	_rebuild_binding_rows()
 
@@ -402,14 +423,14 @@ func _rebuild_binding_rows() -> void:
 		binding_rows.remove_child(child)
 		child.queue_free()
 	binding_buttons.clear()
-	for action in client.input_profiles.rebind_actions():
+	for action in input_profiles.rebind_actions():
 		var label := Label.new()
-		label.text = client.input_profiles.action_label(action)
+		label.text = input_profiles.action_label(action)
 		label.custom_minimum_size = Vector2(360.0, 40.0)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		binding_rows.add_child(label)
 		var button := Button.new()
-		button.text = client.input_profiles.binding_text(action)
+		button.text = input_profiles.binding_text(action)
 		button.custom_minimum_size = Vector2(390.0, 40.0)
 		button.pressed.connect(_begin_binding_capture.bind(action))
 		binding_rows.add_child(button)
@@ -418,34 +439,34 @@ func _rebuild_binding_rows() -> void:
 
 func _on_control_scheme_selected(index: int) -> void:
 	_cancel_binding_capture()
-	client.input_profiles.set_scheme(control_scheme_control.get_item_id(index))
+	input_profiles.set_scheme(control_scheme_control.get_item_id(index))
 	_refresh_input_settings_ui()
 
 
 func _on_flight_mode_selected(index: int) -> void:
-	client.input_profiles.set_flight_mode(flight_mode_control.get_item_id(index))
+	input_profiles.set_flight_mode(flight_mode_control.get_item_id(index))
 	_refresh_input_settings_ui()
 
 
 func _on_controller_deadzone_changed(value: float) -> void:
-	client.input_profiles.set_controller_deadzone(value)
-	controller_deadzone_value.text = "%d%%" % roundi(client.input_profiles.controller_deadzone * 100.0)
+	input_profiles.set_controller_deadzone(value)
+	controller_deadzone_value.text = "%d%%" % roundi(input_profiles.controller_deadzone * 100.0)
 
 
 func _begin_binding_capture(action: StringName) -> void:
 	binding_capture_action = action
 	binding_capture_seconds = 8.0
-	var prompt := "Press a controller button or move one axis fully" if client.input_profiles.uses_controller() else "Press a keyboard key or mouse button"
-	binding_capture_status.text = "%s for %s…" % [prompt, client.input_profiles.action_label(action)]
+	var prompt := "Press a controller button or move one axis fully" if input_profiles.uses_controller() else "Press a keyboard key or mouse button"
+	binding_capture_status.text = "%s for %s…" % [prompt, input_profiles.action_label(action)]
 	if binding_buttons.has(action):
 		(binding_buttons[action] as Button).text = "PRESS INPUT…"
 
 
 func _complete_binding_capture(event: InputEvent) -> void:
 	var action := binding_capture_action
-	var rebound: bool = client.input_profiles.rebind(action, event)
+	var rebound: bool = input_profiles.rebind(action, event)
 	if rebound:
-		binding_capture_status.text = "%s is now %s." % [client.input_profiles.action_label(action), client.input_profiles.binding_text(action)]
+		binding_capture_status.text = "%s is now %s." % [input_profiles.action_label(action), input_profiles.binding_text(action)]
 	else:
 		binding_capture_status.text = "That input is not valid for the selected profile."
 	binding_capture_action = &""
@@ -466,14 +487,14 @@ func _cancel_binding_capture() -> void:
 
 func _on_restore_control_defaults() -> void:
 	_cancel_binding_capture()
-	client.input_profiles.restore_active_defaults()
+	input_profiles.restore_active_defaults()
 	binding_capture_status.text = "Restored the selected profile's default bindings."
 	_refresh_input_settings_ui()
 
 
 func _on_control_scheme_changed(_scheme: int) -> void:
 	_refresh_input_settings_ui()
-	client._refresh_control_prompts()
+	control_prompts_changed.emit()
 
 
 func _on_flight_mode_changed(_flight_mode: int) -> void:
@@ -482,13 +503,13 @@ func _on_flight_mode_changed(_flight_mode: int) -> void:
 
 func _on_control_bindings_changed() -> void:
 	_rebuild_binding_rows()
-	client._refresh_control_prompts()
+	control_prompts_changed.emit()
 
 
 func _update_controller_status() -> void:
 	if controller_status_label == null:
 		return
-	controller_status_label.text = client.input_profiles.controller_status_text() if client.input_profiles.uses_controller() else "Keyboard and mouse is the default profile. Controller settings remain saved separately."
+	controller_status_label.text = input_profiles.controller_status_text() if input_profiles.uses_controller() else "Keyboard and mouse is the default profile. Controller settings remain saved separately."
 
 
 func _add_volume_setting(parent: VBoxContainer, title: String, channel: StringName, initial_value: float) -> void:
@@ -518,9 +539,9 @@ func _add_volume_setting(parent: VBoxContainer, title: String, channel: StringNa
 func _on_volume_changed(value: float, channel: StringName, value_label: Label) -> void:
 	value_label.text = "%d%%" % roundi(value)
 	match channel:
-		&"master": client.audio_director.set_master_volume(value)
-		&"music": client.audio_director.set_music_volume(value)
-		&"sfx": client.audio_director.set_sfx_volume(value)
+		&"master": audio_director.set_master_volume(value)
+		&"music": audio_director.set_music_volume(value)
+		&"sfx": audio_director.set_sfx_volume(value)
 
 
 func _on_resolution_selected(index: int) -> void:
@@ -617,7 +638,7 @@ func _save_video_settings() -> void:
 func capture_input(event: InputEvent) -> bool:
 	if binding_capture_action.is_empty():
 		return false
-	if client.input_profiles.accepts_rebind_event(event):
+	if input_profiles.accepts_rebind_event(event):
 		_complete_binding_capture(event)
 		get_viewport().set_input_as_handled()
 	return true
@@ -632,7 +653,7 @@ func _process(delta: float) -> void:
 
 
 func _on_accessible_node_added(node: Node) -> void:
-	if not node is Control or not is_instance_valid(client) or not client.is_ancestor_of(node):
+	if not node is Control or not _owns_interface_node(node):
 		return
 	# Apply only new interface subtrees, rather than rescanning the game for every
 	# kill-feed entry. Defer until constructors have assigned semantic colours.
@@ -657,6 +678,7 @@ func _refresh_accessible_nodes() -> void:
 
 
 func apply_accessible_theme() -> void:
-	if not is_instance_valid(client):
-		return
-	preload("res://src/client/presentation/accessible_interface.gd").apply(client, bool(accessibility_preferences.values.high_contrast))
+	for reference in _interface_scopes:
+		var scope := reference.get_ref() as Node
+		if scope != null:
+			preload("res://src/client/presentation/accessible_interface.gd").apply(scope, bool(accessibility_preferences.values.high_contrast))

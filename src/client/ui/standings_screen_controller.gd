@@ -8,17 +8,19 @@ const CardDetailsText = preload("res://src/client/ui/card_details_text.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
 const RESULTS_ACTION_EXPLANATION: String = "Fresh rematch resets cards, scores and objectives; keeps rules, teams and pilots.\nFive more rounds keeps all builds and scores. Lobby lets everyone change rules and ready up."
 
-var client: Node
-var bridge: NetworkBridge:
-	get: return client.bridge
-var audio_director: AudioDirector:
-	get: return client.audio_director
-var card_catalog: CardCatalog:
-	get: return client.card_catalog
-var latest_match_payload: Dictionary:
-	get: return client.latest_match_payload
-var interface_theme: Theme:
-	get: return client.interface_theme
+signal inspection_requested(button: CardHoverButton)
+signal inspection_close_requested
+signal control_prompts_changed
+var bridge: NetworkBridge
+var audio_director: AudioDirector
+var card_catalog: CardCatalog
+var interface_theme: Theme
+var latest_match_payload: Dictionary = {}
+var _lobby_state: Dictionary = {}
+var _canvas: CanvasLayer
+var _match_context: Callable
+var _can_open: Callable
+var _context_dirty: bool = true
 
 
 var scoreboard_panel: PanelContainer
@@ -45,8 +47,25 @@ var _return_to_lobby_requested: bool = false
 var win_overlay: Control
 
 
-func initialize(client_root: Node) -> void:
-	client = client_root
+func configure(network: NetworkBridge, audio: AudioDirector, catalog: CardCatalog, theme: Theme, canvas: CanvasLayer, match_context: Callable, can_open: Callable) -> void:
+	bridge = network
+	audio_director = audio
+	card_catalog = catalog
+	interface_theme = theme
+	_canvas = canvas
+	_match_context = match_context
+	_can_open = can_open
+
+
+func refresh_context() -> void:
+	# One detached observation per change, shared by every row and render frame.
+	latest_match_payload = _match_context.call() if _match_context.is_valid() else {}
+	_lobby_state = bridge.latest_lobby_state if bridge != null else {}
+	_context_dirty = false
+
+
+func invalidate_context() -> void:
+	_context_dirty = true
 
 
 func create_ui() -> void:
@@ -60,7 +79,7 @@ func create_ui() -> void:
 	scoreboard_panel.theme = interface_theme
 	scoreboard_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.INTERACTIVE, 0.985))
 	scoreboard_panel.visible = false
-	client.connection_controller.connection_canvas.add_child(scoreboard_panel)
+	_canvas.add_child(scoreboard_panel)
 	var scoreboard_content := VBoxContainer.new()
 	scoreboard_content.add_theme_constant_override("separation", 10)
 	scoreboard_panel.add_child(scoreboard_content)
@@ -112,13 +131,13 @@ func create_ui() -> void:
 	scoreboard_hint_label.add_theme_font_size_override("font_size", 15)
 	scoreboard_hint_label.add_theme_color_override("font_color", Color("fff36a"))
 	scoreboard_content.add_child(scoreboard_hint_label)
-	client._refresh_control_prompts()
+	control_prompts_changed.emit()
 
 	win_overlay = Control.new()
 	win_overlay.name = "WinScreen"
 	win_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	win_overlay.visible = false
-	client.connection_controller.connection_canvas.add_child(win_overlay)
+	_canvas.add_child(win_overlay)
 	var win_background := NeonBackdrop.new()
 	win_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	win_overlay.add_child(win_background)
@@ -226,6 +245,8 @@ func create_ui() -> void:
 
 
 func _update_scoreboard() -> void:
+	if _context_dirty or _scoreboard_rows_dirty:
+		refresh_context()
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
 	scoreboard_context_label.text = "%s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
 		state_name,
@@ -253,8 +274,8 @@ func _update_scoreboard() -> void:
 
 
 func _set_scoreboard_open(open: bool) -> void:
-	if not open and client.card_inspector != null:
-		client.card_inspector.close(false)
+	if not open:
+		inspection_close_requested.emit()
 	scoreboard_open = open and _scoreboard_available()
 	if scoreboard_panel != null:
 		scoreboard_panel.visible = scoreboard_open
@@ -334,10 +355,12 @@ func _hill_score(peer_id: int) -> float:
 
 
 func _update_results_screen() -> void:
+	if _context_dirty or _results_rows_dirty:
+		refresh_context()
 	var winner_id := int(latest_match_payload.get("match_winner", 0))
 	var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 	results_winner_label.text = "★  %s  ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(winner_id).to_upper())
-	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
+	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(_lobby_state.get("leader_id", 0))
 	var action_requested := _extend_match_requested or _return_to_lobby_requested or _rematch_requested
 	var can_extend := bool(latest_match_payload.get("can_extend_match", true))
 	results_rematch_button.disabled = not is_leader or not can_extend or action_requested
@@ -436,7 +459,7 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 		var card := card_catalog.get_card(card_id)
 		var stacks := int(build[card_value])
 		var chip := CardHoverButtonScript.new()
-		chip.inspection_requested.connect(client._inspect_card)
+		chip.inspection_requested.connect(inspection_requested.emit)
 		chip.pressed.connect(chip.request_inspection)
 		chip.focus_mode = Control.FOCUS_ALL
 		chip.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -580,19 +603,28 @@ func _set_win_screen_visible(visible: bool) -> void:
 
 
 func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
-	return client._panel_style(accent, opacity)
+	return DesignTokensScript.panel_style(accent, opacity)
 
 
 func _player_name(peer_id: int) -> String:
-	return client._player_name(peer_id)
+	for player in _lobby_state.get("players", []):
+		if int(player.get("peer_id", 0)) == peer_id:
+			return String(player.get("display_name", "Pilot"))
+	return "Pilot %d" % peer_id
 
 
 func _player_team(peer_id: int) -> int:
-	return client._player_team(peer_id)
+	var teams := latest_match_payload.get("teams", {}) as Dictionary
+	if teams.has(peer_id) or teams.has(str(peer_id)):
+		return int(teams.get(peer_id, teams.get(str(peer_id), 0)))
+	for player in _lobby_state.get("players", []):
+		if int(player.get("peer_id", 0)) == peer_id:
+			return int(player.get("team_id", 0))
+	return 0
 
 
 func _scoreboard_available() -> bool:
-	return client._scoreboard_available()
+	return _can_open.is_valid() and bool(_can_open.call())
 
 
 func reset_actions(reset_explanation: bool = false) -> void:
@@ -604,6 +636,9 @@ func reset_actions(reset_explanation: bool = false) -> void:
 
 
 func reset_session() -> void:
+	latest_match_payload.clear()
+	_lobby_state.clear()
+	invalidate_context()
 	_set_scoreboard_open(false)
 	_set_win_screen_visible(false)
 	reset_actions(true)

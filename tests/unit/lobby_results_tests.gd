@@ -56,7 +56,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(client.connection_controller.lobby_roster_scroll.follow_focus, "keyboard traversal scrolls the roster into view")
 	context.expect_equal(client.connection_controller.lobby_roster_scroll.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_SHOW_ALWAYS, "roster makes scrolling visible")
 	context.expect_true(client.connection_controller.lobby_options_popup.is_ancestor_of(client.connection_controller.rounds_control), "host round configuration lives in the separate setup panel")
-	context.expect_true(client.results_action_note.text.contains("resets cards, scores and objectives"), "fresh rematch visibly explains resets")
+	context.expect_true(client.standings_controller.results_action_note.text.contains("resets cards, scores and objectives"), "fresh rematch visibly explains resets")
 	client.network_world.local_peer_id = 2
 	client.network_world.input_sequence = 50
 	client.network_world.match_payload = {"state_name": "MATCH_RESULT"}

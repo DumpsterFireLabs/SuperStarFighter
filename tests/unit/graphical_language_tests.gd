@@ -84,8 +84,8 @@ static func run(context: TestContext, parent: Node) -> void:
 	client.latest_match_payload = {"state_name": "MATCH_RESULT", "match_winner": 2, "participant_peer_ids": [2], "scores": {2: {"round_wins": 3}}, "builds": {2: {&"beam_emitter": 1}}}
 	client._update_match_presentation()
 	await parent.get_tree().process_frame
-	context.expect_equal(client.get_viewport().gui_get_focus_owner(), client.results_rematch_button, "results focus starts on the recommended rematch action")
-	var flow: Node = client.results_standings_container.find_child("FinalBuildCards", true, false)
+	context.expect_equal(client.get_viewport().gui_get_focus_owner(), client.standings_controller.results_rematch_button, "results focus starts on the recommended rematch action")
+	var flow: Node = client.standings_controller.results_standings_container.find_child("FinalBuildCards", true, false)
 	var chip := flow.get_child(0) as CardHoverButton
 	chip.grab_focus()
 	_press_key(client.get_viewport(), KEY_ENTER)

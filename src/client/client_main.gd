@@ -2,8 +2,6 @@ extends Node
 
 const DraftScreenControllerScript = preload("res://src/client/ui/draft_screen_controller.gd")
 const StandingsScreenControllerScript = preload("res://src/client/ui/standings_screen_controller.gd")
-const RESULTS_ACTION_EXPLANATION = StandingsScreenControllerScript.RESULTS_ACTION_EXPLANATION
-const CardDetailsText = preload("res://src/client/ui/card_details_text.gd")
 
 const SettingsControllerScript = preload("res://src/client/ui/settings_controller.gd")
 const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
@@ -17,7 +15,6 @@ var connection_controller := ConnectionControllerScript.new()
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
-const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
 const DUMPSTER_FIRE_LABS_TEXTURE: Texture2D = preload("res://assets/ui/dumpster_fire_labs.png")
@@ -35,7 +32,6 @@ var network_world: NetworkWorldView
 var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
 var input_profiles: Node
-## Compatibility handles for existing capture/test tools. Screen state lives in its controller.
 var gameplay_cursor_canvas: CanvasLayer
 var gameplay_cursor: Sprite2D
 
@@ -46,72 +42,6 @@ var heat_intro_panel: PanelContainer
 var heat_intro_kicker: Label
 var heat_intro_title: Label
 var heat_intro_subtitle: Label
-var scoreboard_panel: PanelContainer:
-	get: return standings_controller.scoreboard_panel
-	set(value): standings_controller.scoreboard_panel = value
-var scoreboard_label: Label:
-	get: return standings_controller.scoreboard_label
-	set(value): standings_controller.scoreboard_label = value
-var scoreboard_context_label: Label:
-	get: return standings_controller.scoreboard_context_label
-	set(value): standings_controller.scoreboard_context_label = value
-var scoreboard_media_label: Label:
-	get: return standings_controller.scoreboard_media_label
-	set(value): standings_controller.scoreboard_media_label = value
-var scoreboard_hill_heading: Label:
-	get: return standings_controller.scoreboard_hill_heading
-	set(value): standings_controller.scoreboard_hill_heading = value
-var scoreboard_rows_container: VBoxContainer:
-	get: return standings_controller.scoreboard_rows_container
-	set(value): standings_controller.scoreboard_rows_container = value
-var scoreboard_hint_label: Label:
-	get: return standings_controller.scoreboard_hint_label
-	set(value): standings_controller.scoreboard_hint_label = value
-var scoreboard_open: bool:
-	get: return standings_controller.scoreboard_open
-	set(value): standings_controller.scoreboard_open = value
-var _scoreboard_rows_dirty: bool:
-	get: return standings_controller._scoreboard_rows_dirty
-	set(value): standings_controller._scoreboard_rows_dirty = value
-var results_panel: PanelContainer:
-	get: return standings_controller.results_panel
-	set(value): standings_controller.results_panel = value
-var results_label: Label:
-	get: return standings_controller.results_label
-	set(value): standings_controller.results_label = value
-var results_winner_label: Label:
-	get: return standings_controller.results_winner_label
-	set(value): standings_controller.results_winner_label = value
-var results_standings_container: VBoxContainer:
-	get: return standings_controller.results_standings_container
-	set(value): standings_controller.results_standings_container = value
-var results_rematch_button: Button:
-	get: return standings_controller.results_rematch_button
-	set(value): standings_controller.results_rematch_button = value
-var results_action_note: Label:
-	get: return standings_controller.results_action_note
-	set(value): standings_controller.results_action_note = value
-var _rematch_requested: bool:
-	get: return standings_controller._rematch_requested
-	set(value): standings_controller._rematch_requested = value
-var results_extend_button: Button:
-	get: return standings_controller.results_extend_button
-	set(value): standings_controller.results_extend_button = value
-var results_return_button: Button:
-	get: return standings_controller.results_return_button
-	set(value): standings_controller.results_return_button = value
-var _results_rows_dirty: bool:
-	get: return standings_controller._results_rows_dirty
-	set(value): standings_controller._results_rows_dirty = value
-var _extend_match_requested: bool:
-	get: return standings_controller._extend_match_requested
-	set(value): standings_controller._extend_match_requested = value
-var _return_to_lobby_requested: bool:
-	get: return standings_controller._return_to_lobby_requested
-	set(value): standings_controller._return_to_lobby_requested = value
-var win_overlay: Control:
-	get: return standings_controller.win_overlay
-	set(value): standings_controller.win_overlay = value
 var pause_overlay: PanelContainer
 var pause_title: Label
 
@@ -128,7 +58,10 @@ var splash_stage: int = 0
 var splash_transitioning: bool = false
 var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
-var latest_match_payload: Dictionary = {}
+var latest_match_payload: Dictionary = {}:
+	set(value):
+		latest_match_payload = value
+		standings_controller.invalidate_context()
 
 var interface_theme: Theme
 var last_countdown_second: int = -1
@@ -149,10 +82,16 @@ func _init() -> void:
 	draft_controller.presentation_changed.connect(_update_match_presentation)
 	draft_controller.name = "DraftScreenController"
 	add_child(draft_controller)
-	standings_controller.initialize(self)
+	standings_controller.inspection_requested.connect(_inspect_card)
+	standings_controller.inspection_close_requested.connect(func() -> void:
+		if card_inspector != null: card_inspector.close(false)
+	)
+	standings_controller.control_prompts_changed.connect(_refresh_control_prompts)
 	standings_controller.name = "StandingsScreenController"
 	add_child(standings_controller)
-	settings_controller.initialize(self)
+	settings_controller.close_requested.connect(_hide_settings)
+	settings_controller.accessibility_changed.connect(_apply_accessibility_settings)
+	settings_controller.control_prompts_changed.connect(_refresh_control_prompts)
 	settings_controller.name = "SettingsController"
 	add_child(settings_controller)
 	connection_controller.initialize(self)
@@ -166,10 +105,6 @@ func _ready() -> void:
 	offline_sandbox.set_sandbox_active(false)
 	input_profiles = InputProfileManagerScript.new()
 	input_profiles.name = "InputProfileManager"
-	input_profiles.scheme_changed.connect(settings_controller._on_control_scheme_changed)
-	input_profiles.flight_mode_changed.connect(settings_controller._on_flight_mode_changed)
-	input_profiles.bindings_changed.connect(settings_controller._on_control_bindings_changed)
-	input_profiles.controller_connections_changed.connect(settings_controller._update_controller_status)
 	add_child(input_profiles)
 	offline_sandbox.set_input_profile_manager(input_profiles)
 	bridge = NetworkBridge.new()
@@ -184,6 +119,12 @@ func _ready() -> void:
 	audio_director.name = "AudioDirector"
 	add_child(audio_director)
 	offline_sandbox.presentation_event.connect(_on_world_presentation_event)
+	interface_theme = DesignTokensScript.create_interface_theme()
+	settings_controller.configure(audio_director, input_profiles, interface_theme)
+	input_profiles.scheme_changed.connect(settings_controller._on_control_scheme_changed)
+	input_profiles.flight_mode_changed.connect(settings_controller._on_flight_mode_changed)
+	input_profiles.bindings_changed.connect(settings_controller._on_control_bindings_changed)
+	input_profiles.controller_connections_changed.connect(settings_controller._update_controller_status)
 	settings_controller._load_video_settings()
 	network_world = NetworkWorldView.new()
 	network_world.name = "NetworkWorld"
@@ -193,11 +134,15 @@ func _ready() -> void:
 	_apply_accessibility_settings()
 	network_world.presentation_event.connect(_on_world_presentation_event)
 	connection_controller._create_connection_ui(configuration)
+	settings_controller.register_interface_scope(connection_controller.connection_canvas)
+	settings_controller.register_interface_scope(network_world)
+	settings_controller.register_interface_scope(offline_sandbox)
+	standings_controller.configure(bridge, audio_director, card_catalog, interface_theme, connection_controller.connection_canvas, _standings_context, _scoreboard_available)
 	connection_controller.start_discovery()
 	_create_match_ui()
 	_create_pause_overlay()
 	_create_f2_return_confirmation()
-	settings_controller._create_settings_overlay()
+	settings_controller._create_settings_overlay(connection_controller.connection_canvas)
 	_create_credits_overlay()
 	_create_gameplay_cursor()
 	_create_splash_screen()
@@ -269,9 +214,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _input(event: InputEvent) -> void:
 	if card_inspector != null and card_inspector.visible:
-		if event.is_action_released(&"scoreboard") and scoreboard_open:
+		if event.is_action_released(&"scoreboard") and standings_controller.scoreboard_open:
 			card_inspector.close(false)
-			_set_scoreboard_open(false)
+			standings_controller._set_scoreboard_open(false)
 			get_viewport().set_input_as_handled()
 		else:
 			card_inspector.handle_input(event)
@@ -284,11 +229,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"scoreboard") and not (event is InputEventKey and event.echo):
 		if _scoreboard_available():
-			_set_scoreboard_open(true)
+			standings_controller._set_scoreboard_open(true)
 			get_viewport().set_input_as_handled()
 	elif event.is_action_released(&"scoreboard"):
-		if scoreboard_open:
-			_set_scoreboard_open(false)
+		if standings_controller.scoreboard_open:
+			standings_controller._set_scoreboard_open(false)
 			get_viewport().set_input_as_handled()
 
 
@@ -302,6 +247,7 @@ func _is_start_input(event: InputEvent) -> bool:
 func _create_match_ui() -> void:
 	card_inspector = preload("res://src/client/ui/card_inspector.gd").new()
 	add_child(card_inspector)
+	settings_controller.register_interface_scope(card_inspector)
 	card_inspector.closed.connect(func() -> void: network_world.input_blocked = pause_overlay != null and pause_overlay.visible)
 	match_panel = PanelContainer.new()
 	match_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -425,8 +371,8 @@ func _apply_accessibility_settings() -> void:
 
 
 func _refresh_control_prompts() -> void:
-	if scoreboard_hint_label != null:
-		scoreboard_hint_label.text = "HOLD %s · ARROWS SELECT · I / Y INSPECT · THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
+	if standings_controller.scoreboard_hint_label != null:
+		standings_controller.scoreboard_hint_label.text = "HOLD %s · ARROWS SELECT · I / Y INSPECT · THE MATCH CONTINUES" % input_profiles.binding_text(&"scoreboard").to_upper()
 
 
 func _show_settings(return_to_pause: bool) -> void:
@@ -552,6 +498,7 @@ func _create_gameplay_cursor() -> void:
 	gameplay_cursor_canvas.name = "GameplayCursor"
 	gameplay_cursor_canvas.layer = 30
 	add_child(gameplay_cursor_canvas)
+	settings_controller.register_interface_scope(gameplay_cursor_canvas)
 	gameplay_cursor = Sprite2D.new()
 	gameplay_cursor.name = "Crosshair"
 	gameplay_cursor.texture = CROSSHAIR_TEXTURE
@@ -565,6 +512,7 @@ func _create_splash_screen() -> void:
 	splash_canvas.layer = 40
 	splash_canvas.name = "SplashUI"
 	add_child(splash_canvas)
+	settings_controller.register_interface_scope(splash_canvas)
 	splash_screen = Control.new()
 	splash_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	splash_canvas.add_child(splash_screen)
@@ -720,7 +668,7 @@ func _focus_connection_menu() -> void:
 func _toggle_pause_overlay() -> void:
 	if connection_controller.connection_screen.visible:
 		return
-	_set_scoreboard_open(false)
+	standings_controller._set_scoreboard_open(false)
 	pause_overlay.visible = not pause_overlay.visible
 	network_world.input_blocked = pause_overlay.visible
 	if pause_overlay.visible and pause_resume_button != null:
@@ -797,7 +745,7 @@ func _play_tutorial() -> void:
 func _play_offline() -> void:
 	bridge.stop()
 	connection_controller._stop_hosted_server()
-	_set_scoreboard_open(false)
+	standings_controller._set_scoreboard_open(false)
 	latest_match_payload.clear()
 	network_world.set_network_active(false)
 	connection_controller.connection_screen.visible = false
@@ -830,7 +778,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 		bridge.stop()
 	connection_controller.reset_connection(message, is_error)
 	network_world.set_network_active(false)
-	_set_scoreboard_open(false)
+	standings_controller._set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
 	latest_match_payload.clear()
 	draft_controller.clear_offer()
@@ -853,15 +801,17 @@ func _on_connected(peer_id: int) -> void:
 
 
 func _on_lobby_state(state: Dictionary) -> void:
-	_scoreboard_rows_dirty = true
-	_results_rows_dirty = true
+	standings_controller.invalidate_context()
+	standings_controller._scoreboard_rows_dirty = true
+	standings_controller._results_rows_dirty = true
 	if not bool(state.get("match_active", false)):
-		_set_scoreboard_open(false)
+		standings_controller._set_scoreboard_open(false)
 		network_world.set_network_active(false, false)
 	connection_controller.render_lobby(state)
 
 
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
+	standings_controller.invalidate_context()
 	if event_type == &"COMBAT_FEEDBACK":
 		network_world.apply_combat_feedback(payload)
 	elif event_type == &"MINE_DETONATIONS":
@@ -877,12 +827,12 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 	elif event_type == &"MATCH_START_ACCEPTED" and bool(payload.get("fresh_rematch", false)):
 		network_world.reset_match_presentation()
 		audio_director.reset_match_deduplication()
-		_rematch_requested = false
+		standings_controller._rematch_requested = false
 	elif event_type == &"STATE_CHANGED":
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		latest_match_payload = payload.duplicate(true)
-		_scoreboard_rows_dirty = true
-		_results_rows_dirty = true
+		standings_controller._scoreboard_rows_dirty = true
+		standings_controller._results_rows_dirty = true
 		var entering_match := String(payload.get("state_name", "LOBBY")) != "LOBBY"
 		if entering_match:
 			network_world.set_network_active(true)
@@ -898,8 +848,8 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
 		latest_match_payload["builds"] = payload.get("builds", {})
-		_scoreboard_rows_dirty = true
-		_results_rows_dirty = true
+		standings_controller._scoreboard_rows_dirty = true
+		standings_controller._results_rows_dirty = true
 		draft_controller.clear_offer()
 	elif event_type == &"PLAYER_ELIMINATED":
 		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
@@ -918,14 +868,14 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		network_world.add_kill_feed_entries(eliminations, server_tick)
 		if payload.has("scores"):
 			latest_match_payload["scores"] = (payload.scores as Dictionary).duplicate(true)
-			_scoreboard_rows_dirty = true
-			_results_rows_dirty = true
+			standings_controller._scoreboard_rows_dirty = true
+			standings_controller._results_rows_dirty = true
 	elif event_type == &"PLAYER_RESPAWNED":
 		latest_match_payload["alive_peer_ids"] = (payload.get("alive_peer_ids", []) as Array).duplicate()
 		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
 	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
 		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
-		_scoreboard_rows_dirty = true
+		standings_controller._scoreboard_rows_dirty = true
 		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
 		audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
@@ -935,8 +885,8 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 			network_world.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
 	elif event_type == &"CARD_POWERUP_COLLECTED":
 		latest_match_payload["builds"] = payload.get("builds", latest_match_payload.get("builds", {}))
-		_scoreboard_rows_dirty = true
-		_results_rows_dirty = true
+		standings_controller._scoreboard_rows_dirty = true
+		standings_controller._results_rows_dirty = true
 		network_world.apply_builds(latest_match_payload.get("builds", {}) as Dictionary)
 		network_world.collect_card_powerup(payload)
 		audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
@@ -945,12 +895,12 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 func _process(_delta: float) -> void:
 	if not latest_match_payload.is_empty():
 		_update_match_presentation()
-	if scoreboard_panel != null:
-		if scoreboard_open and not _scoreboard_available():
-			scoreboard_open = false
-		scoreboard_panel.visible = scoreboard_open
-		if scoreboard_panel.visible:
-			_update_scoreboard()
+	if standings_controller.scoreboard_panel != null:
+		if standings_controller.scoreboard_open and not _scoreboard_available():
+			standings_controller.scoreboard_open = false
+		standings_controller.scoreboard_panel.visible = standings_controller.scoreboard_open
+		if standings_controller.scoreboard_panel.visible:
+			standings_controller._update_scoreboard()
 	_update_pointer_visibility()
 	_update_timed_audio()
 
@@ -967,7 +917,7 @@ func _update_pointer_visibility() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
+	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()
@@ -1012,7 +962,7 @@ func _update_match_presentation() -> void:
 		heat_intro_panel.visible = false
 		network_world.set_match_status("")
 		draft_controller.draft_panel.visible = false
-		_set_win_screen_visible(false)
+		standings_controller._set_win_screen_visible(false)
 		connection_controller.lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
 		connection_controller.connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
 		if connection_controller.connection_screen.visible:
@@ -1023,7 +973,7 @@ func _update_match_presentation() -> void:
 	match_panel.visible = false
 	if state_name != "DRAFT":
 		draft_controller.draft_panel.visible = false
-	_set_win_screen_visible(state_name == "MATCH_RESULT")
+	standings_controller._set_win_screen_visible(state_name == "MATCH_RESULT")
 	var deadline := int(latest_match_payload.get("deadline_tick", -1))
 	if state_name == "DRAFT" and draft_controller.active_offer_deadline >= 0:
 		deadline = draft_controller.active_offer_deadline
@@ -1053,7 +1003,7 @@ func _update_match_presentation() -> void:
 	elif state_name == "MATCH_RESULT":
 		var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 		status = "★ VICTORY · %s ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(int(latest_match_payload.get("match_winner", 0))))
-		_update_results_screen()
+		standings_controller._update_results_screen()
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
@@ -1240,86 +1190,10 @@ func _player_team(peer_id: int) -> int:
 	return 0
 
 
-func _update_scoreboard() -> void:
-	standings_controller._update_scoreboard()
-
-
-func _set_scoreboard_open(open: bool) -> void:
-	standings_controller._set_scoreboard_open(open)
-
-
 func _scoreboard_available() -> bool:
 	if network_world == null or not network_world.visible or pause_overlay != null and pause_overlay.visible:
 		return false
 	return String(latest_match_payload.get("state_name", "LOBBY")) in ["DRAFT", "COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
-
-
-func _add_scoreboard_row(rank: int, peer_id: int) -> void:
-	standings_controller._add_scoreboard_row(rank, peer_id)
-
-
-func _hill_score(peer_id: int) -> float:
-	return standings_controller._hill_score(peer_id)
-
-
-func _update_results_screen() -> void:
-	standings_controller._update_results_screen()
-
-
-func _on_results_rematch_pressed() -> void:
-	standings_controller._on_results_rematch_pressed()
-
-
-func _on_results_extend_pressed() -> void:
-	standings_controller._on_results_extend_pressed()
-
-
-func _on_results_return_pressed() -> void:
-	standings_controller._on_results_return_pressed()
-
-
-func _result_peer_ids() -> Array[int]:
-	return standings_controller._result_peer_ids()
-
-
-func _result_score(peer_id: int) -> Dictionary:
-	return standings_controller._result_score(peer_id)
-
-
-func _result_build(peer_id: int) -> Dictionary:
-	return standings_controller._result_build(peer_id)
-
-
-func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: String = "FinalBuildCards") -> void:
-	standings_controller._add_result_build(parent, peer_id, container_name)
-
-
-func _result_card_tooltip(card: CardDefinition, stacks: int, stack_heading: String = "OWNED STACKS") -> String:
-	return CardDetailsText.tooltip(card, stacks, stack_heading)
-
-
-func _card_stat_name(property_name: String) -> String:
-	return CardDetailsText._card_stat_name(property_name)
-
-
-func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
-	standings_controller._add_result_row(rank, peer_id, winner)
-
-
-func _add_results_column_heading(parent: HBoxContainer, text_value: String, width: float, expand: bool = false) -> Label:
-	return standings_controller._add_results_column_heading(parent, text_value, width, expand)
-
-
-func _results_row_style(accent: Color, winner: bool) -> StyleBoxFlat:
-	return standings_controller._results_row_style(accent, winner)
-
-
-func _result_card_chip_style(color: Color, hovered: bool) -> StyleBoxFlat:
-	return standings_controller._result_card_chip_style(color, hovered)
-
-
-func _result_card_chip_focus_style(rarity_color: Color) -> StyleBoxFlat:
-	return standings_controller._result_card_chip_focus_style(rarity_color)
 
 
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
@@ -1327,7 +1201,7 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	if state_name == "LOBBY":
 		standings_controller.reset_actions()
 		audio_director.set_context(&"lobby")
-		_set_win_screen_visible(false)
+		standings_controller._set_win_screen_visible(false)
 		return
 	audio_director.set_context(&"win" if state_name == "MATCH_RESULT" else &"gameplay")
 	if previous_state == "LOBBY" and state_name == "DRAFT":
@@ -1341,10 +1215,6 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	elif state_name == "MATCH_RESULT":
 		standings_controller.reset_actions(true)
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
-
-
-func _set_win_screen_visible(visible: bool) -> void:
-	standings_controller._set_win_screen_visible(visible)
 
 
 func _update_timed_audio() -> void:
@@ -1467,3 +1337,7 @@ func _draft_context() -> Dictionary:
 		"bye": (peer_id != 0 and int(latest_match_payload.get("draft_bye_peer_id", 0)) == peer_id)
 			or peer_id in latest_match_payload.get("draft_bye_peer_ids", []),
 	}
+
+
+func _standings_context() -> Dictionary:
+	return latest_match_payload.duplicate(true)
