@@ -1,0 +1,10 @@
+Original draw method at 0e1232b reproduced the Epic-to-Legendary colour collision.
+SHIELD_COLOUR_ERROR rarity=EPIC guard=true reduced=false actual=(1.0, 0.9529, 0.4157, 1.0) expected=(0.8275, 0.6118, 1.0, 1.0)
+SHIELD_COLOUR_ERROR rarity=EPIC guard=true reduced=false actual=(1.0, 0.9529, 0.4157, 1.0) expected=(0.8275, 0.6118, 1.0, 1.0)
+SHIELD_COLOUR_ERROR rarity=EPIC guard=true reduced=true actual=(1.0, 0.9529, 0.4157, 1.0) expected=(0.8275, 0.6118, 1.0, 1.0)
+SHIELD_COLOUR_ERROR rarity=EPIC guard=true reduced=true actual=(1.0, 0.9529, 0.4157, 1.0) expected=(0.8275, 0.6118, 1.0, 1.0)
+Changed production renderer: SHIELD_COLOURS_OK samples=24 guard_indicators=16
+TEST_SUMMARY passed=7402 failed=0
+Editor import passed. Shipping resource allowlists are current.
+Before/after renderer captures visually inspected.
+Known allowed environment diagnostic: ERROR: Failed to read the root certificate store.

@@ -109,6 +109,22 @@ static func _supported_audio_file_count(directory_path: String) -> int:
 
 static func _validate_visual_feedback(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
+	var shields := {}
+	for card_id in catalog.all_ids():
+		var card := catalog.get_card(card_id)
+		if card.category == CardDefinition.Category.SHIELD:
+			shields[card.rarity] = card_id
+	var rarity_ship := CombatShipView.new()
+	var epic: StringName = shields[CardDefinition.Rarity.EPIC]
+	var legendary: StringName = shields[CardDefinition.Rarity.LEGENDARY]
+	for build in [{epic: 3, legendary: 1}, {legendary: 1, epic: 3}]:
+		rarity_ship.set_shield_build(build, catalog)
+		context.expect_equal(rarity_ship.shield_color, catalog.get_card(legendary).rarity_color(), "highest shield rarity wins regardless of stack count or dictionary order")
+	rarity_ship.set_shield_build({epic: 1, legendary: 0}, catalog)
+	context.expect_equal(rarity_ship.shield_color, catalog.get_card(epic).rarity_color(), "expired legendary shield stack restores the remaining epic rarity")
+	rarity_ship.set_shield_build({}, catalog)
+	context.expect_equal(rarity_ship.shield_color, CombatShipView.DEFAULT_SHIELD_COLOR, "empty shield build restores base colour")
+	rarity_ship.free()
 	var projectile_layer := ProjectileLayer.new()
 	projectile_layer.set_beam_builds({
 		1: {&"laser_repeater": 1},

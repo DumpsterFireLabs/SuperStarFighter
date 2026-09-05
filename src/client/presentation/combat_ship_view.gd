@@ -357,9 +357,13 @@ func _draw() -> void:
 	if combatant.shield.active:
 		var half_arc := deg_to_rad(combatant.stats.shield_arc_degrees) * 0.5
 		var perfect_guard := combatant.shield.is_perfect_guard_active() or combatant.shield.has_perfect_guard_feedback()
-		var active_shield_color := Color("fff36a") if perfect_guard else shield_color
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(active_shield_color, 0.22), 14.0)
-		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 and not reduced_flashes else active_shield_color, 7.0)
+		# Rarity belongs to the outer shield. A separate inner timing cue avoids
+		# making every Perfect Guard window look like a Legendary upgrade.
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color(shield_color, 0.22), 14.0)
+		draw_arc(Vector2.ZERO, 32.0, combatant.aim_angle - half_arc, combatant.aim_angle + half_arc, 32, Color.WHITE if shield_flash_remaining > 0.0 and not reduced_flashes else shield_color, 7.0)
+		if perfect_guard:
+			var guard_half_arc := minf(half_arc, PI / 6.0)
+			draw_arc(Vector2.ZERO, 22.0, combatant.aim_angle - guard_half_arc, combatant.aim_angle + guard_half_arc, 12, Color.WHITE, 2.0)
 	if combatant.breakaway_remaining > 0.0:
 		var breakaway_alpha := clampf(combatant.breakaway_remaining / GameConstants.BREAKAWAY_DURATION_SECONDS, 0.0, 1.0)
 		draw_arc(Vector2.ZERO, 38.0, 0.0, TAU, 32, Color("ff9f43", breakaway_alpha * 0.75), 3.0)

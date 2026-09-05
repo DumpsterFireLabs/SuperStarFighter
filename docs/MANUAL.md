@@ -402,7 +402,7 @@ After shield activity, regeneration waits 1.25 seconds, then restores 30 energy 
 
 Shielding prevents firing and normally reduces acceleration, so timing matters: turn the arc into danger, absorb the burst, then release to shoot and recover maneuverability.
 
-Every shield has Perfect Guard. The first projectile blocked within 0.25 seconds of raising the shield costs 80% less shield energy. The gold guard arc marks the timing window. Blocking once consumes the window, so an opponent can lead with a weaker shot, stagger a volley, wait it out, or attack outside the directional arc.
+Every shield has Perfect Guard. The first projectile blocked within 0.25 seconds of raising the shield costs 80% less shield energy. A short white inner arc marks the timing window and briefly confirms a successful guard; the outer shield keeps its highest shield-card rarity colour. Blocking once consumes the window, so an opponent can lead with a weaker shot, stagger a volley, wait it out, or attack outside the directional arc.
 
 Kinetic Vent is an Epic Shield card. Blocked projectile damage stores up to 100 vent charge, shown in the HUD. Deliberately releasing the shield with at least 25 charge emits a 240-pixel line-of-sight pulse: hostile projectiles turn away while retaining their original ownership, and exposed enemy ships and armed mines are pushed outward. Shield depletion discards stored charge. Each stack increases push strength by 20%; it does not increase the fixed radius or turn the pulse into damage.
 
