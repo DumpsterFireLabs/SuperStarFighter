@@ -1,0 +1,6 @@
+SSF_COLLISION_PROFILE map=core_arena phases={"damage_resolution":13.875,"guidance":0.0,"hit_resolution":52.35,"mine_setup":6.275,"mine_sweep":0.0,"obstacle_sweep":3083.45,"ship_candidates":414.341666666667,"ship_sweep":2813.625,"sweep_count":1046.06666666667}
+SSF_PERFORMANCE_RESULT p50_usec=13182 p95_usec=14544 p99_usec=16304 max_usec=19254 projectiles=1024 npcs=32
+SSF_PERFORMANCE_PHASES npc=2185 movement=428 overlaps=346 projectiles=8512 cleanup_and_threats=1507
+SSF_PERFORMANCE_PHASE_TAILS {"cleanup_and_threats":{"max_usec":2642,"p95_usec":1570,"p99_usec":2558},"movement":{"max_usec":740,"p95_usec":480,"p99_usec":735},"npc":{"max_usec":5209,"p95_usec":2871,"p99_usec":3074},"overlaps":{"max_usec":603,"p95_usec":508,"p99_usec":573},"projectiles":{"max_usec":10894,"p95_usec":9880,"p99_usec":10428}}
+SSF_PERFORMANCE_SCOPE samples=120 warmup=20 includes=npc_and_authoritative_world excludes=refill_replication_client_render
+SSF_MINE_PERFORMANCE_RESULT p50_usec=8342 p95_usec=8907 p99_usec=10551 max_usec=12966 mines=512 projectiles=1024

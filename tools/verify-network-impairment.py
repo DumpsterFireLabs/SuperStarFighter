@@ -22,6 +22,7 @@ PROFILES = {
     "combined": {"delay": 0.060, "jitter": 0.025, "loss": 0.08,
                  "reorder": 0.20, "duplicate": 0.05, "blackout": True},
     "tail_loss": {"settlement_blackout": 0.35},
+    "limited_bandwidth": {"delay": 0.05, "jitter": 0.02, "bytes_per_second": 4096},
 }
 
 
@@ -29,7 +30,9 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
     profile = PROFILES[name]
     rng = random.Random(seed)
     counters = {direction: dict(received=0, delivered=0, dropped=0, duplicated=0,
-                               reordered=0, delayed=0, settlement_dropped=0) for direction in ("up", "down")}
+                               reordered=0, delayed=0, settlement_dropped=0,
+                               received_bytes=0, delivered_bytes=0, bandwidth_wait_seconds=0.0) for direction in ("up", "down")}
+    link_available = {"up": 0.0, "down": 0.0}
     queue, serial, high_water, peak_queue = [], 0, {"up": 0, "down": 0}, 0
     client_address = None
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as front, \
@@ -75,6 +78,7 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
                             continue
                         row = counters[direction]
                         row["received"] += 1
+                        row["received_bytes"] += len(packet)
                         elapsed = now - started
                         if (direction == "up" and settlement_started is not None
                                 and now - settlement_started < profile["settlement_blackout"]):
@@ -89,6 +93,11 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
                         delay = max(0, profile.get("delay", 0) + rng.uniform(-1, 1) * profile.get("jitter", 0))
                         if rng.random() < profile.get("reorder", 0):
                             delay += 0.140
+                        if profile.get("bytes_per_second"):
+                            finish = max(now, link_available[direction]) + len(packet) / profile["bytes_per_second"]
+                            link_available[direction] = finish
+                            row["bandwidth_wait_seconds"] += finish - now
+                            delay += finish - now
                         if delay:
                             row["delayed"] += 1
                         serial += 1
@@ -109,6 +118,7 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
                         else:
                             front.sendto(packet, client_address)
                         counters[direction]["delivered"] += 1
+                        counters[direction]["delivered_bytes"] += len(packet)
                     if len(queue) > 4096:
                         raise RuntimeError("Proxy queue exceeded its bounded fixture budget")
             finally:
@@ -137,11 +147,13 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
                 required.append("delayed")
             if any(row[key] == 0 for key in required):
                 raise RuntimeError(f"{name}: requested fault was not observed in {direction}: {row}")
+            if profile.get("bytes_per_second") and row["bandwidth_wait_seconds"] <= 0:
+                raise RuntimeError(f"{name}: bandwidth serialization was not exercised in {direction}")
         fixture = json.loads(next(line.split("=", 1)[1] for line in text.splitlines() if line.startswith("SSF_IMPAIRMENT_OK=")))
         if profile.get("settlement_blackout") and (counters["up"]["settlement_dropped"] == 0 or fixture["delivery"]["neutral_send_attempts"] < 2):
             raise RuntimeError(f"{name}: did not exercise loss and retry of the final neutral barrier")
         result = dict(profile=name, seed=seed, shield_only=shield_only, configuration=profile, datagrams=counters,
-                      peak_queued_datagrams=peak_queue, fixture=fixture)
+                      peak_queued_datagrams=peak_queue, elapsed_seconds=time.monotonic() - started, fixture=fixture)
         (output / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(f"PASS {name}: {fixture['snapshots']} snapshots, resources converged, faults={counters}", flush=True)
         return result

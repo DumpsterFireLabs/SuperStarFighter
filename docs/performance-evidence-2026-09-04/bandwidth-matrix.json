@@ -1,0 +1,548 @@
+[
+  {
+    "profile": "limited_bandwidth",
+    "seed": 230926,
+    "shield_only": false,
+    "configuration": {
+      "delay": 0.05,
+      "jitter": 0.02,
+      "bytes_per_second": 4096
+    },
+    "datagrams": {
+      "up": {
+        "received": 380,
+        "delivered": 380,
+        "dropped": 0,
+        "duplicated": 0,
+        "reordered": 29,
+        "delayed": 380,
+        "settlement_dropped": 0,
+        "received_bytes": 12835,
+        "delivered_bytes": 12835,
+        "bandwidth_wait_seconds": 3.238266918779118
+      },
+      "down": {
+        "received": 480,
+        "delivered": 480,
+        "dropped": 0,
+        "duplicated": 0,
+        "reordered": 47,
+        "delayed": 480,
+        "settlement_dropped": 0,
+        "received_bytes": 50457,
+        "delivered_bytes": 50457,
+        "bandwidth_wait_seconds": 30.37930022200453
+      }
+    },
+    "peak_queued_datagrams": 22,
+    "elapsed_seconds": 20.45888059999561,
+    "fixture": {
+      "cloak_spent": 1,
+      "comparison": {
+        "ammo": [
+          16,
+          16
+        ],
+        "cloak": [
+          2,
+          2
+        ],
+        "guard_window": [
+          0.0,
+          0.0
+        ],
+        "mines": [
+          2,
+          2
+        ],
+        "missiles": [
+          2,
+          2
+        ],
+        "reloading": [
+          false,
+          false
+        ],
+        "shield_active": [
+          false,
+          false
+        ],
+        "shield_energy": [
+          100.0,
+          100.0
+        ],
+        "shield_identity": [
+          818,
+          818
+        ],
+        "shield_locked": [
+          false,
+          false
+        ],
+        "shots": [
+          6,
+          6
+        ],
+        "special_identity": [
+          464,
+          464
+        ]
+      },
+      "delivery": {
+        "abilities": [
+          {
+            "authority_consumed": 275,
+            "phase": 4,
+            "press": 275,
+            "retries": 0,
+            "server_ack": 328,
+            "slot": 1
+          },
+          {
+            "authority_consumed": 338,
+            "phase": 5,
+            "press": 338,
+            "retries": 0,
+            "server_ack": 392,
+            "slot": 2
+          },
+          {
+            "authority_consumed": 401,
+            "phase": 6,
+            "press": 401,
+            "retries": 0,
+            "server_ack": 454,
+            "slot": 3
+          },
+          {
+            "authority_consumed": 464,
+            "phase": 7,
+            "press": 464,
+            "retries": 0,
+            "server_ack": 520,
+            "slot": 0
+          }
+        ],
+        "authority_reload_observed": true,
+        "authority_shield_observed": true,
+        "final_acknowledged": true,
+        "final_sequence": 825,
+        "input_age": 3.06666666666666,
+        "neutral_send_attempts": 7,
+        "newest_sequence": -1,
+        "oldest_sequence": -1,
+        "pending_count": 0,
+        "reload_observed": true,
+        "server_ack": 825,
+        "shield_active": false,
+        "shield_observed": true,
+        "snapshot_ack": 825,
+        "snapshots": 322,
+        "weapon_cooldown": 0.0
+      },
+      "max_buffered_inputs": 66,
+      "max_transient_ammo_difference": 6,
+      "mine_spent": 1,
+      "missile_spent": 1,
+      "movement": {
+        "correction_p95_pixels": 1.98273980617523,
+        "correction_p99_pixels": 34.9191360473633,
+        "max_correction_pixels": 377.688842773438,
+        "samples": 321,
+        "snap_count": 2
+      },
+      "reload_observed": true,
+      "shield_observed": true,
+      "shield_taps": {
+        "attempts": 2,
+        "delivery_ms": [
+          83,
+          83
+        ],
+        "volleys": [
+          {
+            "energy_cost": 55.0,
+            "guarded": true,
+            "hull_hits": 0,
+            "press": 793,
+            "received_ms": 16670
+          },
+          {
+            "energy_cost": 55.0,
+            "guarded": true,
+            "hull_hits": 0,
+            "press": 818,
+            "received_ms": 17050
+          }
+        ]
+      },
+      "shots": 6,
+      "snapshots": 322
+    },
+    "passed": true
+  },
+  {
+    "profile": "limited_bandwidth",
+    "seed": 230927,
+    "shield_only": false,
+    "configuration": {
+      "delay": 0.05,
+      "jitter": 0.02,
+      "bytes_per_second": 4096
+    },
+    "datagrams": {
+      "up": {
+        "received": 372,
+        "delivered": 372,
+        "dropped": 0,
+        "duplicated": 0,
+        "reordered": 28,
+        "delayed": 372,
+        "settlement_dropped": 0,
+        "received_bytes": 12537,
+        "delivered_bytes": 12537,
+        "bandwidth_wait_seconds": 3.2172593875438906
+      },
+      "down": {
+        "received": 489,
+        "delivered": 489,
+        "dropped": 0,
+        "duplicated": 0,
+        "reordered": 44,
+        "delayed": 489,
+        "settlement_dropped": 0,
+        "received_bytes": 51343,
+        "delivered_bytes": 51343,
+        "bandwidth_wait_seconds": 33.71312239386316
+      }
+    },
+    "peak_queued_datagrams": 24,
+    "elapsed_seconds": 20.417248500001733,
+    "fixture": {
+      "cloak_spent": 1,
+      "comparison": {
+        "ammo": [
+          16,
+          16
+        ],
+        "cloak": [
+          2,
+          2
+        ],
+        "guard_window": [
+          0.0,
+          0.0
+        ],
+        "mines": [
+          2,
+          2
+        ],
+        "missiles": [
+          2,
+          2
+        ],
+        "reloading": [
+          false,
+          false
+        ],
+        "shield_active": [
+          false,
+          false
+        ],
+        "shield_energy": [
+          100.0,
+          100.0
+        ],
+        "shield_identity": [
+          821,
+          821
+        ],
+        "shield_locked": [
+          false,
+          false
+        ],
+        "shots": [
+          4,
+          4
+        ],
+        "special_identity": [
+          466,
+          466
+        ]
+      },
+      "delivery": {
+        "abilities": [
+          {
+            "authority_consumed": 277,
+            "phase": 4,
+            "press": 277,
+            "retries": 0,
+            "server_ack": 332,
+            "slot": 1
+          },
+          {
+            "authority_consumed": 340,
+            "phase": 5,
+            "press": 340,
+            "retries": 0,
+            "server_ack": 396,
+            "slot": 2
+          },
+          {
+            "authority_consumed": 403,
+            "phase": 6,
+            "press": 403,
+            "retries": 0,
+            "server_ack": 456,
+            "slot": 3
+          },
+          {
+            "authority_consumed": 466,
+            "phase": 7,
+            "press": 466,
+            "retries": 0,
+            "server_ack": 520,
+            "slot": 0
+          }
+        ],
+        "authority_reload_observed": true,
+        "authority_shield_observed": true,
+        "final_acknowledged": true,
+        "final_sequence": 829,
+        "input_age": 3.01666666666666,
+        "neutral_send_attempts": 7,
+        "newest_sequence": -1,
+        "oldest_sequence": -1,
+        "pending_count": 0,
+        "reload_observed": true,
+        "server_ack": 829,
+        "shield_active": false,
+        "shield_observed": true,
+        "snapshot_ack": 829,
+        "snapshots": 330,
+        "weapon_cooldown": 0.0
+      },
+      "max_buffered_inputs": 73,
+      "max_transient_ammo_difference": 5,
+      "mine_spent": 1,
+      "missile_spent": 1,
+      "movement": {
+        "correction_p95_pixels": 2.54845976829529,
+        "correction_p99_pixels": 48.6147918701172,
+        "max_correction_pixels": 381.938110351563,
+        "samples": 329,
+        "snap_count": 2
+      },
+      "reload_observed": true,
+      "shield_observed": true,
+      "shield_taps": {
+        "attempts": 2,
+        "delivery_ms": [
+          76,
+          102
+        ],
+        "volleys": [
+          {
+            "energy_cost": 55.0,
+            "guarded": true,
+            "hull_hits": 0,
+            "press": 796,
+            "received_ms": 16705
+          },
+          {
+            "energy_cost": 55.0,
+            "guarded": true,
+            "hull_hits": 0,
+            "press": 821,
+            "received_ms": 17104
+          }
+        ]
+      },
+      "shots": 4,
+      "snapshots": 330
+    },
+    "passed": true
+  },
+  {
+    "profile": "limited_bandwidth",
+    "seed": 230928,
+    "shield_only": false,
+    "configuration": {
+      "delay": 0.05,
+      "jitter": 0.02,
+      "bytes_per_second": 4096
+    },
+    "datagrams": {
+      "up": {
+        "received": 374,
+        "delivered": 374,
+        "dropped": 0,
+        "duplicated": 0,
+        "reordered": 20,
+        "delayed": 374,
+        "settlement_dropped": 0,
+        "received_bytes": 12643,
+        "delivered_bytes": 12643,
+        "bandwidth_wait_seconds": 3.181011237509665
+      },
+      "down": {
+        "received": 493,
+        "delivered": 493,
+        "dropped": 0,
+        "duplicated": 0,
+        "reordered": 39,
+        "delayed": 493,
+        "settlement_dropped": 0,
+        "received_bytes": 51869,
+        "delivered_bytes": 51869,
+        "bandwidth_wait_seconds": 33.09448551257083
+      }
+    },
+    "peak_queued_datagrams": 23,
+    "elapsed_seconds": 20.47779000000446,
+    "fixture": {
+      "cloak_spent": 1,
+      "comparison": {
+        "ammo": [
+          16,
+          16
+        ],
+        "cloak": [
+          2,
+          2
+        ],
+        "guard_window": [
+          0.0,
+          0.0
+        ],
+        "mines": [
+          2,
+          2
+        ],
+        "missiles": [
+          2,
+          2
+        ],
+        "reloading": [
+          false,
+          false
+        ],
+        "shield_active": [
+          false,
+          false
+        ],
+        "shield_energy": [
+          100.0,
+          100.0
+        ],
+        "shield_identity": [
+          820,
+          820
+        ],
+        "shield_locked": [
+          false,
+          false
+        ],
+        "shots": [
+          7,
+          7
+        ],
+        "special_identity": [
+          464,
+          464
+        ]
+      },
+      "delivery": {
+        "abilities": [
+          {
+            "authority_consumed": 276,
+            "phase": 4,
+            "press": 276,
+            "retries": 0,
+            "server_ack": 330,
+            "slot": 1
+          },
+          {
+            "authority_consumed": 338,
+            "phase": 5,
+            "press": 338,
+            "retries": 0,
+            "server_ack": 394,
+            "slot": 2
+          },
+          {
+            "authority_consumed": 401,
+            "phase": 6,
+            "press": 401,
+            "retries": 0,
+            "server_ack": 456,
+            "slot": 3
+          },
+          {
+            "authority_consumed": 464,
+            "phase": 7,
+            "press": 464,
+            "retries": 0,
+            "server_ack": 520,
+            "slot": 0
+          }
+        ],
+        "authority_reload_observed": true,
+        "authority_shield_observed": true,
+        "final_acknowledged": true,
+        "final_sequence": 826,
+        "input_age": 3.08333333333333,
+        "neutral_send_attempts": 7,
+        "newest_sequence": -1,
+        "oldest_sequence": -1,
+        "pending_count": 0,
+        "reload_observed": true,
+        "server_ack": 826,
+        "shield_active": false,
+        "shield_observed": true,
+        "snapshot_ack": 826,
+        "snapshots": 332,
+        "weapon_cooldown": 0.0
+      },
+      "max_buffered_inputs": 72,
+      "max_transient_ammo_difference": 7,
+      "mine_spent": 1,
+      "missile_spent": 1,
+      "movement": {
+        "correction_p95_pixels": 1.34838461875916,
+        "correction_p99_pixels": 48.0010833740234,
+        "max_correction_pixels": 373.189636230469,
+        "samples": 331,
+        "snap_count": 2
+      },
+      "reload_observed": true,
+      "shield_observed": true,
+      "shield_taps": {
+        "attempts": 2,
+        "delivery_ms": [
+          103,
+          68
+        ],
+        "volleys": [
+          {
+            "energy_cost": 55.0,
+            "guarded": true,
+            "hull_hits": 0,
+            "press": 794,
+            "received_ms": 16744
+          },
+          {
+            "energy_cost": 55.0,
+            "guarded": true,
+            "hull_hits": 0,
+            "press": 820,
+            "received_ms": 17109
+          }
+        ]
+      },
+      "shots": 7,
+      "snapshots": 332
+    },
+    "passed": true
+  }
+]

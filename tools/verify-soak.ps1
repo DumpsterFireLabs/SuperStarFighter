@@ -16,11 +16,12 @@ if ($ServerExecutable) {
     $ServerExecutable = (Resolve-Path -LiteralPath $ServerExecutable).Path
     if (-not (Test-Path -LiteralPath $ServerExecutable -PathType Leaf)) { throw 'Server executable is missing.' }
 }
-$logRoot = Join-Path $SsfToolsRoot 'soak-verification'
+$logRoot = Join-Path $SsfToolsRoot ('soak-verification/' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 Assert-SsfPathWithinTools -Path $logRoot
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $processes = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
 $clientProcesses = @{}
+$memorySamples = [System.Collections.Generic.List[object]]::new()
 $botNames = 1..$ClientCount | ForEach-Object { 'Load{0:D2}' -f $_ }
 $allNames = @('server', 'LateSpectator') + $botNames
 foreach ($name in $allNames) {
@@ -37,6 +38,13 @@ function Start-SsfSoakProcess {
     $godotLog = (Join-Path $logRoot "$Name.godot.log") -replace '\\', '/'
     $arguments = @('--headless', '--path', '.', '--log-file', $godotLog, '--') + $UserArguments
     $executable = $godot
+    # The console binary is a launcher on Windows. Sample the actual engine's
+    # process, not the launcher's small, nearly constant allocation.
+    if ($Name -eq 'server' -and -not $ServerExecutable) {
+        $nativeEngine = $godot -replace '_console\.exe$', '.exe'
+        if (-not (Test-Path -LiteralPath $nativeEngine)) { throw 'Native engine executable required for OS memory sampling.' }
+        $executable = $nativeEngine
+    }
     $workingDirectory = $SsfRepositoryRoot
     if ($Name -eq 'server' -and $ServerExecutable) {
         $executable = $ServerExecutable
@@ -86,6 +94,7 @@ function Get-SsfJsonEvents {
 try {
     $serverDuration = $DurationSeconds + 45
     Write-Host "Starting $ClientCount-client ENet soak for at least $DurationSeconds seconds."
+    Write-Host "Evidence: $logRoot"
     $server = Start-SsfSoakProcess -Name 'server' -UserArguments @(
         '--server', '--password=test-lobby', "--port=$Port", "--max-players=$ClientCount", '--rounds-to-win=5', '--test-fast-match',
         "--test-server-duration=$serverDuration", '--test-match-seed=610632'
@@ -136,7 +145,22 @@ try {
     Write-Host 'Late spectator admitted without participant authority.'
 
     $nextProgress = [DateTime]::UtcNow.AddSeconds(30)
+    $memoryStarted = [DateTime]::UtcNow
+    $nextMemorySample = $memoryStarted
     while (-not $server.HasExited) {
+        if ([DateTime]::UtcNow -ge $nextMemorySample) {
+            $server.Refresh()
+            if (-not $server.HasExited) {
+                $memorySamples.Add([pscustomobject][ordered]@{
+                    seconds = ([DateTime]::UtcNow - $memoryStarted).TotalSeconds
+                    private_bytes = $server.PrivateMemorySize64
+                    working_set_bytes = $server.WorkingSet64
+                })
+                # Preserve OS measurements even when a later acceptance gate fails.
+                $memorySamples | ConvertTo-Json | Set-Content (Join-Path $logRoot 'server-memory.json') -Encoding UTF8
+            }
+            $nextMemorySample = [DateTime]::UtcNow.AddSeconds(5)
+        }
         if ([DateTime]::UtcNow -ge $nextProgress) {
             $serverEvents = Get-SsfJsonEvents (Get-SsfSoakOutput 'server')
             $metricCount = @($serverEvents | Where-Object { $_.event -eq 'simulation_metrics' }).Count
@@ -159,6 +183,16 @@ try {
     $maxP95 = ($metrics | Measure-Object -Property p95_simulation_usec -Maximum).Maximum
     $activeMetrics = @($metrics | Where-Object { $_.active_samples -gt 0 })
     if ($activeMetrics.Count -eq 0) { throw 'No active-combat frame timings were recorded.' }
+    # A long idle lobby must not masquerade as a sustained combat soak.
+    if ($DurationSeconds -ge 180) {
+        foreach ($third in 0..2) {
+            $first = [int][Math]::Floor($metrics.Count * $third / 3)
+            $last = [int][Math]::Floor($metrics.Count * ($third + 1) / 3) - 1
+            if (@($metrics[$first..$last] | Where-Object { $_.active_samples -gt 0 }).Count -eq 0) {
+                throw "No active combat in soak third $third."
+            }
+        }
+    }
     $maxActiveP95 = ($activeMetrics | Measure-Object -Property active_p95_usec -Maximum).Maximum
     if ($maxActiveP95 -ge 16667) { throw "Active full-server p95 exceeded 16.67 ms: $maxActiveP95 microseconds." }
     if ($maxP95 -ge 16667) { throw "Simulation p95 exceeded the 16.67 ms budget: $maxP95 microseconds." }
@@ -198,11 +232,27 @@ try {
     $remaining = @($processes | Where-Object { -not $_.HasExited })
     if ($remaining.Count -gt 0) { throw "$($remaining.Count) child processes remained after server shutdown." }
 
+    $steadyMemory = @($memorySamples | Where-Object { $_.seconds -ge 60 })
+    $privateGrowth = $null
+    if ($steadyMemory.Count -ge 12) {
+        $initialMemory = ($steadyMemory[0..5] | Measure-Object -Property private_bytes -Average).Average
+        $finalMemory = ($steadyMemory[($steadyMemory.Count - 6)..($steadyMemory.Count - 1)] | Measure-Object -Property private_bytes -Average).Average
+        $privateGrowth = $finalMemory - $initialMemory
+        # A coarse leak alarm, not a claim of zero allocation or universal limits.
+        if ($privateGrowth -gt [Math]::Max(64MB, $initialMemory * 0.25)) { throw "Server private memory grew beyond the soak allowance: $privateGrowth bytes." }
+    }
     $summary = [ordered]@{
         server_executable = $(if ($ServerExecutable) { $ServerExecutable } else { 'source checkout' })
         client_count = $ClientCount
         duration_seconds = $DurationSeconds
         metric_windows = $metrics.Count
+        active_metric_windows = $activeMetrics.Count
+        active_simulation_seconds = ($activeMetrics | Measure-Object -Property active_samples -Sum).Sum / 60
+        os_memory_samples = $memorySamples.Count
+        maximum_private_bytes = ($memorySamples | Measure-Object -Property private_bytes -Maximum).Maximum
+        maximum_working_set_bytes = ($memorySamples | Measure-Object -Property working_set_bytes -Maximum).Maximum
+        post_warmup_private_growth_bytes = $privateGrowth
+        memory_scope = 'Server OS private bytes and working set sampled every 5 seconds; growth compares six-sample means after 60-second warmup, with max(64 MiB, 25 percent) alarm.'
         maximum_p95_simulation_usec = $maxP95
         maximum_p99_simulation_usec = ($metrics | Measure-Object -Property p99_simulation_usec -Maximum).Maximum
         maximum_active_p95_usec = $maxActiveP95
