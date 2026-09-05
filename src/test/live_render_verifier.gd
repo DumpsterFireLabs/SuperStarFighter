@@ -61,7 +61,7 @@ func _run() -> void:
 		if arg == "--hide-world": hide_world = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = frame_cap
-	RenderingServer.frame_pre_draw.connect(func() -> void: pre_draw_usec = Time.get_ticks_usec())
+	RenderingServer.frame_pre_draw.connect(_before_draw)
 	server = _runtime("Server")
 	client = _runtime("Client")
 	view = MeasuredWorldView.new()
@@ -91,6 +91,9 @@ func _run() -> void:
 		peak_projectiles = maxi(peak_projectiles, view.authoritative_projectiles.size())
 		peak_ships = maxi(peak_ships, view.ships.size())
 		previous = now
+	# Leave render-signal dispatch before tearing down presentation/transport.
+	await process_frame
+	RenderingServer.frame_pre_draw.disconnect(_before_draw)
 	Input.action_release("fire")
 	samples.sort()
 	draw_samples.sort()
@@ -129,6 +132,10 @@ func _lobby(state: Dictionary) -> void:
 		client.send_ready_state(true)
 	else:
 		client.send_start_match()
+
+
+func _before_draw() -> void:
+	pre_draw_usec = Time.get_ticks_usec()
 
 
 func _event(kind: StringName, _tick: int, payload: Dictionary) -> void:

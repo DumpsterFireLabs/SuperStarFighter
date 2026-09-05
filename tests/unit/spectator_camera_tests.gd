@@ -25,7 +25,9 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(view.camera_shake_remaining > 0.0, "local elimination retains its brief impact shake")
 	var largest_snapshot_jump := 0.0
 	for tick in range(7, 128, 3):
-		for frame in 3: view._physics_process(1.0 / 60.0)
+		for frame in 3:
+			view._physics_process(1.0 / 60.0)
+			(view.ships[1] as CombatShipView)._process(1.0 / 60.0)
 		var before := view.camera.position
 		_snapshot(view, world, tick)
 		largest_snapshot_jump = maxf(largest_snapshot_jump, before.distance_to(view.camera.position))
@@ -33,6 +35,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(view.camera.position.distance_to(remote.position) < 1.0, "spectator camera settles on the survivor across continuing snapshots")
 	context.expect_approx(view.camera_shake_remaining, 0.0, "elimination shake expires while spectating")
 	context.expect_true(view.camera.offset.length() < 0.01, "spectator camera has no persistent impact offset")
+	context.expect_approx((view.ships[1] as CombatShipView).elimination_pulse_remaining, 0.0, "dead snapshots do not restart the elimination animation indefinitely")
 	remote.alive = false
 	_snapshot(view, world, 130)
 	context.expect_equal(view.spectator_target_id, 0, "no survivors selects the arena view")

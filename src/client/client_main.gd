@@ -206,7 +206,9 @@ func _ready() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_log_client_lifecycle("window_close_requested")
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_application_has_focus = false
 		if gameplay_cursor != null:
 			gameplay_cursor.visible = false
@@ -1435,16 +1437,26 @@ func _on_rejected(reason: StringName, message: String) -> void:
 
 
 func _on_connection_lost(message: String) -> void:
+	_log_client_lifecycle("connection_lost")
 	_show_connection_screen("CONNECTION LOST\n%s\nYou can reconnect from this screen." % message, true)
 
 
 func _exit_tree() -> void:
+	_log_client_lifecycle("client_scene_exiting")
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if is_instance_valid(connection_controller):
 		connection_controller.shutdown()
 	if bridge != null:
 		bridge.stop()
+
+
+func _log_client_lifecycle(event: String) -> void:
+	if not is_inside_tree() or get_tree().current_scene != self:
+		return
+	print(JSON.stringify({"event": event, "timestamp": Time.get_datetime_string_from_system(true),
+		"match_state": String(latest_match_payload.get("state_name", "LOBBY")),
+		"server_tick": network_world.latest_server_tick if network_world != null else 0}))
 
 
 func _draft_context() -> Dictionary:

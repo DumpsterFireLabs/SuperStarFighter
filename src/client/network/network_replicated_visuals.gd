@@ -159,9 +159,10 @@ func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 		ship.sustain_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
 	ship.combatant.alive = state.alive
-	if not state.alive:
+	if not state.alive and was_alive:
 		ship.set_eliminated()
-	ship.queue_redraw()
+	if state.alive or was_alive:
+		ship.queue_redraw()
 
 
 func _emit_weapon_shot(
@@ -193,6 +194,8 @@ func _update_remote_ships() -> void:
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
 		if peer_id == view.local_peer_id:
+			continue
+		if not (ships[peer_id] as CombatShipView).combatant.alive:
 			continue
 		var sample := interpolation.sample(peer_id, now)
 		if sample.ok:
