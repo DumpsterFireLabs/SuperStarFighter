@@ -32,6 +32,7 @@ const AIM_ACTIONS: Array[StringName] = [
 	&"aim_up", &"aim_down", &"aim_left", &"aim_right",
 ]
 const COMBAT_ACTIONS: Array[StringName] = [
+	&"global_pause",
 	&"fire", &"shield", &"manual_reload", &"special", &"special_previous", &"special_next", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
 ]
@@ -42,6 +43,7 @@ const MENU_ACTIONS: Array[StringName] = [
 	&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
 ]
 const KEYBOARD_REBIND_ACTIONS: Array[StringName] = [
+	&"global_pause",
 	&"move_up", &"move_down", &"move_left", &"move_right",
 	&"fire", &"shield", &"manual_reload", &"special", &"special_previous", &"special_next", &"scoreboard", &"pause_overlay", &"diagnostics",
 	&"spectator_previous", &"spectator_next",
@@ -49,6 +51,7 @@ const KEYBOARD_REBIND_ACTIONS: Array[StringName] = [
 	&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
 ]
 const CONTROLLER_REBIND_ACTIONS: Array[StringName] = [
+	&"global_pause",
 	&"move_up", &"move_down", &"move_left", &"move_right",
 	&"aim_up", &"aim_down", &"aim_left", &"aim_right",
 	&"fire", &"shield", &"manual_reload", &"special", &"special_previous", &"special_next", &"scoreboard", &"pause_overlay", &"diagnostics",
@@ -72,6 +75,7 @@ const ACTION_LABELS: Dictionary = {
 	&"special_next": "Next Ability",
 	&"scoreboard": "Hold Scoreboard",
 	&"pause_overlay": "Pilot Menu",
+	&"global_pause": "Pause / Resume Match (Host Only)",
 	&"diagnostics": "Diagnostics",
 	&"spectator_previous": "Previous Spectator Target",
 	&"spectator_next": "Next Spectator Target",
@@ -325,6 +329,7 @@ func _default_keyboard_bindings() -> Dictionary:
 		&"special_next": _key_binding(KEY_E),
 		&"scoreboard": _key_binding(KEY_TAB),
 		&"pause_overlay": _key_binding(KEY_ESCAPE),
+		&"global_pause": _key_binding(KEY_F10),
 		&"diagnostics": _key_binding(KEY_F3),
 		&"spectator_previous": _key_binding(KEY_A),
 		&"spectator_next": _key_binding(KEY_D),

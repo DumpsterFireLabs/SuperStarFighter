@@ -11,6 +11,7 @@ signal combat_feedback_ready(peer_id: int, tick: int, payload: Dictionary)
 signal mine_detonations_ready(tick: int, events: Array)
 
 var _outbound_bytes: int = 0
+var _paused_replication_ticks: int = 0
 var _projectile_message_sequence: int = 0
 var _projectile_correction_cursor: int = 0
 var _projectile_correction_send_count: int = 0
@@ -18,6 +19,7 @@ var _projectile_correction_assembler := ProjectileCorrectionAssemblerScript.new(
 
 
 func clear() -> void:
+	_paused_replication_ticks = 0
 	_projectile_message_sequence = 0
 	_projectile_correction_cursor = 0
 	_projectile_correction_send_count = 0
@@ -25,6 +27,12 @@ func clear() -> void:
 
 
 func replicate_tick(tick: int, lobby: ServerLobby, world: AuthoritativeWorld) -> void:
+	# Keep connections and late spectators refreshed while the game clock is frozen.
+	if world != null and world.simulation_paused:
+		_paused_replication_ticks += 1
+		tick = _paused_replication_ticks
+	else:
+		_paused_replication_ticks = 0
 	if lobby != null and lobby.match_active and tick % (GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE) == 0:
 		_send_player_snapshots(lobby, world)
 	_send_projectile_batch(lobby, world)

@@ -35,6 +35,10 @@ func _run() -> void:
 			client._disconnect_online()
 			quit(4)
 			return
+		if not await _verify_global_pause(client):
+			client._disconnect_online()
+			quit(4)
+			return
 		var runtime_path: NodePath = client.connection_controller.hosted_session.runtime_root.get_path()
 		client._disconnect_online()
 		await process_frame
@@ -46,7 +50,7 @@ func _run() -> void:
 			printerr("SSF_LOCAL_HOST_ERROR=transport callback survived teardown")
 			quit(4)
 			return
-	print("SSF_LOCAL_HOST_OK=connected_admitted_discovered port=%d reconnects=1 lobby_requests=verified" % verification_port)
+	print("SSF_LOCAL_HOST_OK=connected_admitted_discovered port=%d reconnects=1 lobby_requests=verified global_pause=verified" % verification_port)
 	quit(0)
 
 
@@ -90,3 +94,53 @@ func _verify_lobby_requests(client: Node) -> bool:
 			return true
 	printerr("SSF_LOCAL_HOST_ERROR=lobby requests did not return through authority")
 	return false
+
+
+func _verify_global_pause(client: Node) -> bool:
+	var server: NetworkBridge = client.connection_controller.hosted_session.server_bridge
+	client.bridge.send_player_limit(2)
+	client.bridge.send_npcs_enabled(true)
+	var started_at := Time.get_ticks_msec()
+	while server.lobby.participant_count() < 2 and Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
+		await process_frame
+	client.bridge.send_ready_state(true)
+	client.bridge.send_start_match()
+	started_at = Time.get_ticks_msec()
+	while client.latest_match_payload.is_empty() and Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
+		await process_frame
+	if server.match_coordinator == null:
+		printerr("SSF_LOCAL_HOST_ERROR=pause fixture did not start a match")
+		return false
+	client._toggle_pause_overlay()
+	client._update_global_pause_ui()
+	if not client.global_pause_button.visible:
+		printerr("SSF_LOCAL_HOST_ERROR=host pause action is missing")
+		return false
+	client.global_pause_button.pressed.emit()
+	started_at = Time.get_ticks_msec()
+	while not client.network_world.match_paused and Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
+		await process_frame
+	if not client.network_world.match_paused or not client.global_pause_notice.visible:
+		printerr("SSF_LOCAL_HOST_ERROR=pause did not replicate to the host UI")
+		return false
+	var tick: int = server.world.server_tick
+	client._hide_pause_overlay()
+	await create_timer(0.25).timeout
+	if server.world.server_tick != tick or not client.network_world.match_paused:
+		printerr("SSF_LOCAL_HOST_ERROR=closing the menu resumed or advanced the match")
+		return false
+	client._toggle_pause_overlay()
+	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
+	var pause_key := InputEventKey.new()
+	pause_key.physical_keycode = KEY_F10
+	pause_key.pressed = true
+	client.input_profiles.rebind(&"global_pause", pause_key, false)
+	client._input(pause_key)
+	started_at = Time.get_ticks_msec()
+	while client.network_world.match_paused and Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
+		await process_frame
+	await create_timer(0.1).timeout
+	if client.network_world.match_paused or server.world.server_tick <= tick:
+		printerr("SSF_LOCAL_HOST_ERROR=resume did not restart simulation")
+		return false
+	return true

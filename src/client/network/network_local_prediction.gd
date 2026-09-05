@@ -321,7 +321,7 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 			budget_warning_remaining = 2.0
 		local_budget_evictions = evictions
 	var new_life := prediction.simulated_combatant != null and int(correction.get("life_generation", prediction.simulated_combatant.life_generation)) != prediction.simulated_combatant.life_generation
-	if not prediction_initialized or revived or new_life or not bool(state.alive):
+	if view.match_paused or not prediction_initialized or revived or new_life or not bool(state.alive):
 		if view.hud_camera.combat_feedback_panel != null:
 			view.hud_camera.combat_feedback_panel.reset_for_life(int(correction.get("life_generation", 0)))
 		prediction.reset_to_snapshot(correction, local_stats)

@@ -44,6 +44,19 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(view.replicated_visuals, visual_owner, "physics retains replicated visual owner")
 	context.expect_equal(view.hud_camera, hud_owner, "physics retains HUD camera owner")
 	context.expect_equal(view.ships[1], local_ship, "physics preserves local drawable identity")
+	view.apply_match_pause(true)
+	var paused_position := local_ship.global_position
+	var paused_ammo := view.local_weapon.ammunition
+	for unused in 120:
+		view._physics_process(1.0 / 60.0)
+	context.expect_equal(view.input_sequence, 8, "global pause stops local input generation")
+	context.expect_equal(local_ship.global_position, paused_position, "global pause freezes client prediction")
+	context.expect_equal(view.local_weapon.ammunition, paused_ammo, "global pause preserves predicted ammunition")
+	context.expect_empty(view.prediction.buffered_inputs, "global pause discards unacknowledged prediction replay")
+	context.expect_false(view.controls_enabled, "global pause disables local combat controls")
+	view.apply_match_pause(false)
+	context.expect_true(view.controls_enabled, "resume restores active-heat controls")
+	context.expect_false(view.prediction_initialized, "resume waits for an authoritative prediction baseline")
 	_projectile_reconciliation(context, view, bridge, local_ship)
 	_missile_visuals(context, view, bridge)
 	remote.cloak_remaining = 5.0

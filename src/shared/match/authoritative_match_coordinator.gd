@@ -105,7 +105,7 @@ func start(at_tick: int) -> bool:
 
 
 func step(delta: float) -> void:
-	if _finished:
+	if _finished or world.simulation_paused:
 		return
 	var tick := world.server_tick
 	match machine.state:
@@ -204,7 +204,21 @@ func state() -> int:
 
 
 func controls_enabled() -> bool:
-	return machine.state == MatchStateMachine.State.ACTIVE_HEAT
+	return not world.simulation_paused and machine.state == MatchStateMachine.State.ACTIVE_HEAT
+
+
+func request_pause(peer_id: int, paused: bool) -> bool:
+	if peer_id == 0 or peer_id != lobby.leader_id or _finished or machine.state in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]:
+		return false
+	if world.simulation_paused == paused:
+		return true
+	world.simulation_paused = paused
+	# Discard held actions on both edges without resetting input sequence validation.
+	for input_peer in world.latest_inputs:
+		var previous := world.latest_inputs[input_peer] as PlayerInputFrame
+		world.latest_inputs[input_peer] = PlayerInputFrame.new(previous.sequence, world.server_tick, Vector2.ZERO, previous.aim_angle)
+	_events.append(MatchEvent.new(&"MATCH_PAUSE_CHANGED", world.server_tick, {"paused": paused}))
+	return true
 
 
 func npc_overtime_elapsed() -> float:
@@ -286,6 +300,8 @@ func current_state_payload() -> Dictionary:
 func _capture_transitions() -> void:
 	while _emitted_history_count < machine.event_history.size():
 		var transition := machine.event_history[_emitted_history_count] as Dictionary
+		if int(transition.state) in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]:
+			world.simulation_paused = false
 		_emitted_history_count += 1
 		observations.enter_state(int(transition.state), int(transition.entered_tick), machine, world, current_map_id)
 		if int(transition.state) == MatchStateMachine.State.HEAT_RESULT and not lobby.config.random_powerups_permanent:
@@ -643,6 +659,7 @@ func _rebuild_objective_static_cache() -> void:
 
 func _state_payload() -> Dictionary:
 	return {
+		"paused": world.simulation_paused,
 		"objective_contributions": observations.contributions.duplicate(true),
 		"state": machine.state,
 		"state_name": machine.state_name(),

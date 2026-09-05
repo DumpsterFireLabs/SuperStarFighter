@@ -20,6 +20,7 @@ var accessibility_settings: Dictionary = AccessibilityPreferencesScript.DEFAULTS
 var latest_server_tick: int = 0
 var match_payload: Dictionary = {}
 var controls_enabled: bool = false
+var match_paused: bool = false
 var card_catalog := CardCatalog.create_default()
 var local_prediction: NetworkLocalPrediction = NetworkLocalPrediction.new()
 var replicated_visuals: NetworkReplicatedVisuals = NetworkReplicatedVisuals.new()
@@ -285,6 +286,7 @@ func reset_session() -> void:
 	latest_server_tick = 0
 	match_payload.clear()
 	controls_enabled = false
+	match_paused = false
 	local_prediction.reset_session()
 	replicated_visuals.reset_session()
 	hud_camera.reset_session()
@@ -301,6 +303,8 @@ func reset_match_presentation() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if match_paused:
+		return
 	if local_peer_id == 0 or not replicated_visuals.ships.has(local_peer_id):
 		return
 	var local_ship := replicated_visuals.ships[local_peer_id] as CombatShipView
@@ -330,7 +334,8 @@ func _on_snapshot(decoded: Dictionary) -> void:
 	local_prediction.latest_acknowledged_input = int(decoded.acknowledged_input)
 	var receive_time := _now_seconds()
 	replicated_visuals._record_snapshot_arrival(int(decoded.server_tick), receive_time)
-	latest_server_tick = int(decoded.server_tick)
+	if not match_paused:
+		latest_server_tick = int(decoded.server_tick)
 	var present_ids: Dictionary = {}
 	var identities := replicated_visuals.snapshot_identities(decoded.states)
 	for state_value in decoded.states:
@@ -346,6 +351,11 @@ func _on_snapshot(decoded: Dictionary) -> void:
 			local_prediction.apply_local_snapshot(decoded, state, ship, revived)
 		else:
 			replicated_visuals.interpolation.add_sample(peer_id, receive_time, latest_server_tick, state)
+			if match_paused:
+				ship.global_position = state.position
+				ship.combatant.position = state.position
+				ship.combatant.aim_angle = float(state.aim_angle)
+				ship.queue_redraw()
 	replicated_visuals.remove_missing_ships(present_ids)
 	hud_camera._update_spectator_target()
 
@@ -358,7 +368,7 @@ func apply_match_state(payload: Dictionary) -> void:
 	match_payload = payload.duplicate(true)
 	hud_camera._update_competitive_view()
 	var state_name := String(payload.get("state_name", ""))
-	controls_enabled = state_name == "ACTIVE_HEAT"
+	apply_match_pause(bool(payload.get("paused", false)))
 	replicated_visuals.apply_match_state(payload, state_name)
 	hud_camera.apply_match_state(state_name)
 	apply_builds(payload.get("builds", {}) as Dictionary)
@@ -367,6 +377,21 @@ func apply_match_state(payload: Dictionary) -> void:
 		replicated_visuals.reset_for_countdown()
 		hud_camera.reset_for_countdown()
 	hud_camera._update_spectator_target()
+
+
+func apply_match_pause(paused: bool) -> void:
+	if match_paused != paused:
+		local_prediction.action_latch.reset()
+		local_prediction.special_activation_sends_remaining = 0
+		local_prediction.special_activation_deadline_msec = 0
+		local_prediction.prediction.buffered_inputs.clear()
+		local_prediction.prediction_initialized = false
+		for shot_sequence in local_prediction.predicted_projectile_ids.keys():
+			local_prediction._remove_predicted_volley(int(shot_sequence))
+		replicated_visuals.interpolation.clear()
+	match_paused = paused
+	match_payload["paused"] = paused
+	controls_enabled = not paused and String(match_payload.get("state_name", "")) == "ACTIVE_HEAT"
 
 
 func _update_competitive_view() -> void:
@@ -418,6 +443,8 @@ func set_match_status(status: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if match_paused:
+		return
 	if local_prediction.input_blocked or (not controls_enabled and String(match_payload.get("state_name", "")) != "COUNTDOWN"):
 		return
 	var ship := replicated_visuals.ships.get(local_peer_id) as CombatShipView

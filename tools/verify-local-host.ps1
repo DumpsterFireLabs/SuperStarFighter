@@ -19,4 +19,4 @@ try {
 }
 finally { $ErrorActionPreference = 'Stop' }
 Assert-SsfGodotResult -Output $combined -ExitCode $exitCode -Name 'Local host verification' -ExpectedPattern 'SSF_LOCAL_HOST_OK=connected_admitted_discovered.*reconnects=1'
-Write-Host 'Local host verification passed: admission, LAN discovery, teardown and reconnect on the same client.'
+Write-Host 'Local host verification passed: admission, LAN discovery, global pause/resume, teardown and reconnect on the same client.'

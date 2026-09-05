@@ -5,6 +5,7 @@ const CombatSpatialIndexScript = preload("res://src/shared/combat/combat_spatial
 const CombatFeedbackBufferScript = preload("res://src/shared/combat/combat_feedback_buffer.gd")
 
 var server_tick: int = 0
+var simulation_paused: bool = false
 var combatants: Dictionary = {}
 var latest_inputs: Dictionary = {}
 var acknowledged_inputs: Dictionary = {}
@@ -84,6 +85,8 @@ func are_allies(left_peer_id: int, right_peer_id: int) -> bool:
 
 
 func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
+	if simulation_paused:
+		return false
 	if not combatants.has(peer_id) or not frame.is_valid():
 		return false
 	var previous := latest_inputs.get(peer_id) as PlayerInputFrame
@@ -102,6 +105,8 @@ func step(
 	controls_enabled: bool = true,
 	track_projectile_threats: bool = true
 ) -> void:
+	if simulation_paused:
+		return
 	var phase_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	server_tick = SequenceMath.increment(server_tick)
 	if not controls_enabled:

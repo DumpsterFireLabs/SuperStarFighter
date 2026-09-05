@@ -252,6 +252,11 @@ func send_extend_match() -> void:
 		request_extend_match.rpc_id(NetworkProtocol.SERVER_PEER_ID)
 
 
+func send_match_paused(paused: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_match_paused.rpc_id(NetworkProtocol.SERVER_PEER_ID, paused)
+
+
 func send_card_selection(offer_token: String, card_id: StringName) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		select_card.rpc_id(NetworkProtocol.SERVER_PEER_ID, offer_token, String(card_id))
@@ -679,6 +684,19 @@ func request_extend_match() -> void:
 		return
 	if match_coordinator == null or not match_coordinator.extend_match():
 		_send_request_rejected(sender_id, "Match extension is only available from final results with at least two competing participants.")
+		return
+	_drain_match_coordinator()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_match_paused(paused: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "match_paused"):
+		return
+	if match_coordinator == null or not match_coordinator.request_pause(sender_id, paused):
+		_send_request_rejected(sender_id, "Only the host may pause or resume a running match.")
 		return
 	_drain_match_coordinator()
 

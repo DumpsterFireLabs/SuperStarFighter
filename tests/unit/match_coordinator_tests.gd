@@ -5,6 +5,7 @@ const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_sy
 
 
 static func run(context: TestContext) -> void:
+	_validate_global_pause(context)
 	_validate_complete_match_and_rematch(context)
 	_validate_elimination_attribution_payload(context)
 	_validate_match_extension(context)
@@ -19,6 +20,53 @@ static func run(context: TestContext) -> void:
 	_validate_free_for_all_spawn_spread(context)
 	_validate_multi_team_spawns(context)
 	_validate_team_npc_spawn_resets(context)
+
+
+static func _validate_global_pause(context: TestContext) -> void:
+	var lobby := ServerLobby.new(_fast_config())
+	var world := AuthoritativeWorld.new()
+	for peer_id in [2, 3, 4]:
+		lobby.admit(peer_id, "Pilot%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(2)
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 5150)
+	coordinator.start(0)
+	context.expect_false(coordinator.request_pause(3, true), "guest cannot pause the global match")
+	context.expect_false(coordinator.request_pause(0, true), "missing sender cannot pause the match")
+	for phase in [MatchStateMachine.State.DRAFT, MatchStateMachine.State.COUNTDOWN, MatchStateMachine.State.ACTIVE_HEAT]:
+		_advance_until_state(world, coordinator, phase)
+		context.expect_equal(coordinator.state(), phase, "pause fixture reaches requested phase")
+		var tick := world.server_tick
+		var deadline := coordinator.machine.state_deadline_tick
+		var pilot := world.combatants[2] as CombatantState
+		var position := pilot.position
+		pilot.weapon.cooldown_remaining = 0.5
+		world.submit_input(2, PlayerInputFrame.new(50 + phase, tick, Vector2.RIGHT, 0.0, true))
+		coordinator.drain_events()
+		context.expect_true(coordinator.request_pause(2, true), "host can pause drafts, countdowns and combat")
+		context.expect_true(coordinator.request_pause(2, true), "repeated pause is idempotent")
+		context.expect_equal(coordinator.drain_events().size(), 1, "pause broadcasts exactly one reliable event")
+		context.expect_true(coordinator.current_state_payload().paused, "late spectator state includes global pause")
+		context.expect_false(coordinator.controls_enabled(), "pause disables NPC and human combat")
+		context.expect_false(world.submit_input(2, PlayerInputFrame.new(1000, tick, Vector2.RIGHT, 0.0, true)), "pause rejects queued combat input")
+		_advance(world, coordinator, 600)
+		context.expect_equal(world.server_tick, tick, "ten-second break freezes the authoritative clock")
+		context.expect_equal(coordinator.state(), phase, "pause prevents timed phase transitions")
+		context.expect_equal(coordinator.machine.state_deadline_tick, deadline, "pause preserves remaining deadline")
+		context.expect_equal(pilot.position, position, "pause freezes moving ships")
+		context.expect_approx(pilot.weapon.cooldown_remaining, 0.5, "pause freezes weapon cooldowns")
+		context.expect_false(coordinator.request_pause(3, false), "guest cannot resume a host pause")
+		context.expect_true(coordinator.request_pause(2, false), "host can resume the match")
+		context.expect_false((world.latest_inputs[2] as PlayerInputFrame).firing, "resume discards held fire")
+		context.expect_equal((world.latest_inputs[2] as PlayerInputFrame).movement, Vector2.ZERO, "resume discards held movement")
+		_advance(world, coordinator, 1)
+		context.expect_equal(world.server_tick, tick + 1, "resume advances exactly one tick without catch-up")
+	coordinator.request_pause(2, true)
+	coordinator.disconnect_peer(2)
+	lobby.remove(2)
+	context.expect_true(world.simulation_paused, "leader departure preserves the break for remaining pilots")
+	context.expect_true(coordinator.request_pause(lobby.leader_id, false), "replacement host can resume after leadership transfer")
 
 
 static func _validate_elimination_attribution_payload(context: TestContext) -> void:

@@ -67,6 +67,9 @@ var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = "LOBBY"
 var pause_resume_button: Button
+var global_pause_button: Button
+var global_pause_notice: Label
+var pause_note: Label
 var pause_disconnect_button: Button
 var f2_return_confirmation: ConfirmationDialog
 var _application_has_focus: bool = true
@@ -218,6 +221,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Rebinding must capture the key without pausing or resuming the match.
+	if settings_controller.capture_input(event):
+		return
+	if event.is_action_pressed(&"global_pause", true, true) and _can_toggle_global_pause():
+		if not event.is_echo():
+			_toggle_global_pause()
+		get_viewport().set_input_as_handled()
+		return
 	# Consume key-repeat before either the inspector or GUI focus traversal.
 	if standings_controller.scoreboard_open and event.is_action_pressed(&"scoreboard", true):
 		get_viewport().set_input_as_handled()
@@ -229,8 +240,6 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		else:
 			card_inspector.handle_input(event)
-		return
-	if settings_controller.capture_input(event):
 		return
 	if splash_screen != null and splash_screen.visible and _is_start_input(event):
 		_dismiss_splash()
@@ -326,11 +335,18 @@ func _create_pause_overlay() -> void:
 	pause_title.add_theme_font_size_override("font_size", 38)
 	pause_title.add_theme_color_override("font_color", Color("ff8ee8"))
 	content.add_child(pause_title)
-	var note := Label.new()
-	note.text = "Online combat continues while this menu is open."
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	note.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(note)
+	pause_note = Label.new()
+	pause_note.text = "Online combat continues while this menu is open."
+	pause_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pause_note.add_theme_color_override("font_color", Color("aebbd4"))
+	content.add_child(pause_note)
+	global_pause_button = Button.new()
+	global_pause_button.name = "GlobalPauseButton"
+	global_pause_button.custom_minimum_size.y = 58.0
+	global_pause_button.theme_type_variation = &"PrimaryButton"
+	global_pause_button.visible = false
+	global_pause_button.pressed.connect(_toggle_global_pause)
+	content.add_child(global_pause_button)
 	pause_resume_button = Button.new()
 	pause_resume_button.text = "Resume"
 	pause_resume_button.theme_type_variation = &"PrimaryButton"
@@ -356,6 +372,47 @@ func _create_pause_overlay() -> void:
 	quit_button.custom_minimum_size.y = 58.0
 	quit_button.pressed.connect(get_tree().quit)
 	content.add_child(quit_button)
+	var notice_canvas := CanvasLayer.new()
+	notice_canvas.layer = 21
+	add_child(notice_canvas)
+	global_pause_notice = Label.new()
+	global_pause_notice.name = "GlobalPauseNotice"
+	global_pause_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	global_pause_notice.add_theme_font_size_override("font_size", 26)
+	global_pause_notice.add_theme_color_override("font_color", Color("fff36a"))
+	global_pause_notice.add_theme_color_override("font_outline_color", Color("02040d"))
+	global_pause_notice.add_theme_constant_override("outline_size", 10)
+	global_pause_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	global_pause_notice.visible = false
+	notice_canvas.add_child(global_pause_notice)
+	global_pause_notice.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	global_pause_notice.offset_top = 12.0
+
+
+func _can_toggle_global_pause() -> bool:
+	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
+	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
+	return is_host and state_name not in ["LOBBY", "MATCH_RESULT"] and not latest_match_payload.is_empty()
+
+
+func _toggle_global_pause() -> void:
+	if _can_toggle_global_pause():
+		bridge.send_match_paused(not network_world.match_paused)
+
+
+func _update_global_pause_ui() -> void:
+	var paused := network_world.match_paused
+	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
+	global_pause_button.visible = _can_toggle_global_pause()
+	global_pause_button.text = "Resume Match for Everyone" if paused else "Pause Match for Everyone"
+	var binding: String = input_profiles.binding_text(&"global_pause")
+	if binding != "Unbound":
+		global_pause_button.text += " · " + binding
+	pause_resume_button.text = "Close Menu" if paused else "Resume"
+	pause_note.text = "Match and timers are paused for everyone." if paused else "Online combat continues while this menu is open."
+	global_pause_notice.visible = paused
+	var resume_hint := "%s to resume for everyone." % binding if binding != "Unbound" else "Open the pilot menu to resume for everyone."
+	global_pause_notice.text = "INTERMISSION · MATCH PAUSED\n" + (resume_hint if is_host else "Waiting for the host to resume.")
 
 
 func _create_f2_return_confirmation() -> void:
@@ -825,7 +882,12 @@ func _on_lobby_state(state: Dictionary) -> void:
 
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
 	standings_controller.invalidate_context()
-	if event_type == &"COMBAT_FEEDBACK":
+	if event_type == &"MATCH_PAUSE_CHANGED":
+		latest_match_payload["paused"] = bool(payload.get("paused", false))
+		network_world.latest_server_tick = server_tick
+		network_world.apply_match_pause(bool(payload.get("paused", false)))
+		_update_global_pause_ui()
+	elif event_type == &"COMBAT_FEEDBACK":
 		network_world.apply_combat_feedback(payload)
 	elif event_type == &"MINE_DETONATIONS":
 		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
@@ -856,6 +918,8 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		else:
 			connection_controller.show_waiting_lobby()
 		network_world.apply_match_state(payload)
+		if network_world.match_paused:
+			network_world.latest_server_tick = server_tick
 		audio_director.set_objective_baseline(payload.get("objective", {}) as Dictionary)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
@@ -906,6 +970,7 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 
 
 func _process(_delta: float) -> void:
+	_update_global_pause_ui()
 	if not latest_match_payload.is_empty():
 		_update_match_presentation()
 	if standings_controller.scoreboard_panel != null:

@@ -2,6 +2,9 @@ extends RefCounted
 
 class RecordingBridge extends NetworkBridge:
 	var rematches: int = 0
+	var pause_requests: Array[bool] = []
+	func send_match_paused(paused: bool) -> void:
+		pause_requests.append(paused)
 	func send_rematch() -> void:
 		rematches += 1
 
@@ -17,6 +20,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	var client = (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()
 	parent.add_child(client)
 	client._dismiss_splash(true)
+	_global_pause_shortcut(context, client)
 	context.expect_equal(_heading_count(client.connection_controller.connection_canvas, "SCOREBOARD"), 1, "five draft cards construct only one scoreboard surface")
 	context.expect_equal(_heading_count(client.connection_controller.connection_canvas, "✦  MATCH COMPLETE  ✦"), 1, "five draft cards construct only one results overlay")
 	var canvas_children: int = client.connection_controller.connection_canvas.get_child_count()
@@ -66,6 +70,61 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(client.draft_controller.active_offer_deadline, -1, "session navigation clears owned draft deadline")
 	context.expect_false(client.draft_controller.draft_panel.visible or client.standings_controller.results_panel.visible or client.standings_controller.scoreboard_panel.visible, "session navigation closes all owned match screens")
 	client.free()
+
+
+static func _global_pause_shortcut(context: TestContext, client: Node) -> void:
+	var original_bridge: NetworkBridge = client.bridge
+	var recording := RecordingBridge.new()
+	recording.session.local_peer_id = 2
+	recording.session.latest_lobby_state = {"leader_id": 2}
+	client.bridge = recording
+	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
+	client.input_profiles.restore_active_defaults(false)
+	client.latest_match_payload = {"state_name": "ACTIVE_HEAT"}
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_F10
+	key.pressed = true
+	client.pause_overlay.visible = true
+	client._input(key)
+	context.expect_equal(recording.pause_requests, [true], "F10 requests global pause from inside the pilot menu")
+	client.network_world.apply_match_pause(true)
+	client._update_global_pause_ui()
+	context.expect_true(client.global_pause_notice.text.contains("F10 to resume"), "paused host sees the current shortcut")
+	key.echo = true
+	client._input(key)
+	context.expect_equal(recording.pause_requests.size(), 1, "holding F10 cannot repeatedly toggle pause")
+	key.echo = false
+	key.pressed = false
+	client._input(key)
+	context.expect_equal(recording.pause_requests.size(), 1, "releasing F10 cannot toggle pause")
+	key.pressed = true
+	client._input(key)
+	context.expect_equal(recording.pause_requests, [true, false], "second F10 press requests authoritative resume")
+	recording.session.latest_lobby_state.leader_id = 3
+	client._input(key)
+	client._update_global_pause_ui()
+	context.expect_equal(recording.pause_requests.size(), 2, "guest hotkey cannot request global pause or resume")
+	context.expect_false(client.global_pause_notice.text.contains("F10"), "guests see waiting text instead of a host shortcut")
+	recording.session.latest_lobby_state.leader_id = 2
+	var remapped := InputEventKey.new()
+	remapped.physical_keycode = KEY_F9
+	remapped.pressed = true
+	client.input_profiles.rebind(&"global_pause", remapped, false)
+	client._update_global_pause_ui()
+	client._input(key)
+	context.expect_equal(recording.pause_requests.size(), 2, "old F10 shortcut stops working after rebinding")
+	client._input(remapped)
+	context.expect_equal(recording.pause_requests.size(), 3, "remapped global pause shortcut takes effect")
+	context.expect_true(client.global_pause_notice.text.contains("F9 to resume"), "intermission notice follows the remapped shortcut")
+	client.latest_match_payload = {"state_name": "LOBBY"}
+	client._input(remapped)
+	context.expect_equal(recording.pause_requests.size(), 3, "host hotkey does nothing in the lobby")
+	client.latest_match_payload.clear()
+	client.network_world.reset_session()
+	client.pause_overlay.visible = false
+	client.bridge = original_bridge
+	client.input_profiles.restore_active_defaults(false)
+	recording.free()
 
 
 static func _independent_controllers(context: TestContext, parent: Node) -> void:

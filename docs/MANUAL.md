@@ -520,6 +520,10 @@ When eliminated, you immediately spectate. Use the configured previous/next-targ
 
 Press the configured pilot-menu action (`Escape` or Menu / Start by default) to open the pilot menu. Online combat does not pause: the overlay blocks only your local controls. From it you may resume, open settings, disconnect to the main menu, or quit.
 
+For a break or intermission, the host can choose **Pause Match for Everyone** in this menu during drafts, countdowns, heats, or between-round results. Everyone sees an intermission notice. Ships, projectiles, NPCs, cooldowns, objectives, respawns, and match timers freeze until the host chooses **Resume Match for Everyone**. Draft cards can still be reviewed and locked in, but the next phase waits for resume. Settings, connections, and disconnects remain available. Closing the pilot menu does not resume a global pause. If lobby leadership transfers, the new host can resume. Joining during a break remains spectator-only under the normal active-match rule.
+
+The host can also press **F10** to toggle global pause, including while the pilot menu is open. Rebind **Pause / Resume Match (Host Only)** in Settings → Controls; the menu and intermission notice show the current binding. The controller profile leaves this shortcut unbound by default; assign a spare button or use the pilot menu. Holding the shortcut does not repeatedly toggle pause.
+
 The configured diagnostics action (`F3` or Y / Triangle by default) shows frame rate, round-trip time and variance, ENet loss/throttle, snapshot jitter and gaps, interpolation extrapolation, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment. It is primarily a playtest and troubleshooting tool.
 
 ## 10. Settings, Controls, and Audio
@@ -689,7 +693,7 @@ The shield is directional. Turn the visible arc toward the incoming projectile. 
 
 ### The game continues behind the Escape menu
 
-That is intentional for online play. The server never pauses for one client. Use the menu quickly or move to safety before opening it.
+Opening the pilot menu only blocks your local input. For an intermission, the host must explicitly choose **Pause Match for Everyone**, then **Resume Match for Everyone** when the group is ready.
 
 ### I rejoined and cannot control my old ship
 

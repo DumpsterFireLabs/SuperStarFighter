@@ -15,6 +15,7 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 - Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
 - Persistent Random or colour-wheel ship appearance selection with non-colour identity patterns.
 - One-click local hosting, LAN server discovery, and direct-IP joining.
+- Host-controlled global pause for breaks and intermissions, freezing combat and match timers for everyone.
 - Ten authoritative arena layouts in a shuffled no-repeat rotation, changing between rounds while every heat stays on the same map.
 - Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
 - Independent active-ability selection, confirmed hull-hit and shield-block feedback, and authoritative death explanations.
@@ -122,6 +123,7 @@ Use the `.x86_64` filename for Linux x64. These overrides are compatibility sugg
 | `Escape` | Open the non-pausing pilot menu |
 | `F2` | Return to the main menu; active sessions require confirmation |
 | `F3` | Toggle network diagnostics |
+| `F10` (host only) | Pause or resume the match for everyone |
 | `A` / `D` or mouse buttons while spectating | Cycle living pilots |
 
 ### Controller / joystick defaults

@@ -17,6 +17,11 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(manager.binding_text(&"fire"), "Left Mouse", "default keyboard profile fires with the left mouse button")
 	context.expect_equal(manager.binding_text(&"manual_reload"), "R", "keyboard profile reserves R for manual reload")
 	context.expect_equal(manager.binding_text(&"special"), "Shift", "keyboard profile reserves Shift for special cards")
+	context.expect_equal(manager.binding_text(&"global_pause"), "F10", "host global pause defaults to F10")
+	var pause_key := InputEventKey.new()
+	pause_key.physical_keycode = KEY_F9
+	pause_key.pressed = true
+	context.expect_true(manager.rebind(&"global_pause", pause_key, false), "host global pause can be rebound")
 	context.expect_equal(manager.flight_mode, InputProfileManagerScript.FlightMode.RELATIVE, "Relative screen-aligned flight is the default")
 	var idle_input := manager.movement_input_for_aim(PI * 0.5)
 	context.expect_equal(idle_input, Vector2.ZERO, "idle Relative flight produces no movement input")
@@ -29,6 +34,8 @@ static func run(context: TestContext) -> void:
 	manager.set_flight_mode(InputProfileManagerScript.FlightMode.NEWTONIAN, false)
 	manager.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
 	context.expect_true(manager.uses_controller(), "controller profile can be selected explicitly")
+	context.expect_equal(manager.binding_text(&"global_pause"), "Unbound", "controller pause does not steal a gameplay button")
+	context.expect_true(&"global_pause" in manager.rebind_actions(), "controller hosts can assign a global pause shortcut")
 	context.expect_equal(manager.binding_text(&"move_left"), "Left Stick X −", "controller profile supplies analog left-stick movement")
 	context.expect_equal(manager.binding_text(&"aim_right"), "Right Stick X +", "controller profile supplies independent right-stick aiming")
 	context.expect_equal(manager.binding_text(&"fire"), "Right Trigger +", "controller profile fires with the right trigger")
@@ -67,12 +74,14 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(restored.binding_text(&"fire"), "X / Square", "controller button remap persists between launches")
 	context.expect_equal(restored.binding_text(&"move_up"), "Right Stick Y −", "joystick axis remap persists between launches")
 	restored.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
+	context.expect_equal(restored.binding_text(&"global_pause"), "F9", "global pause remap survives save, reload and profile switching")
 	context.expect_equal(restored.binding_text(&"fire"), "Left Mouse", "switching profiles restores the separately saved keyboard binding")
 	var rejected_controller_button := InputEventJoypadButton.new()
 	rejected_controller_button.button_index = JOY_BUTTON_A
 	rejected_controller_button.pressed = true
 	context.expect_false(restored.rebind(&"fire", rejected_controller_button, false), "keyboard profile rejects controller-only binding events")
 	restored.restore_active_defaults(false)
+	context.expect_equal(restored.binding_text(&"global_pause"), "F10", "restoring defaults restores the F10 host shortcut")
 	context.expect_equal(restored.binding_text(&"pause_overlay"), "Escape", "profile defaults can be restored without affecting the other profile")
 	manager.free()
 	restored.free()
