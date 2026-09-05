@@ -19,7 +19,7 @@ const MODE_NAMES: Array[String] = [
 const MODE_DESCRIPTIONS: Array[String] = [
 	"Free-for-all combat. The last surviving pilot wins the heat.",
 	"Two to eight configured teams fight with friendly fire disabled. Eliminate every opposing team to win the heat.",
-	"Accumulate 20 seconds alone in the control point. Contested time pauses scoring; respawns take 5 seconds. At the time limit, highest control time wins; equal times draw.",
+	"Accumulate 20 seconds alone in the control point. Contested time pauses scoring; respawns take 5 seconds. Overtime lasts 30 seconds for heats starting with 8+ pilots, otherwise 60. At the time limit, highest control time wins; equal times draw.",
 	"Take the neutral center flag back to your marked launch base. Respawns take 5 seconds. Bases remain inside overtime; no capture by the time limit means a draw.",
 	"Two balanced teams carry a neutral center flag into their own base. Respawns take 5 seconds. Bases remain inside overtime; no capture by the time limit means a draw.",
 ]
@@ -47,11 +47,19 @@ const TEAM_COLORS := {
 	8: Color("ff5d68"),
 }
 const HILL_HOLD_SECONDS: float = 20.0
+const CROWDED_HILL_MIN_PLAYERS: int = 8
+const CROWDED_HILL_OVERTIME_SECONDS: float = 30.0
 const OBJECTIVE_ZONE_RADIUS: float = 125.0
 const HILL_OVERTIME_MINIMUM_RADIUS: float = OBJECTIVE_ZONE_RADIUS + 50.0
 const FLAG_PICKUP_RADIUS: float = 42.0
 const FLAG_RESET_SECONDS: float = 8.0
 const OBJECTIVE_RESPAWN_SECONDS: float = 5.0
+
+
+static func overtime_limit_seconds(mode: int, heat_participant_count: int) -> float:
+	if uses_hill(mode) and heat_participant_count >= CROWDED_HILL_MIN_PLAYERS:
+		return CROWDED_HILL_OVERTIME_SECONDS
+	return GameConstants.OVERTIME_TIME_LIMIT_SECONDS
 
 
 static func is_valid_mode(mode: int) -> bool:

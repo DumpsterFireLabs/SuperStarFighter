@@ -1,0 +1,56 @@
+[
+  {
+    "players": 2,
+    "cases": 9,
+    "before": {
+      "median_heat_seconds": 32.2333333333333,
+      "time_limit_heats": 0,
+      "mean_dead_seconds_per_pilot_per_heat": 6.414814814814816,
+      "mean_contested_percent": 21.032487530877283,
+      "draws": 0
+    },
+    "after": {
+      "median_heat_seconds": 32.2333333333333,
+      "time_limit_heats": 0,
+      "mean_dead_seconds_per_pilot_per_heat": 6.414814814814816,
+      "mean_contested_percent": 21.032487530877283,
+      "draws": 0
+    }
+  },
+  {
+    "players": 8,
+    "cases": 9,
+    "before": {
+      "median_heat_seconds": 105.0,
+      "time_limit_heats": 9,
+      "mean_dead_seconds_per_pilot_per_heat": 42.96087962962964,
+      "mean_contested_percent": 69.7742504409171,
+      "draws": 0
+    },
+    "after": {
+      "median_heat_seconds": 75.0,
+      "time_limit_heats": 9,
+      "mean_dead_seconds_per_pilot_per_heat": 28.383796296296293,
+      "mean_contested_percent": 64.2320987654321,
+      "draws": 0
+    }
+  },
+  {
+    "players": 32,
+    "cases": 9,
+    "before": {
+      "median_heat_seconds": 105.0,
+      "time_limit_heats": 9,
+      "mean_dead_seconds_per_pilot_per_heat": 48.1775462962963,
+      "mean_contested_percent": 82.6384479717813,
+      "draws": 0
+    },
+    "after": {
+      "median_heat_seconds": 75.0,
+      "time_limit_heats": 9,
+      "mean_dead_seconds_per_pilot_per_heat": 31.955381944444444,
+      "mean_contested_percent": 77.55802469135803,
+      "draws": 0
+    }
+  }
+]

@@ -1,0 +1,11 @@
+King of the Hill pacing follow-up, 2026-09-04 (America/Vancouver)
+Godot 4.7.2 stable, Windows x64
+TEST_SUMMARY passed=7398 failed=0
+Baseline: 27 completed opening heats across 3 maps, 3 populations and 3 seeds.
+Production: 27 completed opening heats; all retained fields equal the shorter-overtime trial.
+Duel baseline/production: all 9 rows equal in every retained field.
+Short-target and corrected longer-respawn experiments: 9 rows each.
+Discarded initial respawn prototype: invalid; excluded from comparisons.
+Match-loop verification passed: private picks, timeout auto-pick, two full matches, reset, rematch, and clean shutdown.
+Editor import passed; shipping resource allowlists are current.
+Only allowed environment error: ERROR: Failed to read the root certificate store.

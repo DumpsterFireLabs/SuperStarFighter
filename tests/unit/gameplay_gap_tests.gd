@@ -6,6 +6,7 @@ const PowerupsScript = preload("res://src/shared/combat/card_powerup_system.gd")
 
 static func run(context: TestContext, parent: Node) -> void:
 	_heat_limits(context)
+	_crowded_hill_limits(context)
 	_respawn_safety(context)
 	_powerup_bounds(context)
 	_team_presentation(context, parent)
@@ -55,6 +56,57 @@ static func _heat_limits(context: TestContext) -> void:
 		dead_world.server_tick = dead_coordinator.heat_end_tick()
 		dead_coordinator.step(0.0)
 		context.expect_equal(dead_coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "time limit ends an objective heat even when everyone is dead")
+
+
+static func _crowded_hill_limits(context: TestContext) -> void:
+	for mode in 5:
+		for count in [2, 7, 8, 32]:
+			var fixture := MatchCoordinatorTests._objective_fixture(mode, count, 8700 + count)
+			var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+			var expected_overtime := 30 if mode == GameModeRules.Mode.KING_OF_THE_HILL and count >= 8 else 60
+			var expected := coordinator.machine.state_entered_tick + (45 + expected_overtime) * 60
+			context.expect_equal(coordinator.heat_end_tick(), expected, "population-aware deadline uses heat participants for mode %d / %d pilots" % [mode, count])
+			var published := false
+			for event in coordinator.drain_events():
+				if event.event_type == &"STATE_CHANGED" and event.payload.get("state_name", "") == "ACTIVE_HEAT":
+					published = true
+					context.expect_equal(event.payload.heat_end_tick, expected, "clients receive the exact authoritative heat deadline")
+			context.expect_true(published, "deadline fixture reaches the published active transition")
+	var fixture := MatchCoordinatorTests._objective_fixture(GameModeRules.Mode.KING_OF_THE_HILL, 8, 8800)
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	var world := fixture.world as AuthoritativeWorld
+	coordinator.overtime_start_seconds = 90.0
+	var deadline := coordinator.heat_end_tick()
+	context.expect_equal(deadline - coordinator.machine.state_entered_tick, 120 * 60, "crowded hill respects the host's configured overtime start")
+	(world.combatants[1] as CombatantState).alive = false
+	(coordinator.machine.players[1] as PlayerMatchState).eliminate()
+	coordinator.machine.disconnect_player(8, world.server_tick)
+	context.expect_equal(coordinator.heat_end_tick(), deadline, "deaths and disconnects cannot extend the published heat limit")
+	coordinator._objective_progress = {1: 12.0, 2: 6.0}
+	world.server_tick = deadline - 1
+	coordinator.step(0.0)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.ACTIVE_HEAT, "crowded hill does not end one tick early")
+	world.server_tick = deadline
+	coordinator.step(0.0)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "crowded hill resolves on the exact advertised tick")
+	context.expect_equal(coordinator.machine.last_heat_winner, 1, "shorter hill limit retains control-time victory for a dead leader")
+	context.expect_true(coordinator._state_payload().heat_time_limit_reached, "shorter hill result identifies its time-limit finish")
+	var next_fixture := MatchCoordinatorTests._objective_fixture(GameModeRules.Mode.KING_OF_THE_HILL, 8, 8801)
+	var next_coordinator := next_fixture.coordinator as AuthoritativeMatchCoordinator
+	next_coordinator.machine.disconnect_player(8, next_fixture.world.server_tick)
+	next_coordinator._prepare_countdown()
+	context.expect_equal(next_coordinator.heat_end_tick() - next_coordinator.machine.state_entered_tick, 105 * 60, "preparing a later seven-pilot heat recalculates its full overtime allowance")
+	var finish_fixture := MatchCoordinatorTests._objective_fixture(GameModeRules.Mode.KING_OF_THE_HILL, 8, 8802)
+	var finish_coordinator := finish_fixture.coordinator as AuthoritativeMatchCoordinator
+	var finish_world := finish_fixture.world as AuthoritativeWorld
+	for peer_id in finish_world.combatants:
+		(finish_world.combatants[peer_id] as CombatantState).position = finish_coordinator._hill.state.position + Vector2(500, 0)
+	(finish_world.combatants[1] as CombatantState).position = finish_coordinator._hill.state.position
+	finish_coordinator._objective_progress = {1: 19.0}
+	finish_world.server_tick = finish_coordinator.heat_end_tick()
+	finish_coordinator.step(1.0)
+	context.expect_equal(finish_coordinator.machine.last_heat_winner, 1, "twenty seconds of hill control still wins at the shortened deadline")
+	context.expect_false(finish_coordinator._state_payload().heat_time_limit_reached, "objective completion takes precedence over the shortened time limit")
 
 
 static func _respawn_safety(context: TestContext) -> void:

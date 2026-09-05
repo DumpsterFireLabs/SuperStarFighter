@@ -15,6 +15,7 @@ var catalog: CardCatalog
 var powerups: RefCounted
 var match_seed: int
 var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
+var _heat_overtime_limit_seconds: float = GameConstants.OVERTIME_TIME_LIMIT_SECONDS
 var current_map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 
 var _rng := RandomNumberGenerator.new()
@@ -243,7 +244,7 @@ func _overtime_minimum_radius() -> float:
 
 
 func heat_end_tick() -> int:
-	return machine.state_entered_tick + roundi((overtime_start_seconds + GameConstants.OVERTIME_TIME_LIMIT_SECONDS) * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	return machine.state_entered_tick + roundi((overtime_start_seconds + _heat_overtime_limit_seconds) * GameConstants.PHYSICS_TICKS_PER_SECOND)
 
 
 func is_finished() -> bool:
@@ -378,6 +379,9 @@ func _prepare_countdown() -> void:
 
 
 func _prepare_world_heat() -> void:
+	# Freeze the population rule before publication. Deaths and disconnects must
+	# not extend a deadline already announced to LAN or internet clients.
+	_heat_overtime_limit_seconds = GameModeRules.overtime_limit_seconds(lobby.config.game_mode, machine.participant_ids().size())
 	var participant_stats: Dictionary = {}
 	var anchors := ArenaLayout.spawn_anchors(current_map_id)
 	_shuffle_anchors(anchors)

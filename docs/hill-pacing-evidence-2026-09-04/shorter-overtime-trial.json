@@ -1,0 +1,4186 @@
+{
+	"limitations": "One opening heat per map/population/seed; deterministic skilled NPCs with automatic drafting. Not human balance or FPS evidence.",
+	"profile": "crowded-limit",
+	"rows": [
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 37.65,
+				"eliminated_seconds": {
+					"2": 15.0,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					}
+				},
+				"first_contact_seconds": 4.43333333333333,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 531,
+				"empty": 218,
+				"solo": 1510
+			},
+			"players": 2,
+			"progress": {
+				"2": 5.16666666666665,
+				"3": 20.0000000000001
+			},
+			"seed": 7100,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 32.2333333333333,
+				"eliminated_seconds": {
+					"2": 13.6333333333333,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"first_contact_seconds": 2.81666666666667,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 534,
+				"empty": 200,
+				"solo": 1200
+			},
+			"players": 2,
+			"progress": {
+				"2": 0.0,
+				"3": 20.0000000000001
+			},
+			"seed": 7101,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 32.0833333333333,
+				"eliminated_seconds": {
+					"2": 10.2166666666667,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"first_contact_seconds": 3.65,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 502,
+				"empty": 188,
+				"solo": 1235
+			},
+			"players": 2,
+			"progress": {
+				"2": 0.583333333333333,
+				"3": 20.0000000000001
+			},
+			"seed": 7102,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 31.2,
+				"eliminated_seconds": {
+					"2": 5.0,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					}
+				},
+				"first_contact_seconds": 5.41666666666667,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 223,
+				"empty": 414,
+				"solo": 1235
+			},
+			"players": 2,
+			"progress": {
+				"2": 0.583333333333333,
+				"3": 20.0000000000001
+			},
+			"seed": 7100,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 51.0333333333333,
+				"eliminated_seconds": {
+					"2": 12.5,
+					"3": 5.0
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"first_contact_seconds": 3.78333333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 806,
+				"empty": 388,
+				"solo": 1868
+			},
+			"players": 2,
+			"progress": {
+				"2": 11.1333333333335,
+				"3": 20.0000000000001
+			},
+			"seed": 7101,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 34.8666666666667,
+				"eliminated_seconds": {
+					"2": 10.0,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"first_contact_seconds": 10.6833333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 565,
+				"empty": 316,
+				"solo": 1211
+			},
+			"players": 2,
+			"progress": {
+				"2": 0.183333333333333,
+				"3": 20.0000000000001
+			},
+			"seed": 7102,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 26.5333333333333,
+				"eliminated_seconds": {
+					"2": 5.0,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					}
+				},
+				"first_contact_seconds": 4.35,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 96,
+				"empty": 296,
+				"solo": 1200
+			},
+			"players": 2,
+			"progress": {
+				"2": 0.0,
+				"3": 20.0000000000001
+			},
+			"seed": 7100,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 28.85,
+				"eliminated_seconds": {
+					"2": 10.0,
+					"3": 0.0
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"first_contact_seconds": 3.83333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 3,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 281,
+				"empty": 250,
+				"solo": 1200
+			},
+			"players": 2,
+			"progress": {
+				"2": 0.0,
+				"3": 20.0000000000001
+			},
+			"seed": 7101,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 60.1166666666667,
+				"eliminated_seconds": {
+					"2": 15.0,
+					"3": 14.1166666666667
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1,
+						"needle_storm": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"first_contact_seconds": 3.58333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"2": 1
+				},
+				"pickups_at_start": {},
+				"players": 2,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 2,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 887,
+				"empty": 335,
+				"solo": 2385
+			},
+			"players": 2,
+			"progress": {
+				"2": 20.0000000000001,
+				"3": 19.7500000000002
+			},
+			"seed": 7102,
+			"time_limit": false
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 26.9,
+					"3": 28.6333333333333,
+					"4": 35.0,
+					"5": 35.0,
+					"6": 30.2166666666667,
+					"7": 25.0,
+					"8": 30.0,
+					"9": 26.6666666666667
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1,
+						"ramming_shields": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"cascade_barrier": 1,
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					}
+				},
+				"first_contact_seconds": 1.2,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"3": 1,
+					"5": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 8,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 2998,
+				"empty": 162,
+				"solo": 1340
+			},
+			"players": 8,
+			"progress": {
+				"2": 1.35,
+				"3": 1.11666666666667,
+				"4": 3.01666666666666,
+				"5": 3.54999999999999,
+				"6": 2.0,
+				"7": 2.01666666666666,
+				"8": 5.13333333333332,
+				"9": 4.14999999999999
+			},
+			"seed": 7100,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 38.1166666666667,
+					"3": 26.8833333333333,
+					"4": 31.75,
+					"5": 25.0,
+					"6": 30.0,
+					"7": 30.0,
+					"8": 30.1833333333333,
+					"9": 26.8833333333333
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"afterburner": 1,
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					}
+				},
+				"first_contact_seconds": 1.0,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"4": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 6,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 3160,
+				"empty": 319,
+				"solo": 1021
+			},
+			"players": 8,
+			"progress": {
+				"2": 1.91666666666666,
+				"3": 3.64999999999999,
+				"4": 0.883333333333334,
+				"5": 0.950000000000001,
+				"6": 3.66666666666666,
+				"7": 2.68333333333333,
+				"8": 1.36666666666667,
+				"9": 1.9
+			},
+			"seed": 7101,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 33.4833333333333,
+					"3": 25.0,
+					"4": 35.0,
+					"5": 30.0,
+					"6": 26.55,
+					"7": 25.0,
+					"8": 25.0,
+					"9": 33.3333333333333
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					}
+				},
+				"first_contact_seconds": 1.0,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 4,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 3176,
+				"empty": 288,
+				"solo": 1036
+			},
+			"players": 8,
+			"progress": {
+				"2": 2.13333333333333,
+				"3": 0.983333333333335,
+				"4": 3.74999999999999,
+				"5": 3.36666666666666,
+				"6": 1.41666666666667,
+				"7": 0.816666666666668,
+				"8": 1.2,
+				"9": 3.59999999999999
+			},
+			"seed": 7102,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 25.0,
+					"3": 25.0,
+					"4": 28.15,
+					"5": 35.0,
+					"6": 25.0,
+					"7": 25.0,
+					"8": 27.05,
+					"9": 35.0
+				},
+				"ending_builds": {
+					"2": {
+						"deadeye_calibration": 1,
+						"reinforced_hull": 1
+					},
+					"3": {
+						"cascade_barrier": 1,
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"ramming_shields": 1,
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					}
+				},
+				"first_contact_seconds": 1.08333333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"2": 1,
+					"3": 1,
+					"8": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 7,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 2730,
+				"empty": 383,
+				"solo": 1387
+			},
+			"players": 8,
+			"progress": {
+				"2": 2.25,
+				"3": 5.01666666666665,
+				"4": 1.28333333333333,
+				"5": 2.0,
+				"6": 1.13333333333333,
+				"7": 6.78333333333331,
+				"8": 2.94999999999999,
+				"9": 1.7
+			},
+			"seed": 7100,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 30.0,
+					"3": 29.6166666666667,
+					"4": 25.0,
+					"5": 30.0,
+					"6": 25.0,
+					"7": 23.1,
+					"8": 30.6166666666667,
+					"9": 26.5166666666667
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1,
+						"afterburner": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					}
+				},
+				"first_contact_seconds": 1.13333333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"7": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 7,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 2732,
+				"empty": 387,
+				"solo": 1381
+			},
+			"players": 8,
+			"progress": {
+				"2": 1.25,
+				"3": 1.58333333333333,
+				"4": 3.79999999999999,
+				"5": 2.66666666666666,
+				"6": 3.88333333333332,
+				"7": 5.08333333333332,
+				"8": 1.01666666666667,
+				"9": 3.73333333333333
+			},
+			"seed": 7101,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 27.0833333333333,
+					"3": 30.0,
+					"4": 23.1333333333333,
+					"5": 25.0,
+					"6": 30.1,
+					"7": 20.0,
+					"8": 35.0,
+					"9": 25.7166666666667
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					}
+				},
+				"first_contact_seconds": 1.45,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 2,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 3181,
+				"empty": 297,
+				"solo": 1022
+			},
+			"players": 8,
+			"progress": {
+				"2": 3.09999999999999,
+				"3": 0.800000000000001,
+				"4": 2.51666666666666,
+				"5": 1.06666666666667,
+				"6": 2.84999999999999,
+				"7": 2.75,
+				"8": 2.4,
+				"9": 1.55
+			},
+			"seed": 7102,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 25.0,
+					"3": 26.25,
+					"4": 31.9333333333333,
+					"5": 26.6666666666667,
+					"6": 28.9833333333333,
+					"7": 25.0,
+					"8": 30.0,
+					"9": 30.0
+				},
+				"ending_builds": {
+					"2": {
+						"ramming_shields": 1,
+						"reinforced_hull": 1
+					},
+					"3": {
+						"cascade_barrier": 1,
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					}
+				},
+				"first_contact_seconds": 1.48333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"2": 1,
+					"3": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 7,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 2591,
+				"empty": 335,
+				"solo": 1574
+			},
+			"players": 8,
+			"progress": {
+				"2": 2.86666666666666,
+				"3": 4.44999999999999,
+				"4": 1.45,
+				"5": 4.53333333333332,
+				"6": 1.75,
+				"7": 4.73333333333332,
+				"8": 4.63333333333332,
+				"9": 1.81666666666667
+			},
+			"seed": 7100,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 26.4833333333333,
+					"3": 25.0,
+					"4": 25.8,
+					"5": 30.0,
+					"6": 25.0,
+					"7": 25.0,
+					"8": 35.0,
+					"9": 28.6666666666667
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"afterburner": 1,
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					}
+				},
+				"first_contact_seconds": 1.21666666666667,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"8": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 9,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 2783,
+				"empty": 431,
+				"solo": 1286
+			},
+			"players": 8,
+			"progress": {
+				"2": 2.73333333333333,
+				"3": 3.49999999999999,
+				"4": 3.18333333333333,
+				"5": 1.68333333333333,
+				"6": 2.41666666666666,
+				"7": 2.3,
+				"8": 2.08333333333333,
+				"9": 3.53333333333333
+			},
+			"seed": 7101,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 30.0,
+					"3": 30.6333333333333,
+					"4": 25.0166666666667,
+					"5": 25.0,
+					"6": 27.1333333333333,
+					"7": 24.8666666666667,
+					"8": 33.8333333333333,
+					"9": 31.6833333333333
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1,
+						"needle_storm": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					}
+				},
+				"first_contact_seconds": 1.43333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"2": 1
+				},
+				"pickups_at_start": {},
+				"players": 8,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 5,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 2663,
+				"empty": 475,
+				"solo": 1362
+			},
+			"players": 8,
+			"progress": {
+				"2": 3.51666666666666,
+				"3": 3.36666666666666,
+				"4": 2.56666666666666,
+				"5": 3.58333333333333,
+				"6": 3.49999999999999,
+				"7": 1.78333333333333,
+				"8": 3.53333333333333,
+				"9": 0.850000000000001
+			},
+			"seed": 7102,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 29.3,
+					"3": 30.0,
+					"4": 35.0,
+					"5": 31.5166666666667,
+					"6": 39.85,
+					"7": 30.0,
+					"8": 35.0,
+					"9": 32.2833333333333,
+					"10": 35.0333333333333,
+					"11": 27.1,
+					"12": 30.0,
+					"13": 30.0,
+					"14": 32.5,
+					"15": 30.0,
+					"16": 35.0,
+					"17": 35.0,
+					"18": 32.7,
+					"19": 35.0166666666667,
+					"20": 30.0166666666667,
+					"21": 29.0833333333333,
+					"22": 25.0,
+					"23": 30.0,
+					"24": 35.0166666666667,
+					"25": 32.1666666666667,
+					"26": 30.5666666666667,
+					"27": 37.1833333333333,
+					"28": 34.7333333333333,
+					"29": 40.0166666666667,
+					"30": 32.3333333333333,
+					"31": 30.0,
+					"32": 35.0333333333333,
+					"33": 30.0666666666667
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					},
+					"10": {
+						"impact_capacitor": 1
+					},
+					"11": {
+						"cascade_barrier": 1,
+						"emergency_bulkheads": 1
+					},
+					"12": {
+						"reinforced_hull": 1
+					},
+					"13": {
+						"mine_layer": 1
+					},
+					"14": {
+						"twin_shot": 1
+					},
+					"15": {
+						"sustained_barrage": 1
+					},
+					"16": {
+						"drum_spring": 1
+					},
+					"17": {
+						"reinforced_hull": 1
+					},
+					"18": {
+						"repair_gel": 1
+					},
+					"19": {
+						"scar_tissue": 1
+					},
+					"20": {
+						"ramming_shields": 1,
+						"scar_tissue": 1
+					},
+					"21": {
+						"kinetic_plating": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"reinforced_hull": 1
+					},
+					"24": {
+						"reinforced_hull": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reinforced_hull": 1
+					},
+					"27": {
+						"sprint_reactor": 1
+					},
+					"28": {
+						"extended_magazine": 1
+					},
+					"29": {
+						"flux_reservoir": 1
+					},
+					"30": {
+						"auto_repair": 1
+					},
+					"31": {
+						"reinforced_hull": 1
+					},
+					"32": {
+						"second_wind": 1
+					},
+					"33": {
+						"ablative_shell": 1
+					}
+				},
+				"first_contact_seconds": 0.15,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"11": 1,
+					"20": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					},
+					"10": {
+						"impact_capacitor": 1
+					},
+					"11": {
+						"emergency_bulkheads": 1
+					},
+					"12": {
+						"reinforced_hull": 1
+					},
+					"13": {
+						"mine_layer": 1
+					},
+					"14": {
+						"twin_shot": 1
+					},
+					"15": {
+						"sustained_barrage": 1
+					},
+					"16": {
+						"drum_spring": 1
+					},
+					"17": {
+						"reinforced_hull": 1
+					},
+					"18": {
+						"repair_gel": 1
+					},
+					"19": {
+						"scar_tissue": 1
+					},
+					"20": {
+						"scar_tissue": 1
+					},
+					"21": {
+						"kinetic_plating": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"reinforced_hull": 1
+					},
+					"24": {
+						"reinforced_hull": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reinforced_hull": 1
+					},
+					"27": {
+						"sprint_reactor": 1
+					},
+					"28": {
+						"extended_magazine": 1
+					},
+					"29": {
+						"flux_reservoir": 1
+					},
+					"30": {
+						"auto_repair": 1
+					},
+					"31": {
+						"reinforced_hull": 1
+					},
+					"32": {
+						"second_wind": 1
+					},
+					"33": {
+						"ablative_shell": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 21,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 3837,
+				"empty": 150,
+				"solo": 513
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.416666666666667,
+				"3": 0.333333333333333,
+				"4": 0.0333333333333333,
+				"5": 0.783333333333334,
+				"6": 0.0,
+				"7": 0.4,
+				"8": 0.4,
+				"9": 0.2,
+				"10": 0.133333333333333,
+				"11": 0.0,
+				"12": 0.416666666666667,
+				"13": 0.4,
+				"14": 0.116666666666667,
+				"15": 0.0333333333333333,
+				"16": 0.0,
+				"17": 0.15,
+				"18": 0.0,
+				"19": 0.900000000000001,
+				"20": 0.0666666666666667,
+				"21": 1.25,
+				"22": 0.116666666666667,
+				"23": 0.0,
+				"24": 0.133333333333333,
+				"25": 0.15,
+				"26": 0.25,
+				"27": 0.700000000000001,
+				"28": 0.0,
+				"29": 0.166666666666667,
+				"30": 0.383333333333333,
+				"31": 0.216666666666667,
+				"32": 0.133333333333333,
+				"33": 0.266666666666667
+			},
+			"seed": 7100,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 35.0,
+					"3": 35.0,
+					"4": 25.0,
+					"5": 35.0,
+					"6": 30.0,
+					"7": 30.0,
+					"8": 36.3166666666667,
+					"9": 35.0,
+					"10": 35.0,
+					"11": 34.0166666666667,
+					"12": 36.1,
+					"13": 31.85,
+					"14": 29.7833333333333,
+					"15": 34.7,
+					"16": 35.0,
+					"17": 30.0,
+					"18": 35.0,
+					"19": 27.35,
+					"20": 27.7166666666667,
+					"21": 30.0,
+					"22": 32.4666666666667,
+					"23": 30.0,
+					"24": 36.0833333333333,
+					"25": 28.85,
+					"26": 25.0,
+					"27": 30.0,
+					"28": 35.65,
+					"29": 35.0,
+					"30": 30.7666666666667,
+					"31": 35.0,
+					"32": 35.0,
+					"33": 35.0
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					},
+					"10": {
+						"reinforced_hull": 1
+					},
+					"11": {
+						"needle_storm": 1
+					},
+					"12": {
+						"auto_repair": 1
+					},
+					"13": {
+						"scar_tissue": 1
+					},
+					"14": {
+						"ablative_shell": 1
+					},
+					"15": {
+						"micro_barrage": 1
+					},
+					"16": {
+						"kinetic_plating": 1
+					},
+					"17": {
+						"ouroboros_hull": 1
+					},
+					"18": {
+						"starheart_reactor": 1
+					},
+					"19": {
+						"afterburner": 1,
+						"kinetic_plating": 1
+					},
+					"20": {
+						"needle_storm": 1
+					},
+					"21": {
+						"scar_tissue": 1
+					},
+					"22": {
+						"scatter_array": 1
+					},
+					"23": {
+						"emergency_bulkheads": 1
+					},
+					"24": {
+						"ablative_shell": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reserve_cell": 1
+					},
+					"27": {
+						"warpshell": 1
+					},
+					"28": {
+						"trident_array": 1
+					},
+					"29": {
+						"phoenix_chassis": 1
+					},
+					"30": {
+						"extended_magazine": 1
+					},
+					"31": {
+						"auto_repair": 1
+					},
+					"32": {
+						"breach_vector": 1
+					},
+					"33": {
+						"nanite_reservoir": 1
+					}
+				},
+				"first_contact_seconds": 0.15,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"19": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					},
+					"10": {
+						"reinforced_hull": 1
+					},
+					"11": {
+						"needle_storm": 1
+					},
+					"12": {
+						"auto_repair": 1
+					},
+					"13": {
+						"scar_tissue": 1
+					},
+					"14": {
+						"ablative_shell": 1
+					},
+					"15": {
+						"micro_barrage": 1
+					},
+					"16": {
+						"kinetic_plating": 1
+					},
+					"17": {
+						"ouroboros_hull": 1
+					},
+					"18": {
+						"starheart_reactor": 1
+					},
+					"19": {
+						"kinetic_plating": 1
+					},
+					"20": {
+						"needle_storm": 1
+					},
+					"21": {
+						"scar_tissue": 1
+					},
+					"22": {
+						"scatter_array": 1
+					},
+					"23": {
+						"emergency_bulkheads": 1
+					},
+					"24": {
+						"ablative_shell": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reserve_cell": 1
+					},
+					"27": {
+						"warpshell": 1
+					},
+					"28": {
+						"trident_array": 1
+					},
+					"29": {
+						"phoenix_chassis": 1
+					},
+					"30": {
+						"extended_magazine": 1
+					},
+					"31": {
+						"auto_repair": 1
+					},
+					"32": {
+						"breach_vector": 1
+					},
+					"33": {
+						"nanite_reservoir": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 32,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 3764,
+				"empty": 122,
+				"solo": 614
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.0333333333333333,
+				"3": 0.233333333333333,
+				"4": 0.0,
+				"5": 0.183333333333333,
+				"6": 0.950000000000001,
+				"7": 0.283333333333333,
+				"8": 1.08333333333333,
+				"9": 0.316666666666667,
+				"10": 0.366666666666667,
+				"11": 0.05,
+				"12": 0.0,
+				"13": 0.516666666666667,
+				"14": 0.366666666666667,
+				"15": 0.0,
+				"16": 0.0,
+				"17": 0.416666666666667,
+				"18": 0.133333333333333,
+				"19": 0.983333333333335,
+				"20": 0.266666666666667,
+				"21": 0.133333333333333,
+				"22": 0.25,
+				"23": 0.0,
+				"24": 0.216666666666667,
+				"25": 0.0666666666666667,
+				"26": 0.583333333333333,
+				"27": 0.666666666666667,
+				"28": 0.0,
+				"29": 0.0,
+				"30": 0.433333333333333,
+				"31": 0.116666666666667,
+				"32": 1.18333333333333,
+				"33": 0.4
+			},
+			"seed": 7101,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 30.9333333333333,
+					"3": 35.0,
+					"4": 33.5833333333333,
+					"5": 32.2833333333333,
+					"6": 34.2166666666667,
+					"7": 25.0,
+					"8": 35.0,
+					"9": 35.0,
+					"10": 38.25,
+					"11": 30.0,
+					"12": 39.2166666666667,
+					"13": 31.7833333333333,
+					"14": 34.0333333333333,
+					"15": 30.0,
+					"16": 31.2833333333333,
+					"17": 30.0,
+					"18": 30.2666666666667,
+					"19": 32.4666666666667,
+					"20": 26.6666666666667,
+					"21": 35.0166666666667,
+					"22": 30.0,
+					"23": 28.6166666666667,
+					"24": 35.0166666666667,
+					"25": 40.0,
+					"26": 30.2166666666667,
+					"27": 36.55,
+					"28": 35.0166666666667,
+					"29": 35.0,
+					"30": 34.6833333333333,
+					"31": 34.7166666666667,
+					"32": 30.0333333333333,
+					"33": 35.0333333333333
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					},
+					"10": {
+						"overcharged_thrusters": 1
+					},
+					"11": {
+						"heavy_rounds": 1
+					},
+					"12": {
+						"orbital_rounds": 1
+					},
+					"13": {
+						"laser_repeater": 1
+					},
+					"14": {
+						"mine_layer": 1
+					},
+					"15": {
+						"quantum_reconstruction": 1
+					},
+					"16": {
+						"endless_belt": 1
+					},
+					"17": {
+						"kinetic_plating": 1
+					},
+					"18": {
+						"annihilator_shell": 1
+					},
+					"19": {
+						"phoenix_chassis": 1
+					},
+					"20": {
+						"kinetic_plating": 1
+					},
+					"21": {
+						"auto_repair": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"juggernaut_frame": 1
+					},
+					"24": {
+						"deep_reserves": 1,
+						"impact_capacitor": 1
+					},
+					"25": {
+						"extended_magazine": 1
+					},
+					"26": {
+						"scar_tissue": 1
+					},
+					"27": {
+						"reserve_cell": 1
+					},
+					"28": {
+						"phoenix_chassis": 1
+					},
+					"29": {
+						"sprint_reactor": 1
+					},
+					"30": {
+						"scatter_array": 1
+					},
+					"31": {
+						"flux_reservoir": 1
+					},
+					"32": {
+						"kinetic_plating": 1
+					},
+					"33": {
+						"lightspeed_frame": 1
+					}
+				},
+				"first_contact_seconds": 0.15,
+				"heat": 1,
+				"map": "core_arena",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"24": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					},
+					"10": {
+						"overcharged_thrusters": 1
+					},
+					"11": {
+						"heavy_rounds": 1
+					},
+					"12": {
+						"orbital_rounds": 1
+					},
+					"13": {
+						"laser_repeater": 1
+					},
+					"14": {
+						"mine_layer": 1
+					},
+					"15": {
+						"quantum_reconstruction": 1
+					},
+					"16": {
+						"endless_belt": 1
+					},
+					"17": {
+						"kinetic_plating": 1
+					},
+					"18": {
+						"annihilator_shell": 1
+					},
+					"19": {
+						"phoenix_chassis": 1
+					},
+					"20": {
+						"kinetic_plating": 1
+					},
+					"21": {
+						"auto_repair": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"juggernaut_frame": 1
+					},
+					"24": {
+						"impact_capacitor": 1
+					},
+					"25": {
+						"extended_magazine": 1
+					},
+					"26": {
+						"scar_tissue": 1
+					},
+					"27": {
+						"reserve_cell": 1
+					},
+					"28": {
+						"phoenix_chassis": 1
+					},
+					"29": {
+						"sprint_reactor": 1
+					},
+					"30": {
+						"scatter_array": 1
+					},
+					"31": {
+						"flux_reservoir": 1
+					},
+					"32": {
+						"kinetic_plating": 1
+					},
+					"33": {
+						"lightspeed_frame": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 9,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "core_arena",
+			"occupancy_ticks": {
+				"contested": 3629,
+				"empty": 173,
+				"solo": 698
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.0,
+				"3": 0.533333333333333,
+				"4": 0.1,
+				"5": 0.25,
+				"6": 0.183333333333333,
+				"7": 0.45,
+				"8": 0.783333333333334,
+				"9": 1.4,
+				"10": 0.316666666666667,
+				"11": 0.166666666666667,
+				"12": 0.0333333333333333,
+				"13": 0.516666666666667,
+				"14": 0.55,
+				"15": 1.33333333333333,
+				"16": 0.05,
+				"17": 0.0,
+				"18": 0.0,
+				"19": 0.183333333333333,
+				"20": 0.933333333333335,
+				"21": 0.533333333333333,
+				"22": 0.0666666666666667,
+				"23": 0.2,
+				"24": 0.216666666666667,
+				"25": 0.25,
+				"26": 0.766666666666667,
+				"27": 0.833333333333334,
+				"28": 0.0,
+				"29": 0.1,
+				"30": 0.616666666666667,
+				"31": 0.0,
+				"32": 0.116666666666667,
+				"33": 0.15
+			},
+			"seed": 7102,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 25.0,
+					"3": 35.0,
+					"4": 37.5833333333333,
+					"5": 35.3,
+					"6": 30.6166666666667,
+					"7": 30.0,
+					"8": 30.8166666666667,
+					"9": 35.0,
+					"10": 35.0,
+					"11": 30.0,
+					"12": 29.1333333333333,
+					"13": 30.0,
+					"14": 30.0,
+					"15": 30.0,
+					"16": 29.8166666666667,
+					"17": 30.0,
+					"18": 30.0,
+					"19": 31.6666666666667,
+					"20": 30.0,
+					"21": 33.0833333333333,
+					"22": 30.0166666666667,
+					"23": 29.9666666666667,
+					"24": 30.0,
+					"25": 30.0,
+					"26": 25.6333333333333,
+					"27": 34.1666666666667,
+					"28": 30.0,
+					"29": 30.0,
+					"30": 32.9833333333333,
+					"31": 30.0,
+					"32": 35.0166666666667,
+					"33": 30.5833333333333
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					},
+					"10": {
+						"impact_capacitor": 1
+					},
+					"11": {
+						"emergency_bulkheads": 1
+					},
+					"12": {
+						"reinforced_hull": 1
+					},
+					"13": {
+						"mine_layer": 1
+					},
+					"14": {
+						"twin_shot": 1
+					},
+					"15": {
+						"sustained_barrage": 1
+					},
+					"16": {
+						"drum_spring": 1
+					},
+					"17": {
+						"reinforced_hull": 1
+					},
+					"18": {
+						"repair_gel": 1
+					},
+					"19": {
+						"ramming_shields": 1,
+						"scar_tissue": 1
+					},
+					"20": {
+						"scar_tissue": 1
+					},
+					"21": {
+						"kinetic_plating": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"reinforced_hull": 1
+					},
+					"24": {
+						"cascade_barrier": 1,
+						"reinforced_hull": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reinforced_hull": 1
+					},
+					"27": {
+						"sprint_reactor": 1
+					},
+					"28": {
+						"extended_magazine": 1
+					},
+					"29": {
+						"flux_reservoir": 1
+					},
+					"30": {
+						"auto_repair": 1
+					},
+					"31": {
+						"reinforced_hull": 1
+					},
+					"32": {
+						"second_wind": 1
+					},
+					"33": {
+						"ablative_shell": 1
+					}
+				},
+				"first_contact_seconds": 0.133333333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"19": 1,
+					"24": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					},
+					"10": {
+						"impact_capacitor": 1
+					},
+					"11": {
+						"emergency_bulkheads": 1
+					},
+					"12": {
+						"reinforced_hull": 1
+					},
+					"13": {
+						"mine_layer": 1
+					},
+					"14": {
+						"twin_shot": 1
+					},
+					"15": {
+						"sustained_barrage": 1
+					},
+					"16": {
+						"drum_spring": 1
+					},
+					"17": {
+						"reinforced_hull": 1
+					},
+					"18": {
+						"repair_gel": 1
+					},
+					"19": {
+						"scar_tissue": 1
+					},
+					"20": {
+						"scar_tissue": 1
+					},
+					"21": {
+						"kinetic_plating": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"reinforced_hull": 1
+					},
+					"24": {
+						"reinforced_hull": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reinforced_hull": 1
+					},
+					"27": {
+						"sprint_reactor": 1
+					},
+					"28": {
+						"extended_magazine": 1
+					},
+					"29": {
+						"flux_reservoir": 1
+					},
+					"30": {
+						"auto_repair": 1
+					},
+					"31": {
+						"reinforced_hull": 1
+					},
+					"32": {
+						"second_wind": 1
+					},
+					"33": {
+						"ablative_shell": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 6,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 3565,
+				"empty": 192,
+				"solo": 743
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.466666666666667,
+				"3": 0.983333333333335,
+				"4": 0.383333333333333,
+				"5": 0.233333333333333,
+				"6": 1.25,
+				"7": 0.0666666666666667,
+				"8": 0.850000000000001,
+				"9": 0.783333333333334,
+				"10": 0.15,
+				"11": 0.583333333333333,
+				"12": 0.35,
+				"13": 0.466666666666667,
+				"14": 0.0,
+				"15": 1.03333333333333,
+				"16": 0.0,
+				"17": 0.0,
+				"18": 0.3,
+				"19": 0.3,
+				"20": 0.283333333333333,
+				"21": 0.0,
+				"22": 0.783333333333334,
+				"23": 0.433333333333333,
+				"24": 0.0,
+				"25": 0.0,
+				"26": 0.366666666666667,
+				"27": 1.03333333333333,
+				"28": 0.0833333333333333,
+				"29": 0.133333333333333,
+				"30": 0.0,
+				"31": 0.166666666666667,
+				"32": 0.0,
+				"33": 0.900000000000001
+			},
+			"seed": 7100,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 31.7333333333333,
+					"3": 35.0,
+					"4": 25.0,
+					"5": 30.0,
+					"6": 31.4166666666667,
+					"7": 25.0,
+					"8": 34.9,
+					"9": 35.0,
+					"10": 30.0,
+					"11": 35.0,
+					"12": 33.7833333333333,
+					"13": 30.0,
+					"14": 33.3333333333333,
+					"15": 31.6333333333333,
+					"16": 30.0,
+					"17": 25.0,
+					"18": 30.0,
+					"19": 31.35,
+					"20": 30.0,
+					"21": 30.0,
+					"22": 34.4,
+					"23": 27.1333333333333,
+					"24": 30.0,
+					"25": 25.8333333333333,
+					"26": 33.55,
+					"27": 30.0,
+					"28": 27.5333333333333,
+					"29": 31.3666666666667,
+					"30": 35.0,
+					"31": 35.0,
+					"32": 30.0,
+					"33": 33.7833333333333
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"afterburner": 1,
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"adaptive_chassis": 1,
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					},
+					"10": {
+						"reinforced_hull": 1
+					},
+					"11": {
+						"needle_storm": 1
+					},
+					"12": {
+						"auto_repair": 1
+					},
+					"13": {
+						"scar_tissue": 1
+					},
+					"14": {
+						"ablative_shell": 1
+					},
+					"15": {
+						"micro_barrage": 1
+					},
+					"16": {
+						"kinetic_plating": 1
+					},
+					"17": {
+						"ouroboros_hull": 1
+					},
+					"18": {
+						"starheart_reactor": 1
+					},
+					"19": {
+						"kinetic_plating": 1
+					},
+					"20": {
+						"needle_storm": 1
+					},
+					"21": {
+						"scar_tissue": 1
+					},
+					"22": {
+						"scatter_array": 1
+					},
+					"23": {
+						"emergency_bulkheads": 1
+					},
+					"24": {
+						"ablative_shell": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reserve_cell": 1
+					},
+					"27": {
+						"warpshell": 1
+					},
+					"28": {
+						"trident_array": 1
+					},
+					"29": {
+						"phoenix_chassis": 1
+					},
+					"30": {
+						"extended_magazine": 1
+					},
+					"31": {
+						"auto_repair": 1
+					},
+					"32": {
+						"breach_vector": 1
+					},
+					"33": {
+						"nanite_reservoir": 1
+					}
+				},
+				"first_contact_seconds": 0.133333333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"5": 1,
+					"8": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					},
+					"10": {
+						"reinforced_hull": 1
+					},
+					"11": {
+						"needle_storm": 1
+					},
+					"12": {
+						"auto_repair": 1
+					},
+					"13": {
+						"scar_tissue": 1
+					},
+					"14": {
+						"ablative_shell": 1
+					},
+					"15": {
+						"micro_barrage": 1
+					},
+					"16": {
+						"kinetic_plating": 1
+					},
+					"17": {
+						"ouroboros_hull": 1
+					},
+					"18": {
+						"starheart_reactor": 1
+					},
+					"19": {
+						"kinetic_plating": 1
+					},
+					"20": {
+						"needle_storm": 1
+					},
+					"21": {
+						"scar_tissue": 1
+					},
+					"22": {
+						"scatter_array": 1
+					},
+					"23": {
+						"emergency_bulkheads": 1
+					},
+					"24": {
+						"ablative_shell": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reserve_cell": 1
+					},
+					"27": {
+						"warpshell": 1
+					},
+					"28": {
+						"trident_array": 1
+					},
+					"29": {
+						"phoenix_chassis": 1
+					},
+					"30": {
+						"extended_magazine": 1
+					},
+					"31": {
+						"auto_repair": 1
+					},
+					"32": {
+						"breach_vector": 1
+					},
+					"33": {
+						"nanite_reservoir": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 19,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 3493,
+				"empty": 299,
+				"solo": 708
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.116666666666667,
+				"3": 0.866666666666668,
+				"4": 0.0,
+				"5": 0.333333333333333,
+				"6": 0.05,
+				"7": 0.4,
+				"8": 0.333333333333333,
+				"9": 0.6,
+				"10": 0.0666666666666667,
+				"11": 0.0166666666666667,
+				"12": 0.15,
+				"13": 0.0833333333333333,
+				"14": 0.0666666666666667,
+				"15": 0.0833333333333333,
+				"16": 0.716666666666667,
+				"17": 0.766666666666667,
+				"18": 0.733333333333334,
+				"19": 1.08333333333333,
+				"20": 0.800000000000001,
+				"21": 0.0,
+				"22": 0.216666666666667,
+				"23": 0.183333333333333,
+				"24": 0.3,
+				"25": 0.183333333333333,
+				"26": 0.0333333333333333,
+				"27": 0.0,
+				"28": 1.06666666666667,
+				"29": 0.233333333333333,
+				"30": 0.45,
+				"31": 0.466666666666667,
+				"32": 0.566666666666667,
+				"33": 0.833333333333334
+			},
+			"seed": 7101,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 29.15,
+					"3": 30.0,
+					"4": 35.0,
+					"5": 32.5166666666667,
+					"6": 30.0,
+					"7": 24.8,
+					"8": 35.0,
+					"9": 30.0,
+					"10": 30.0,
+					"11": 39.9666666666667,
+					"12": 35.0,
+					"13": 30.0,
+					"14": 30.0,
+					"15": 25.7833333333333,
+					"16": 31.8333333333333,
+					"17": 30.35,
+					"18": 39.1166666666667,
+					"19": 29.7333333333333,
+					"20": 35.0,
+					"21": 30.0,
+					"22": 35.0166666666667,
+					"23": 25.0,
+					"24": 31.7333333333333,
+					"25": 30.0,
+					"26": 32.2166666666667,
+					"27": 30.9833333333333,
+					"28": 27.2833333333333,
+					"29": 29.15,
+					"30": 32.1666666666667,
+					"31": 29.3333333333333,
+					"32": 35.0,
+					"33": 36.85
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1,
+						"concussion_rounds": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					},
+					"10": {
+						"needle_storm": 1,
+						"overcharged_thrusters": 1
+					},
+					"11": {
+						"heavy_rounds": 1
+					},
+					"12": {
+						"orbital_rounds": 1
+					},
+					"13": {
+						"laser_repeater": 1
+					},
+					"14": {
+						"mine_layer": 1
+					},
+					"15": {
+						"quantum_reconstruction": 1
+					},
+					"16": {
+						"endless_belt": 1
+					},
+					"17": {
+						"kinetic_plating": 1
+					},
+					"18": {
+						"annihilator_shell": 1,
+						"flash_recharger": 1
+					},
+					"19": {
+						"phoenix_chassis": 1
+					},
+					"20": {
+						"kinetic_plating": 1
+					},
+					"21": {
+						"auto_repair": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"juggernaut_frame": 1
+					},
+					"24": {
+						"impact_capacitor": 1
+					},
+					"25": {
+						"extended_magazine": 1
+					},
+					"26": {
+						"scar_tissue": 1
+					},
+					"27": {
+						"reserve_cell": 1
+					},
+					"28": {
+						"phoenix_chassis": 1
+					},
+					"29": {
+						"sprint_reactor": 1
+					},
+					"30": {
+						"scatter_array": 1
+					},
+					"31": {
+						"flux_reservoir": 1
+					},
+					"32": {
+						"kinetic_plating": 1
+					},
+					"33": {
+						"lightspeed_frame": 1
+					}
+				},
+				"first_contact_seconds": 0.133333333333333,
+				"heat": 1,
+				"map": "dead_freight",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"2": 1,
+					"10": 1,
+					"18": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					},
+					"10": {
+						"overcharged_thrusters": 1
+					},
+					"11": {
+						"heavy_rounds": 1
+					},
+					"12": {
+						"orbital_rounds": 1
+					},
+					"13": {
+						"laser_repeater": 1
+					},
+					"14": {
+						"mine_layer": 1
+					},
+					"15": {
+						"quantum_reconstruction": 1
+					},
+					"16": {
+						"endless_belt": 1
+					},
+					"17": {
+						"kinetic_plating": 1
+					},
+					"18": {
+						"annihilator_shell": 1
+					},
+					"19": {
+						"phoenix_chassis": 1
+					},
+					"20": {
+						"kinetic_plating": 1
+					},
+					"21": {
+						"auto_repair": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"juggernaut_frame": 1
+					},
+					"24": {
+						"impact_capacitor": 1
+					},
+					"25": {
+						"extended_magazine": 1
+					},
+					"26": {
+						"scar_tissue": 1
+					},
+					"27": {
+						"reserve_cell": 1
+					},
+					"28": {
+						"phoenix_chassis": 1
+					},
+					"29": {
+						"sprint_reactor": 1
+					},
+					"30": {
+						"scatter_array": 1
+					},
+					"31": {
+						"flux_reservoir": 1
+					},
+					"32": {
+						"kinetic_plating": 1
+					},
+					"33": {
+						"lightspeed_frame": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 12,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "dead_freight",
+			"occupancy_ticks": {
+				"contested": 3535,
+				"empty": 340,
+				"solo": 625
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.0,
+				"3": 0.4,
+				"4": 0.0,
+				"5": 0.1,
+				"6": 0.4,
+				"7": 0.15,
+				"8": 0.1,
+				"9": 0.800000000000001,
+				"10": 0.866666666666668,
+				"11": 0.3,
+				"12": 0.900000000000001,
+				"13": 0.616666666666667,
+				"14": 0.333333333333333,
+				"15": 0.183333333333333,
+				"16": 0.366666666666667,
+				"17": 0.3,
+				"18": 0.233333333333333,
+				"19": 0.716666666666667,
+				"20": 0.15,
+				"21": 0.0833333333333333,
+				"22": 0.0,
+				"23": 0.583333333333333,
+				"24": 0.0,
+				"25": 0.116666666666667,
+				"26": 0.0,
+				"27": 0.5,
+				"28": 0.366666666666667,
+				"29": 0.616666666666667,
+				"30": 0.25,
+				"31": 0.0,
+				"32": 0.45,
+				"33": 0.533333333333333
+			},
+			"seed": 7102,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 30.0,
+					"3": 35.0,
+					"4": 35.0,
+					"5": 33.1166666666667,
+					"6": 35.0,
+					"7": 30.0,
+					"8": 34.2833333333333,
+					"9": 30.0,
+					"10": 30.0,
+					"11": 30.0,
+					"12": 35.0,
+					"13": 25.0,
+					"14": 36.8166666666667,
+					"15": 27.4333333333333,
+					"16": 30.0,
+					"17": 30.0,
+					"18": 30.0,
+					"19": 30.0166666666667,
+					"20": 32.2666666666667,
+					"21": 30.0,
+					"22": 30.0,
+					"23": 32.2833333333333,
+					"24": 30.0,
+					"25": 30.0166666666667,
+					"26": 30.0333333333333,
+					"27": 35.0,
+					"28": 35.0166666666667,
+					"29": 37.0333333333333,
+					"30": 31.8,
+					"31": 30.0333333333333,
+					"32": 36.3,
+					"33": 29.3666666666667
+				},
+				"ending_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1,
+						"ramming_shields": 1
+					},
+					"10": {
+						"impact_capacitor": 1
+					},
+					"11": {
+						"emergency_bulkheads": 1
+					},
+					"12": {
+						"reinforced_hull": 1
+					},
+					"13": {
+						"mine_layer": 1
+					},
+					"14": {
+						"twin_shot": 1
+					},
+					"15": {
+						"sustained_barrage": 1
+					},
+					"16": {
+						"drum_spring": 1
+					},
+					"17": {
+						"reinforced_hull": 1
+					},
+					"18": {
+						"repair_gel": 1
+					},
+					"19": {
+						"scar_tissue": 1
+					},
+					"20": {
+						"scar_tissue": 1
+					},
+					"21": {
+						"kinetic_plating": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"reinforced_hull": 1
+					},
+					"24": {
+						"reinforced_hull": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reinforced_hull": 1
+					},
+					"27": {
+						"sprint_reactor": 1
+					},
+					"28": {
+						"extended_magazine": 1
+					},
+					"29": {
+						"cascade_barrier": 1,
+						"flux_reservoir": 1
+					},
+					"30": {
+						"auto_repair": 1
+					},
+					"31": {
+						"reinforced_hull": 1
+					},
+					"32": {
+						"second_wind": 1
+					},
+					"33": {
+						"ablative_shell": 1
+					}
+				},
+				"first_contact_seconds": 0.133333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"9": 1,
+					"29": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"reinforced_hull": 1
+					},
+					"3": {
+						"impact_capacitor": 1
+					},
+					"4": {
+						"overcharged_thrusters": 1
+					},
+					"5": {
+						"event_horizon_drive": 1
+					},
+					"6": {
+						"flux_reservoir": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"reserve_cell": 1
+					},
+					"9": {
+						"flash_recharger": 1
+					},
+					"10": {
+						"impact_capacitor": 1
+					},
+					"11": {
+						"emergency_bulkheads": 1
+					},
+					"12": {
+						"reinforced_hull": 1
+					},
+					"13": {
+						"mine_layer": 1
+					},
+					"14": {
+						"twin_shot": 1
+					},
+					"15": {
+						"sustained_barrage": 1
+					},
+					"16": {
+						"drum_spring": 1
+					},
+					"17": {
+						"reinforced_hull": 1
+					},
+					"18": {
+						"repair_gel": 1
+					},
+					"19": {
+						"scar_tissue": 1
+					},
+					"20": {
+						"scar_tissue": 1
+					},
+					"21": {
+						"kinetic_plating": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"reinforced_hull": 1
+					},
+					"24": {
+						"reinforced_hull": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reinforced_hull": 1
+					},
+					"27": {
+						"sprint_reactor": 1
+					},
+					"28": {
+						"extended_magazine": 1
+					},
+					"29": {
+						"flux_reservoir": 1
+					},
+					"30": {
+						"auto_repair": 1
+					},
+					"31": {
+						"reinforced_hull": 1
+					},
+					"32": {
+						"second_wind": 1
+					},
+					"33": {
+						"ablative_shell": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 20,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 3313,
+				"empty": 362,
+				"solo": 825
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.316666666666667,
+				"3": 0.0,
+				"4": 0.0,
+				"5": 0.683333333333334,
+				"6": 0.233333333333333,
+				"7": 0.833333333333334,
+				"8": 0.2,
+				"9": 0.0,
+				"10": 0.0,
+				"11": 0.0,
+				"12": 1.33333333333333,
+				"13": 1.18333333333333,
+				"14": 0.55,
+				"15": 0.316666666666667,
+				"16": 0.866666666666668,
+				"17": 0.700000000000001,
+				"18": 0.0,
+				"19": 0.0166666666666667,
+				"20": 1.76666666666667,
+				"21": 0.65,
+				"22": 0.0,
+				"23": 1.13333333333333,
+				"24": 0.966666666666668,
+				"25": 0.0,
+				"26": 0.0333333333333333,
+				"27": 0.0666666666666667,
+				"28": 0.05,
+				"29": 0.0,
+				"30": 0.216666666666667,
+				"31": 0.0166666666666667,
+				"32": 0.633333333333334,
+				"33": 0.983333333333335
+			},
+			"seed": 7100,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 30.0,
+					"3": 35.6166666666667,
+					"4": 30.0,
+					"5": 34.4,
+					"6": 30.0,
+					"7": 30.0,
+					"8": 31.2333333333333,
+					"9": 35.0,
+					"10": 26.4833333333333,
+					"11": 30.5,
+					"12": 30.0,
+					"13": 30.0,
+					"14": 30.0,
+					"15": 35.0,
+					"16": 29.3,
+					"17": 25.0,
+					"18": 27.2833333333333,
+					"19": 35.0,
+					"20": 35.4833333333333,
+					"21": 30.0,
+					"22": 33.4833333333333,
+					"23": 26.95,
+					"24": 30.0,
+					"25": 30.0,
+					"26": 30.0,
+					"27": 29.6166666666667,
+					"28": 38.9,
+					"29": 30.0,
+					"30": 34.1166666666667,
+					"31": 40.0166666666667,
+					"32": 30.6833333333333,
+					"33": 35.0
+				},
+				"ending_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					},
+					"10": {
+						"afterburner": 1,
+						"reinforced_hull": 1
+					},
+					"11": {
+						"needle_storm": 1
+					},
+					"12": {
+						"auto_repair": 1
+					},
+					"13": {
+						"scar_tissue": 1
+					},
+					"14": {
+						"ablative_shell": 1
+					},
+					"15": {
+						"micro_barrage": 1
+					},
+					"16": {
+						"kinetic_plating": 1
+					},
+					"17": {
+						"ouroboros_hull": 1
+					},
+					"18": {
+						"starheart_reactor": 1
+					},
+					"19": {
+						"kinetic_plating": 1
+					},
+					"20": {
+						"needle_storm": 1
+					},
+					"21": {
+						"scar_tissue": 1
+					},
+					"22": {
+						"scatter_array": 1
+					},
+					"23": {
+						"emergency_bulkheads": 1
+					},
+					"24": {
+						"ablative_shell": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reserve_cell": 1
+					},
+					"27": {
+						"adaptive_chassis": 1,
+						"warpshell": 1
+					},
+					"28": {
+						"trident_array": 1
+					},
+					"29": {
+						"phoenix_chassis": 1
+					},
+					"30": {
+						"extended_magazine": 1
+					},
+					"31": {
+						"auto_repair": 1
+					},
+					"32": {
+						"breach_vector": 1
+					},
+					"33": {
+						"nanite_reservoir": 1
+					}
+				},
+				"first_contact_seconds": 0.133333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"10": 1,
+					"27": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"flash_recharger": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"reinforced_hull": 1
+					},
+					"5": {
+						"sprint_reactor": 1
+					},
+					"6": {
+						"scar_tissue": 1
+					},
+					"7": {
+						"ablative_shell": 1
+					},
+					"8": {
+						"lightspeed_frame": 1
+					},
+					"9": {
+						"pulse_capacitor": 1
+					},
+					"10": {
+						"reinforced_hull": 1
+					},
+					"11": {
+						"needle_storm": 1
+					},
+					"12": {
+						"auto_repair": 1
+					},
+					"13": {
+						"scar_tissue": 1
+					},
+					"14": {
+						"ablative_shell": 1
+					},
+					"15": {
+						"micro_barrage": 1
+					},
+					"16": {
+						"kinetic_plating": 1
+					},
+					"17": {
+						"ouroboros_hull": 1
+					},
+					"18": {
+						"starheart_reactor": 1
+					},
+					"19": {
+						"kinetic_plating": 1
+					},
+					"20": {
+						"needle_storm": 1
+					},
+					"21": {
+						"scar_tissue": 1
+					},
+					"22": {
+						"scatter_array": 1
+					},
+					"23": {
+						"emergency_bulkheads": 1
+					},
+					"24": {
+						"ablative_shell": 1
+					},
+					"25": {
+						"reinforced_hull": 1
+					},
+					"26": {
+						"reserve_cell": 1
+					},
+					"27": {
+						"warpshell": 1
+					},
+					"28": {
+						"trident_array": 1
+					},
+					"29": {
+						"phoenix_chassis": 1
+					},
+					"30": {
+						"extended_magazine": 1
+					},
+					"31": {
+						"auto_repair": 1
+					},
+					"32": {
+						"breach_vector": 1
+					},
+					"33": {
+						"nanite_reservoir": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 20,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 3178,
+				"empty": 283,
+				"solo": 1039
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.0,
+				"3": 0.45,
+				"4": 0.583333333333333,
+				"5": 0.866666666666668,
+				"6": 1.05,
+				"7": 0.766666666666667,
+				"8": 0.0,
+				"9": 0.216666666666667,
+				"10": 0.733333333333334,
+				"11": 0.466666666666667,
+				"12": 0.0,
+				"13": 0.700000000000001,
+				"14": 1.11666666666667,
+				"15": 0.566666666666667,
+				"16": 0.216666666666667,
+				"17": 1.03333333333333,
+				"18": 1.25,
+				"19": 0.316666666666667,
+				"20": 1.45,
+				"21": 0.0333333333333333,
+				"22": 0.716666666666667,
+				"23": 0.583333333333333,
+				"24": 1.08333333333333,
+				"25": 0.633333333333334,
+				"26": 0.966666666666668,
+				"27": 0.55,
+				"28": 0.0,
+				"29": 0.183333333333333,
+				"30": 0.0,
+				"31": 0.0,
+				"32": 0.333333333333333,
+				"33": 0.45
+			},
+			"seed": 7101,
+			"time_limit": true
+		},
+		{
+			"heat": {
+				"draft_byes": {},
+				"draft_seconds": 0.0166666666666667,
+				"duration_seconds": 75.0,
+				"eliminated_seconds": {
+					"2": 29.2333333333333,
+					"3": 34.95,
+					"4": 32.3666666666667,
+					"5": 29.6666666666667,
+					"6": 35.0,
+					"7": 35.0,
+					"8": 39.45,
+					"9": 35.0,
+					"10": 34.6333333333333,
+					"11": 37.9,
+					"12": 35.0,
+					"13": 30.0,
+					"14": 25.0,
+					"15": 32.1333333333333,
+					"16": 32.3666666666667,
+					"17": 30.0,
+					"18": 35.0,
+					"19": 30.0,
+					"20": 30.2833333333333,
+					"21": 37.75,
+					"22": 35.0166666666667,
+					"23": 28.25,
+					"24": 35.0166666666667,
+					"25": 34.25,
+					"26": 30.0,
+					"27": 30.7,
+					"28": 33.6666666666667,
+					"29": 35.0,
+					"30": 36.3,
+					"31": 30.0,
+					"32": 30.1166666666667,
+					"33": 35.05
+				},
+				"ending_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					},
+					"10": {
+						"overcharged_thrusters": 1
+					},
+					"11": {
+						"heavy_rounds": 1,
+						"needle_storm": 1
+					},
+					"12": {
+						"orbital_rounds": 1
+					},
+					"13": {
+						"laser_repeater": 1
+					},
+					"14": {
+						"mine_layer": 1
+					},
+					"15": {
+						"quantum_reconstruction": 1
+					},
+					"16": {
+						"endless_belt": 1
+					},
+					"17": {
+						"kinetic_plating": 1
+					},
+					"18": {
+						"annihilator_shell": 1
+					},
+					"19": {
+						"phoenix_chassis": 1
+					},
+					"20": {
+						"kinetic_plating": 1
+					},
+					"21": {
+						"auto_repair": 1
+					},
+					"22": {
+						"ablative_shell": 1,
+						"deep_reserves": 1
+					},
+					"23": {
+						"juggernaut_frame": 1
+					},
+					"24": {
+						"impact_capacitor": 1
+					},
+					"25": {
+						"extended_magazine": 1
+					},
+					"26": {
+						"scar_tissue": 1
+					},
+					"27": {
+						"reserve_cell": 1
+					},
+					"28": {
+						"phoenix_chassis": 1
+					},
+					"29": {
+						"sprint_reactor": 1
+					},
+					"30": {
+						"scatter_array": 1
+					},
+					"31": {
+						"flux_reservoir": 1
+					},
+					"32": {
+						"kinetic_plating": 1
+					},
+					"33": {
+						"lightspeed_frame": 1
+					}
+				},
+				"first_contact_seconds": 0.133333333333333,
+				"heat": 1,
+				"map": "solar_tide",
+				"mode": "King of the Hill",
+				"permanent_pickups_at_end": {},
+				"permanent_pickups_at_start": {},
+				"pickups_at_end": {
+					"11": 1,
+					"22": 1
+				},
+				"pickups_at_start": {},
+				"players": 32,
+				"round": 1,
+				"round_turnaround_seconds": null,
+				"start_tick": 181,
+				"starting_builds": {
+					"2": {
+						"ablative_shell": 1
+					},
+					"3": {
+						"kinetic_plating": 1
+					},
+					"4": {
+						"breach_vector": 1
+					},
+					"5": {
+						"ablative_shell": 1
+					},
+					"6": {
+						"ablative_shell": 1
+					},
+					"7": {
+						"phoenix_chassis": 1
+					},
+					"8": {
+						"recursive_nanites": 1
+					},
+					"9": {
+						"cascade_barrier": 1
+					},
+					"10": {
+						"overcharged_thrusters": 1
+					},
+					"11": {
+						"heavy_rounds": 1
+					},
+					"12": {
+						"orbital_rounds": 1
+					},
+					"13": {
+						"laser_repeater": 1
+					},
+					"14": {
+						"mine_layer": 1
+					},
+					"15": {
+						"quantum_reconstruction": 1
+					},
+					"16": {
+						"endless_belt": 1
+					},
+					"17": {
+						"kinetic_plating": 1
+					},
+					"18": {
+						"annihilator_shell": 1
+					},
+					"19": {
+						"phoenix_chassis": 1
+					},
+					"20": {
+						"kinetic_plating": 1
+					},
+					"21": {
+						"auto_repair": 1
+					},
+					"22": {
+						"ablative_shell": 1
+					},
+					"23": {
+						"juggernaut_frame": 1
+					},
+					"24": {
+						"impact_capacitor": 1
+					},
+					"25": {
+						"extended_magazine": 1
+					},
+					"26": {
+						"scar_tissue": 1
+					},
+					"27": {
+						"reserve_cell": 1
+					},
+					"28": {
+						"phoenix_chassis": 1
+					},
+					"29": {
+						"sprint_reactor": 1
+					},
+					"30": {
+						"scatter_array": 1
+					},
+					"31": {
+						"flux_reservoir": 1
+					},
+					"32": {
+						"kinetic_plating": 1
+					},
+					"33": {
+						"lightspeed_frame": 1
+					}
+				},
+				"turnaround_seconds": null,
+				"winner": 14,
+				"winner_team": 0
+			},
+			"incomplete": false,
+			"map": "solar_tide",
+			"occupancy_ticks": {
+				"contested": 3097,
+				"empty": 322,
+				"solo": 1081
+			},
+			"players": 32,
+			"progress": {
+				"2": 0.566666666666667,
+				"3": 0.583333333333333,
+				"4": 0.0,
+				"5": 0.616666666666667,
+				"6": 0.666666666666667,
+				"7": 1.18333333333333,
+				"8": 0.283333333333333,
+				"9": 0.516666666666667,
+				"10": 0.15,
+				"11": 0.65,
+				"12": 0.0333333333333333,
+				"13": 0.216666666666667,
+				"14": 2.88333333333333,
+				"15": 1.11666666666667,
+				"16": 1.35,
+				"17": 0.0,
+				"18": 0.966666666666668,
+				"19": 0.15,
+				"20": 1.05,
+				"21": 0.0,
+				"22": 0.6,
+				"23": 0.533333333333333,
+				"24": 0.0,
+				"25": 1.06666666666667,
+				"26": 0.35,
+				"27": 0.166666666666667,
+				"28": 1.28333333333333,
+				"29": 0.133333333333333,
+				"30": 0.516666666666667,
+				"31": 0.0,
+				"32": 0.0166666666666667,
+				"33": 0.366666666666667
+			},
+			"seed": 7102,
+			"time_limit": true
+		}
+	],
+	"seed_count": 3
+}
