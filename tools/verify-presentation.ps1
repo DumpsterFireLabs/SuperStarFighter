@@ -47,7 +47,7 @@ foreach ($resolution in @(
             throw "Presentation capture $imagePath is missing or unexpectedly small."
         }
     }
-    foreach ($screen in @('competitive_combat', 'host_preset', 'accessibility_contrast', 'combat_contrast', 'objective_results', 'ship_families', 'draft_confirmation', 'draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_targets', 'build_lab_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled', 'tutorial_movement', 'tutorial_guard', 'tutorial_scaled', 'tutorial_draft', 'crowded_combat', 'crowded_combat_reduced')) {
+    foreach ($screen in @('competitive_combat', 'host_preset', 'accessibility_contrast', 'combat_contrast', 'objective_results', 'ship_families', 'draft_confirmation', 'draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_targets', 'build_lab_scaled', 'build_lab_details_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled', 'tutorial_movement', 'tutorial_guard', 'tutorial_scaled', 'tutorial_draft', 'crowded_combat', 'crowded_combat_reduced')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Draft limit feedback capture $imagePath is missing or unexpectedly small."

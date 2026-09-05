@@ -66,6 +66,25 @@ static func role(card: CardDefinition) -> String:
 
 
 static func summary(card: CardDefinition) -> String:
+	if SPECIAL_FAMILIES.has(card.special_behavior_id):
+		return SUMMARIES[family(card)]
+	# Distinguish tactical effects within a family without inventing numerical
+	# benefits. Effective values and capped effects remain in the build preview.
+	var tactics := {
+		&"projectile_count": "Add projectiles to each volley.", &"pierce_count": "Carry shots through more targets.",
+		&"ricochet_count": "Reach around cover with bouncing shots.", &"shield_arc_degrees": "Cover attacks from wider angles.",
+		&"shield_capacity": "Absorb more pressure before depletion.", &"shield_regeneration_delay": "Start recharging your shield sooner.",
+		&"shield_regeneration": "Recover shield energy faster.", &"shield_block_cost": "Spend less energy per blocked impact.",
+		&"reload_duration": "Shorten your reload downtime.", &"magazine_size": "Fire more shots before reloading.",
+		&"fire_rate": "Fire volleys more frequently.", &"projectile_speed": "Make shots reach targets sooner.",
+		&"projectile_lifetime": "Keep shots travelling farther.", &"projectile_damage": "Deal more damage with each hit.",
+		&"max_health": "Survive more hull damage.", &"max_speed": "Raise your top flight speed.",
+		&"acceleration": "Build flight speed faster.",
+	}
+	for property in tactics:
+		var property_family: StringName = {&"projectile_count": &"scatter", &"pierce_count": &"pierce", &"ricochet_count": &"ricochet"}.get(property, _stat_family(property, card.category))
+		if _beneficial_modifier(card, property) and property_family == family(card):
+			return tactics[property]
 	return SUMMARIES[family(card)]
 
 

@@ -70,6 +70,7 @@ func _ready() -> void:
 	PerformanceReadabilityTestsScript.run(_context, self)
 	await CombatTutorialTestsScript.run(_context, self)
 	CardIdentityTestsScript.run(_context, self)
+	await preload("res://tests/unit/presentation_followup_tests.gd").run(_context, self)
 	InputProfileTestsScript.run(_context)
 	PresentationSystemTests.run(_context, self)
 	await preload("res://tests/unit/graphical_language_tests.gd").run(_context, self)

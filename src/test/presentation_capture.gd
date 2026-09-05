@@ -99,6 +99,9 @@ func _capture_sequence() -> void:
 	lab_tabs.current_tab = 0
 	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "build_lab_scaled")
+	lab_tabs.current_tab = 3
+	await _capture(client, "build_lab_details_scaled")
+	lab_tabs.current_tab = 0
 	client.offline_sandbox.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
 	client._play_tutorial()
 	await _capture(client, "tutorial_movement")

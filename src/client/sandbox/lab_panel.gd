@@ -27,14 +27,18 @@ func configure(sandbox: OfflineSandbox) -> void:
 	var layout := VBoxContainer.new()
 	layout.add_theme_constant_override("separation", DesignTokens.SPACE_MEDIUM)
 	add_child(layout)
-	_label(layout, "COMBAT LAB", DesignTokens.TEXT_TITLE_SIZE)
-	_button(layout, "Learn to play", lab.start_tutorial)
+	var heading := HBoxContainer.new()
+	layout.add_child(heading)
+	_label(heading, "COMBAT LAB", DesignTokens.TEXT_SECTION_SIZE)
+	_button(heading, "Learn to play", lab.start_tutorial)
 	var tabs := TabContainer.new()
 	tabs.name = "LabTabs"
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(tabs)
 	tabs.get_tab_bar().gui_input.connect(preload("res://src/client/ui/screen_navigation.gd").handle_tab_bar_input.bind(tabs))
-	var content := _tab(tabs, "Build")
+	var content := _tab(tabs, "Build", false)
+	var browse_controls := HBoxContainer.new()
+	content.add_child(browse_controls)
 	var presets := OptionButton.new()
 	preset_control = presets
 	presets.name = "BuildPreset"
@@ -43,28 +47,31 @@ func configure(sandbox: OfflineSandbox) -> void:
 	presets.add_item("Custom build")
 	presets.set_item_disabled(lab.PRESET_NAMES.size(), true)
 	presets.item_selected.connect(lab.load_preset)
-	content.add_child(presets)
+	presets.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	presets.clip_text = true
+	browse_controls.add_child(presets)
 	search = LineEdit.new()
 	search.name = "CardSearch"
 	search.placeholder_text = "Search cards…"
 	search.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
 	search.clear_button_enabled = true
 	search.text_changed.connect(_refresh_cards)
-	content.add_child(search)
+	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	browse_controls.add_child(search)
 	cards = ItemList.new()
 	cards.name = "CardResults"
-	cards.custom_minimum_size.y = 150.0
+	cards.custom_minimum_size.y = 96.0
+	cards.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	cards.item_selected.connect(_select_card)
 	cards.item_activated.connect(func(_index: int) -> void: lab._grant_selected_card())
 	content.add_child(cards)
-	card_description = _label(content, "", 16)
-	card_description.name = "CardDescription"
 	var card_actions := HBoxContainer.new()
 	layout.add_child(card_actions)
-	tabs.tab_changed.connect(func(index: int) -> void: card_actions.visible = index == 0)
+	tabs.tab_changed.connect(func(index: int) -> void: card_actions.visible = index in [0, 3])
 	add_button = _button(card_actions, "+ Stack", lab._grant_selected_card)
 	remove_button = _button(card_actions, "− Stack", lab.remove_selected_card)
-	_button(content, "Clear build", func() -> void: lab.load_preset(0)).theme_type_variation = &"DangerButton"
+	var inspect := _button(card_actions, "Details", func() -> void: tabs.current_tab = 3)
+	inspect.name = "InspectCard"
 	content = _tab(tabs, "Targets")
 	_label(content, "TARGETS", DesignTokens.TEXT_SECTION_SIZE)
 	map_control = OptionButton.new()
@@ -87,16 +94,27 @@ func configure(sandbox: OfflineSandbox) -> void:
 	_button(content, "Reset encounter · Y", lab._reset_combatants)
 	content = _tab(tabs, "Stats")
 	_label(content, "BUILD & MEASUREMENTS", DesignTokens.TEXT_SECTION_SIZE)
+	_button(content, "Clear build", func() -> void: lab.load_preset(0)).theme_type_variation = &"DangerButton"
 	build_label = _label(content, "", DesignTokens.TEXT_BODY_SIZE)
 	stats_label = _label(content, "", DesignTokens.TEXT_BODY_SIZE)
 	_button(content, "Reset measurements", lab.reset_measurements)
 	telemetry_label = _label(content, "", 16)
 	help_label = _label(content, "", 15)
+	content = _tab(tabs, "Card")
+	_button(content, "Back to cards", func() -> void: tabs.current_tab = 0; cards.grab_focus())
+	card_description = _label(content, "", 16)
+	card_description.name = "CardDescription"
 	_refresh_cards("")
 	refresh_build()
 
 
-func _tab(tabs: TabContainer, title: String) -> VBoxContainer:
+func _tab(tabs: TabContainer, title: String, scrolling: bool = true) -> VBoxContainer:
+	if not scrolling:
+		var fixed := VBoxContainer.new()
+		fixed.name = title
+		fixed.add_theme_constant_override("separation", DesignTokens.SPACE_MEDIUM)
+		tabs.add_child(fixed)
+		return fixed
 	var scroll := ScrollContainer.new()
 	scroll.name = title
 	scroll.follow_focus = true

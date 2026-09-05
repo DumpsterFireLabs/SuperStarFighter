@@ -1,0 +1,12 @@
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+SSF_MODE_READY=client port=7000 sandbox=offline_combat network=enet
+TEST_SUMMARY passed=6441 failed=0
+SSF_MODE_READY=tests

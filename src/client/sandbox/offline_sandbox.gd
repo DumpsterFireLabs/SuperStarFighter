@@ -404,6 +404,7 @@ func set_editor_open(value: bool) -> void:
 		else:
 			lab_panel.focus_search()
 	_update_hud()
+	_layout_hud()
 
 
 func _layout_hud() -> void:
@@ -417,11 +418,14 @@ func _layout_hud() -> void:
 	hud_root.size = Vector2((safe_width - 40.0) / hud_scale, (viewport.y - 32.0) / hud_scale)
 	status_label.position = Vector2.ZERO
 	status_label.size = Vector2(hud_root.size.x, 62.0)
-	editor_button.position = Vector2(0.0, 68.0)
+	status_label.visible = not editor_open
+	feedback_label.visible = not editor_open
+	editor_button.position = Vector2(0.0, 0.0 if editor_open else 68.0)
 	feedback_label.position = Vector2(260.0, 68.0)
 	feedback_label.size = Vector2(maxf(hud_root.size.x - 260.0, 100.0), 54.0)
-	lab_panel.position = Vector2(0.0, 132.0)
-	lab_panel.size = Vector2(minf(520.0, hud_root.size.x), maxf(hud_root.size.y - 132.0, 120.0))
+	var editor_top := 60.0 if editor_open else 132.0
+	lab_panel.position = Vector2(0.0, editor_top)
+	lab_panel.size = Vector2(minf(520.0, hud_root.size.x), maxf(hud_root.size.y - editor_top, 120.0))
 	if tutorial != null:
 		tutorial.layout()
 
