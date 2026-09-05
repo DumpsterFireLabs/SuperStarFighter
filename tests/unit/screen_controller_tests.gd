@@ -11,6 +11,7 @@ class MemoryPreferences extends "res://src/client/presentation/accessibility_pre
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	preload("res://tests/unit/connection_screen_tests.gd").run(context, parent)
 	_independent_controllers(context, parent)
 	preload("res://tests/unit/connection_preferences_tests.gd").run(context)
 	var client = (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()

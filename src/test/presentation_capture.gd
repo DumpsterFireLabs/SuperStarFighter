@@ -132,30 +132,30 @@ func _capture_sequence() -> void:
 	client.bridge.session.latest_lobby_state = {"players": players, "leader_id": 2, "player_limit": 32, "server_capacity": 32, "npc_count": 24, "ready_human_count": 7, "all_humans_ready": false, "npcs_enabled": true, "random_spawn_powerups": true, "match_active": false, "rounds_to_win": 3, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "team_count": 4, "team_setup_valid": true, "team_setup_error": ""}
 	client._on_lobby_state(client.bridge.latest_lobby_state)
 	await _capture(client, "lobby_32")
-	client.connection_controller.lobby_settings_button.pressed.emit()
+	client.connection_controller.lobby.lobby_settings_button.pressed.emit()
 	await _capture(client, "lobby_settings")
 	client._hide_settings()
 	var local_color_swatch: Button
-	for row in client.connection_controller.lobby_roster.get_children():
+	for row in client.connection_controller.lobby.lobby_roster.get_children():
 		var candidate := row.get_node_or_null("ShipColor") as Button
 		if candidate != null and not candidate.disabled:
 			local_color_swatch = candidate
 			break
 	local_color_swatch.pressed.emit()
-	client.connection_controller.ship_color_picker.color = Color("ff4ea3")
-	client.connection_controller.ship_pattern_control.select(3)
-	client.connection_controller._on_ship_pattern_selected(3)
+	client.connection_controller.lobby.ship_color_picker.color = Color("ff4ea3")
+	client.connection_controller.lobby.ship_pattern_control.select(3)
+	client.connection_controller.lobby._on_ship_pattern_selected(3)
 	await _capture(client, "lobby_color_picker")
-	client.connection_controller._hide_ship_color(false)
-	client.connection_controller._show_lobby_options()
+	client.connection_controller.lobby._hide_ship_color(false)
+	client.connection_controller.lobby._show_lobby_options()
 	await _capture(client, "lobby_options")
-	client.connection_controller._hide_lobby_options(false)
-	var roster_scroll := client.connection_controller.lobby_roster.get_parent() as ScrollContainer
+	client.connection_controller.lobby._hide_lobby_options(false)
+	var roster_scroll := client.connection_controller.lobby.lobby_roster.get_parent() as ScrollContainer
 	roster_scroll.scroll_vertical = 100000
 	await _capture(client, "lobby_npc_difficulties")
 	roster_scroll.scroll_vertical = 0
 
-	client.connection_controller.lobby_panel.visible = false
+	client.connection_controller.lobby.lobby_panel.visible = false
 	client.connection_controller.connection_screen.visible = false
 	client.network_world.set_network_active(true)
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}

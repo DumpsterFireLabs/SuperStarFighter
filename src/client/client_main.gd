@@ -48,7 +48,6 @@ var pause_title: Label
 var settings_return_to_pause: bool = false
 var settings_return_to_lobby: bool = false
 var credits_panel: Control
-var credits_button: Button
 var splash_screen: Control
 var studio_splash: Control
 var game_splash: Control
@@ -94,7 +93,12 @@ func _init() -> void:
 	settings_controller.control_prompts_changed.connect(_refresh_control_prompts)
 	settings_controller.name = "SettingsController"
 	add_child(settings_controller)
-	connection_controller.initialize(self)
+	connection_controller.tutorial_requested.connect(_play_tutorial)
+	connection_controller.offline_requested.connect(_play_offline)
+	connection_controller.settings_requested.connect(_show_settings.bind(false))
+	connection_controller.credits_requested.connect(_show_credits)
+	connection_controller.disconnect_requested.connect(_disconnect_online)
+	connection_controller.connection_requested.connect(_prepare_connection)
 	connection_controller.name = "ConnectionController"
 	add_child(connection_controller)
 
@@ -133,7 +137,8 @@ func _ready() -> void:
 	settings_controller.accessibility_preferences.load_settings()
 	_apply_accessibility_settings()
 	network_world.presentation_event.connect(_on_world_presentation_event)
-	connection_controller._create_connection_ui(configuration)
+	connection_controller.configure(bridge, interface_theme)
+	connection_controller.create_ui(configuration)
 	settings_controller.register_interface_scope(connection_controller.connection_canvas)
 	settings_controller.register_interface_scope(network_world)
 	settings_controller.register_interface_scope(offline_sandbox)
@@ -377,7 +382,7 @@ func _refresh_control_prompts() -> void:
 
 func _show_settings(return_to_pause: bool) -> void:
 	settings_return_to_pause = return_to_pause
-	settings_return_to_lobby = not return_to_pause and connection_controller.lobby_panel != null and connection_controller.lobby_panel.visible
+	settings_return_to_lobby = not return_to_pause and connection_controller.is_lobby_visible()
 	if pause_overlay != null:
 		pause_overlay.visible = false
 	settings_controller.settings_panel.visible = true
@@ -390,17 +395,17 @@ func _show_settings(return_to_pause: bool) -> void:
 func _hide_settings() -> void:
 	settings_controller._cancel_binding_capture()
 	settings_controller.settings_panel.visible = false
-	if settings_return_to_pause and not connection_controller.connection_screen.visible:
+	if settings_return_to_pause and not connection_controller.is_visible():
 		pause_overlay.visible = true
 		network_world.input_blocked = true
 		pause_resume_button.grab_focus()
-	elif settings_return_to_lobby and connection_controller.lobby_panel != null and connection_controller.lobby_panel.visible:
+	elif settings_return_to_lobby and connection_controller.is_lobby_visible():
 		network_world.input_blocked = false
-		connection_controller.lobby_settings_button.grab_focus()
+		connection_controller.focus_settings()
 	else:
 		network_world.input_blocked = false
-		if connection_controller.connection_screen.visible and connection_controller.connection_primary_button != null:
-			connection_controller.connection_primary_button.grab_focus()
+		if connection_controller.is_visible():
+			connection_controller.focus_menu()
 	settings_return_to_pause = false
 	settings_return_to_lobby = false
 
@@ -489,8 +494,8 @@ func _show_credits() -> void:
 
 func _hide_credits() -> void:
 	credits_panel.visible = false
-	if connection_controller.connection_screen.visible and credits_button != null:
-		credits_button.grab_focus()
+	if connection_controller.is_visible():
+		connection_controller.focus_credits()
 
 
 func _create_gameplay_cursor() -> void:
@@ -661,12 +666,12 @@ func _finish_splash_dismissal() -> void:
 
 
 func _focus_connection_menu() -> void:
-	if connection_controller.connection_primary_button != null:
-		connection_controller.connection_primary_button.grab_focus()
+	if connection_controller.is_visible():
+		connection_controller.focus_menu()
 
 
 func _toggle_pause_overlay() -> void:
-	if connection_controller.connection_screen.visible:
+	if connection_controller.is_visible():
 		return
 	standings_controller._set_scoreboard_open(false)
 	pause_overlay.visible = not pause_overlay.visible
@@ -744,12 +749,11 @@ func _play_tutorial() -> void:
 
 func _play_offline() -> void:
 	bridge.stop()
-	connection_controller._stop_hosted_server()
+	connection_controller.stop_hosting()
 	standings_controller._set_scoreboard_open(false)
 	latest_match_payload.clear()
 	network_world.set_network_active(false)
-	connection_controller.connection_screen.visible = false
-	connection_controller.lobby_panel.visible = false
+	connection_controller.hide_screens()
 	match_panel.visible = false
 	heat_intro_panel.visible = false
 	draft_controller.clear_offer()
@@ -794,6 +798,11 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	_focus_connection_menu()
 
 
+func _prepare_connection() -> void:
+	offline_sandbox.set_sandbox_active(false)
+	network_world.set_network_active(false)
+
+
 func _on_connected(peer_id: int) -> void:
 	network_world.set_network_active(false, false)
 	audio_director.set_context(&"lobby")
@@ -818,7 +827,6 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
 	elif event_type == &"REQUEST_REJECTED":
 		standings_controller.reset_actions()
-		connection_controller.lobby_label.text += "\nRejected: %s" % payload.get("message", "Unknown request")
 		connection_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
 		standings_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
 		draft_controller.recover_rejected_offer()
@@ -839,9 +847,10 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		else:
 			network_world.reset_match_presentation()
 			network_world.set_network_active(false, false)
-		connection_controller.connection_screen.visible = not entering_match
-		if not entering_match:
-			connection_controller.connection_form_panel.visible = false
+		if entering_match:
+			connection_controller.hide_screens()
+		else:
+			connection_controller.show_waiting_lobby()
 		network_world.apply_match_state(payload)
 		audio_director.set_objective_baseline(payload.get("objective", {}) as Dictionary)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
@@ -917,7 +926,7 @@ func _update_pointer_visibility() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_controller.connection_screen.visible or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
+	var interactive_overlay := connection_controller.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()
@@ -963,13 +972,13 @@ func _update_match_presentation() -> void:
 		network_world.set_match_status("")
 		draft_controller.draft_panel.visible = false
 		standings_controller._set_win_screen_visible(false)
-		connection_controller.lobby_panel.visible = bridge.role == NetworkBridge.Role.CLIENT
-		connection_controller.connection_screen.visible = bridge.role == NetworkBridge.Role.CLIENT
-		if connection_controller.connection_screen.visible:
-			connection_controller.connection_form_panel.visible = false
+		if bridge.role == NetworkBridge.Role.CLIENT:
+			connection_controller.show_waiting_lobby()
+		else:
+			connection_controller.hide_screens()
 		network_world.set_network_active(false, false)
 		return
-	connection_controller.lobby_panel.visible = false
+	connection_controller.hide_screens()
 	match_panel.visible = false
 	if state_name != "DRAFT":
 		draft_controller.draft_panel.visible = false
@@ -1302,8 +1311,7 @@ func _heat_intro_style() -> StyleBoxFlat:
 func _on_rejected(reason: StringName, message: String) -> void:
 	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck the server settings, then try again." % message, true)
 	if reason == NetworkProtocol.REJECT_INVALID_PASSWORD:
-		connection_controller.connection_tabs.current_tab = 1
-		connection_controller.direct_password_field.grab_focus()
+		connection_controller.focus_password()
 
 
 func _on_connection_lost(message: String) -> void:

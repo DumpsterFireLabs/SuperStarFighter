@@ -1,7 +1,7 @@
 extends RefCounted
 
 const Presets = preload("res://src/shared/lobby/match_presets.gd")
-const Connection = preload("res://src/client/ui/connection_controller.gd")
+const LobbyScreen = preload("res://src/client/ui/lobby_screen_controller.gd")
 const Contributions = preload("res://src/client/ui/objective_contribution_text.gd")
 
 
@@ -42,9 +42,9 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_false(Presets.apply(small_lobby, 2, "chaos").ok, "preset cannot exceed server transport capacity")
 	context.expect_equal(small_lobby.serialize(), before, "capacity rejection leaves lobby unchanged")
 	var roster := {"players": [{"peer_id": 2, "display_name": "Ready", "ready": true}, {"peer_id": 3, "display_name": "NPC", "is_npc": true, "ready": true}, {"peer_id": 4, "display_name": "Waiting", "ready": false}]}
-	context.expect_equal(Connection.ordered_roster(roster)[0].peer_id, 4, "unready humans appear above ready players and NPCs")
-	context.expect_true(Connection.readiness_summary(roster).contains("Waiting for: Waiting"), "readiness summary names the human blocking launch")
-	context.expect_true(Connection.readiness_summary(roster).contains("scroll roster"), "full roster scrolling is explained")
+	context.expect_equal(LobbyScreen.ordered_roster(roster)[0].peer_id, 4, "unready humans appear above ready players and NPCs")
+	context.expect_true(LobbyScreen.readiness_summary(roster).contains("Waiting for: Waiting"), "readiness summary names the human blocking launch")
+	context.expect_true(LobbyScreen.readiness_summary(roster).contains("scroll roster"), "full roster scrolling is explained")
 	var payload := {"game_mode": GameModeRules.Mode.KING_OF_THE_HILL, "objective_contributions": {"2": {"hill_control_seconds": 12.5, "hill_contest_seconds": 4.0, "flag_captures": 9}}}
 	context.expect_equal(Contributions.summary(payload, 2), "HILL  12.5s controlled · 4.0s contested", "hill contribution text separates control and contest without irrelevant flag totals")
 	payload = {"game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "objective_contributions": {2: {"flag_captures": 2, "carrier_stops": 3, "flag_carry_seconds": 15.0, "flag_pickups": 4}}}
@@ -53,9 +53,9 @@ static func run(context: TestContext, parent: Node) -> void:
 	_validate_rematch(context)
 	var client = (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()
 	parent.add_child(client)
-	context.expect_true(client.connection_controller.lobby_roster_scroll.follow_focus, "keyboard traversal scrolls the roster into view")
-	context.expect_equal(client.connection_controller.lobby_roster_scroll.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_SHOW_ALWAYS, "roster makes scrolling visible")
-	context.expect_true(client.connection_controller.lobby_options_popup.is_ancestor_of(client.connection_controller.rounds_control), "host round configuration lives in the separate setup panel")
+	context.expect_true(client.connection_controller.lobby.lobby_roster_scroll.follow_focus, "keyboard traversal scrolls the roster into view")
+	context.expect_equal(client.connection_controller.lobby.lobby_roster_scroll.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_SHOW_ALWAYS, "roster makes scrolling visible")
+	context.expect_true(client.connection_controller.lobby.lobby_options_popup.is_ancestor_of(client.connection_controller.lobby.rounds_control), "host round configuration lives in the separate setup panel")
 	context.expect_true(client.standings_controller.results_action_note.text.contains("resets cards, scores and objectives"), "fresh rematch visibly explains resets")
 	client.network_world.local_peer_id = 2
 	client.network_world.input_sequence = 50

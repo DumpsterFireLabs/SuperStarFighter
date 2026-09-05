@@ -1,0 +1,15 @@
+Connection/lobby ownership validation, 2026-09-04 (America/Vancouver)
+Godot 4.7.2 stable, Windows x64
+Commands: tools/verify-foundation.ps1; tools/verify-local-host.ps1; production presentation_capture.gd at 1280x720 and 5120x1440; python tools/update-export-policy.py --check
+The failed=1 summary is the deliberately forced failure required by the foundation gate.
+Known allowed environment diagnostic: ERROR: Failed to read the root certificate store.
+
+TEST_SUMMARY passed=7329 failed=0
+TEST_SUMMARY passed=7329 failed=1
+Verification gate passed: 9 acceptance cases, including a real zero-exit engine error.
+Project verification passed (190 checks).
+SSF_LOCAL_HOST_OK=connected_admitted_discovered port=17659 reconnects=1 lobby_requests=verified
+PRESENTATION_CAPTURE_OK=1280x720
+PRESENTATION_CAPTURE_OK=5120x1440
+Shipping resource allowlists are current.
+Visually inspected: 720p host form, 32-pilot lobby and appearance picker; ultrawide lobby options.

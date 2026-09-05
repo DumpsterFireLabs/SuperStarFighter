@@ -23,22 +23,21 @@ static func run(context: TestContext, parent: Node) -> void:
 
 	client.bridge.session.local_peer_id = 2
 	client.bridge.session.latest_lobby_state = {"leader_id": 2}
-	connection.connection_form_panel.hide()
-	connection.lobby_panel.show()
-	connection.lobby_options_button.grab_focus()
-	connection._show_lobby_options()
+	connection.show_waiting_lobby()
+	connection.lobby.lobby_options_button.grab_focus()
+	connection.lobby._show_lobby_options()
 	_press_key(client.get_viewport(), KEY_ESCAPE)
 	await parent.get_tree().process_frame
-	context.expect_false(connection.lobby_options_popup.visible, "Escape closes Match Setup instead of taking the pause path")
-	context.expect_equal(client.get_viewport().gui_get_focus_owner(), connection.lobby_options_button, "Match Setup restores focus to its opener")
-	connection._show_ship_color_popup()
+	context.expect_false(connection.lobby.lobby_options_popup.visible, "Escape closes Match Setup instead of taking the pause path")
+	context.expect_equal(client.get_viewport().gui_get_focus_owner(), connection.lobby.lobby_options_button, "Match Setup restores focus to its opener")
+	connection.lobby._show_ship_color_popup()
 	_press_key(client.get_viewport(), KEY_ESCAPE)
-	context.expect_false(connection.ship_color_popup.visible, "Escape closes ship appearance")
+	context.expect_false(connection.lobby.ship_color_popup.visible, "Escape closes ship appearance")
 	client.input_profiles.set_scheme(InputProfileManager.Scheme.CONTROLLER, false)
 	client.input_profiles.restore_active_defaults(false)
-	connection._show_ship_color_popup()
+	connection.lobby._show_ship_color_popup()
 	_press_pad(client.get_viewport(), JOY_BUTTON_B)
-	context.expect_false(connection.ship_color_popup.visible, "controller Back shares the appearance close path")
+	context.expect_false(connection.lobby.ship_color_popup.visible, "controller Back shares the appearance close path")
 	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
 
 	connection.connection_screen.hide()

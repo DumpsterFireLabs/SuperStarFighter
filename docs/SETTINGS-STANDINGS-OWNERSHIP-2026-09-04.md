@@ -12,4 +12,6 @@ Independent-controller tests cover navigation and accessibility signals, dynamic
 
 This completes the settings/standings dependency cleanup. The connection controller and broader root orchestration remain separate architectural work; this does not claim every screen is independent. No gameplay, protocol, intended layout or persistent user settings changes.
 
+Subsequent connection/lobby ownership work is documented in [Connection and lobby ownership](CONNECTION-LOBBY-OWNERSHIP-2026-09-04.md).
+
 Validation: **7,276 assertions passed**, with no unexpected Godot errors. The Windows certificate-store error is the repository's existing exact allowlisted environment error. The production presentation capture sequence completed successfully at **1280×720 and 5120×1440**, with strict exit/error/completion checks. Settings, contrast settings, results and ultrawide standings were also visually inspected. Export resource allowlists remain current. Selected screenshots and validation markers are retained in `settings-standings-evidence-2026-09-04/`.

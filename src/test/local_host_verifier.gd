@@ -31,13 +31,22 @@ func _run() -> void:
 		if not await _host_once(client):
 			quit(4)
 			return
+		if not await _verify_lobby_requests(client):
+			client._disconnect_online()
+			quit(4)
+			return
+		var runtime_path: NodePath = client.connection_controller.hosted_session.runtime_root.get_path()
 		client._disconnect_online()
 		await process_frame
+		if get_multiplayer(runtime_path) != get_multiplayer():
+			printerr("SSF_LOCAL_HOST_ERROR=custom multiplayer registration survived teardown")
+			quit(4)
+			return
 		if client.bridge.multiplayer.connected_to_server.is_connected(client.bridge.session._on_client_transport_connected):
 			printerr("SSF_LOCAL_HOST_ERROR=transport callback survived teardown")
 			quit(4)
 			return
-	print("SSF_LOCAL_HOST_OK=connected_admitted_discovered port=%d reconnects=1" % verification_port)
+	print("SSF_LOCAL_HOST_OK=connected_admitted_discovered port=%d reconnects=1 lobby_requests=verified" % verification_port)
 	quit(0)
 
 
@@ -48,9 +57,9 @@ func _host_once(client: Node) -> bool:
 		await process_frame
 		var connected: bool = client.bridge.local_peer_id != 0
 		var admitted: bool = (
-			client.connection_controller._hosted_server_bridge != null and
-			client.connection_controller._hosted_server_bridge.lobby != null and
-			client.connection_controller._hosted_server_bridge.lobby.human_count() == 1
+			client.connection_controller.hosted_session.server_bridge != null and
+			client.connection_controller.hosted_session.server_bridge.lobby != null and
+			client.connection_controller.hosted_session.server_bridge.lobby.human_count() == 1
 		)
 		var discovered := false
 		for server in client.connection_controller._lan_servers:
@@ -66,4 +75,18 @@ func _host_once(client: Node) -> bool:
 	])
 	client._disconnect_online()
 	await process_frame
+	return false
+
+
+func _verify_lobby_requests(client: Node) -> bool:
+	var lobby_screen = client.connection_controller.lobby
+	lobby_screen.rounds_control.value = 4
+	lobby_screen.ready_button.button_pressed = true
+	var started_at := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
+		await process_frame
+		var state: Dictionary = client.bridge.latest_lobby_state
+		if int(state.get("rounds_to_win", 0)) == 4 and bool(state.get("all_humans_ready", false)):
+			return true
+	printerr("SSF_LOCAL_HOST_ERROR=lobby requests did not return through authority")
 	return false
