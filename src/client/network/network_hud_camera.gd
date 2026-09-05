@@ -155,16 +155,22 @@ func _create_camera_and_hud() -> void:
 	diagnostics_label.add_theme_font_size_override("font_size", 16)
 	diagnostics_label.visible = false
 	hud_root.add_child(diagnostics_label)
+	var feedback_anchor := VBoxContainer.new()
+	feedback_anchor.name = "CombatFeedbackAnchor"
+	feedback_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	feedback_anchor.alignment = BoxContainer.ALIGNMENT_END
+	hud_root.add_child(feedback_anchor)
+	feedback_anchor.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	feedback_anchor.offset_left = -180.0
+	feedback_anchor.offset_right = 180.0
+	# Leave the outer navigation markers and spectator controls unobstructed.
+	# The container sizes the box to its visible text and keeps its bottom fixed.
+	feedback_anchor.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	feedback_anchor.offset_top = -390.0
+	feedback_anchor.offset_bottom = -210.0
 	combat_feedback_panel = CombatFeedbackPanel.new()
 	combat_feedback_panel.name = "CombatFeedback"
-	hud_root.add_child(combat_feedback_panel)
-	combat_feedback_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	combat_feedback_panel.offset_left = -250.0
-	combat_feedback_panel.offset_right = 250.0
-	# Leave the outer navigation markers and spectator controls unobstructed.
-	combat_feedback_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	combat_feedback_panel.offset_top = -320.0
-	combat_feedback_panel.offset_bottom = -210.0
+	feedback_anchor.add_child(combat_feedback_panel)
 	view.get_viewport().size_changed.connect(_layout_accessible_hud)
 	_layout_accessible_hud()
 
@@ -185,6 +191,9 @@ func _layout_accessible_hud() -> void:
 	hud_root.position = safe_rect.position
 	hud_root.scale = Vector2.ONE * hud_scale
 	hud_root.size = safe_rect.size / hud_scale
+	# Keep essential resources at the viewport edge even when other HUD
+	# elements use the centered safe area on ultrawide displays.
+	hud_panel.position = Vector2(16.0 - safe_rect.position.x / hud_scale, 16.0)
 	var panel_width := minf(430.0, maxf(240.0, hud_root.size.x - 420.0 - 56.0))
 	hud_panel.custom_minimum_size.x = panel_width
 	hud_panel.size.x = panel_width

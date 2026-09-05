@@ -11,12 +11,12 @@ var _life_generation: int = -1
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("071020", 0.94)
+	style.bg_color = Color(DesignTokens.BACKGROUND, 0.58)
 	style.set_corner_radius_all(8)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
 	add_theme_stylebox_override("panel", style)
 	var column := VBoxContainer.new()
 	add_child(column)
@@ -32,6 +32,8 @@ func _label(parent: Node, color: Color) -> Label:
 	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result.add_theme_font_size_override("font_size", 18)
 	result.add_theme_color_override("font_color", color)
+	result.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	result.add_theme_constant_override("shadow_offset_y", 1)
 	parent.add_child(result)
 	return result
 

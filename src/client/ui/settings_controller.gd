@@ -170,7 +170,8 @@ func _create_accessibility_settings_tab() -> void:
 	hud_scale_control.gui_input.connect(_on_hud_scale_gui_input)
 	reduced_shake_control = _add_accessibility_toggle(tab, "Disable camera shake and boost kick", "reduced_shake")
 	reduced_flashes_control = _add_accessibility_toggle(tab, "Reduce combat flashes", "reduced_flashes")
-	constrain_hud_control = _add_accessibility_toggle(tab, "Keep HUD within a centered 16:9 area", "constrain_hud")
+	constrain_hud_control = _add_accessibility_toggle(tab, "Keep other HUD within a centered 16:9 area", "constrain_hud")
+	constrain_hud_control.tooltip_text = "The online hull and shield panel stays pinned to the top-left edge. This setting centers the other HUD elements on wide screens."
 	high_contrast_control = _add_accessibility_toggle(tab, "Stronger text, panel and obstacle contrast", "high_contrast")
 	toggle_fire_control = _add_accessibility_toggle(tab, "Toggle fire: press to start / stop", "toggle_fire")
 	toggle_shield_control = _add_accessibility_toggle(tab, "Toggle shield: press to raise / lower", "toggle_shield")
