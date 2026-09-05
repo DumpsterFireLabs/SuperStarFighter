@@ -18,6 +18,7 @@ var _context: Callable
 
 var draft_panel: PanelContainer
 var draft_title: Label
+var draft_cards: HBoxContainer
 var draft_buttons: Array[Button] = []
 var draft_rarity_labels: Array[Label] = []
 var draft_bye_label: Label
@@ -53,7 +54,8 @@ func create_ui() -> void:
 	draft_panel.theme = interface_theme
 	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	draft_panel.visible = false
-	draft_panel.resized.connect(func() -> void: draft_panel.position = (get_viewport().get_visible_rect().size - draft_panel.size) * 0.5)
+	draft_panel.resized.connect(_center_draft_panel)
+	get_viewport().size_changed.connect(_center_draft_panel)
 	_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 14)
@@ -70,6 +72,7 @@ func create_ui() -> void:
 	comparison_hint.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	content.add_child(comparison_hint)
 	var cards := HBoxContainer.new()
+	draft_cards = cards
 	cards.alignment = BoxContainer.ALIGNMENT_CENTER
 	cards.add_theme_constant_override("separation", 10)
 	content.add_child(cards)
@@ -110,12 +113,11 @@ func create_ui() -> void:
 	inspect_button.pressed.connect(func() -> void: (draft_buttons[inspected_index] as CardHoverButton).request_inspection())
 	content.add_child(inspect_button)
 	draft_bye_label = Label.new()
-	draft_bye_label.text = "ROUND WINNER\n\nYou keep the build that won the round.\nEveryone else gets an upgrade this time.\n\nHold the lead."
+	draft_bye_label.text = "You keep the build that won the round.\nEveryone else gets an upgrade this time.\n\nHold the lead."
 	draft_bye_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	draft_bye_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	draft_bye_label.add_theme_font_size_override("font_size", 28)
+	draft_bye_label.add_theme_font_size_override("font_size", 24)
 	draft_bye_label.add_theme_color_override("font_color", Color("fff36a"))
-	draft_bye_label.custom_minimum_size.y = 390.0
 	draft_bye_label.visible = false
 	content.add_child(draft_bye_label)
 	draft_confirmation_row = HBoxContainer.new()
@@ -207,6 +209,9 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	column.add_child(state)
 
 func _show_draft_offer(payload: Dictionary) -> void:
+	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
+	draft_title.add_theme_font_size_override("font_size", 34)
+	draft_cards.show()
 	inspect_button.show()
 	comparison_hint.show()
 	active_offer_token = String(payload.get("offer_token", ""))
@@ -262,6 +267,7 @@ func _show_draft_offer(payload: Dictionary) -> void:
 				(button.get_node("CardContent/Details/Stack") as Label).text += "\nAT LIMIT"
 				button.text += "\nAT LIMIT · VIEW DETAILS"
 	draft_panel.visible = true
+	draft_panel.reset_size.call_deferred()
 	for button in draft_buttons:
 		if button.visible and not button.disabled:
 			button.grab_focus()
@@ -347,6 +353,10 @@ func _cancel_draft_confirmation() -> void:
 
 
 func _show_draft_bye(deadline_tick: int) -> void:
+	draft_panel.custom_minimum_size = Vector2(820.0, 0.0)
+	draft_title.add_theme_font_size_override("font_size", 28)
+	draft_title.text = "ROUND WINNER — SKIPS THIS DRAFT"
+	draft_cards.hide()
 	inspect_button.hide()
 	comparison_hint.hide()
 	active_offer_token = ""
@@ -358,6 +368,12 @@ func _show_draft_bye(deadline_tick: int) -> void:
 		draft_rarity_labels[index].visible = false
 	draft_bye_label.visible = true
 	draft_panel.visible = true
+	# Let the containers drop the previous offer's minimum before shrinking.
+	draft_panel.reset_size.call_deferred()
+
+
+func _center_draft_panel() -> void:
+	draft_panel.position = (get_viewport().get_visible_rect().size - draft_panel.size) * 0.5
 
 
 func _draft_category_color(category: int) -> Color:
