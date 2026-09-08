@@ -35,6 +35,9 @@ var lobby_options_button: Button
 var lobby_options_blocker: ColorRect
 var lobby_options_popup: PanelContainer
 var lobby_options_focus_return: Control
+var lobby_options_tabs: TabContainer
+var lobby_options_status: Label
+var lobby_options_close: Button
 var powerups_button: CheckButton
 var powerup_interval_control: SpinBox
 var powerups_permanent_button: CheckButton
@@ -163,53 +166,6 @@ func _create_lobby_panel() -> void:
 	lobby_roster.add_theme_constant_override("separation", 7)
 	lobby_roster.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_scroll.add_child(lobby_roster)
-	lobby_host_controls = VBoxContainer.new()
-	lobby_host_controls.name = "HostConfiguration"
-	lobby_host_controls.add_theme_constant_override("separation", 10)
-	var rounds_row := HBoxContainer.new()
-	lobby_host_controls.add_child(rounds_row)
-	var rounds_label := Label.new()
-	rounds_label.text = "Rounds to win"
-	rounds_row.add_child(rounds_label)
-	rounds_control = SpinBox.new()
-	rounds_control.min_value = GameConstants.MIN_ROUNDS_TO_WIN
-	rounds_control.max_value = GameConstants.MAX_ROUNDS_TO_WIN
-	rounds_control.value = GameConstants.DEFAULT_ROUNDS_TO_WIN
-	rounds_control.custom_minimum_size = Vector2(130.0, 48.0)
-	rounds_control.value_changed.connect(_on_rounds_changed)
-	rounds_row.add_child(rounds_control)
-	var limit_row := HBoxContainer.new()
-	lobby_host_controls.add_child(limit_row)
-	var limit_label := Label.new()
-	limit_label.text = "Player limit"
-	limit_row.add_child(limit_label)
-	player_limit_control = SpinBox.new()
-	player_limit_control.min_value = GameConstants.MIN_PLAYERS
-	player_limit_control.max_value = GameConstants.MAX_PLAYERS
-	player_limit_control.value = GameConstants.DEFAULT_MAX_PLAYERS
-	player_limit_control.custom_minimum_size = Vector2(130.0, 48.0)
-	player_limit_control.value_changed.connect(_on_player_limit_changed)
-	limit_row.add_child(player_limit_control)
-	npcs_button = CheckButton.new()
-	npcs_button.text = "Enable NPCs · add configurable pilots to empty seats"
-	npcs_button.theme_type_variation = &"SettingToggle"
-	npcs_button.custom_minimum_size.y = 48.0
-	npcs_button.toggled.connect(_on_npcs_toggled)
-	lobby_host_controls.add_child(npcs_button)
-	var npc_difficulty_row := HBoxContainer.new()
-	npc_difficulty_row.add_theme_constant_override("separation", 14)
-	lobby_host_controls.add_child(npc_difficulty_row)
-	var npc_difficulty_label := Label.new()
-	npc_difficulty_label.text = "Set all NPC difficulties"
-	npc_difficulty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	npc_difficulty_row.add_child(npc_difficulty_label)
-	npc_all_difficulty_control = OptionButton.new()
-	npc_all_difficulty_control.custom_minimum_size = Vector2(190.0, 42.0)
-	for difficulty in NpcPilotController.DIFFICULTY_NAMES.size():
-		npc_all_difficulty_control.add_item(NpcPilotController.difficulty_name(difficulty), difficulty)
-	npc_all_difficulty_control.select(NpcPilotController.Difficulty.NEUTRAL)
-	npc_all_difficulty_control.item_selected.connect(_on_all_npc_difficulty_selected)
-	npc_difficulty_row.add_child(npc_all_difficulty_control)
 	lobby_options_button = Button.new()
 	lobby_options_button.text = "MATCH SETUP"
 	lobby_options_button.theme_type_variation = &"SecondaryButton"
@@ -265,44 +221,41 @@ func _create_lobby_options_popup() -> void:
 	lobby_options_popup = PanelContainer.new()
 	lobby_options_popup.name = "LobbyOptions"
 	lobby_options_popup.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_options_popup.position = Vector2(-400.0, -330.0)
-	lobby_options_popup.custom_minimum_size = Vector2(800.0, 660.0)
+	lobby_options_popup.position = Vector2(-460.0, -430.0)
+	lobby_options_popup.custom_minimum_size = Vector2(920.0, 860.0)
 	lobby_options_popup.theme = interface_theme
 	lobby_options_popup.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	lobby_options_popup.visible = false
 	connection_canvas.add_child(lobby_options_popup)
 	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 10)
+	outer.add_theme_constant_override("separation", 14)
 	lobby_options_popup.add_child(outer)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(750.0, 550.0)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	outer.add_child(scroll)
-	var content := VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 12)
-	scroll.add_child(content)
-	lobby_preset_control = PresetControls.create_picker(content)
-	lobby_preset_note = PresetControls.create_note(content)
-	lobby_preset_control.item_selected.connect(_on_lobby_preset_selected)
-	content.add_child(lobby_host_controls)
 	var title := Label.new()
-	title.text = "MATCH OPTIONS"
+	title.text = "MATCH SETUP"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color("d39cff"))
-	content.add_child(title)
-	competitive_view_control = CheckButton.new()
-	competitive_view_control.name = "CompetitiveView"
-	competitive_view_control.text = "Competitive view · equal 16:9 combat space"
-	competitive_view_control.tooltip_text = "Applies to every player and spectator. Wider or taller screens show bars during the match; normal menus retain their full layout."
-	competitive_view_control.toggled.connect(_on_competitive_view_changed)
-	content.add_child(competitive_view_control)
+	title.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_TITLE_SIZE)
+	title.add_theme_color_override("font_color", DesignTokensScript.BRAND_MAGENTA)
+	outer.add_child(title)
+	lobby_options_status = _setup_note(outer, "Changes apply immediately. Pilots must ready up again after rule changes.")
+	lobby_options_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lobby_options_tabs = TabContainer.new()
+	lobby_options_tabs.name = "MatchSetupTabs"
+	lobby_options_tabs.custom_minimum_size = Vector2(860.0, 630.0)
+	lobby_options_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	lobby_options_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
+	lobby_options_tabs.get_tab_bar().gui_input.connect(NavigationScript.handle_tab_bar_input.bind(lobby_options_tabs))
+	outer.add_child(lobby_options_tabs)
+	var match_content := _setup_tab("MATCH")
+	lobby_preset_control = PresetControls.create_picker(match_content)
+	lobby_preset_control.set_item_text(0, "Custom · choose your own rules")
+	lobby_preset_note = PresetControls.create_note(match_content)
+	lobby_preset_note.text = "Start with a preset, then adjust Match, Pilots, and Arena Rules."
+	lobby_preset_note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+	lobby_preset_control.item_selected.connect(_on_lobby_preset_selected)
+	_setup_heading(match_content, "Mode & victory")
 	var mode_row := HBoxContainer.new()
 	mode_row.add_theme_constant_override("separation", 14)
-	content.add_child(mode_row)
+	match_content.add_child(mode_row)
 	var mode_label := Label.new()
 	mode_label.text = "Game mode"
 	mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -317,13 +270,13 @@ func _create_lobby_options_popup() -> void:
 	game_mode_note = Label.new()
 	game_mode_note.text = GameModeRules.mode_description(GameModeRules.Mode.DEATH_MATCH)
 	game_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	game_mode_note.add_theme_color_override("font_color", Color("73f7ff"))
-	content.add_child(game_mode_note)
+	game_mode_note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+	match_content.add_child(game_mode_note)
 	team_count_row = HBoxContainer.new()
 	team_count_row.name = "TeamCountRow"
 	team_count_row.add_theme_constant_override("separation", 14)
 	team_count_row.visible = false
-	content.add_child(team_count_row)
+	match_content.add_child(team_count_row)
 	var team_count_label := Label.new()
 	team_count_label.text = "Number of teams"
 	team_count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -333,42 +286,65 @@ func _create_lobby_options_popup() -> void:
 	team_count_control.max_value = GameModeRules.MAX_TEAM_COUNT
 	team_count_control.value = GameModeRules.DEFAULT_TEAM_COUNT
 	team_count_control.step = 1.0
-	team_count_control.custom_minimum_size = Vector2(150.0, 44.0)
+	team_count_control.custom_minimum_size = Vector2(190.0, 48.0)
 	team_count_control.tooltip_text = "Team Death Match supports two through eight teams. Every configured team needs at least one participant."
 	team_count_control.value_changed.connect(_on_team_count_changed)
 	team_count_row.add_child(team_count_control)
-	powerups_button = CheckButton.new()
-	powerups_button.text = "Random spawn powerups"
-	powerups_button.theme_type_variation = &"SettingToggle"
-	powerups_button.tooltip_text = "King of the Hill enables temporary drops by default. When enabled, a server-owned Rare-or-better card appears during active combat at the configured interval."
-	powerups_button.custom_minimum_size.y = 48.0
-	powerups_button.toggled.connect(_on_powerups_toggled)
-	var powerup_row := HBoxContainer.new()
-	powerup_row.add_theme_constant_override("separation", 14)
-	powerup_row.add_child(powerups_button)
-	powerups_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var interval_label := Label.new()
-	interval_label.text = "Every"
-	powerup_row.add_child(interval_label)
-	powerup_interval_control = SpinBox.new()
-	powerup_interval_control.min_value = 5.0
-	powerup_interval_control.max_value = 90.0
-	powerup_interval_control.step = 1.0
-	powerup_interval_control.value = 20.0
-	powerup_interval_control.suffix = " sec"
-	powerup_interval_control.custom_minimum_size = Vector2(130.0, 44.0)
-	powerup_interval_control.value_changed.connect(_on_powerup_interval_changed)
-	powerup_row.add_child(powerup_interval_control)
-	content.add_child(powerup_row)
-	powerups_permanent_button = CheckButton.new()
-	powerups_permanent_button.text = "Powerup cards persist for the full match"
-	powerups_permanent_button.theme_type_variation = &"SettingToggle"
-	powerups_permanent_button.tooltip_text = "Off by default. When off, arena-drop cards are removed after the heat."
-	powerups_permanent_button.toggled.connect(_on_powerups_permanent_toggled)
-	content.add_child(powerups_permanent_button)
+	var rounds_row := HBoxContainer.new()
+	match_content.add_child(rounds_row)
+	var rounds_label := Label.new()
+	rounds_label.text = "Rounds to win"
+	rounds_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rounds_row.add_child(rounds_label)
+	rounds_control = SpinBox.new()
+	rounds_control.min_value = GameConstants.MIN_ROUNDS_TO_WIN
+	rounds_control.max_value = GameConstants.MAX_ROUNDS_TO_WIN
+	rounds_control.value = GameConstants.DEFAULT_ROUNDS_TO_WIN
+	rounds_control.custom_minimum_size = Vector2(190.0, 48.0)
+	rounds_control.value_changed.connect(_on_rounds_changed)
+	rounds_row.add_child(rounds_control)
+	lobby_host_controls = _setup_tab("PILOTS")
+	_setup_heading(lobby_host_controls, "Lobby size")
+	_setup_note(lobby_host_controls, "The player limit includes human pilots and NPCs.")
+	var limit_row := HBoxContainer.new()
+	lobby_host_controls.add_child(limit_row)
+	var limit_label := Label.new()
+	limit_label.text = "Player limit"
+	limit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	limit_row.add_child(limit_label)
+	player_limit_control = SpinBox.new()
+	player_limit_control.min_value = GameConstants.MIN_PLAYERS
+	player_limit_control.max_value = GameConstants.MAX_PLAYERS
+	player_limit_control.value = GameConstants.DEFAULT_MAX_PLAYERS
+	player_limit_control.custom_minimum_size = Vector2(190.0, 48.0)
+	player_limit_control.value_changed.connect(_on_player_limit_changed)
+	limit_row.add_child(player_limit_control)
+	npcs_button = CheckButton.new()
+	npcs_button.text = "Fill empty seats with NPCs"
+	npcs_button.theme_type_variation = &"SettingToggle"
+	npcs_button.custom_minimum_size.y = 48.0
+	npcs_button.toggled.connect(_on_npcs_toggled)
+	lobby_host_controls.add_child(npcs_button)
+	var npc_difficulty_row := HBoxContainer.new()
+	npc_difficulty_row.add_theme_constant_override("separation", 14)
+	lobby_host_controls.add_child(npc_difficulty_row)
+	var npc_difficulty_label := Label.new()
+	npc_difficulty_label.text = "Difficulty for all NPCs"
+	npc_difficulty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	npc_difficulty_row.add_child(npc_difficulty_label)
+	npc_all_difficulty_control = OptionButton.new()
+	npc_all_difficulty_control.custom_minimum_size = Vector2(190.0, 42.0)
+	for difficulty in NpcPilotController.DIFFICULTY_NAMES.size():
+		npc_all_difficulty_control.add_item(NpcPilotController.difficulty_name(difficulty), difficulty)
+	npc_all_difficulty_control.select(NpcPilotController.Difficulty.NEUTRAL)
+	npc_all_difficulty_control.item_selected.connect(_on_all_npc_difficulty_selected)
+	npc_difficulty_row.add_child(npc_all_difficulty_control)
+	_setup_note(lobby_host_controls, "You can adjust individual NPC difficulties and team assignments in the lobby roster.")
+	var rules_content := _setup_tab("ARENA RULES")
+	_setup_heading(rules_content, "Round pacing")
 	var overtime_row := HBoxContainer.new()
 	overtime_row.add_theme_constant_override("separation", 14)
-	content.add_child(overtime_row)
+	rules_content.add_child(overtime_row)
 	var overtime_label := Label.new()
 	overtime_label.text = "Overtime begins"
 	overtime_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -379,20 +355,102 @@ func _create_lobby_options_popup() -> void:
 	overtime_start_control.step = 1.0
 	overtime_start_control.value = GameConstants.OVERTIME_START_SECONDS
 	overtime_start_control.suffix = " sec"
-	overtime_start_control.custom_minimum_size = Vector2(150.0, 44.0)
+	overtime_start_control.custom_minimum_size = Vector2(190.0, 48.0)
 	overtime_start_control.value_changed.connect(_on_overtime_start_changed)
 	overtime_row.add_child(overtime_start_control)
-	var powerup_note := Label.new()
-	powerup_note.text = "Rare-or-better drops appear at safe map positions. Temporary drops leave your inventory after each heat unless permanence is enabled."
-	powerup_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	powerup_note.add_theme_color_override("font_color", Color("aebbd4"))
-	content.add_child(powerup_note)
-	var close_button := Button.new()
-	close_button.text = "DONE"
-	close_button.theme_type_variation = &"PrimaryButton"
-	close_button.custom_minimum_size.y = 48.0
-	close_button.pressed.connect(_hide_lobby_options)
-	outer.add_child(close_button)
+	_setup_heading(rules_content, "Powerups")
+	powerups_button = CheckButton.new()
+	powerups_button.text = "Enable powerup drops"
+	powerups_button.theme_type_variation = &"SettingToggle"
+	powerups_button.tooltip_text = "King of the Hill enables temporary drops by default. When enabled, a server-owned Rare-or-better card appears during active combat at the configured interval."
+	powerups_button.custom_minimum_size.y = 48.0
+	powerups_button.toggled.connect(_on_powerups_toggled)
+	rules_content.add_child(powerups_button)
+	var powerup_row := HBoxContainer.new()
+	powerup_row.add_theme_constant_override("separation", 14)
+	var interval_label := Label.new()
+	interval_label.text = "Time between drops"
+	interval_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	powerup_row.add_child(interval_label)
+	powerup_interval_control = SpinBox.new()
+	powerup_interval_control.min_value = 5.0
+	powerup_interval_control.max_value = 90.0
+	powerup_interval_control.step = 1.0
+	powerup_interval_control.value = 20.0
+	powerup_interval_control.suffix = " sec"
+	powerup_interval_control.custom_minimum_size = Vector2(190.0, 48.0)
+	powerup_interval_control.value_changed.connect(_on_powerup_interval_changed)
+	powerup_row.add_child(powerup_interval_control)
+	rules_content.add_child(powerup_row)
+	powerups_permanent_button = CheckButton.new()
+	powerups_permanent_button.text = "Keep collected powerups for the full match"
+	powerups_permanent_button.theme_type_variation = &"SettingToggle"
+	powerups_permanent_button.tooltip_text = "Off by default. When off, arena-drop cards are removed after the heat."
+	powerups_permanent_button.toggled.connect(_on_powerups_permanent_toggled)
+	rules_content.add_child(powerups_permanent_button)
+	_setup_note(rules_content, "Drops grant Rare-or-better cards. By default, collected cards last until the heat ends.")
+	_setup_heading(rules_content, "Competitive view")
+	competitive_view_control = CheckButton.new()
+	competitive_view_control.name = "CompetitiveView"
+	competitive_view_control.theme_type_variation = &"SettingToggle"
+	competitive_view_control.custom_minimum_size.y = 48.0
+	competitive_view_control.text = "Use equal 16:9 combat space"
+	competitive_view_control.tooltip_text = "Applies to every player and spectator. Wider or taller screens show bars during the match; normal menus retain their full layout."
+	competitive_view_control.toggled.connect(_on_competitive_view_changed)
+	rules_content.add_child(competitive_view_control)
+	_setup_note(rules_content, "Applies to all pilots and spectators. Wider or taller screens show bars during combat.")
+	lobby_options_tabs.tab_changed.connect(_on_setup_tab_changed)
+	lobby_options_close = Button.new()
+	lobby_options_close.text = "BACK TO LOBBY"
+	lobby_options_close.theme_type_variation = &"PrimaryButton"
+	lobby_options_close.custom_minimum_size.y = 48.0
+	lobby_options_close.pressed.connect(_hide_lobby_options)
+	outer.add_child(lobby_options_close)
+	_on_setup_tab_changed(0)
+
+
+func _setup_tab(tab_title: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = tab_title
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	lobby_options_tabs.add_child(scroll)
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 12)
+	scroll.add_child(content)
+	return content
+
+
+func _setup_heading(parent: VBoxContainer, heading: String) -> void:
+	parent.add_child(HSeparator.new())
+	var label := Label.new()
+	label.text = heading
+	label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_SECTION_SIZE)
+	label.add_theme_color_override("font_color", DesignTokensScript.BRAND_MAGENTA)
+	parent.add_child(label)
+
+
+func _setup_note(parent: VBoxContainer, message: String) -> Label:
+	var label := Label.new()
+	label.text = message
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
+	parent.add_child(label)
+	return label
+
+
+func _on_setup_tab_changed(index: int) -> void:
+	var first_control: Control = [lobby_preset_control, player_limit_control.get_line_edit(), overtime_start_control.get_line_edit()][index]
+	var tab_bar := lobby_options_tabs.get_tab_bar()
+	tab_bar.focus_next = tab_bar.get_path_to(first_control)
+	tab_bar.focus_neighbor_bottom = tab_bar.focus_next
+	first_control.focus_previous = first_control.get_path_to(tab_bar)
+	if lobby_options_popup.visible and get_viewport().gui_get_focus_owner() != tab_bar:
+		if lobby_preset_control.disabled:
+			tab_bar.grab_focus()
+		else:
+			first_control.grab_focus()
 
 
 func _create_ship_color_popup() -> void:
@@ -512,7 +570,7 @@ func render_lobby(state: Dictionary) -> void:
 	lobby_rules_label.text += "  ·  Competitive 16:9" if bool(state.get("competitive_view", false)) else "  ·  Expanded view"
 	lobby_readiness_label.text = readiness_summary(state)
 	lobby_options_button.text = "MATCH SETUP" if is_leader else "VIEW MATCH SETUP"
-	lobby_options_button.tooltip_text = "Choose a solo or party preset, or configure advanced rules." if is_leader else "View current rules. Only the host may edit match setup."
+	lobby_options_button.tooltip_text = "Choose a preset, configure pilots, and adjust arena rules." if is_leader else "View current rules. Only the host may edit match setup."
 	_rebuild_lobby_roster(state, is_leader)
 	var local_ready := false
 	for player_value in state.get("players", []):
@@ -555,6 +613,8 @@ func render_lobby(state: Dictionary) -> void:
 	_applying_lobby_state = false
 	ready_button.disabled = match_active
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
+	lobby_options_status.text = "Changes apply immediately. Pilots must ready up again after rule changes." if is_leader else "Only the host can change these rules. You can browse all three tabs."
+	lobby_options_status.remove_theme_color_override("font_color")
 	var settings_editable: bool = is_leader and not match_active
 	lobby_preset_control.disabled = not settings_editable
 	game_mode_control.disabled = not settings_editable
@@ -724,8 +784,15 @@ func _show_lobby_options() -> void:
 			_hide_ship_color(false)
 		lobby_options_blocker.show()
 		lobby_panel.hide()
+		lobby_options_tabs.current_tab = 0
+		for tab in lobby_options_tabs.get_children():
+			(tab as ScrollContainer).scroll_vertical = 0
 		lobby_options_popup.show()
-		game_mode_control.grab_focus()
+		_on_setup_tab_changed(0)
+		if lobby_preset_control.disabled:
+			lobby_options_tabs.get_tab_bar().grab_focus()
+		else:
+			lobby_preset_control.grab_focus()
 
 
 func _hide_lobby_options(restore_focus: bool = true) -> void:
@@ -881,7 +948,7 @@ func _ship_color_swatch_style(ship_color: Color, hovered: bool) -> StyleBoxFlat:
 
 
 func _on_lobby_preset_selected(index: int) -> void:
-	lobby_preset_note.text = PresetControls.description(index)
+	lobby_preset_note.text = "Start with a preset, then adjust Match, Pilots, and Arena Rules." if index == 0 else PresetControls.description(index)
 	lobby_preset_note.remove_theme_color_override("font_color")
 	if index > 0 and not _applying_lobby_state:
 		bridge.send_match_preset(String(lobby_preset_control.get_item_metadata(index)))
@@ -890,8 +957,8 @@ func _on_lobby_preset_selected(index: int) -> void:
 func show_request_rejection(message: String) -> void:
 	lobby_label.text += "\nRejected: %s" % message
 	if lobby_options_popup.visible:
-		lobby_preset_note.text = "Could not apply: %s" % message
-		lobby_preset_note.add_theme_color_override("font_color", Color("ffadb9"))
+		lobby_options_status.text = "Could not apply: %s" % message
+		lobby_options_status.add_theme_color_override("font_color", DesignTokensScript.DANGER)
 
 
 static func ordered_roster(state: Dictionary) -> Array:

@@ -18,7 +18,7 @@ foreach ($resolution in @(
     @{ Label = '5120x1440'; Width = 5120; Height = 1440 }
 )) {
     $arguments = @(
-        '--path', '.', '--audio-driver', 'Dummy', '--resolution',
+        '--path', '.', '--log-file', (Join-Path $captureRoot "$($resolution.Label).engine.log"), '--audio-driver', 'Dummy', '--resolution',
         "$($resolution.Width)x$($resolution.Height)", '--position', '-10000,-10000',
         '--script', 'res://src/test/presentation_capture.gd', '--',
         "--capture-dir=$($captureRoot.Replace('\', '/'))",
@@ -38,16 +38,14 @@ foreach ($resolution in @(
     $combined = ''
     if (Test-Path -LiteralPath $stdout) { $combined += Get-Content -LiteralPath $stdout -Raw }
     if (Test-Path -LiteralPath $stderr) { $combined += Get-Content -LiteralPath $stderr -Raw }
-    if ($process.ExitCode -ne 0 -or -not $combined.Contains("PRESENTATION_CAPTURE_OK=$($resolution.Label)") -or $combined.Contains('SCRIPT ERROR:') -or $combined.Contains('ERROR:')) {
-        throw "Presentation capture failed for $($resolution.Label): $combined"
-    }
+    Assert-SsfGodotResult -Output $combined -ExitCode $process.ExitCode -Name "Presentation capture $($resolution.Label)" -ExpectedPattern "PRESENTATION_CAPTURE_OK=$($resolution.Label)"
     foreach ($screen in @('splash', 'game_splash', 'menu', 'credits', 'host_menu', 'settings', 'fullscreen_settings', 'controls', 'offline_combat', 'lobby_32', 'lobby_settings', 'lobby_color_picker', 'lobby_options', 'lobby_npc_difficulties', 'draft', 'draft_card_hover', 'draft_bye', 'heat_ready', 'heat_begin', 'combat', 'afterburner', 'map_core_arena', 'map_riftline', 'map_prism_array', 'map_twin_suns', 'map_dead_freight', 'map_longwave_array', 'map_broken_orbit', 'map_switchyard', 'map_solar_tide', 'map_relay_zero', 'map_solar_tide_contrast', 'scoreboard', 'scoreboard_card_hover', 'spectator', 'pause', 'results', 'results_card_hover', 'error')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Presentation capture $imagePath is missing or unexpectedly small."
         }
     }
-    foreach ($screen in @('competitive_combat', 'host_preset', 'accessibility_contrast', 'combat_contrast', 'objective_results', 'ship_families', 'draft_confirmation', 'draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_targets', 'build_lab_scaled', 'build_lab_details_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled', 'tutorial_movement', 'tutorial_guard', 'tutorial_scaled', 'tutorial_draft', 'crowded_combat', 'crowded_combat_reduced')) {
+    foreach ($screen in @('lobby_options_pilots', 'lobby_options_rules', 'lobby_options_rules_bottom', 'competitive_combat', 'host_preset', 'accessibility_contrast', 'combat_contrast', 'objective_results', 'ship_families', 'draft_confirmation', 'draft_capped', 'draft_capped_hover', 'team_combat', 'flag_navigation', 'flag_return', 'hill_enemy', 'hill_contested', 'accessibility_settings', 'build_lab', 'build_lab_targets', 'build_lab_scaled', 'build_lab_details_scaled', 'ability_selection', 'combat_accessibility', 'hit_confirmation', 'death_recap', 'death_recap_scaled', 'tutorial_movement', 'tutorial_guard', 'tutorial_scaled', 'tutorial_draft', 'crowded_combat', 'crowded_combat_reduced')) {
         $imagePath = Join-Path $captureRoot "$($resolution.Label)_$screen.png"
         if (-not (Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 4096) {
             throw "Draft limit feedback capture $imagePath is missing or unexpectedly small."

@@ -218,12 +218,13 @@ The first admitted human is the lobby leader. If that player disconnects, leader
 
 ### Lobby leader
 
-- Selects **Death Match**, **Team Death Match**, **King of the Hill**, **Capture the Flag**, or **Team Capture the Flag** from Match Options. Death Match is the default.
+- Opens **Match Setup** and works through **Match** (preset, mode, teams, victory target), **Pilots** (capacity and NPCs), and **Arena Rules** (overtime, powerups, competitive view). Changes apply immediately; **Back to Lobby** returns to the roster for readiness and launch.
+- Selects **Death Match**, **Team Death Match**, **King of the Hill**, **Capture the Flag**, or **Team Capture the Flag** in the Match tab. Death Match is the default.
 - When Team Death Match is selected, sets **Number of teams** from 2 through 8 without exceeding the player limit.
 - Sets **Rounds to win** from 1 through 5.
 - Sets the **Player limit** from 2 through server capacity, never above 32 or below the number of connected humans.
 - Enables or disables NPC fill.
-- Enables **Random Spawn Powerups** when desired. It is off by default.
+- Uses **Enable powerup drops** in Arena Rules when desired. It is off by default.
 - Sets random drops from 5 through 90 seconds, chooses whether collected drops expire after the heat or persist through the match, and sets overtime from 30 through 120 seconds.
 - Uses the bulk NPC difficulty dropdown to update every NPC together when desired.
 - Selects each NPC's difficulty.

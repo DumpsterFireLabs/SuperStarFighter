@@ -76,10 +76,29 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(bridge.requests.back().color.to_html(false), "ff4ea3", "appearance Apply submits the pending colour")
 	context.expect_true(screen.lobby.lobby_panel.visible, "applying appearance restores the waiting room")
 	screen.lobby._show_lobby_options()
+	context.expect_equal(parent.get_viewport().gui_get_focus_owner(), screen.lobby.lobby_preset_control, "match setup starts with the preset choice")
+	var request_count := bridge.requests.size()
+	screen.lobby.lobby_options_tabs.current_tab = 1
+	context.expect_equal(parent.get_viewport().gui_get_focus_owner(), screen.lobby.player_limit_control.get_line_edit(), "pilots tab focuses the editable capacity field")
+	screen.lobby.lobby_options_tabs.current_tab = 2
+	context.expect_equal(parent.get_viewport().gui_get_focus_owner(), screen.lobby.overtime_start_control.get_line_edit(), "arena rules tab focuses the editable overtime field")
 	screen.render_lobby(state)
 	context.expect_true(screen.lobby.lobby_options_popup.visible and not screen.lobby.lobby_panel.visible, "live roster updates preserve options modal exclusivity")
+	context.expect_equal(screen.lobby.lobby_options_tabs.current_tab, 2, "live roster updates preserve the selected setup tab")
+	context.expect_equal(bridge.requests.size(), request_count, "browsing setup tabs does not change match rules")
 	screen.show_request_rejection("Only the host may edit")
-	context.expect_true(screen.lobby.lobby_preset_note.text.contains("Only the host may edit"), "lobby rejection appears in the active options modal")
+	context.expect_true(screen.lobby.lobby_options_status.is_visible_in_tree() and screen.lobby.lobby_options_status.text.contains("Only the host may edit"), "lobby rejection remains visible on the arena rules tab")
+	screen.lobby._hide_lobby_options()
+	bridge.session.local_peer_id = 3
+	screen.render_lobby(state)
+	screen.lobby._show_lobby_options()
+	context.expect_equal(screen.lobby.lobby_options_tabs.current_tab, 0, "reopening setup starts with match choices")
+	context.expect_equal(parent.get_viewport().gui_get_focus_owner(), screen.lobby.lobby_options_tabs.get_tab_bar(), "guests start on the navigable tab bar")
+	screen.lobby.lobby_options_tabs.current_tab = 1
+	context.expect_true(screen.lobby.player_limit_control.is_visible_in_tree() and not screen.lobby.player_limit_control.editable and screen.lobby.npcs_button.disabled, "guests can inspect pilots without editing rules")
+	screen.lobby.lobby_options_tabs.current_tab = 2
+	context.expect_equal(parent.get_viewport().gui_get_focus_owner(), screen.lobby.lobby_options_tabs.get_tab_bar(), "tab navigation retains guest focus")
+	bridge.session.local_peer_id = 2
 	screen.hide_screens()
 	context.expect_false(screen.is_visible() or screen.lobby.lobby_panel.visible or screen.lobby.lobby_options_popup.visible or screen.lobby.lobby_options_blocker.visible, "match navigation hides every connection surface")
 	screen.render_lobby(state)

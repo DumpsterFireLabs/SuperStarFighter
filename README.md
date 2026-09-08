@@ -39,7 +39,7 @@ In the game:
 1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
 3. Choose a server name, gameplay UDP port, and required lobby password, then select **Host & Join**.
-4. In the lobby, choose the player limit and round target. Enable NPCs if desired. **Match Options** contains the game-mode selector plus optional timed-powerup and overtime rules. Click your appearance swatch beside your roster name to combine a custom colour with Solid, Zebra, Leopard, Checkerboard, Racing Stripe, or Chevron hull graphics, then apply the appearance or choose a random colour.
+4. Open **Match Setup** in the lobby. **Match** contains presets, game mode, teams, and rounds to win; **Pilots** contains the player limit and NPC settings; **Arena Rules** contains overtime, powerups, and competitive view. Changes apply immediately. Click your appearance swatch beside your roster name to combine a custom colour with Solid, Zebra, Leopard, Checkerboard, Racing Stripe, or Chevron hull graphics, then apply the appearance or choose a random colour.
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 

@@ -149,6 +149,13 @@ func _capture_sequence() -> void:
 	client.connection_controller.lobby._hide_ship_color(false)
 	client.connection_controller.lobby._show_lobby_options()
 	await _capture(client, "lobby_options")
+	client.connection_controller.lobby.lobby_options_tabs.current_tab = 1
+	await _capture(client, "lobby_options_pilots")
+	client.connection_controller.lobby.lobby_options_tabs.current_tab = 2
+	await _capture(client, "lobby_options_rules")
+	client.connection_controller.lobby.competitive_view_control.grab_focus()
+	await _capture(client, "lobby_options_rules_bottom")
+	client.connection_controller.lobby.lobby_options_tabs.current_tab = 0
 	client.connection_controller.lobby._hide_lobby_options(false)
 	var roster_scroll := client.connection_controller.lobby.lobby_roster.get_parent() as ScrollContainer
 	roster_scroll.scroll_vertical = 100000

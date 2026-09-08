@@ -25,7 +25,7 @@ static func apply(lobby: ServerLobby, sender_id: int, preset_id: String) -> Dict
 		return {"ok": false, "error": "Unknown match preset."}
 	var seats := int(preset.players)
 	if seats < lobby.human_count() or seats > lobby.server_capacity:
-		return {"ok": false, "error": "This preset needs %d seats and cannot remove connected players. Choose a larger preset or Advanced settings." % seats}
+		return {"ok": false, "error": "This preset needs %d seats and cannot remove connected players. Choose a larger preset or adjust the player limit in Pilots." % seats}
 	# Validate before changing anything. Switching mode first removes an old TDM
 	# team-count constraint before a smaller preset trims only server-owned NPCs.
 	lobby.request_game_mode(sender_id, int(preset.mode))

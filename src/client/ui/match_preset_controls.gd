@@ -6,7 +6,7 @@ const MatchPresetsScript = preload("res://src/shared/lobby/match_presets.gd")
 
 static func create_picker(parent: VBoxContainer) -> OptionButton:
 	var label := Label.new()
-	label.text = "SOLO OR PARTY PRESET"
+	label.text = "QUICK START PRESET"
 	label.add_theme_font_size_override("font_size", 16)
 	parent.add_child(label)
 	var picker := OptionButton.new()
@@ -31,4 +31,4 @@ static func create_note(parent: VBoxContainer) -> Label:
 
 
 static func description(index: int) -> String:
-	return "Choose a quick setup or adjust every rule in Advanced settings. All presets can be edited before launch." if index == 0 else String(MatchPresetsScript.PRESETS[index - 1].description)
+	return "Choose a quick setup, then fine-tune the match in the lobby before launch." if index == 0 else String(MatchPresetsScript.PRESETS[index - 1].description)
