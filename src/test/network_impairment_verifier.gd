@@ -38,6 +38,7 @@ var max_ammo_error: int = 0
 var observed_reload: bool = false
 var observed_shield: bool = false
 var observed_timeout: bool = false
+var observed_cloak: bool = false
 var active: bool = false
 var failed: bool = false
 var latest_correction: Dictionary = {}
@@ -174,14 +175,14 @@ func _run() -> void:
 	if snapshots < 30 or (not shield_only and (not authority_reload_observed or not authority_shield_observed or ship.weapon.shot_sequence < 3)):
 		_fail("missing delivery coverage")
 		return
-	if not shield_only and (ship.mine_charges_remaining != 2 or ship.missile_charges_remaining != 2 or ship.cloak_charges_remaining != 2):
+	if not shield_only and (ship.mine_charges_remaining != 2 or ship.missile_charges_remaining != 2 or ship.cloak_charges_remaining != 3 or not observed_cloak):
 		_fail("ability was lost or spent multiple charges: %s" % _comparison())
 		return
 	view.local_prediction._expire_unconfirmed_predicted_projectiles(view._now_seconds() + 2.0)
 	if not view.predicted_projectile_ids.is_empty():
 		_fail("unconfirmed predicted volleys leaked")
 		return
-	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "comparison": _comparison(), "delivery": _delivery_diagnostics(), "movement": _movement_diagnostics(), "shield_taps": {"attempts": shield_tap_attempts, "delivery_ms": shield_tap_latencies_ms, "volleys": (server.match_coordinator as FixtureMatch).shield_probes}}))
+	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "cloak_observed": observed_cloak, "comparison": _comparison(), "delivery": _delivery_diagnostics(), "movement": _movement_diagnostics(), "shield_taps": {"attempts": shield_tap_attempts, "delivery_ms": shield_tap_latencies_ms, "volleys": (server.match_coordinator as FixtureMatch).shield_probes}}))
 	_cleanup()
 	quit(0)
 
@@ -284,7 +285,9 @@ func _phase_covered(phase: int, shots_before: int, ship: CombatantState) -> bool
 	if phase == 3: return authority_shield_observed
 	if phase == 4: return ship.mine_charges_remaining == 2
 	if phase == 5: return ship.missile_charges_remaining == 2
-	if phase == 6: return ship.cloak_charges_remaining == 2
+	if phase == 6:
+		observed_cloak = observed_cloak or ship.is_cloaked()
+		return observed_cloak
 	if phase == 7: return ship.afterburner_cooldown_remaining > 0.0
 	return true
 

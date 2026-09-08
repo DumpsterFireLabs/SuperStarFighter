@@ -221,7 +221,7 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
 	var mine_ready := local_stats.mine_layer_enabled and local_mine_charges_remaining > 0 and local_mine_cooldown_remaining <= 0.0
 	var missile_ready := local_stats.missile_launcher_enabled and local_missile_charges_remaining > 0 and local_missile_cooldown_remaining <= 0.0
-	var cloak_ready := local_stats.cloak_enabled and local_cloak_charges_remaining > 0 and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
+	var cloak_ready := local_stats.cloak_enabled and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
 	selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
 	var readiness := [afterburner_ready, mine_ready, missile_ready, cloak_ready]
 	var special_just_pressed := (

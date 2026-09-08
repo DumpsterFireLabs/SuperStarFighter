@@ -52,7 +52,7 @@ const DEFINITIONS := {
 	&"ricochet_count": ["Ricochet Count", "Bounces", "", 0, 12, true, 1],
 	&"mine_capacity": ["Mine Capacity", "Mine charges", "", 0, 1000, true, 1],
 	&"missile_capacity": ["Missile Capacity", "Missile charges", "", 0, 1000, true, 1],
-	&"cloak_capacity": ["Cloak Capacity", "Cloak charges", "", 0, 1000, true, 1],
+	&"cloak_capacity": ["Cloak Stacks", "Cloak stacks", "", 0, 1000, true, 1],
 }
 static var _descriptors: Dictionary = {}
 static var _numeric: Array[CombatStatDescriptor] = []

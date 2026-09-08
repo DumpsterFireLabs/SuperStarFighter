@@ -3,6 +3,7 @@ extends RefCounted
 
 static func run(context: TestContext, parent: Node) -> void:
 	_cloak_ambush(context)
+	_cloak_stacking(context)
 	_rebound_radius(context)
 	_missile_interception(context)
 	_selection_events(context, parent)
@@ -29,6 +30,37 @@ static func _cloak_ambush(context: TestContext) -> void:
 	pilot.activate_cloak()
 	pilot.apply_damage(1.0)
 	context.expect_true(pilot.try_fire(), "damage-induced decloak allows immediate retaliation")
+
+
+static func _cloak_stacking(context: TestContext) -> void:
+	var catalog := CardCatalog.create_default()
+	for row in [[1, 5.0, 30.0], [2, 7.0, 15.0], [3, 9.0, 7.5], [4, 11.0, 3.75]]:
+		var stats := StatSystem.derive({&"cloak": row[0]}, catalog)
+		var pilot := CombatantState.create(1, stats)
+		for activation in 6:
+			pilot.release_special_activation()
+			context.expect_true(pilot.activate_cloak(), "cloak remains reusable beyond its stack count")
+			context.expect_approx(pilot.cloak_remaining, row[1], "each extra cloak card adds two seconds")
+			context.expect_approx(pilot.cloak_cooldown_remaining, row[2], "each extra cloak card halves cooldown from activation")
+			pilot.release_special_activation()
+			context.expect_false(pilot.activate_cloak(), "cloak cannot restart while active")
+			pilot.step(Vector2.ZERO, 0.0, false, minf(row[1], row[2]))
+			pilot.release_special_activation()
+			context.expect_false(pilot.activate_cloak(), "both cloak duration and cooldown must expire before reuse")
+			pilot.step(Vector2.ZERO, 0.0, false, absf(row[1] - row[2]))
+			context.expect_false(pilot.is_cloaked(), "cloak ends at its stack-scaled duration")
+			context.expect_approx(pilot.cloak_cooldown_remaining, 0.0, "cooldown runs concurrently with cloak")
+	var pilot := CombatantState.create(1, StatSystem.derive({&"cloak": 2}, catalog))
+	pilot.activate_cloak()
+	var decoded := PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(1, 1, [], pilot.prediction_state()))
+	var replay := CombatantState.create(1, pilot.stats)
+	replay.restore_prediction_state(decoded.local_state, pilot.stats)
+	context.expect_approx(replay.cloak_remaining, 7.0, "prediction correction preserves extended cloak duration")
+	context.expect_approx(replay.cloak_cooldown_remaining, 15.0, "prediction correction preserves reduced cloak cooldown")
+	replay.step(Vector2.ZERO, 0.0, false, 15.0)
+	context.expect_true(replay.activate_cloak(), "corrected cloak can activate again without charges")
+	var tooltip := preload("res://src/client/ui/card_details_text.gd").tooltip(catalog.get_card(&"cloak"), 2)
+	context.expect_true(tooltip.contains("7.0s invisible, 15.00s cooldown"), "cloak tooltip reports owned stack timing")
 
 
 static func _rebound_radius(context: TestContext) -> void:

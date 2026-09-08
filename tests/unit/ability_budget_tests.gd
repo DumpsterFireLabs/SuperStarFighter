@@ -28,7 +28,7 @@ static func _selection(context: TestContext) -> void:
 		context.expect_equal(actions, expected[slot], "one press activates only selected owned ability")
 		context.expect_equal(pilot.mine_charges_remaining, stats.mine_capacity - (1 if slot == 1 else 0), "unselected mine charges remain intact")
 		context.expect_equal(pilot.missile_charges_remaining, stats.missile_capacity - (1 if slot == 2 else 0), "unselected missile charges remain intact")
-		context.expect_equal(pilot.cloak_charges_remaining, stats.cloak_capacity - (1 if slot == 3 else 0), "unselected cloak charges remain intact")
+		context.expect_equal(pilot.cloak_charges_remaining, stats.cloak_capacity, "cloak activations do not consume uses")
 		frame.special_slot = (slot + 1) % 4
 		context.expect_equal(pilot.step_input(frame, 0.01), 0, "retry with same action identity cannot spend another ability")
 	var bad := InputPacketCodec.encode(PlayerInputFrame.new())
@@ -117,7 +117,8 @@ static func _ability_replay(context: TestContext) -> void:
 	prediction.reconcile(pilot.position, pilot.velocity, 0, stats, ArenaLayout.DEFAULT_MAP_ID, false, initial)
 	context.expect_equal(prediction.simulated_combatant.mine_charges_remaining, stats.mine_capacity - 1, "unacknowledged ability replay preserves mine selection")
 	context.expect_equal(prediction.simulated_combatant.missile_charges_remaining, stats.missile_capacity - 1, "unacknowledged ability replay preserves missile selection")
-	context.expect_equal(prediction.simulated_combatant.cloak_charges_remaining, stats.cloak_capacity - 1, "unacknowledged ability replay preserves cloak selection")
+	context.expect_equal(prediction.simulated_combatant.cloak_charges_remaining, stats.cloak_capacity, "unacknowledged cloak replay does not consume uses")
+	context.expect_true(prediction.simulated_combatant.is_cloaked(), "unacknowledged ability replay preserves cloak selection")
 
 
 static func _feedback_panel(context: TestContext, parent: Node) -> void:

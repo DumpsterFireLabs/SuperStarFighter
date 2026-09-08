@@ -494,10 +494,12 @@ func _update_hud() -> void:
 			charges = state.missile_charges_remaining
 		3:
 			cooldown = state.cloak_cooldown_remaining
-			charges = state.cloak_charges_remaining
 	if selected_special_slot >= 0:
 		special_name += " ×%d" % charges if charges >= 0 else ""
-		special_name += " (%.1fs)" % cooldown if cooldown > 0.0 else " READY" if charges != 0 else " EMPTY"
+		if selected_special_slot == 3 and state.is_cloaked():
+			special_name += " ACTIVE"
+		else:
+			special_name += " (%.1fs)" % cooldown if cooldown > 0.0 else " READY" if charges != 0 else " EMPTY"
 	status_label.text = "COMBAT LAB · %s · %s · HP %.0f/%.0f · Ammo %d/%d · Ability: %s\n%d shots · %d hull hits · %d blocked · %.1f damage / %.1fs = %.1f DPS" % ["PAUSED" if editor_open else "LIVE", ArenaLayout.display_name(world.map_id), state.health, state.stats.max_health, state.weapon.ammunition, state.stats.magazine_size, special_name, shots_fired, hull_hits, blocked_shots, measured_damage, measurement_seconds, measured_dps()]
 	if toggle_status_label == null and hud_root != null:
 		toggle_status_label = action_latch.create_status_label(hud_root)

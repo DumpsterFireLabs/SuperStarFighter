@@ -15,6 +15,7 @@ var mine_charges_remaining: int = 0
 var mine_cooldown_remaining: float = 0.0
 var missile_charges_remaining: int = 0
 var missile_cooldown_remaining: float = 0.0
+# Legacy snapshot field mirrors owned stacks; cloak activations never consume it.
 var cloak_charges_remaining: int = 0
 var cloak_remaining: float = 0.0
 var cloak_cooldown_remaining: float = 0.0
@@ -338,11 +339,10 @@ func activate_cloak() -> bool:
 	if cloak_activation_latched:
 		return false
 	cloak_activation_latched = true
-	if not alive or not stats.cloak_enabled or cloak_charges_remaining <= 0 or cloak_cooldown_remaining > 0.0 or is_cloaked():
+	if not alive or not stats.cloak_enabled or cloak_cooldown_remaining > 0.0 or is_cloaked():
 		return false
-	cloak_charges_remaining -= 1
-	cloak_remaining = GameConstants.CLOAK_DURATION_SECONDS
-	cloak_cooldown_remaining = GameConstants.CLOAK_COOLDOWN_SECONDS
+	cloak_remaining = stats.cloak_duration_seconds()
+	cloak_cooldown_remaining = stats.cloak_cooldown_seconds()
 	return true
 
 

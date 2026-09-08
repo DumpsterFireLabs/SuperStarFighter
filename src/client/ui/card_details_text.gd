@@ -27,7 +27,10 @@ static func tooltip(card: CardDefinition, stacks: int, stack_heading: String = "
 	elif card.special_behavior_id == &"missile_launcher":
 		stat_lines.append("Special  Launch a limited-range seeker on Special binding")
 	elif card.special_behavior_id == &"cloak":
-		stat_lines.append("Special  Become invisible for 5 seconds on Special binding")
+		var cloak_stats := CombatStats.create_base()
+		cloak_stats.cloak_capacity = maxi(stacks, 1)
+		stat_lines.append("Fire/damage reveals; firing adds a 0.1s attack delay.")
+		stat_lines.append("Special  Unlimited uses; %.1fs invisible, %.2fs cooldown from activation" % [cloak_stats.cloak_duration_seconds(), cloak_stats.cloak_cooldown_seconds()])
 	elif card.special_behavior_id == &"rebound_shield":
 		stat_lines.append("Shield Form  Rebound projectiles with stack-scaled damage and range")
 	elif card.special_behavior_id == &"kinetic_vent":

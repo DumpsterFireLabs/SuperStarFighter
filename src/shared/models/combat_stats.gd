@@ -25,6 +25,7 @@ var mine_layer_enabled: bool = false
 var missile_capacity: int = 0
 var missile_launcher_enabled: bool = false
 
+# Card stack count; retained under this name for build/stat compatibility.
 var cloak_capacity: int = 0
 var cloak_enabled: bool = false
 
@@ -59,6 +60,14 @@ var breakaway_cooldown: float = GameConstants.BREAKAWAY_COOLDOWN_SECONDS
 var auto_repair_enabled: bool = false
 var auto_repair_delay: float = 5.0
 var auto_repair_rate: float = 8.0
+
+
+func cloak_duration_seconds() -> float:
+	return GameConstants.CLOAK_DURATION_SECONDS + maxi(cloak_capacity - 1, 0) * GameConstants.CLOAK_DURATION_PER_EXTRA_CARD_SECONDS
+
+
+func cloak_cooldown_seconds() -> float:
+	return GameConstants.CLOAK_COOLDOWN_SECONDS * pow(GameConstants.CLOAK_COOLDOWN_PER_EXTRA_CARD, maxi(cloak_capacity - 1, 0))
 
 
 static func create_base() -> CombatStats:

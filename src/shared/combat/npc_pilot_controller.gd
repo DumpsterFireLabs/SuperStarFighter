@@ -232,7 +232,6 @@ func submit_inputs(
 		)
 		var cloak_special := (
 			combatant.stats.cloak_enabled
-			and combatant.cloak_charges_remaining > 0
 			and combatant.cloak_cooldown_remaining <= 0.0
 			and not combatant.is_cloaked()
 			and (combatant.health_fraction() <= 0.55 or distance > float(profile.preferred_max) * 1.5)

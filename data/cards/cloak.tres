@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"cloak"
 display_name = "Cloak!"
-description = "Special: cloak 5s; fire/damage reveals; attack delay 0.1s. 20s cooldown. Per stack: +1 use/heat."
+description = "Unlimited cloak: 5s, 30s cooldown. Per stack: +2s, -50% cooldown after first. Fire/damage reveals."
 category = 0
 rarity = 4
 integer_modifiers = {"cloak_capacity": 1}

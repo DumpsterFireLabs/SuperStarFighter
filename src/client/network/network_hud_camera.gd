@@ -236,9 +236,9 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 				missile_status += " (%.1fs)" % view.local_prediction.local_missile_cooldown_remaining
 			resources += "   MISSILES %s" % missile_status
 		if view.local_prediction.local_stats.cloak_enabled and (not compact or selected == SpecialAbilitySelection.Slot.CLOAK or view.local_prediction.local_cloak_remaining > 0.0):
-			var cloak_status := "ACTIVE" if view.local_prediction.local_cloak_remaining > 0.0 else "%d" % view.local_prediction.local_cloak_charges_remaining
+			var cloak_status := "ACTIVE" if view.local_prediction.local_cloak_remaining > 0.0 else "READY"
 			if view.local_prediction.local_cloak_remaining <= 0.0 and view.local_prediction.local_cloak_cooldown_remaining > 0.05:
-				cloak_status += " (%.1fs)" % view.local_prediction.local_cloak_cooldown_remaining
+				cloak_status = "%.1fs" % view.local_prediction.local_cloak_cooldown_remaining
 			resources += "   CLOAK %s" % cloak_status
 		if view.local_prediction.local_stats.kinetic_vent_enabled:
 			resources += "   VENT %.0f/%.0f" % [view.local_prediction.local_kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
