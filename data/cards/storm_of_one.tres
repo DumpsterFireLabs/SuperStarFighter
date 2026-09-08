@@ -6,8 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"storm_of_one"
 display_name = "Storm of One"
-description = "Per stack: +100% fire rate; -50% reload time; -5 magazine capacity; -20% projectile damage."
+description = "Per stack: +100% fire rate; -50% reload time; -3 magazine capacity; -20% projectile damage."
 category = 2
 rarity = 5
 multiplicative_modifiers = {"fire_rate": 2.0, "reload_duration": 0.5, "projectile_damage": 0.8}
-integer_modifiers = {"magazine_size": -5.0}
+integer_modifiers = {"magazine_size": -3.0}

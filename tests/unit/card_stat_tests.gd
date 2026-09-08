@@ -94,6 +94,8 @@ static func run(context: TestContext) -> void:
 	_validate_rarity_and_beams(context, catalog)
 	_validate_melee_cards(context, catalog)
 	_validate_rebalanced_outliers(context, catalog)
+	_validate_balance_pass_behavior(context, catalog)
+	_validate_second_balance_pass(context, catalog)
 	_validate_clamps(context)
 	_validate_player_build_rules(context, catalog)
 	_validate_shared_models(context)
@@ -142,11 +144,16 @@ static func _validate_rarity_and_beams(context: TestContext, catalog: CardCatalo
 	context.expect_equal(catalog.get_card(&"chronal_shield").rarity_drop_chance_text(), "1.2%", "mythical chance keeps meaningful decimal precision")
 	context.expect_equal(catalog.get_card(&"reality_shredder").rarity_drop_chance_text(), "0.50%", "unobtanium chance keeps meaningful decimal precision")
 	var audited_rarities := {
+		&"fortress_emitter": CardDefinition.Rarity.RARE,
+		&"adaptive_chassis": CardDefinition.Rarity.UNCOMMON,
+		&"vectored_nozzles": CardDefinition.Rarity.COMMON,
+		&"pursuit_screen": CardDefinition.Rarity.UNCOMMON,
+		&"twin_shot": CardDefinition.Rarity.EPIC,
 		&"vector_jets": CardDefinition.Rarity.UNCOMMON,
 		&"endless_belt": CardDefinition.Rarity.UNCOMMON,
 		&"scatter_array": CardDefinition.Rarity.EPIC,
 		&"ricochet_rounds": CardDefinition.Rarity.RARE,
-		&"mobile_bulwark": CardDefinition.Rarity.RARE,
+		&"mobile_bulwark": CardDefinition.Rarity.UNCOMMON,
 		&"quantum_reconstruction": CardDefinition.Rarity.LEGENDARY,
 		&"nanite_reservoir": CardDefinition.Rarity.EPIC,
 		&"starheart_reactor": CardDefinition.Rarity.MYTHICAL,
@@ -232,7 +239,8 @@ static func _validate_expanded_stat_surface(context: TestContext, catalog: CardC
 	_expect_build(context, catalog, &"cloak", 2, {"cloak_enabled": true, "cloak_capacity": 2})
 	_expect_build(context, catalog, &"rangefinder", 1, {"projectile_lifetime": 3.125, "projectile_speed": 990.0, "fire_rate": 3.8})
 	_expect_build(context, catalog, &"compact_deflector", 1, {"shield_arc_degrees": 132.0, "shield_block_cost": 23.0})
-	_expect_build(context, catalog, &"vectored_nozzles", 1, {"acceleration": 1008.0, "shield_acceleration_factor": 0.81})
+	_expect_build(context, catalog, &"vectored_nozzles", 1, {"acceleration": 972.0, "shield_acceleration_factor": 0.78})
+	_expect_build(context, catalog, &"storm_of_one", 1, {"magazine_size": 5, "fire_rate": 8.0, "reload_duration": 0.75, "projectile_damage": 20.0})
 	_expect_build(context, catalog, &"repair_gel", 1, {"auto_repair_enabled": true, "auto_repair_delay": 4.6, "auto_repair_rate": 8.96})
 	_expect_build(context, catalog, &"rebound_shields", 1, {"rebound_shield_enabled": true, "rebound_damage_factor": 0.5, "rebound_range_factor": 0.5})
 	_expect_build(context, catalog, &"rebound_shields", 2, {"rebound_shield_enabled": true, "rebound_damage_factor": 0.625, "rebound_range_factor": 0.625})
@@ -353,6 +361,76 @@ static func _validate_rebalanced_outliers(context: TestContext, catalog: CardCat
 	context.expect_true(singularity.projectile_damage > shredder.projectile_damage, "Singularity Lance owns focused per-projectile damage")
 	context.expect_true(singularity.pierce_count > shredder.pierce_count and singularity.ricochet_count > shredder.ricochet_count, "Singularity Lance owns the deepest single-beam traversal")
 	context.expect_true(shredder.projectile_count > singularity.projectile_count and shredder.fire_rate > singularity.fire_rate, "Reality Shredder retains the multibeam fire-rate identity")
+
+
+static func _validate_balance_pass_behavior(context: TestContext, catalog: CardCatalog) -> void:
+	var base := CombatStats.create_base()
+	var nozzles := StatSystem.derive({&"vectored_nozzles": 1}, catalog)
+	var pursuit := StatSystem.derive({&"pursuit_screen": 1}, catalog)
+	var base_step := MovementSystem.step_velocity(Vector2.ZERO, Vector2.RIGHT, base, 0.1, true)
+	var nozzle_step := MovementSystem.step_velocity(Vector2.ZERO, Vector2.RIGHT, nozzles, 0.1, true)
+	var pursuit_step := MovementSystem.step_velocity(Vector2.ZERO, Vector2.RIGHT, pursuit, 0.1, true)
+	context.expect_approx(nozzle_step.x / base_step.x, 1.1232, "Nozzles combines both bonuses into 12.32 percent shielded acceleration")
+	context.expect_approx(pursuit_step.x / base_step.x, 1.3, "Pursuit Screen delivers its larger shielded movement benefit")
+	context.expect_true(pursuit.shield_arc_degrees < nozzles.shield_arc_degrees, "Pursuit Screen retains its coverage tradeoff")
+	var gyros := StatSystem.derive({&"combat_gyros": 1}, catalog)
+	var velocity := Vector2(200.0, 0.0)
+	context.expect_true(MovementSystem.step_velocity(velocity, Vector2.ZERO, gyros, 0.1).length() < MovementSystem.step_velocity(velocity, Vector2.ZERO, base, 0.1).length(), "Combat Gyros improves stopping after input release")
+	context.expect_equal(MovementSystem.step_velocity(velocity, Vector2.LEFT, gyros, 0.1), MovementSystem.step_velocity(velocity, Vector2.LEFT, base, 0.1), "Passive braking does not change powered direction reversals")
+	# Test created projectiles: derived speed alone hid the former dead bonus.
+	var laser := StatSystem.derive({&"laser_repeater": 1}, catalog)
+	var reference := ProjectileState.create(1, 1, 1, Vector2.ZERO, 0.0, laser)
+	for stacks in [1, 3]:
+		for existing_beam in [false, true]:
+			var build := {&"beam_emitter": stacks}
+			if existing_beam:
+				build[&"laser_repeater"] = 1
+			var stats := StatSystem.derive(build, catalog)
+			var beam := ProjectileState.create(2, 1, 2, Vector2.ZERO, 0.0, stats)
+			context.expect_true(beam.is_beam, "Beam Emitter creates a beam independently or in a mixed build")
+			context.expect_approx(beam.velocity.length(), reference.velocity.length(), "Beam Emitter retains fixed beam travel speed")
+			context.expect_approx(beam.velocity.length() * beam.lifetime_remaining, 720.0 * pow(1.5, stacks), "Beam Emitter lifetime bonus extends actual beam reach at each stack")
+			context.expect_approx(beam.damage, (laser.projectile_damage if existing_beam else base.projectile_damage) * pow(1.05, stacks), "Beam Emitter keeps its stacking damage benefit")
+
+
+static func _validate_second_balance_pass(context: TestContext, catalog: CardCatalog) -> void:
+	for support in [{}, {&"extended_magazine": 1}]:
+		var before := StatSystem.derive(support, catalog)
+		var build: Dictionary = support.duplicate()
+		build[&"storm_of_one"] = 1
+		var after := StatSystem.derive(build, catalog)
+		context.expect_true(_continuous_fire_damage(after) > _continuous_fire_damage(before), "Storm of One improves sustained output standalone and with magazine support")
+		context.expect_true(after.projectile_damage * after.fire_rate > before.projectile_damage * before.fire_rate, "Storm of One retains its burst pressure")
+		var estimated := float(StatSystem.weapon_output(after).sustained)
+		context.expect_true(absf(_continuous_fire_damage(after) / estimated - 1.0) < 0.03, "Potential sustained output agrees with firing simulation within tick and opening-magazine effects")
+	var single := CombatStats.create_base()
+	single.magazine_size = 1
+	single.reload_duration = 0.1
+	single.fire_rate = 0.25
+	context.expect_approx(float(StatSystem.weapon_output(single).sustained), 6.25, "Reload estimate respects a longer shot cooldown for a one-shot magazine")
+	for hull_build in [{}, {&"ablative_shell": 3}]:
+		var before := StatSystem.derive(hull_build, catalog)
+		var build: Dictionary = hull_build.duplicate()
+		build[&"adaptive_chassis"] = 1
+		var after := StatSystem.derive(build, catalog)
+		context.expect_approx(after.max_health / before.max_health, 1.15, "Uncommon Adaptive Chassis preserves proportional hull scaling on base and hull builds")
+		context.expect_approx(after.acceleration / before.acceleration, 1.1, "Adaptive Chassis retains its acceleration benefit")
+	var fortress := StatSystem.derive({&"fortress_emitter": 1}, catalog)
+	context.expect_approx(fortress.shield_capacity, 160.0, "Rare Fortress Emitter retains its hit-buffer identity")
+	context.expect_true(fortress.max_speed < CombatStats.create_base().max_speed and fortress.shield_continuous_drain > CombatStats.create_base().shield_continuous_drain, "Fortress Emitter retains both compensating drawbacks")
+
+
+static func _continuous_fire_damage(stats: CombatStats) -> float:
+	var weapon := WeaponState.new()
+	weapon.reset(stats)
+	var shots := 0
+	var duration := 120.0
+	var delta := 1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND
+	for tick in roundi(duration / delta):
+		weapon.step(stats, delta)
+		if weapon.try_fire(stats, false):
+			shots += 1
+	return shots * stats.projectile_damage * stats.projectile_count / duration
 
 
 static func _validate_clamps(context: TestContext) -> void:

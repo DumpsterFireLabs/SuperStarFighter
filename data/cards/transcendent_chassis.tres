@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"transcendent_chassis"
 display_name = "Transcendent Chassis"
-description = "Unlock auto-repair. Per stack: +100% maximum hull; +50% speed, acceleration, and braking."
+description = "Unlock auto-repair. Per stack: +100% maximum hull; +50% speed, acceleration, and passive braking."
 category = 0
 rarity = 6
 multiplicative_modifiers = {"max_health": 2.0, "max_speed": 1.5, "acceleration": 1.5, "drag": 1.5}

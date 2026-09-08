@@ -1,5 +1,28 @@
 # Card Rarity Audit
 
+## Current balance pass — 7 September 2026
+
+The catalog contains **136 cards**: 19 Common, 28 Uncommon, 29 Rare, 21 Epic, 18 Legendary, 12 Mythical, and 9 Unobtanium. Tier offer weights remain 45%, 27%, 15%, 8%, 3.3%, 1.2%, and 0.5% respectively. The sections below preserve earlier audits; this inventory supersedes their counts.
+
+| Card | Applied change | Reason |
+| --- | --- | --- |
+| Vectored Nozzles | Common; acceleration +12% → +8%, shield thrust factor +8% → +4% | Reduces combined shielded acceleration from +20.96% to +12.32% per copy. |
+| Pursuit Screen | Uncommon; shielded acceleration +18% → +30%, retaining −10% shield arc | Makes its coverage tradeoff worthwhile beside Shielded Drive and Plasma Thrusters. |
+| Twin Shot | Restored to Epic after the initial Rare demotion; stats unchanged | Broader combat tests show strong Rare-peer dominance, including separate shield pressure from each pellet. |
+| Mobile Bulwark | Rare → Uncommon; stats unchanged | Its shielded acceleration and drain tradeoff fit the tested Uncommon peers better. |
+| Beam Emitter | Legendary; replaces ineffective +150% speed with +50% projectile lifetime, retaining +5% damage | Actual beam reach grows from 720 to 1,080 units on the base build. |
+| Storm of One | Mythical; magazine penalty −5 → −3 per copy | One-copy sustained output rises from 60 to 80 DPS in the 120-second firing check, versus 61.67 base. |
+| Fortress Emitter | Epic → Rare; stats unchanged | Its capacity benefit carries drain and speed penalties that better fit Rare. |
+| Adaptive Chassis | Rare → Uncommon; stats unchanged | Its modest hull and acceleration package fits Uncommon; hull scaling still rewards supported builds. |
+
+Mobile Bulwark retains +35% shield thrust and +15% drain at Uncommon; Pursuit Screen retains +30% shield thrust and −10% arc. Braking card descriptions now specify passive braking, and their detailed tooltips explain that it applies when movement input is released.
+
+See the [full review and first-pass notes](CARD_BALANCE_REVIEW_2026-09-07.md) and [focused investigation](CARD_BALANCE_FOCUSED_2026-09-07.md) for evidence, caveats, and remaining follow-ups.
+
+Multishot repeat scaling uses the review's explicit-preview mitigation: offers, inspection details, and confirmation show when the complete pick lowers potential burst or sustained DPS. The calculation uses the whole capped build, including fire rate, magazine size, and reload timing. It catches losses before the projectile cap and in mixed multishot builds. The underlying per-copy penalties and manual availability are unchanged; this addresses hidden output loss, not every possible weak repeat pick.
+
+## Historical 120-card audit
+
 The 120-card catalog was reviewed as a whole after the offer-weight rebalance. The review compared each card's immediate combat impact, breadth, drawbacks, stack scaling, enabling behavior, and closest same-category alternatives. Rarity describes power and build-shaping potential; it does not require every higher-tier card to win a one-stat comparison.
 
 ## Audit result
@@ -34,6 +57,6 @@ The later shield-ram expansion adds five mechanically distinct cards, one at eve
 
 ## Nanite Reservoir balance follow-up
 
-Nanite Reservoir moved from Epic to Legendary and gained a stacking ×0.90 maximum-speed drawback. Auto-repair plus flat hull remains a strong build-defining package, while the mobility tradeoff gives opponents a clearer way to pressure it.
+Nanite Reservoir currently occupies Epic and has a stacking ×0.90 maximum-speed drawback. The earlier statement that it occupied Legendary did not match the current resource. Auto-repair plus flat hull remains a strong build-defining package, while the mobility tradeoff gives opponents a clearer way to pressure it.
 
-The 135-card catalog now contains 20 Common, 25 Uncommon, 30 Rare, 21 Epic, 20 Legendary, 11 Mythical, and 8 Unobtanium cards. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.
+The former 135-card inventory is superseded by the current counts above. Tier weights remain unchanged because selection rolls rarity before choosing uniformly within that tier.

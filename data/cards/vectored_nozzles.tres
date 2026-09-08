@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"vectored_nozzles"
 display_name = "Vectored Nozzles"
-description = "Per stack: +12% acceleration; +8% acceleration while shielding."
+description = "Per stack: +8% acceleration; +4% shield thrust factor (combines to +12.32% while shielding)."
 category = 0
 rarity = 0
-multiplicative_modifiers = {"acceleration": 1.12, "shield_acceleration_factor": 1.08}
+multiplicative_modifiers = {"acceleration": 1.08, "shield_acceleration_factor": 1.04}

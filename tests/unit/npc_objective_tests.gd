@@ -5,6 +5,8 @@ static func run(context: TestContext) -> void:
 	_roles(context)
 	_routes(context)
 	_drafts(context)
+	_draft_combat_effects(context)
+	_beam_aim(context)
 	_holding(context)
 
 
@@ -96,6 +98,93 @@ static func _drafts(context: TestContext) -> void:
 	player.card_stacks[speed.card_id] = 100
 	context.expect_equal(NpcDraftPolicy.choose_card(player, choices, catalog, GameModeRules.Mode.CAPTURE_THE_FLAG, {1: player}), hull.card_id, "saturated mobility build chooses remaining effective survival instead")
 
+
+
+static func _draft_combat_effects(context: TestContext) -> void:
+	var catalog := CardCatalog.create_default()
+	var player := PlayerMatchState.new(1, "NPC", 1)
+	var players := {1: player}
+	var hill := GameModeRules.Mode.KING_OF_THE_HILL
+	var flag := GameModeRules.Mode.CAPTURE_THE_FLAG
+	context.expect_equal(NpcDraftPolicy.choose_card(player, [&"tight_bore", &"efficient_field"], catalog, hill, players), &"efficient_field", "hill NPC values lower shield drain over a zero-spread dud")
+	context.expect_equal(NpcDraftPolicy.choose_card(player, [&"tight_bore", &"shielded_drive"], catalog, flag, players), &"shielded_drive", "flag NPC recognizes shielded mobility and efficiency")
+	# Isolate formerly ignored effects, including their downside directions.
+	var base := CombatStats.create_base()
+	for property in [&"shield_continuous_drain", &"shield_block_cost", &"shield_regeneration_delay", &"shield_depletion_threshold", &"shield_arc_degrees", &"shield_acceleration_factor"]:
+		var improved := base.duplicate_stats()
+		var worsened := base.duplicate_stats()
+		var lower: bool = property in StatSystem.LOWER_IS_BETTER
+		improved.set(property, float(base.get(property)) * (0.8 if lower else 1.2))
+		worsened.set(property, float(base.get(property)) * (1.2 if lower else 0.8))
+		for role in [&"runner", &"assault", &"defend", &"escort"]:
+			context.expect_true(NpcDraftPolicy.utility(improved, role) > NpcDraftPolicy.utility(base, role), "%s role values beneficial %s" % [role, property])
+			context.expect_true(NpcDraftPolicy.utility(worsened, role) < NpcDraftPolicy.utility(base, role), "%s role accounts for adverse %s" % [role, property])
+	var speed := _draft_test_card(&"test_projectile_speed", {"projectile_speed": 1.5})
+	var lifetime := _draft_test_card(&"test_projectile_lifetime", {"projectile_lifetime": 1.1})
+	var arc := _draft_test_card(&"test_shield_arc", {"shield_arc_degrees": 1.2})
+	var mild_loss := _draft_test_card(&"test_mild_loss", {"shield_continuous_drain": 1.1})
+	var severe_loss := _draft_test_card(&"test_severe_loss", {"shield_continuous_drain": 2.0})
+	for card in [speed, lifetime, arc, mild_loss, severe_loss]:
+		context.expect_true(catalog.add_card(card), "draft policy fixture is a valid offered card")
+	var choices: Array[StringName] = [speed.card_id, lifetime.card_id]
+	context.expect_equal(NpcDraftPolicy.choose_card(player, choices, catalog, hill, players), speed.card_id, "projectile build values speed for both delivery and reach")
+	player.card_stacks = {&"beam_emitter": 1}
+	context.expect_equal(NpcDraftPolicy.choose_card(player, choices, catalog, hill, players), lifetime.card_id, "beam build selects actual lifetime benefit over overridden speed")
+	var beam := StatSystem.derive(player.card_stacks, catalog)
+	var fake_speed := beam.duplicate_stats()
+	fake_speed.projectile_speed *= 1.5
+	context.expect_approx(NpcDraftPolicy.utility(fake_speed, &"defend"), NpcDraftPolicy.utility(beam, &"defend"), "overridden beam speed receives no phantom utility")
+	player.card_stacks = {&"omnidirectional_field": 1}
+	context.expect_equal(NpcDraftPolicy.choose_card(player, [arc.card_id, &"efficient_field"], catalog, hill, players), &"efficient_field", "capped coverage does not beat a working drain reduction")
+	player.card_stacks = {&"twin_shot": 2}
+	context.expect_equal(NpcDraftPolicy.choose_card(player, [&"twin_shot", &"hollow_points"], catalog, hill, players), &"hollow_points", "NPC compares combined output when a pre-cap multishot repeat lowers damage")
+	player.card_stacks.clear()
+	context.expect_equal(NpcDraftPolicy.choose_card(player, [severe_loss.card_id, mild_loss.card_id], catalog, hill, players), mild_loss.card_id, "all-negative offers still resolve to the less harmful offered pick")
+	context.expect_true(speed.card_id in catalog.eligible_ids({&"beam_emitter": 1}), "dead beam speed card remains eligible for offers")
+	context.expect_true(&"damage_control" in catalog.eligible_ids({}), "repair prerequisite is not added to offer eligibility")
+	context.expect_equal(NpcDraftPolicy.choose_card(player, [], catalog, hill, players), &"", "empty NPC offer remains empty")
+	# Exercise the whole real card pool at ordinary and heavily capped builds.
+	for id in CardCatalog.create_default().all_ids():
+		for stacks in [1, 3, 20]:
+			var stats := StatSystem.derive({id: stacks}, catalog)
+			for role in [&"runner", &"assault", &"defend", &"escort"]:
+				context.expect_true(is_finite(NpcDraftPolicy.utility(stats, role)), "%s x%d has finite utility for %s" % [id, stacks, role])
+
+
+static func _draft_test_card(id: StringName, multipliers: Dictionary) -> CardDefinition:
+	var card := CardDefinition.new()
+	card.card_id = id
+	card.display_name = String(id)
+	card.description = "NPC evaluation fixture."
+	card.multiplicative_modifiers = multipliers
+	return card
+
+
+static func _beam_aim(context: TestContext) -> void:
+	var catalog := CardCatalog.create_default()
+	var beam := StatSystem.derive({&"beam_emitter": 1}, catalog)
+	var accelerated := beam.duplicate_stats()
+	accelerated.projectile_speed *= 2.0
+	var base := CombatStats.create_base()
+	var beam_angle := _moving_target_aim(beam)
+	context.expect_approx(_moving_target_aim(accelerated), beam_angle, "ignored beam speed modifiers do not change NPC aim")
+	context.expect_true(_moving_target_aim(base) > beam_angle, "slower projectiles need more lead than beams")
+	var shot := ProjectileState.create(1, 2, 1, Vector2.ZERO, 0.0, beam)
+	var profile := NpcPilotController.difficulty_profile(NpcPilotController.Difficulty.SKILLED)
+	var expected := Vector2(600.0, 200.0 * 600.0 / shot.velocity.length() * float(profile.lead_factor)).angle()
+	expected += sin(2.0 * 0.73) * deg_to_rad(float(profile.aim_error_degrees))
+	context.expect_approx(beam_angle, expected, "NPC lead uses the speed of the actual created beam")
+
+
+static func _moving_target_aim(stats: CombatStats) -> float:
+	var world := AuthoritativeWorld.new()
+	world.add_peer(2, stats).position = Vector2(400, 400)
+	var target := world.add_peer(3)
+	target.position = Vector2(1000, 400)
+	target.velocity = Vector2(0, 200)
+	var npc := NpcPilotController.new()
+	npc.submit_inputs(world, [2], {2: NpcPilotController.Difficulty.SKILLED})
+	return (world.latest_inputs[2] as PlayerInputFrame).aim_angle
 
 
 static func _holding(context: TestContext) -> void:

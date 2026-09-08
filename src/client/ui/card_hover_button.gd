@@ -16,6 +16,8 @@ var footer_context: String = "CURRENT BUILD"
 var comparison_rows: Array[StatChange] = []
 var no_effective_benefit: bool = false
 var effective_summary: Dictionary = {}
+var output_warning: String = ""
+var output_comparison: Array[Dictionary] = []
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -37,6 +39,8 @@ func configure(card: CardDefinition, stacks: int, accessible_text: String, conte
 	comparison_rows.clear()
 	effective_summary.clear()
 	no_effective_benefit = false
+	output_warning = ""
+	output_comparison.clear()
 
 
 func configure_build_comparison(build: Dictionary, catalog: CardCatalog) -> void:
@@ -48,7 +52,30 @@ func configure_build_comparison(build: Dictionary, catalog: CardCatalog) -> void
 	for row in comparison_rows:
 		tooltip_text += "\n%s: %s → %s%s" % [_stat_name(row.property), _stat_value(row.before, row.property), _stat_value(row.after, row.property), " (AT LIMIT)" if row.limited else ""]
 	effective_summary = IdentityScript.summarize_typed(build, card_definition, catalog, comparison_rows)
+	_configure_output_comparison(build, catalog)
 	_update_draft_identity()
+
+
+func _configure_output_comparison(build: Dictionary, catalog: CardCatalog) -> void:
+	output_warning = ""
+	output_comparison.clear()
+	var next_build := build.duplicate()
+	next_build[card_definition.card_id] = int(next_build.get(card_definition.card_id, 0)) + 1
+	var before := StatSystem.weapon_output(StatSystem.derive(build, catalog))
+	var after := StatSystem.weapon_output(StatSystem.derive(next_build, catalog))
+	# Prefer the sustained warning when both fall, but retain both in details.
+	for metric in ["sustained", "burst"]:
+		if float(after[metric]) >= float(before[metric]) or is_equal_approx(float(after[metric]), float(before[metric])):
+			continue
+		var name := "Potential sustained DPS" if metric == "sustained" else "Potential burst DPS"
+		var loss := 100.0 * (1.0 - float(after[metric]) / float(before[metric]))
+		var change := "-%.1f%%" % loss
+		if output_warning.is_empty():
+			output_warning = "%s DPS %s" % ["SUSTAINED" if metric == "sustained" else "BURST", change]
+		output_comparison.append({"name": name, "each": "%.1f → %.1f" % [before[metric], after[metric]], "total": change})
+		tooltip_text += "\n%s: %.1f → %.1f (%s)" % [name, before[metric], after[metric], change]
+	if not output_comparison.is_empty():
+		tooltip_text += "\nPotential DPS assumes every projectile hits one target. Sustained includes reloads; estimates exclude accuracy, range and multi-target hits."
 
 
 func _update_draft_identity() -> void:
@@ -117,8 +144,12 @@ func _update_draft_identity() -> void:
 		group.add_child(after)
 	var note := Label.new()
 	var note_parts := PackedStringArray()
+	if not output_warning.is_empty():
+		note_parts.append(output_warning.replace("SUSTAINED ", "").replace("BURST ", ""))
 	var omitted: int = int(effective_summary.get("omitted", 0)) + effective_summary.rows.size() - headline_rows.size()
-	if omitted > 0:
+	# Keep the warning in the existing note slot so the selection/footer fit.
+	# Full effects remain available through the always-visible Inspect control.
+	if omitted > 0 and output_warning.is_empty():
 		note_parts.append("+%d IN DETAILS" % omitted)
 	note.text = "\n".join(note_parts)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -240,6 +271,7 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 
 func _effect_rows() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
+	rows.append_array(output_comparison)
 	if not comparison_rows.is_empty():
 		for comparison in comparison_rows:
 			rows.append({

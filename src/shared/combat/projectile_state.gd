@@ -22,6 +22,10 @@ var has_rebounded: bool = false
 var hit_peer_ids: Dictionary = {}
 
 
+static func travel_speed(stats: CombatStats) -> float:
+	return 4000.0 if stats.beam_weapon else stats.projectile_speed
+
+
 static func create(
 	id: int,
 	owner: int,
@@ -36,7 +40,7 @@ static func create(
 	projectile.shot_sequence = sequence
 	projectile.position = spawn_position
 	projectile.is_beam = stats.beam_weapon
-	projectile.velocity = Vector2.from_angle(angle) * (4000.0 if projectile.is_beam else stats.projectile_speed)
+	projectile.velocity = Vector2.from_angle(angle) * travel_speed(stats)
 	projectile.damage = stats.projectile_damage
 	projectile.knockback = stats.projectile_knockback
 	projectile.lifetime_remaining = stats.projectile_lifetime

@@ -8,5 +8,5 @@ card_id = &"adaptive_chassis"
 display_name = "Adaptive Chassis"
 description = "Per stack: +15% maximum hull; +10% acceleration."
 category = 0
-rarity = 2
+rarity = 1
 multiplicative_modifiers = {"max_health": 1.15, "acceleration": 1.1}

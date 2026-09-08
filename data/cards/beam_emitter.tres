@@ -6,8 +6,8 @@
 script = ExtResource("1_card")
 card_id = &"beam_emitter"
 display_name = "Beam Emitter"
-description = "Unlock beam weapons. Per stack: +150% projectile speed; +5% projectile damage."
+description = "Unlock beam weapons. Per stack: +50% projectile lifetime for longer beam range; +5% damage."
 category = 2
 rarity = 4
-multiplicative_modifiers = {"projectile_damage": 1.05, "projectile_speed": 2.5}
+multiplicative_modifiers = {"projectile_damage": 1.05, "projectile_lifetime": 1.5}
 special_behavior_id = &"beam_weapon"

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"phase_brakes"
 display_name = "Phase Brakes"
-description = "Per stack: +70% braking; -25% shield recovery threshold."
+description = "Per stack: +70% passive braking; -25% shield recovery threshold."
 category = 0
 rarity = 3
 multiplicative_modifiers = {"drag": 1.7, "shield_depletion_threshold": 0.75}

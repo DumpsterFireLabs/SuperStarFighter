@@ -129,6 +129,7 @@ func create_ui() -> void:
 	draft_confirmation_label.add_theme_font_size_override("font_size", 18)
 	draft_confirmation_label.add_theme_color_override("font_color", Color("fff36a"))
 	draft_confirmation_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	draft_confirmation_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	draft_confirmation_row.add_child(draft_confirmation_label)
 	draft_change_button = Button.new()
 	draft_change_button.text = "CHOOSE ANOTHER"
@@ -260,6 +261,8 @@ func _show_draft_offer(payload: Dictionary) -> void:
 			rarity_label.add_theme_color_override("font_color", rarity_color.lightened(0.12))
 			button.configure(card, current_stacks + 1, CardDetailsText.tooltip(card, current_stacks + 1, "STACKS AFTER PICK"), "AFTER PICK")
 			button.configure_build_comparison(_local_build(), card_catalog)
+			if not button.output_warning.is_empty():
+				button.text += "\n" + button.output_warning
 			if button.no_effective_benefit:
 				(button.get_node("CardContent/Details/Stack") as Label).text += "\nNO BENEFIT"
 				button.text += "\nNO EFFECTIVE BENEFIT"
@@ -297,6 +300,8 @@ func _select_draft_card(index: int) -> void:
 	_set_inspected_card(index)
 	var card_name := card.display_name.to_upper() if card != null else String(card_id).to_upper()
 	draft_confirmation_label.text = "LOCK IN %s?" % card_name
+	if not button.output_warning.is_empty():
+		draft_confirmation_label.text += "  " + button.output_warning
 	if button.no_effective_benefit:
 		draft_confirmation_label.text += "  NO EFFECTIVE BENEFIT · CHECK DRAWBACKS"
 	elif button.has_limited_effect():

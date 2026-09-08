@@ -102,9 +102,43 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	client.latest_match_payload["builds"] = {7: {}}
 	client.draft_controller._show_draft_offer({"offer_token": "new-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
 	context.expect_false(capped.has_limited_effect(), "a reused offer button clears the previous build's cap warning")
+	context.expect_true(capped.output_warning.is_empty(), "fresh multishot benefit clears a reused output-loss warning")
+	_validate_output_warnings(context, client)
 	_validate_weapon_correction(context, client)
 	tree_parent.remove_child(client)
 	client.free()
+
+
+static func _validate_output_warnings(context: TestContext, client: Node) -> void:
+	# Third Twin Shot loses output while still adding a projectile below the cap.
+	client.latest_match_payload["builds"] = {7: {&"twin_shot": 2}}
+	client.draft_controller._show_draft_offer({"offer_token": "pre-cap-loss", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	var button := client.draft_controller.draft_buttons[0] as CardHoverButton
+	context.expect_false(button.has_limited_effect(), "pre-cap output loss is distinct from stat saturation")
+	context.expect_false(button.no_effective_benefit, "output warning still appears when another stat improves")
+	context.expect_true(button.output_warning.contains("SUSTAINED DPS -"), "third Twin Shot exposes lower combined output")
+	context.expect_true(button.text.contains(button.output_warning), "accessible offer includes output warning")
+	var visible_warning := false
+	for child in button.get_node("CardContent/Details/EffectiveSummary").get_children():
+		if child is Label and child.visible and child.text.contains("DPS -"):
+			visible_warning = true
+	context.expect_true(visible_warning, "draft face shows output loss without requiring hover")
+	context.expect_true(button.tooltip_text.contains("Potential sustained DPS") and button.tooltip_text.contains("assumes every projectile hits one target"), "details explain combined output and its assumptions")
+	context.expect_true(button._effect_rows().any(func(row: Dictionary) -> bool: return row.name == "Potential sustained DPS"), "graphical inspector includes the combined output comparison")
+	client.draft_controller._select_draft_card(0)
+	context.expect_true(client.draft_controller.draft_confirmation_label.text.contains(button.output_warning), "confirmation repeats the output loss before committing")
+	client.draft_controller._cancel_draft_confirmation()
+	for id in [&"twin_shot", &"scatter_array", &"micro_barrage", &"needle_storm", &"trident_array"]:
+		client.latest_match_payload["builds"] = {7: {id: 5, &"heavy_rounds": 2}}
+		client.draft_controller._show_draft_offer({"offer_token": "stack-loss", "card_ids": [id], "deadline_tick": 1800})
+		context.expect_false(button.output_warning.is_empty(), "%s warns about repeat loss in a damage-supported build" % id)
+	client.latest_match_payload["builds"] = {7: {&"micro_barrage": 1, &"trident_array": 1}}
+	client.draft_controller._show_draft_offer({"offer_token": "mixed-loss", "card_ids": [&"needle_storm"], "deadline_tick": 1800})
+	context.expect_false(button.output_warning.is_empty(), "mixed multishot pick warns when capped count cannot offset the damage penalty")
+	client.latest_match_payload["builds"] = {7: {&"twin_shot": 1}}
+	client.draft_controller._show_draft_offer({"offer_token": "useful-repeat", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	context.expect_true(button.output_warning.is_empty(), "second Twin Shot is correctly treated as an output gain")
+	context.expect_false(button.tooltip_text.contains("Potential sustained DPS"), "reused details clear the previous loss comparison")
 
 
 static func _validate_weapon_correction(context: TestContext, client: Node) -> void:

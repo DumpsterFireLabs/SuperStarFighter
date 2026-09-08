@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = &"pursuit_screen"
 display_name = "Pursuit Screen"
-description = "Per stack: +18% acceleration while shielding; -10% shield arc."
+description = "Per stack: +30% acceleration while shielding; -10% shield arc."
 category = 1
 rarity = 1
-multiplicative_modifiers = {"shield_acceleration_factor": 1.18, "shield_arc_degrees": 0.9}
+multiplicative_modifiers = {"shield_acceleration_factor": 1.3, "shield_arc_degrees": 0.9}

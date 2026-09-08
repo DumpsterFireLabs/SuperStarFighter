@@ -105,7 +105,7 @@
     "stacks": 20
   },
   {
-    "hash": "927b326fcbe19202f50ef585806759f0d17d6d272c543600185b2b9c08b91011",
+    "hash": "99bfb1041df02e93197c6a284d72b7e8e068d867627eafd5af401c49271ec6b0",
     "id": "storm_of_one",
     "stacks": 1
   },
@@ -675,12 +675,12 @@
     "stacks": 20
   },
   {
-    "hash": "b631776cdb469f7eac32b80b449743e228cc9ae7069947be804721186d55e02c",
+    "hash": "3bc17db86dbe4f14a6d96efd0da67a2260c37bcbc75e55ee848a0c7291a34832",
     "id": "pursuit_screen",
     "stacks": 1
   },
   {
-    "hash": "cde81a2c407c618d5f05f9a906336645083ec834013f0f235c7220915db1a73e",
+    "hash": "e7c690e13fa98da06470d2d1ff1e4af5647bee0d9c5d70c4a74e03d2b55a740e",
     "id": "pursuit_screen",
     "stacks": 3
   },
@@ -1035,17 +1035,17 @@
     "stacks": 20
   },
   {
-    "hash": "55cfeac578d2cd9487280db3742c812dfdc92e9fafffd272332acbc91bd6cbc1",
+    "hash": "1c9bfea429b39a4b203330d418d720067685411eec112b52c9521769c75d3de5",
     "id": "vectored_nozzles",
     "stacks": 1
   },
   {
-    "hash": "0a08ff56f0fb8878ae2c81eaf677e6b56b1382469684ff777d8d52ef174eca15",
+    "hash": "89739c4bae73f8799ee7bae8eafd4963f62c1585b0cc0b77f30068e93c469f18",
     "id": "vectored_nozzles",
     "stacks": 3
   },
   {
-    "hash": "eaf0e01fb0bb2f6016d78d0a73a7b1b0d1dce4a9385e247205cf63d85b3fcaaf",
+    "hash": "796de45e22bec2eb84ddb2c28cc4cc9f2813b1c53ecc2058d809fa9dc832c325",
     "id": "vectored_nozzles",
     "stacks": 20
   },
@@ -1515,17 +1515,17 @@
     "stacks": 20
   },
   {
-    "hash": "4cddd65c495d1628500c1780eb8a73bf78ef5e49658f145593f1f8066991942d",
+    "hash": "5c1a28f758645b45397848ae9dfd7357c44dceea148a03b5a49411aad4286ea3",
     "id": "beam_emitter",
     "stacks": 1
   },
   {
-    "hash": "bce84dd0dfc0f4166c9570820ae07b27a80418a0293ab110306963e17e9f5016",
+    "hash": "136c77cad3b60251354facd60a4353c0fa24088c461d75b7676834de4a72a531",
     "id": "beam_emitter",
     "stacks": 3
   },
   {
-    "hash": "7f7fe2bc16b5ce74e8158cf4058d03fc88186cdf19e2c0552da9f144421d20b4",
+    "hash": "811760b27cde12c0e193e7cc47ed214fc543af83088fa7632af15d57ccd13e3a",
     "id": "beam_emitter",
     "stacks": 20
   },

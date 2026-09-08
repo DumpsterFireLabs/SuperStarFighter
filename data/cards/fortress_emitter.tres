@@ -8,6 +8,6 @@ card_id = &"fortress_emitter"
 display_name = "Fortress Emitter"
 description = "Per stack: +60 shield capacity; +20% shield drain; -10% maximum speed."
 category = 1
-rarity = 3
+rarity = 2
 additive_modifiers = {"shield_capacity": 60.0}
 multiplicative_modifiers = {"shield_continuous_drain": 1.2, "max_speed": 0.9}

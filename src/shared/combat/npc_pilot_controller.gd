@@ -125,7 +125,7 @@ func submit_inputs(
 			continue
 		var offset := target.position - combatant.position
 		var distance := offset.length()
-		var projectile_travel_time := distance / maxf(combatant.stats.projectile_speed, 1.0)
+		var projectile_travel_time := distance / maxf(ProjectileState.travel_speed(combatant.stats), 1.0)
 		var lead_time := minf(projectile_travel_time, float(profile.lead_seconds)) * float(profile.lead_factor)
 		var predicted_offset := offset + target.velocity * lead_time
 		var aim_angle := predicted_offset.angle() if not predicted_offset.is_zero_approx() else combatant.aim_angle

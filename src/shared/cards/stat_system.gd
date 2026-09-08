@@ -93,6 +93,16 @@ static func compare_pick_typed(build: Dictionary, card: CardDefinition, catalog:
 	return rows
 
 
+## Potential single-target output if every projectile hits. The steady-state
+## estimate includes reloads, overlapping the last shot's cooldown as WeaponState
+## does. It excludes tick rounding, accuracy, range, piercing and special tools.
+static func weapon_output(stats: CombatStats) -> Dictionary:
+	var volley := stats.projectile_damage * stats.projectile_count
+	var interval := 1.0 / stats.fire_rate
+	var cycle := (stats.magazine_size - 1) * interval + maxf(stats.reload_duration, interval)
+	return {"burst": volley * stats.fire_rate, "sustained": volley * stats.magazine_size / cycle}
+
+
 static func validate_card(card: CardDefinition) -> PackedStringArray:
 	var errors := PackedStringArray()
 	var supported_stats := FLOAT_STATS + INTEGER_STATS

@@ -30,13 +30,14 @@ static func draft_role(player: PlayerMatchState, mode: int, players: Dictionary)
 static func choose_card(player: PlayerMatchState, choices: Array[StringName], catalog: CardCatalog, mode: int, players: Dictionary) -> StringName:
 	var role := draft_role(player, mode, players)
 	var before := StatSystem.derive(player.card_stacks, catalog)
+	var before_utility := utility(before, role)
 	var best_id: StringName = &""
 	var best_score := -INF
 	for card_id in choices:
 		var build := player.card_stacks.duplicate()
 		build[card_id] = int(build.get(card_id, 0)) + 1
 		var after := StatSystem.derive(build, catalog)
-		var score := utility(after, role) - utility(before, role)
+		var score := utility(after, role) - before_utility
 		# New active tools receive credit once; repeated unlocks are evaluated only
 		# through their effective stats. Role tradeoffs remain in the utility delta.
 		for flag in StatSystem.SPECIAL_FLAGS:
@@ -56,15 +57,50 @@ static func utility(stats: CombatStats, role: StringName) -> float:
 	var base := CombatStats.create_base()
 	var mobile := role in [&"runner", &"assault"]
 	var defensive := role == &"defend"
-	var sustain := stats.max_health / base.max_health + stats.shield_capacity / base.shield_capacity * 0.45 + stats.shield_regeneration / base.shield_regeneration * 0.2
-	var mobility := stats.max_speed / base.max_speed * 0.7 + stats.acceleration / base.acceleration * 0.3
-	var cycle := float(stats.magazine_size) / stats.fire_rate + stats.reload_duration
-	var base_cycle := float(base.magazine_size) / base.fire_rate + base.reload_duration
-	var damage := stats.projectile_damage * float(stats.projectile_count) * float(stats.magazine_size) / cycle
-	var base_damage := base.projectile_damage * float(base.magazine_size) / base_cycle
+	var sustain := stats.max_health / base.max_health + _shield_utility(stats, base)
+	# Shield thrust compounds with acceleration; drag only helps after input release.
+	var shielded_acceleration := stats.acceleration * stats.shield_acceleration_factor
+	var base_shielded_acceleration := base.acceleration * base.shield_acceleration_factor
+	var mobility := (
+		stats.max_speed / base.max_speed * 0.7
+		+ stats.acceleration / base.acceleration * 0.125
+		+ shielded_acceleration / base_shielded_acceleration * 0.125
+		+ sqrt(stats.drag / base.drag) * 0.05
+	)
+	var damage := float(StatSystem.weapon_output(stats).sustained)
+	var base_damage := float(StatSystem.weapon_output(base).sustained)
 	# Diminishing utility avoids treating another damage multiplier as infinitely
 	# more valuable than repairing a glass build's survival or movement weakness.
 	var offense := sqrt(maxf(damage / base_damage, 0.0))
-	var range_value := sqrt(maxf(stats.projectile_speed * stats.projectile_lifetime / (base.projectile_speed * base.projectile_lifetime), 0.0))
+	# Use created projectiles so fixed beam speed and shortened beam lifetime
+	# cannot drift from combat. Delivery speed and reach are separate advantages.
+	var projectile := ProjectileState.create(0, 0, 0, Vector2.ZERO, 0.0, stats)
+	var projectile_speed := projectile.velocity.length()
+	var range_value := sqrt(projectile_speed * projectile.lifetime_remaining / (base.projectile_speed * base.projectile_lifetime))
+	var delivery := sqrt(projectile_speed / base.projectile_speed)
 	var repair := stats.auto_repair_rate / base.max_health if stats.auto_repair_enabled else 0.0
-	return sustain * (1.25 if defensive else 0.8) + mobility * (1.4 if mobile else 0.75) + offense * (0.65 if role == &"runner" else 1.0) + range_value * 0.15 + repair * (3.0 if defensive else 1.5)
+	return (
+		sustain * (1.25 if defensive else 0.8)
+		+ mobility * (1.4 if mobile else 0.75)
+		+ offense * (0.65 if role == &"runner" else 1.0)
+		+ range_value * 0.15 + delivery * 0.1
+		+ repair * (3.0 if defensive else 1.5)
+	)
+
+
+static func _shield_utility(stats: CombatStats, base: CombatStats) -> float:
+	# Approximate distinct shield strengths without assuming an incoming hit rate:
+	# hit budget, no-hit hold time, recovery from depletion, and refill throughput.
+	# These are comparative scores, not exact block counts or shield uptime.
+	var hit_budget := (stats.shield_capacity / stats.shield_block_cost) / (base.shield_capacity / base.shield_block_cost)
+	var hold_time := (stats.shield_capacity / stats.shield_continuous_drain) / (base.shield_capacity / base.shield_continuous_drain)
+	var unlock_time := stats.shield_regeneration_delay + minf(stats.shield_depletion_threshold, stats.shield_capacity) / stats.shield_regeneration
+	var base_unlock_time := base.shield_regeneration_delay + base.shield_depletion_threshold / base.shield_regeneration
+	var coverage := sqrt(stats.shield_arc_degrees / base.shield_arc_degrees)
+	# Diminishing returns keep efficiency stacks from overwhelming every role.
+	return coverage * (
+		sqrt(hit_budget) * 0.25
+		+ sqrt(hold_time) * 0.2
+		+ sqrt(base_unlock_time / unlock_time) * 0.1
+		+ sqrt(stats.shield_regeneration / base.shield_regeneration) * 0.1
+	)
