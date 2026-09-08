@@ -1245,6 +1245,27 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	blast_world.projectile_registry.add(blast_trigger)
 	blast_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
 	context.expect_approx(blast_target.health, 0.0, "the enlarged mine blast reaches a hull 200 pixels from its center")
+	context.expect_approx((blast_world.combatants[237] as CombatantState).health, 0.0, "a projectile-triggered mine blast damages its owner")
+
+	var friendly_blast_world := AuthoritativeWorld.new()
+	var friendly_layer := friendly_blast_world.add_peer(280, mine_stats)
+	var friendly_ally := friendly_blast_world.add_peer(281)
+	var friendly_enemy := friendly_blast_world.add_peer(282)
+	friendly_blast_world.set_team_assignments({280: 1, 281: 1, 282: 2})
+	friendly_layer.position = Vector2(500.0, 450.0)
+	friendly_ally.position = Vector2(500.0, 550.0)
+	friendly_enemy.position = Vector2(1000.0, 500.0)
+	var friendly_mine := ProjectileState.create_mine(930, 280, Vector2(500.0, 500.0))
+	friendly_mine.mine_activation_remaining = 0.0
+	friendly_blast_world.projectile_registry.add(friendly_mine)
+	friendly_blast_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(friendly_blast_world.projectile_registry.get_projectile(930) != null, "nearby owner and teammate do not trigger an armed mine")
+	context.expect_true(friendly_mine.velocity.is_zero_approx(), "an armed mine does not seek its owner or teammate")
+	friendly_enemy.position = Vector2(570.0, 500.0)
+	friendly_blast_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_approx(friendly_layer.health, 0.0, "an enemy-triggered blast damages the mine owner")
+	context.expect_approx(friendly_ally.health, 0.0, "an enemy-triggered blast damages teammates")
+	context.expect_approx(friendly_enemy.health, 0.0, "an enemy-triggered blast still damages enemies")
 
 	var wall_blast_world := AuthoritativeWorld.new()
 	wall_blast_world.set_map_id(&"riftline")
@@ -1309,6 +1330,9 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	chain_layer.position = Vector2(300.0, 300.0)
 	var chain_target := chain_world.add_peer(243)
 	chain_target.position = Vector2(950.0, 300.0)
+	var chain_ally := chain_world.add_peer(283)
+	chain_ally.position = Vector2(850.0, 400.0)
+	chain_world.set_team_assignments({242: 1, 243: 2, 283: 1})
 	var chain_positions := [Vector2(500.0, 300.0), Vector2(650.0, 300.0), Vector2(800.0, 300.0)]
 	for chain_index in chain_positions.size():
 		var chain_mine := ProjectileState.create_mine(910 + chain_index, 242, chain_positions[chain_index])
@@ -1322,6 +1346,7 @@ static func _validate_new_card_mechanics(context: TestContext) -> void:
 	context.expect_equal(chain_world.active_projectiles().size(), 1, "an armed mine blast recursively detonates other armed mines in range")
 	context.expect_equal((chain_world.active_projectiles()[0] as ProjectileState).projectile_id, 914, "an inactive mine cannot join a chain reaction")
 	context.expect_approx(chain_target.health, 0.0, "a chained mine blast applies its own 100 damage")
+	context.expect_approx(chain_ally.health, 0.0, "a chained mine blast damages the owner's teammate")
 
 	var breakaway_stats := StatSystem.derive({&"breakaway_thrusters": 1}, catalog)
 	var breakaway := CombatantState.create(266, breakaway_stats, Vector2(400.0, 400.0))

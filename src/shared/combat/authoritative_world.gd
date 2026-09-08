@@ -815,7 +815,8 @@ func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> 
 			GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS
 		):
 			var target := combatants[peer_id] as CombatantState
-			if not target.alive or peer_id == current.owner_id or are_allies(current.owner_id, peer_id):
+			# Once triggered, the blast can hit every ship, including its owner and allies.
+			if not target.alive:
 				continue
 			if target.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
 				continue
