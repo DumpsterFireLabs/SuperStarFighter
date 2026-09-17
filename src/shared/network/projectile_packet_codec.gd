@@ -124,6 +124,8 @@ static func decode_batch(bytes: PackedByteArray) -> Dictionary:
 	var spawned: Array[ProjectileState] = []
 	var offset := HEADER_SIZE
 	for index in spawn_count:
+		if ByteCodec.read_u32(bytes, offset) == ProjectileRegistry.REMOVED_ID:
+			return _error("Projectile ID zero is reserved.")
 		if (ByteCodec.read_u8(bytes, offset + 26) & 0xf0) != 0:
 			return _error("Projectile packet contains unsupported presentation flags.")
 		spawned.append(_read_projectile(bytes, offset))
@@ -131,7 +133,10 @@ static func decode_batch(bytes: PackedByteArray) -> Dictionary:
 	var removed: Array[int] = []
 	offset += 2
 	for index in removed_count:
-		removed.append(ByteCodec.read_u32(bytes, offset))
+		var projectile_id := ByteCodec.read_u32(bytes, offset)
+		if projectile_id == ProjectileRegistry.REMOVED_ID:
+			return _error("Projectile ID zero is reserved.")
+		removed.append(projectile_id)
 		offset += 4
 	return {
 		"ok": true,

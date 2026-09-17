@@ -19,6 +19,8 @@ var _network_active: bool = false
 var accessibility_settings: Dictionary = AccessibilityPreferencesScript.DEFAULTS.duplicate()
 var latest_server_tick: int = 0
 var match_payload: Dictionary = {}
+var _objective_tick: int = -1
+var _objective_priority: int = 0
 var controls_enabled: bool = false
 var match_paused: bool = false
 var card_catalog := CardCatalog.create_default()
@@ -282,6 +284,8 @@ func set_network_active(active: bool, reset_when_inactive: bool = true) -> void:
 
 
 func reset_session() -> void:
+	_objective_tick = -1
+	_objective_priority = 0
 	local_peer_id = 0
 	latest_server_tick = 0
 	match_payload.clear()
@@ -364,12 +368,17 @@ func _sync_predicted_resources(ship: CombatShipView) -> void:
 	local_prediction._sync_predicted_resources(ship)
 
 
-func apply_match_state(payload: Dictionary) -> void:
+func apply_match_state(payload: Dictionary, server_tick: int = -1) -> void:
+	var previous_objective: Dictionary = match_payload.get("objective", {})
 	match_payload = payload.duplicate(true)
+	# A periodic objective packet may beat the reliable state event to us.
+	# Keep that newer observation while applying the rest of the state event.
+	if server_tick >= 0 and not _accept_objective_version(server_tick, 2):
+		match_payload["objective"] = previous_objective
 	hud_camera._update_competitive_view()
 	var state_name := String(payload.get("state_name", ""))
 	apply_match_pause(bool(payload.get("paused", false)))
-	replicated_visuals.apply_match_state(payload, state_name)
+	replicated_visuals.apply_match_state(match_payload, state_name)
 	hud_camera.apply_match_state(state_name)
 	apply_builds(payload.get("builds", {}) as Dictionary)
 	if String(payload.get("state_name", "")) == "COUNTDOWN":
@@ -411,15 +420,34 @@ func _exit_tree() -> void:
 			bridge.client_projectile_correction_received.disconnect(replicated_visuals._on_projectile_correction)
 
 
-func apply_objective_state(objective: Dictionary) -> void:
+func apply_objective_state(objective: Dictionary, server_tick: int = -1, periodic: bool = false) -> bool:
+	if server_tick >= 0 and not _accept_objective_version(server_tick, 1 if periodic else 0):
+		return false
 	match_payload["objective"] = objective.duplicate(true)
 	if replicated_visuals.arena != null:
 		replicated_visuals.arena.set_objective(objective)
+	return true
+
+
+func _accept_objective_version(server_tick: int, priority: int) -> bool:
+	if _objective_tick >= 0:
+		if server_tick != _objective_tick and not SequenceMath.is_newer(server_tick, _objective_tick):
+			return false
+		# Within a tick, the periodic sample follows transitions; the full state
+		# event follows heat resolution. Reliable transitions retain stream order.
+		if server_tick == _objective_tick and priority < _objective_priority:
+			return false
+	_objective_tick = server_tick
+	_objective_priority = priority
+	return true
 
 
 func apply_builds(builds: Dictionary) -> void:
-	replicated_visuals.apply_builds(builds)
-	local_prediction.local_stats = _stats_for_peer(local_peer_id, builds)
+	# Commit the detached build before updating current ships. Respawn and cloak
+	# reappearance derive from this same data, including an empty-build reset.
+	match_payload["builds"] = builds.duplicate(true)
+	replicated_visuals.apply_builds(match_payload.builds)
+	local_prediction.local_stats = _stats_for_peer(local_peer_id)
 
 
 func add_card_powerup(payload: Dictionary) -> void:

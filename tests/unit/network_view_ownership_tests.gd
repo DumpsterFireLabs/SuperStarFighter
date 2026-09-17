@@ -3,6 +3,8 @@ extends RefCounted
 
 static func run(context: TestContext, parent: Node) -> void:
 	_shared_resource_identity(context)
+	_registry_invariants(context, parent)
+	_replication_ordering(context, parent)
 	var bridge := NetworkBridge.new()
 	parent.add_child(bridge)
 	var view := NetworkWorldView.new()
@@ -59,6 +61,15 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_false(view.prediction_initialized, "resume waits for an authoritative prediction baseline")
 	_projectile_reconciliation(context, view, bridge, local_ship)
 	_missile_visuals(context, view, bridge)
+	var upgraded_builds := {1: {&"reinforced_hull": 1}, 2: {&"reinforced_hull": 1}}
+	view.apply_builds(upgraded_builds)
+	upgraded_builds[2].clear()
+	context.expect_approx((view.ships[2] as CombatShipView).combatant.stats.max_health, 125.0, "powerup updates the visible remote build")
+	remote.alive = false
+	_emit_snapshot(bridge, authority, 11)
+	remote.alive = true
+	_emit_snapshot(bridge, authority, 12)
+	context.expect_approx((view.ships[2] as CombatShipView).combatant.stats.max_health, 125.0, "respawn preserves a detached powerup build")
 	remote.cloak_remaining = 5.0
 	_emit_snapshot(bridge, authority, 13)
 	context.expect_false(view.ships.has(2), "cloak omission removes replicated drawable")
@@ -69,6 +80,10 @@ static func run(context: TestContext, parent: Node) -> void:
 	remote.position = Vector2(1200, 800)
 	_emit_snapshot(bridge, authority, 16)
 	context.expect_equal((view.ships[2] as CombatShipView).global_position, remote.position, "revealed drawable starts at fresh authoritative location")
+	context.expect_approx((view.ships[2] as CombatShipView).combatant.stats.max_health, 125.0, "cloak reappearance preserves the latest powerup build")
+	view.apply_builds({})
+	context.expect_approx((view.ships[2] as CombatShipView).combatant.stats.max_health, 100.0, "empty build update clears temporary upgrades")
+	context.expect_approx(view.local_stats.max_health, 100.0, "empty build update clears local prediction upgrades")
 	view.apply_match_state({"state_name": "COUNTDOWN"})
 	context.expect_false(view.prediction_initialized, "countdown requires a fresh local prediction baseline")
 	context.expect_empty(view.presentation_states, "countdown clears previous heat feedback")
@@ -111,6 +126,7 @@ static func _projectile_reconciliation(context: TestContext, view: NetworkWorldV
 	view.local_weapon.shot_sequence = 11
 	view._spawn_predicted_projectile(ship, 0.0)
 	context.expect_true(view.authoritative_projectiles.get_projectile(-1) != null, "local shot creates a predicted drawable")
+	context.expect_equal(view.authoritative_projectiles.all_projectiles().size(), 1, "first predicted shot is enumerable by the renderer")
 	var authoritative := ProjectileState.create(101, 1, 11, ship.global_position + Vector2(31, 0), 0.0, view.local_stats)
 	var chunks := ProjectilePacketCodec.encode_batch_chunks(11, 1, [authoritative], [])
 	bridge.client_projectile_batch_received.emit(ProjectilePacketCodec.decode_batch(chunks[0]))
@@ -162,12 +178,135 @@ static func _missile_visuals(context: TestContext, view: NetworkWorldView, bridg
 	context.expect_equal(visual.position, before, "missile prediction cannot travel through terrain after contact")
 	context.expect_equal(view.authoritative_projectiles.get_projectile(201), visual, "predicted terrain contact cannot hide a live missile")
 	context.expect_true(not visual.velocity.is_zero_approx(), "stationary missile retains its visible body orientation")
-	bridge.client_projectile_batch_received.emit({"spawned": [], "removed": [201]})
+	bridge.client_projectile_batch_received.emit({"server_tick": 51, "batch_sequence": 5, "spawned": [], "removed": [201]})
 	context.expect_equal(view.authoritative_projectiles.get_projectile(201), null, "confirmed impact immediately removes missile visual")
-	chunks = ProjectilePacketCodec.encode_correction_chunks(60, 5, [missile], true)
+	chunks = ProjectilePacketCodec.encode_correction_chunks(60, 6, [missile], true)
 	bridge.client_projectile_correction_received.emit(ProjectilePacketCodec.decode_correction(chunks[0]))
-	bridge.client_projectile_correction_received.emit({"spawned": [], "complete_snapshot": true})
+	bridge.client_projectile_correction_received.emit({"server_tick": 61, "batch_sequence": 7, "spawned": [], "complete_snapshot": true})
 	context.expect_equal(view.authoritative_projectiles.get_projectile(201), null, "full snapshot retires missile when removal delta was lost")
+
+
+static func _replication_ordering(context: TestContext, parent: Node) -> void:
+	var bridge := NetworkBridge.new()
+	parent.add_child(bridge)
+	var view := NetworkWorldView.new()
+	parent.add_child(view)
+	view.setup(bridge)
+	view.set_physics_process(false)
+	var mine := ProjectileState.create_mine(101, 2, Vector2(300, 300))
+	_deliver_delta(bridge, 200, 20, [mine], [])
+	_deliver_correction(bridge, 190, 19, [])
+	context.expect_true(view.authoritative_projectiles.get_projectile(101) != null, "older complete correction preserves a newer spawn")
+	var recovered := ProjectileState.create_mine(102, 2, Vector2(400, 300))
+	_deliver_correction(bridge, 195, 19, [recovered])
+	context.expect_true(view.authoritative_projectiles.get_projectile(102) != null, "older recovery still fills a missing entity despite a newer unrelated delta")
+	_deliver_delta(bridge, 210, 21, [], [101])
+	_deliver_correction(bridge, 205, 20, [mine])
+	context.expect_equal(view.authoritative_projectiles.get_projectile(101), null, "older correction cannot resurrect a later removal")
+	context.expect_equal(view.authoritative_projectiles.get_projectile(102), null, "complete recovery still prunes genuinely stale entities")
+	_deliver_delta(bridge, 200, 20, [mine], [])
+	context.expect_equal(view.authoritative_projectiles.get_projectile(101), null, "old delta cannot undo complete recovery or newer removal")
+	var fresh := ProjectileState.create_mine(103, 2, Vector2(500, 300))
+	_deliver_delta(bridge, 220, 22, [fresh], [])
+	var moved := ProjectileState.create_mine(103, 2, Vector2(600, 300))
+	_deliver_correction(bridge, 225, 23, [moved], false)
+	_deliver_delta(bridge, 221, 22, [fresh], [])
+	context.expect_equal(view.authoritative_projectiles.get_projectile(103).position, moved.position, "older delta cannot rewind a newer partial correction")
+	_deliver_delta(bridge, 226, 24, [mine], [101])
+	context.expect_equal(view.authoritative_projectiles.get_projectile(101), null, "same-batch removal wins over spawn")
+	var many: Array[ProjectileState] = []
+	for id in range(300, 350):
+		many.append(ProjectileState.create_mine(id, id % 32 + 2, Vector2(700, 300)))
+	_deliver_delta(bridge, 230, 25, many, [])
+	context.expect_equal(view.authoritative_projectiles.size(), 51, "all chunks of one delta sequence are accepted")
+	var chunks := ProjectilePacketCodec.encode_correction_chunks(232, 26, many, true)
+	bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[0]))
+	var interleaved := ProjectileState.create_mine(400, 2, Vector2(800, 300))
+	_deliver_delta(bridge, 233, 27, [interleaved], [])
+	for index in range(1, chunks.size()):
+		bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[index]))
+	context.expect_equal(view.authoritative_projectiles.size(), 51, "assembled recovery preserves a delta received between its chunks")
+	context.expect_true(view.authoritative_projectiles.get_projectile(400) != null, "interleaved new entity survives old recovery assembly")
+	view.apply_match_state({"state_name": "COUNTDOWN", "entered_tick": 300}, 300)
+	_deliver_delta(bridge, 299, 28, [mine], [])
+	context.expect_empty(view.authoritative_projectiles.all_projectiles(), "heat boundary rejects delayed prior-heat projectiles")
+	_deliver_delta(bridge, 300, 29, [mine], [])
+	context.expect_true(view.authoritative_projectiles.get_projectile(101) != null, "heat boundary accepts current-tick data")
+	view.reset_session()
+	_deliver_delta(bridge, 0xfffffffe, 0xffff, [mine], [])
+	_deliver_delta(bridge, 1, 0, [], [101])
+	_deliver_correction(bridge, 0xffffffff, 0xffff, [mine])
+	context.expect_equal(view.authoritative_projectiles.get_projectile(101), null, "tick wrap preserves removal ordering")
+	view.reset_session()
+	_deliver_delta(bridge, 10, 0xffff, [mine], [])
+	_deliver_delta(bridge, 10, 0, [], [101])
+	_deliver_correction(bridge, 10, 0xffff, [mine])
+	context.expect_equal(view.authoritative_projectiles.get_projectile(101), null, "same-tick message sequence wrap preserves removal ordering")
+	_objective_ordering(context, view)
+	view.free()
+	bridge.free()
+	var history := preload("res://src/client/network/projectile_replication_history.gd").new()
+	for id in range(1, history.MAX_HISTORY + 2):
+		history.record(id, history.stamp(id, id))
+	history.finish_packet(history.stamp(5000, 5000))
+	context.expect_true(history._versions.size() <= history.MAX_HISTORY, "recovery loss cannot grow projectile history without bound")
+	context.expect_false(history.accepts_packet(history.stamp(1, 1)), "forgotten tombstones advance packet rejection floor")
+	context.expect_true(history.accepts_packet(history.stamp(5001, 5001)), "bounded history continues accepting fresh recovery")
+
+
+static func _deliver_delta(bridge: NetworkBridge, tick: int, sequence: int, spawned: Array[ProjectileState], removed: Array[int]) -> void:
+	for packet in ProjectilePacketCodec.encode_batch_chunks(tick, sequence, spawned, removed):
+		bridge.client_projectile_batch_received.emit(ProjectilePacketCodec.decode_batch(packet))
+
+
+static func _deliver_correction(bridge: NetworkBridge, tick: int, sequence: int, active: Array[ProjectileState], complete: bool = true) -> void:
+	for packet in ProjectilePacketCodec.encode_correction_chunks(tick, sequence, active, complete):
+		bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(packet))
+
+
+static func _objective_ordering(context: TestContext, view: NetworkWorldView) -> void:
+	view.reset_session()
+	context.expect_true(view.apply_objective_state({"flag_carrier_id": 2}, 100), "objective transition establishes a version")
+	context.expect_false(view.apply_objective_state({"flag_carrier_id": 0}, 99, true), "older periodic objective cannot undo a reliable transition")
+	context.expect_true(view.apply_objective_state({"flag_carrier_id": 3}, 100, true), "same-tick final periodic objective supersedes an intermediate transition")
+	context.expect_false(view.apply_objective_state({"flag_carrier_id": 2}, 100), "late intermediate transition cannot undo same-tick periodic state")
+	view.apply_match_state({"state_name": "ACTIVE_HEAT", "objective": {"flag_carrier_id": 0}}, 99)
+	context.expect_equal(view.match_payload.objective.flag_carrier_id, 3, "late reliable state retains newer objective observation")
+	view.apply_match_state({"state_name": "COUNTDOWN", "entered_tick": 200, "objective": {"flag_carrier_id": 0}}, 200)
+	context.expect_false(view.apply_objective_state({"flag_carrier_id": 3}, 199, true), "new heat rejects the prior heat objective")
+	context.expect_false(view.apply_objective_state({"flag_carrier_id": 3}, 200, true), "full state wins over same-tick periodic objective")
+	view.reset_session()
+	view.apply_objective_state({"flag_carrier_id": 2}, 0xffffffff)
+	context.expect_true(view.apply_objective_state({"flag_carrier_id": 3}, 0), "objective ordering handles server tick wrap")
+
+
+static func _registry_invariants(context: TestContext, parent: Node) -> void:
+	var view := NetworkWorldView.new()
+	parent.add_child(view)
+	view.set_physics_process(false)
+	var stats := CombatStats.create_base()
+	for id in range(1, 81):
+		var shot := ProjectileState.create(id, 2, id, Vector2.ZERO, 0.0, stats)
+		var reflected := ProjectileState.create(id, 3, id, Vector2.ZERO, 0.0, stats)
+		view.authoritative_projectiles.add(shot)
+		view.replicated_visuals._synchronize_projectile(shot, reflected)
+		context.expect_equal(view.authoritative_projectiles.count_for_owner(2), 0, "reflection releases original owner membership")
+		context.expect_equal(view.authoritative_projectiles.count_for_owner(3), 1, "reflection records new owner membership")
+		view.authoritative_projectiles.remove(id)
+	context.expect_equal(view.authoritative_projectiles.count_for_owner(3), 0, "reflected removal clears new owner membership")
+	context.expect_equal(view.authoritative_projectiles.retained_owner_slot_count(), 0, "repeated reflection and removal leave no owner slots")
+	context.expect_empty(view.authoritative_projectiles.add(ProjectileState.create(100, 2, 100, Vector2.ZERO, 0.0, stats)), "repeated reflections cannot evict a later shot from an empty registry")
+	view.reset_session()
+	context.expect_equal(view.authoritative_projectiles.count_for_owner(2), 0, "session reset clears all projectile memberships")
+	view.free()
+	var registry := ProjectileRegistry.new()
+	registry.maximum_per_owner = 2
+	registry.maximum_global = 2
+	registry.add(ProjectileState.create(-1, 2, 1, Vector2.ZERO, 0.0, stats))
+	registry.add(ProjectileState.create(-2, 2, 2, Vector2.ZERO, 0.0, stats))
+	context.expect_equal(registry.add(ProjectileState.create(-3, 2, 3, Vector2.ZERO, 0.0, stats)), [-1], "owner budget can evict negative predicted IDs")
+	context.expect_equal(registry.add(ProjectileState.create(-4, 3, 4, Vector2.ZERO, 0.0, stats)), [-2], "global budget can evict negative predicted IDs")
+	context.expect_equal(registry.all_projectiles().size(), 2, "negative IDs remain enumerable after tombstone removal")
 
 
 static func _shared_resource_identity(context: TestContext) -> void:

@@ -9,6 +9,7 @@ static func run(context: TestContext) -> void:
 	_validate_match_victory_and_lobby_reset(context)
 	_validate_match_extension(context)
 	_validate_forfeit_and_late_spectator(context)
+	_validate_spectator_churn(context)
 	_validate_empty_session_return(context)
 	_validate_team_death_match_scoring(context)
 	_validate_multi_team_death_match_scoring(context)
@@ -157,6 +158,19 @@ static func _validate_forfeit_and_late_spectator(context: TestContext) -> void:
 	context.expect_equal(machine.state, MatchStateMachine.State.LOBBY, "forfeit result returns to lobby on request")
 	context.expect_true((machine.players[3] as PlayerMatchState).participant, "late spectator is promoted in the next lobby")
 	context.expect_equal(machine.participant_ids(), [1, 3], "next lobby contains all connected clients")
+
+
+static func _validate_spectator_churn(context: TestContext) -> void:
+	var machine := _create_started_machine(2, 3)
+	for id in range(100, 228):
+		machine.add_player(id, "Visitor", id)
+		machine.disconnect_player(id, 10)
+	context.expect_equal(machine.players.size(), 2, "spectator churn retains only the competing roster")
+	context.expect_equal(machine.score_snapshot().size(), 2, "spectator churn does not accumulate empty score records")
+	context.expect_equal(machine.state, MatchStateMachine.State.DRAFT, "spectator departures do not advance the ongoing match")
+	machine.disconnect_player(2, 11)
+	context.expect_true(machine.players.has(2), "departed competitor remains available in match results")
+	context.expect_true(machine.score_snapshot().has(2), "departed competitor keeps their historical score")
 
 
 static func _validate_empty_session_return(context: TestContext) -> void:

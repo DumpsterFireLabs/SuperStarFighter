@@ -238,10 +238,12 @@ func disconnect_player(peer_id: int, at_tick: int) -> bool:
 	var player := players.get(peer_id) as PlayerMatchState
 	if player == null or not player.connected:
 		return false
+	var was_participant := player.participant
 	player.connected = false
 	player.participant = false
 	player.eliminate()
-	if state == State.LOBBY:
+	# Keep results for actual competitors, not every visitor to a long match.
+	if state == State.LOBBY or not was_participant:
 		players.erase(peer_id)
 		scores.remove_player(peer_id)
 		return true

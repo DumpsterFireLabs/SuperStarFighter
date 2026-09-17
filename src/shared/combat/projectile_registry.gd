@@ -18,12 +18,16 @@ var budget_evictions: int = 0
 var _owner_budget_evictions: Dictionary = {}
 var _moving_eviction_cursor: int = 0
 
-const REMOVED_ID: int = -1
+# Authority uses positive IDs and local prediction uses negative IDs.
+const REMOVED_ID: int = 0
 const COMPACT_MINIMUM_SLOTS: int = 128
 
 
 func add(projectile: ProjectileState) -> Array[int]:
 	var removed: Array[int] = []
+	assert(projectile.projectile_id != REMOVED_ID, "Projectile ID zero is reserved.")
+	if projectile.projectile_id == REMOVED_ID:
+		return removed
 	if _by_id.has(projectile.projectile_id):
 		remove(projectile.projectile_id)
 	_by_id[projectile.projectile_id] = projectile
@@ -48,12 +52,12 @@ func add(projectile: ProjectileState) -> Array[int]:
 			_evict(_oldest_mine_global(), removed)
 	while count_for_owner(projectile.owner_id) > maximum_per_owner:
 		var oldest_owner_id := _oldest_for_owner(projectile.owner_id, false)
-		if oldest_owner_id < 0:
+		if oldest_owner_id == REMOVED_ID:
 			break
 		_evict(oldest_owner_id, removed)
 	while _active_count > maximum_global:
 		var oldest_id := _oldest_moving_global()
-		if oldest_id < 0:
+		if oldest_id == REMOVED_ID:
 			break
 		_evict(oldest_id, removed)
 	return removed
@@ -105,7 +109,7 @@ func transfer_owner(projectile_id: int, new_owner_id: int) -> Array[int]:
 			_evict(_oldest_for_owner(new_owner_id, true), removed)
 	while count_for_owner(new_owner_id) > maximum_per_owner:
 		var oldest_owner_id := _oldest_for_owner(new_owner_id, false)
-		if oldest_owner_id < 0:
+		if oldest_owner_id == REMOVED_ID:
 			break
 		_evict(oldest_owner_id, removed)
 	revision += 1
@@ -244,7 +248,7 @@ func _oldest_for_owner(owner_id: int, mines: bool = false) -> int:
 		var projectile := get_projectile(int(owner_ids[index]))
 		if projectile != null and projectile.is_mine == mines:
 			return int(owner_ids[index])
-	return -1
+	return REMOVED_ID
 
 
 func _oldest_mine_global() -> int:
@@ -252,7 +256,7 @@ func _oldest_mine_global() -> int:
 		var projectile := get_projectile(id)
 		if projectile != null and projectile.is_mine:
 			return id
-	return -1
+	return REMOVED_ID
 
 
 func _oldest_moving_global() -> int:
@@ -262,7 +266,7 @@ func _oldest_moving_global() -> int:
 		if projectile != null and not projectile.is_mine:
 			return id
 		_moving_eviction_cursor += 1
-	return -1
+	return REMOVED_ID
 
 
 func _remove_owner_tracking(owner_id: int, projectile_id: int) -> void:
@@ -306,7 +310,7 @@ func _compact_owner_queue_if_needed(owner_id: int) -> void:
 func _oldest_global() -> int:
 	_advance_global_head()
 	if _ordered_head >= _ordered_ids.size():
-		return -1
+		return REMOVED_ID
 	return _ordered_ids[_ordered_head]
 
 

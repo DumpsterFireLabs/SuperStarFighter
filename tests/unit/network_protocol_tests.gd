@@ -216,6 +216,11 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 		context.expect_approx(decoded_missile.velocity.length(), GameConstants.MISSILE_SPEED, "missile speed round-trips", 0.05)
 		context.expect_approx(decoded_missile.damage, GameConstants.MISSILE_DAMAGE, "missile damage round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_batch(packet.slice(0, 8)).ok, "truncated projectile batch is rejected")
+	var zero_id := packet.duplicate()
+	zero_id.encode_u32(ProjectilePacketCodec.HEADER_SIZE, 0)
+	context.expect_false(ProjectilePacketCodec.decode_batch(zero_id).ok, "wire spawn cannot use the registry tombstone ID")
+	var zero_removal := ProjectilePacketCodec.encode_batch_chunks(1, 1, [], [0])[0]
+	context.expect_false(ProjectilePacketCodec.decode_batch(zero_removal).ok, "wire removal cannot use the registry tombstone ID")
 	var bad_flags := packet.duplicate()
 	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 16
 	context.expect_false(ProjectilePacketCodec.decode_batch(bad_flags).ok, "unsupported projectile presentation flags are rejected")

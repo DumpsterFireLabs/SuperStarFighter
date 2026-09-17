@@ -335,7 +335,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 			view.local_stats
 		))
 	var weapon_events_before_batch := feedback_events.count(&"weapon_fire")
-	view._on_projectile_batch({"spawned": authoritative_scatter, "removed": []})
+	view._on_projectile_batch({"server_tick": 10, "batch_sequence": 1, "spawned": authoritative_scatter, "removed": []})
 	context.expect_equal(feedback_events.count(&"weapon_fire"), weapon_events_before_batch + 1, "authoritative multi-projectile volley emits one deduplicatable sound event")
 	context.expect_equal(
 		view.authoritative_projectiles.size(),
@@ -356,7 +356,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	view.local_weapon.shot_sequence = 18
 	view._spawn_predicted_projectile(local_ship, 0.0)
 	var recovered_projectile := ProjectileState.create(1800, 1, 18, local_ship.global_position, 0.0, view.local_stats)
-	view._on_projectile_correction({"spawned": [recovered_projectile]})
+	view._on_projectile_correction({"server_tick": 11, "batch_sequence": 2, "spawned": [recovered_projectile]})
 	context.expect_false(view.predicted_projectile_ids.has(18), "a correction promotes a local shot when its unreliable spawn delta was lost")
 	context.expect_true(view.authoritative_projectiles.get_projectile(1800) != null, "correction recovery leaves one authoritative local projectile")
 	view.authoritative_projectiles.remove(1800)
@@ -396,7 +396,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	corrected_projectile.lifetime_remaining = 0.4
 	corrected_projectile.owner_id = 3
 	corrected_projectile.has_rebounded = true
-	view._on_projectile_correction({"spawned": [corrected_projectile]})
+	view._on_projectile_correction({"server_tick": 12, "batch_sequence": 3, "spawned": [corrected_projectile]})
 	var synchronized_projectile := view.authoritative_projectiles.get_projectile(400)
 	context.expect_true(
 		synchronized_projectile.velocity.y > 0.0
@@ -412,7 +412,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	unseen_rebound.has_rebounded = true
 	var weapon_events_before_rebound := feedback_events.count(&"weapon_fire")
 	var rebound_events_before_delta := feedback_events.count(&"rebound")
-	view._on_projectile_batch({"spawned": [unseen_rebound], "removed": []})
+	view._on_projectile_batch({"server_tick": 13, "batch_sequence": 4, "spawned": [unseen_rebound], "removed": []})
 	context.expect_equal(feedback_events.count(&"rebound"), rebound_events_before_delta + 1, "a rebound delta remains visible when the original spawn packet was lost")
 	context.expect_equal(feedback_events.count(&"weapon_fire"), weapon_events_before_rebound, "a rebound update is not misreported as a fresh weapon shot")
 	local_ship.free()

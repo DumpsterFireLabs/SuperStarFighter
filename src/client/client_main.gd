@@ -917,10 +917,11 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 			connection_controller.hide_screens()
 		else:
 			connection_controller.show_waiting_lobby()
-		network_world.apply_match_state(payload)
+		network_world.apply_match_state(payload, server_tick)
+		latest_match_payload["objective"] = (network_world.match_payload.get("objective", {}) as Dictionary).duplicate(true)
 		if network_world.match_paused:
 			network_world.latest_server_tick = server_tick
-		audio_director.set_objective_baseline(payload.get("objective", {}) as Dictionary)
+		audio_director.set_objective_baseline(latest_match_payload.get("objective", {}) as Dictionary)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
@@ -951,9 +952,10 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		latest_match_payload["alive_peer_ids"] = (payload.get("alive_peer_ids", []) as Array).duplicate()
 		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
 	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
+		if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, event_type == &"OBJECTIVE_UPDATED"):
+			return
 		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
 		standings_controller._scoreboard_rows_dirty = true
-		network_world.apply_objective_state(latest_match_payload.get("objective", {}) as Dictionary)
 		audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)

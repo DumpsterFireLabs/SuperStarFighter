@@ -2,6 +2,7 @@ class_name NetworkReplicatedVisuals
 extends RefCounted
 
 const PowerupLayerScript = preload("res://src/client/presentation/powerup_layer.gd")
+const ReplicationHistory = preload("res://src/client/network/projectile_replication_history.gd")
 
 ## Owns replicated ships, projectiles, interpolation and world feedback.
 
@@ -14,6 +15,7 @@ var view: NetworkWorldView
 var arena: ArenaView
 var ships: Dictionary = {}
 var authoritative_projectiles := ProjectileRegistry.new()
+var _projectile_history := ReplicationHistory.new()
 var projectile_layer: ProjectileLayer
 var effects_layer: CombatEffectsLayer
 var powerup_layer: Node2D
@@ -28,9 +30,15 @@ var interpolation_extrapolated_count: int = 0
 
 
 func _on_projectile_batch(decoded: Dictionary) -> void:
+	var version := ReplicationHistory.stamp(int(decoded.server_tick), int(decoded.batch_sequence))
+	if not _projectile_history.accepts_packet(version):
+		return
 	var emitted_shots: Dictionary = {}
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
+		if not _projectile_history.accepts_entity(projectile.projectile_id, version):
+			continue
+		_projectile_history.record(projectile.projectile_id, version)
 		if not projectile.is_mine:
 			view.local_prediction._reconcile_predicted_projectile(projectile)
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
@@ -58,6 +66,10 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			emitted_shots[shot_key] = true
 			_emit_weapon_shot(projectile.owner_id, projectile.shot_sequence, projectile.position, projectile)
 	for projectile_id in decoded.removed:
+		# A batch can spawn and retire a short-lived projectile in the same tick.
+		if not _projectile_history.can_remove_missing(int(projectile_id), version):
+			continue
+		_projectile_history.record(int(projectile_id), version)
 		var projectile := authoritative_projectiles.get_projectile(int(projectile_id))
 		if projectile != null and effects_layer != null and not projectile.is_mine:
 			effects_layer.spawn_impact(projectile.position)
@@ -70,18 +82,25 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 				"server_tick": view.latest_server_tick,
 			})
 		authoritative_projectiles.remove(int(projectile_id))
+	_projectile_history.finish_packet(version)
 
 
 func _on_projectile_correction(decoded: Dictionary) -> void:
+	var version := ReplicationHistory.stamp(int(decoded.server_tick), int(decoded.batch_sequence))
+	if not _projectile_history.accepts_packet(version):
+		return
 	var authoritative_ids: Dictionary = {}
 	for projectile_value in decoded.spawned:
 		var projectile := projectile_value as ProjectileState
+		authoritative_ids[projectile.projectile_id] = true
+		if not _projectile_history.accepts_entity(projectile.projectile_id, version):
+			continue
+		_projectile_history.record(projectile.projectile_id, version)
 		# A correction can be the first authoritative evidence of a shot when its
 		# unreliable delta was lost. Promote it immediately instead of rendering
 		# the authoritative and predicted copies together until the timeout.
 		if not projectile.is_mine:
 			view.local_prediction._reconcile_predicted_projectile(projectile)
-		authoritative_ids[projectile.projectile_id] = true
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
 			authoritative_projectiles.add(projectile)
@@ -93,8 +112,9 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 				_emit_rebound_feedback(projectile)
 	if bool(decoded.get("complete_snapshot", true)):
 		for projectile in authoritative_projectiles.all_projectiles():
-			if projectile.projectile_id > 0 and not authoritative_ids.has(projectile.projectile_id):
+			if projectile.projectile_id > 0 and not authoritative_ids.has(projectile.projectile_id) and _projectile_history.can_remove_missing(projectile.projectile_id, version):
 				authoritative_projectiles.remove(projectile.projectile_id)
+	_projectile_history.finish_packet(version, bool(decoded.get("complete_snapshot", true)))
 
 
 func _ensure_ship(peer_id: int, state: Dictionary) -> CombatShipView:
@@ -336,7 +356,7 @@ func update_combat_priorities() -> void:
 
 func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileState) -> bool:
 	var newly_rebounded := incoming.has_rebounded and not existing.has_rebounded
-	existing.owner_id = incoming.owner_id
+	authoritative_projectiles.transfer_owner(existing.projectile_id, incoming.owner_id)
 	existing.position = incoming.position
 	existing.velocity = incoming.velocity
 	existing.damage = incoming.damage
@@ -537,6 +557,7 @@ func apply_mine_detonations(server_tick: int, events: Array) -> void:
 
 
 func reset_session() -> void:
+	_projectile_history.reset()
 	_shield_feedback_ticks.clear()
 	for ship_value in ships.values():
 		(ship_value as CombatShipView).queue_free()
@@ -582,6 +603,12 @@ func create_layers() -> void:
 
 
 func apply_match_state(payload: Dictionary, state_name: String) -> void:
+	if state_name in ["DRAFT", "COUNTDOWN"]:
+		_projectile_history.reset(int(payload.get("entered_tick", -1)))
+		for projectile in authoritative_projectiles.all_projectiles():
+			authoritative_projectiles.remove(projectile.projectile_id)
+		view.local_prediction.predicted_projectile_ids.clear()
+		view.local_prediction.predicted_tracker = PredictedProjectileTracker.new()
 	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
 	if arena != null:
 		arena.set_map_id(payload_map_id)
