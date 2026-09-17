@@ -11,10 +11,15 @@ const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_s
 const PROJECTILE_COLLISION_ITERATIONS: int = 16
 const COLLISION_SURFACE_EPSILON: float = 0.35
 
-var view: NetworkWorldView
+const ViewContext = preload("res://src/client/network/client_view_context.gd")
+var context: ViewContext
+signal projectile_observed(projectile: ProjectileState)
+signal local_resources_received(ship: CombatShipView, state: Dictionary)
+signal ordnance_reset
+signal camera_shake_requested(intensity: float, duration: float)
 var arena: ArenaView
 var ships: Dictionary = {}
-var authoritative_projectiles := ProjectileRegistry.new()
+var authoritative_projectiles := ProjectileRegistry.presentation_store()
 var _projectile_history := ReplicationHistory.new()
 var projectile_layer: ProjectileLayer
 var effects_layer: CombatEffectsLayer
@@ -40,7 +45,7 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			continue
 		_projectile_history.record(projectile.projectile_id, version)
 		if not projectile.is_mine:
-			view.local_prediction._reconcile_predicted_projectile(projectile)
+			projectile_observed.emit(projectile)
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
 			authoritative_projectiles.add(projectile)
@@ -53,12 +58,12 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 		if projectile.is_mine or existing != null or projectile.has_rebounded:
 			continue
 		if projectile.is_missile:
-			view.presentation_event.emit(&"missile_launch", {
+			context.presentation_event.emit(&"missile_launch", {
 				"projectile_id": projectile.projectile_id,
 				"owner_id": projectile.owner_id,
 				"position": projectile.position,
-				"listener_position": view.hud_camera._audio_listener_position(),
-				"server_tick": view.latest_server_tick,
+				"listener_position": audio_listener_position(),
+				"server_tick": context.latest_server_tick,
 			})
 			continue
 		var shot_key := "%d:%d" % [projectile.owner_id, projectile.shot_sequence]
@@ -74,12 +79,12 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 		if projectile != null and effects_layer != null and not projectile.is_mine:
 			effects_layer.spawn_impact(projectile.position)
 		if projectile != null and not projectile.is_mine:
-			view.presentation_event.emit(&"projectile_impact", {
+			context.presentation_event.emit(&"projectile_impact", {
 				"projectile_id": projectile.projectile_id,
 				"owner_id": projectile.owner_id,
 				"position": projectile.position,
-				"listener_position": view.hud_camera._audio_listener_position(),
-				"server_tick": view.latest_server_tick,
+				"listener_position": audio_listener_position(),
+				"server_tick": context.latest_server_tick,
 			})
 		authoritative_projectiles.remove(int(projectile_id))
 	_projectile_history.finish_packet(version)
@@ -100,7 +105,7 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 		# unreliable delta was lost. Promote it immediately instead of rendering
 		# the authoritative and predicted copies together until the timeout.
 		if not projectile.is_mine:
-			view.local_prediction._reconcile_predicted_projectile(projectile)
+			projectile_observed.emit(projectile)
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
 			authoritative_projectiles.add(projectile)
@@ -125,13 +130,13 @@ func snapshot_identities(states: Array) -> Dictionary:
 	# This lookup lives for one synchronous snapshot application. Reliable lobby
 	# updates can precede/follow snapshots, so do not cache it across packets.
 	var identities := {}
-	for player: Dictionary in view.match_payload.get("players", []):
+	for player: Dictionary in context.match_payload.get("players", []):
 		var peer_id := int(player.get("peer_id", 0))
 		if not identities.has(peer_id): identities[peer_id] = player
 	for state: Dictionary in states:
-		if identities.has(int(state.peer_id)) or view.bridge == null: continue
+		if identities.has(int(state.peer_id)) or context.bridge == null: continue
 		# One detached roster at most, only if the match omits a snapshot peer.
-		for player: Dictionary in view.bridge.latest_lobby_state.get("players", []):
+		for player: Dictionary in context.bridge.latest_lobby_state.get("players", []):
 			var peer_id := int(player.get("peer_id", 0))
 			if not identities.has(peer_id): identities[peer_id] = player
 		break
@@ -153,14 +158,14 @@ func _ensure_ship_from_identity(peer_id: int, state: Dictionary, identity: Dicti
 		existing.set_ship_appearance(color, pattern)
 		return existing
 	var ship := CombatShipView.new()
-	ship.reduced_flashes = bool(view.accessibility_settings.reduced_flashes)
-	ship.high_contrast = bool(view.accessibility_settings.high_contrast)
-	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == view.local_peer_id, pilot_name, pattern)
-	ship.set_team_identity(team_for_peer(peer_id), team_for_peer(view.local_peer_id))
-	ship.set_shield_build(_build_for_peer(peer_id), view.card_catalog)
-	view.add_child(ship)
+	ship.reduced_flashes = bool(context.accessibility_settings.reduced_flashes)
+	ship.high_contrast = bool(context.accessibility_settings.high_contrast)
+	ship.setup(peer_id, _stats_for_peer(peer_id), state.position, color, peer_id == context.local_peer_id, pilot_name, pattern)
+	ship.set_team_identity(team_for_peer(peer_id), team_for_peer(context.local_peer_id))
+	ship.set_shield_build(_build_for_peer(peer_id), context.card_catalog)
+	context.surface.add_child(ship)
 	ships[peer_id] = ship
-	_shield_feedback_ticks[peer_id] = view.latest_server_tick - 1
+	_shield_feedback_ticks[peer_id] = context.latest_server_tick - 1
 	return ship
 
 
@@ -168,7 +173,7 @@ func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 	var was_alive := ship.combatant.alive
 	if bool(state.alive) and not was_alive:
 		ship.reset_ship(_stats_for_peer(ship.combatant.peer_id), state.position)
-		_shield_feedback_ticks[ship.combatant.peer_id] = maxi(int(_shield_feedback_ticks.get(ship.combatant.peer_id, -1)), view.latest_server_tick - 1)
+		_shield_feedback_ticks[ship.combatant.peer_id] = maxi(int(_shield_feedback_ticks.get(ship.combatant.peer_id, -1)), context.latest_server_tick - 1)
 	ship.combatant.position = state.position
 	ship.combatant.velocity = state.velocity
 	ship.combatant.aim_angle = state.aim_angle
@@ -188,17 +193,8 @@ func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 	ship.combatant.kinetic_vent_feedback_remaining = 0.1 if bool(state.get("kinetic_vent_active", false)) else 0.0
 	ship.combatant.shield.kinetic_vent_charge = float(state.get("kinetic_vent_charge", 0.0))
 	ship.combatant.breakaway_cooldown_remaining = float(state.get("breakaway_cooldown", 0.0))
-	if ship.combatant.peer_id == view.local_peer_id:
-		view.local_prediction.local_mine_charges_remaining = ship.combatant.mine_charges_remaining
-		view.local_prediction.local_mine_cooldown_remaining = ship.combatant.mine_cooldown_remaining
-		view.local_prediction.local_missile_charges_remaining = ship.combatant.missile_charges_remaining
-		view.local_prediction.local_missile_cooldown_remaining = ship.combatant.missile_cooldown_remaining
-		view.local_prediction.local_cloak_charges_remaining = ship.combatant.cloak_charges_remaining
-		view.local_prediction.local_cloak_remaining = maxf(view.local_prediction.local_cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
-		view.local_prediction.local_cloak_cooldown_remaining = ship.combatant.cloak_cooldown_remaining
-		view.local_prediction.local_breakaway_remaining = maxf(view.local_prediction.local_breakaway_remaining, 0.1) if bool(state.get("breakaway_active", false)) else 0.0
-		view.local_prediction.local_kinetic_vent_charge = ship.combatant.shield.kinetic_vent_charge
-		view.local_prediction.local_breakaway_cooldown_remaining = ship.combatant.breakaway_cooldown_remaining
+	if ship.combatant.peer_id == context.local_peer_id:
+		local_resources_received.emit(ship, state)
 	if bool(state.get("afterburner_active", false)):
 		ship.sustain_afterburner(0.14)
 	ship.combatant.weapon.ammunition = state.ammunition
@@ -213,10 +209,11 @@ func _emit_weapon_shot(
 	owner_id: int,
 	shot_sequence: int,
 	position: Vector2,
-	projectile: ProjectileState = null
+	projectile: ProjectileState = null,
+	predicted_stats: CombatStats = null
 ) -> void:
 	var shooter := ships.get(owner_id) as CombatShipView
-	var source_stats := view.local_prediction.local_stats if owner_id == view.local_peer_id else (
+	var source_stats := predicted_stats if predicted_stats != null else (
 		shooter.combatant.stats if shooter != null else _stats_for_peer(owner_id)
 	)
 	# Build derivation already happens when ships spawn or their build changes.
@@ -228,22 +225,22 @@ func _emit_weapon_shot(
 		stats.pierce_count = projectile.remaining_pierces
 		stats.ricochet_count = projectile.remaining_ricochets
 		stats.beam_weapon = projectile.is_beam
-	var profile = WeaponSoundProfileScript.from_stats(stats, _build_for_peer(owner_id), view.card_catalog)
-	view.presentation_event.emit(&"weapon_fire", {
+	var profile = WeaponSoundProfileScript.from_stats(stats, _build_for_peer(owner_id), context.card_catalog)
+	context.presentation_event.emit(&"weapon_fire", {
 		"profile": profile,
 		"owner_id": owner_id,
 		"shot_sequence": shot_sequence,
 		"position": position,
-		"listener_position": view.hud_camera._audio_listener_position(),
-		"local": owner_id == view.local_peer_id,
+		"listener_position": audio_listener_position(),
+		"local": owner_id == context.local_peer_id,
 	})
 
 
 func _update_remote_ships() -> void:
-	var now := view._now_seconds()
+	var now := context.now_seconds()
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
-		if peer_id == view.local_peer_id:
+		if peer_id == context.local_peer_id:
 			continue
 		if not (ships[peer_id] as CombatShipView).combatant.alive:
 			continue
@@ -319,37 +316,37 @@ func _step_projectile_visuals(delta: float) -> void:
 				projectile.lifetime_remaining = 0.0
 				break
 			if projectile.ricochet(obstacle_normal):
-				view.presentation_event.emit(&"ricochet", {
+				context.presentation_event.emit(&"ricochet", {
 					"projectile_id": projectile.projectile_id,
 					"owner_id": projectile.owner_id,
 					"ricochets_remaining": projectile.remaining_ricochets,
 					"position": projectile.position,
-					"listener_position": view.hud_camera._audio_listener_position(),
+					"listener_position": audio_listener_position(),
 				})
 				projectile.position += obstacle_normal * COLLISION_SURFACE_EPSILON
 				travel_remaining = maxf(travel_remaining - COLLISION_SURFACE_EPSILON, 0.0)
 				continue
-			view.presentation_event.emit(&"projectile_impact", {
+			context.presentation_event.emit(&"projectile_impact", {
 				"projectile_id": projectile.projectile_id,
 				"owner_id": projectile.owner_id,
 				"position": projectile.position,
-				"listener_position": view.hud_camera._audio_listener_position(),
-				"server_tick": view.latest_server_tick,
+				"listener_position": audio_listener_position(),
+				"server_tick": context.latest_server_tick,
 			})
 			authoritative_projectiles.remove(projectile.projectile_id)
 			break
 	if projectile_layer != null:
-		projectile_layer.visible_world_rect = view.hud_camera._visible_world_rect()
+		projectile_layer.visible_world_rect = context.visible_world_rect()
 		projectile_layer.queue_redraw()
 	if effects_layer != null:
-		effects_layer.visible_world_rect = view.hud_camera._visible_world_rect()
+		effects_layer.visible_world_rect = context.visible_world_rect()
 
 
 func update_combat_priorities() -> void:
 	var crowded := ships.size() >= 16 or authoritative_projectiles.size() >= ProjectileLayer.SIMPLIFY_PROJECTILE_THRESHOLD
-	var focus := view.hud_camera.camera.position
-	if ships.has(view.local_peer_id) and (ships[view.local_peer_id] as CombatShipView).combatant.alive:
-		focus = (ships[view.local_peer_id] as CombatShipView).global_position
+	var focus := context.camera.position
+	if ships.has(context.local_peer_id) and (ships[context.local_peer_id] as CombatShipView).combatant.alive:
+		focus = (ships[context.local_peer_id] as CombatShipView).global_position
 	for ship: CombatShipView in ships.values():
 		ship.set_combat_focus(focus, crowded)
 
@@ -376,12 +373,12 @@ func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileStat
 func _emit_rebound_feedback(projectile: ProjectileState) -> void:
 	if effects_layer != null:
 		effects_layer.spawn_rebound(projectile.position)
-	view.presentation_event.emit(&"rebound", {
+	context.presentation_event.emit(&"rebound", {
 		"projectile_id": projectile.projectile_id,
 		"owner_id": projectile.owner_id,
 		"position": projectile.position,
-		"listener_position": view.hud_camera._audio_listener_position(),
-		"server_tick": view.latest_server_tick,
+		"listener_position": audio_listener_position(),
+		"server_tick": context.latest_server_tick,
 	})
 
 
@@ -389,9 +386,9 @@ func apply_shield_feedback(payload: Dictionary) -> void:
 	var tick := int(payload.get("server_tick", -1))
 	# Reliable delivery may arrive after newer snapshots. Drop old presentation
 	# cues rather than replaying them after a blackout or into another heat.
-	if not view.controls_enabled or tick < 0 or tick + GameConstants.PHYSICS_TICKS_PER_SECOND < view.latest_server_tick:
+	if not context.controls_enabled or tick < 0 or tick + GameConstants.PHYSICS_TICKS_PER_SECOND < context.latest_server_tick:
 		return
-	if tick < int(view.match_payload.get("entered_tick", 0)):
+	if tick < int(context.match_payload.get("entered_tick", 0)):
 		return
 	for cue in payload.get("shield_cues", []):
 		var peer_id := int(cue.get("peer_id", 0))
@@ -400,12 +397,12 @@ func apply_shield_feedback(payload: Dictionary) -> void:
 			continue
 		_shield_feedback_ticks[peer_id] = tick
 		var details := {"peer_id": peer_id, "server_tick": tick,
-			"position": ship.global_position, "listener_position": view.hud_camera._audio_listener_position()}
+			"position": ship.global_position, "listener_position": audio_listener_position()}
 		if int(cue.get("blocks", 0)) > 0:
 			ship.flash_shield_block()
-			view.presentation_event.emit(&"shield_block", details)
+			context.presentation_event.emit(&"shield_block", details)
 		if int(cue.get("breaks", 0)) > 0:
-			view.presentation_event.emit(&"shield_break", details)
+			context.presentation_event.emit(&"shield_break", details)
 
 
 func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: CombatShipView) -> void:
@@ -420,51 +417,51 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: CombatShip
 		if direction.is_zero_approx():
 			direction = Vector2.from_angle(float(state.get("aim_angle", 0.0)) + PI)
 		if effects_layer != null:
-			effects_layer.spawn_damage(state.position, direction, peer_id == view.local_peer_id)
-		view.presentation_event.emit(&"damage", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
-		if peer_id == view.local_peer_id:
-			view.hud_camera.trigger_camera_shake(5.0, 0.16)
+			effects_layer.spawn_damage(state.position, direction, peer_id == context.local_peer_id)
+		context.presentation_event.emit(&"damage", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
+		if peer_id == context.local_peer_id:
+			camera_shake_requested.emit(5.0, 0.16)
 	if not bool(previous.get("shielding", false)) and bool(state.get("shielding", false)):
-		view.presentation_event.emit(&"shield_on", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
+		context.presentation_event.emit(&"shield_on", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
 	if not bool(previous.get("kinetic_vent_active", false)) and bool(state.get("kinetic_vent_active", false)):
 		if effects_layer != null:
 			effects_layer.spawn_kinetic_vent(state.position)
-		view.presentation_event.emit(&"kinetic_vent", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
-		if peer_id == view.local_peer_id:
-			view.hud_camera.trigger_camera_shake(3.0, 0.12)
+		context.presentation_event.emit(&"kinetic_vent", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
+		if peer_id == context.local_peer_id:
+			camera_shake_requested.emit(3.0, 0.12)
 	if not bool(previous.get("afterburner_active", false)) and bool(state.get("afterburner_active", false)):
 		ship.flash_afterburner(ship.combatant.stats.afterburner_duration)
-		if peer_id != view.local_peer_id:
-			view.presentation_event.emit(&"afterburner", {
+		if peer_id != context.local_peer_id:
+			context.presentation_event.emit(&"afterburner", {
 				"peer_id": peer_id,
-				"server_tick": view.latest_server_tick,
+				"server_tick": context.latest_server_tick,
 				"position": state.get("position", Vector2.ZERO),
-				"listener_position": view.hud_camera._audio_listener_position(),
+				"listener_position": audio_listener_position(),
 				"local": false,
 			})
 	if not bool(previous.get("breakaway_active", false)) and bool(state.get("breakaway_active", false)):
-		view.presentation_event.emit(&"breakaway", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
+		context.presentation_event.emit(&"breakaway", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
 	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
 		if effects_layer != null:
-			effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == view.local_peer_id)
-		view.presentation_event.emit(&"elimination", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
-		if peer_id == view.local_peer_id:
-			view.hud_camera.trigger_camera_shake(9.0, 0.3)
-	if peer_id == view.local_peer_id and int(state.get("ammunition", 0)) > int(previous.get("ammunition", 0)) + 1:
-		view.presentation_event.emit(&"reload", {"peer_id": peer_id, "server_tick": view.latest_server_tick})
+			effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == context.local_peer_id)
+		context.presentation_event.emit(&"elimination", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
+		if peer_id == context.local_peer_id:
+			camera_shake_requested.emit(9.0, 0.3)
+	if peer_id == context.local_peer_id and int(state.get("ammunition", 0)) > int(previous.get("ammunition", 0)) + 1:
+		context.presentation_event.emit(&"reload", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
 	presentation_states[peer_id] = state.duplicate(true)
 
 
 func _update_overtime_presentation() -> void:
 	if arena == null:
 		return
-	var overtime_tick := int(view.match_payload.get("overtime_start_tick", -1))
-	var active := view.controls_enabled and overtime_tick >= 0 and view.latest_server_tick >= overtime_tick
-	var center := view.match_payload.get("overtime_center", ArenaLayout.center(arena.map_id)) as Vector2
-	var minimum_radius := float(view.match_payload.get("overtime_minimum_radius", GameConstants.OVERTIME_MINIMUM_RADIUS))
+	var overtime_tick := int(context.match_payload.get("overtime_start_tick", -1))
+	var active := context.controls_enabled and overtime_tick >= 0 and context.latest_server_tick >= overtime_tick
+	var center := context.match_payload.get("overtime_center", ArenaLayout.center(arena.map_id)) as Vector2
+	var minimum_radius := float(context.match_payload.get("overtime_minimum_radius", GameConstants.OVERTIME_MINIMUM_RADIUS))
 	var radius := OvertimeSystem.initial_radius(center)
 	if active:
-		var elapsed := GameConstants.OVERTIME_START_SECONDS + float(view.latest_server_tick - overtime_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND
+		var elapsed := GameConstants.OVERTIME_START_SECONDS + float(context.latest_server_tick - overtime_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND
 		radius = OvertimeSystem.radius_at(elapsed, center, minimum_radius)
 	arena.set_overtime(active, radius, center)
 
@@ -485,15 +482,15 @@ func _player_pattern(peer_id: int) -> StringName:
 
 
 func team_for_peer(peer_id: int) -> int:
-	if not GameModeRules.is_team_mode(int(view.match_payload.get("game_mode", 0))):
+	if not GameModeRules.is_team_mode(int(context.match_payload.get("game_mode", 0))):
 		return 0
-	var teams := view.match_payload.get("teams", {}) as Dictionary
+	var teams := context.match_payload.get("teams", {}) as Dictionary
 	return int(teams.get(peer_id, teams.get(str(peer_id), 0)))
 
 
 func is_friendly_peer(peer_id: int) -> bool:
-	var local_team := team_for_peer(view.local_peer_id)
-	return peer_id == view.local_peer_id or local_team > 0 and team_for_peer(peer_id) == local_team
+	var local_team := team_for_peer(context.local_peer_id)
+	return peer_id == context.local_peer_id or local_team > 0 and team_for_peer(peer_id) == local_team
 
 
 func _display_name(peer_id: int) -> String:
@@ -506,12 +503,12 @@ func _display_name(peer_id: int) -> String:
 func _player_identity(peer_id: int) -> Dictionary:
 	# The bridge observation is a defensive deep copy. Request it only when
 	# the match has no identity for this peer, not for every snapshot field.
-	for player_value in view.match_payload.get("players", []):
+	for player_value in context.match_payload.get("players", []):
 		var player := player_value as Dictionary
 		if int(player.get("peer_id", 0)) == peer_id:
 			return player
-	if view.bridge != null:
-		for player_value in view.bridge.latest_lobby_state.get("players", []):
+	if context.bridge != null:
+		for player_value in context.bridge.latest_lobby_state.get("players", []):
 			var player := player_value as Dictionary
 			if int(player.get("peer_id", 0)) == peer_id:
 				return player
@@ -523,8 +520,8 @@ func _record_snapshot_arrival(server_tick: int, receive_time: float) -> void:
 		var expected_interval := 1.0 / GameConstants.PLAYER_SNAPSHOT_RATE
 		var arrival_deviation := absf(receive_time - last_snapshot_receive_time - expected_interval)
 		snapshot_jitter_ms = lerpf(snapshot_jitter_ms, arrival_deviation * 1000.0, 0.1)
-	if view.latest_server_tick != 0:
-		var tick_delta := (server_tick - view.latest_server_tick) & SequenceMath.UINT32_MASK
+	if context.latest_server_tick != 0:
+		var tick_delta := (server_tick - context.latest_server_tick) & SequenceMath.UINT32_MASK
 		var expected_tick_delta := GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE
 		if tick_delta > expected_tick_delta and tick_delta < GameConstants.PHYSICS_TICKS_PER_SECOND * 5:
 			snapshot_gap_count += maxi(floori(float(tick_delta) / expected_tick_delta) - 1, 0)
@@ -540,20 +537,20 @@ func collect_card_powerup(payload: Dictionary) -> void:
 	if powerup_layer != null:
 		powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
 	if effects_layer != null:
-		var card := view.card_catalog.get_card(StringName(payload.get("card_id", &"")))
+		var card := context.card_catalog.get_card(StringName(payload.get("card_id", &"")))
 		effects_layer.spawn_impact(payload.get("position", Vector2.ZERO) as Vector2, card.rarity_color() if card != null else Color("42e8ff"))
 
 
 func apply_mine_detonations(server_tick: int, events: Array) -> void:
-	if server_tick + GameConstants.PHYSICS_TICKS_PER_SECOND < view.latest_server_tick:
+	if server_tick + GameConstants.PHYSICS_TICKS_PER_SECOND < context.latest_server_tick:
 		return
 	for event in events:
 		if effects_layer != null:
 			effects_layer.spawn_mine_explosion(event.position as Vector2)
 		var payload := (event as Dictionary).duplicate()
 		payload["server_tick"] = server_tick
-		payload["listener_position"] = view.hud_camera._audio_listener_position()
-		view.presentation_event.emit(&"mine_detonated", payload)
+		payload["listener_position"] = audio_listener_position()
+		context.presentation_event.emit(&"mine_detonated", payload)
 
 
 func reset_session() -> void:
@@ -572,7 +569,7 @@ func reset_session() -> void:
 	interpolation_extrapolated_count = 0
 	interpolation = RemoteInterpolator.new()
 	if projectile_layer != null:
-		projectile_layer.set_beam_builds({}, view.card_catalog)
+		projectile_layer.set_beam_builds({}, context.card_catalog)
 		projectile_layer.set_team_identity({}, 0, false)
 	if effects_layer != null:
 		effects_layer.clear_effects()
@@ -587,19 +584,19 @@ func reset_session() -> void:
 func create_layers() -> void:
 	arena = ArenaView.new()
 	arena.name = "Arena"
-	view.add_child(arena)
+	context.surface.add_child(arena)
 	powerup_layer = PowerupLayerScript.new()
 	powerup_layer.name = "CardPowerups"
 	powerup_layer.z_index = 1
-	view.add_child(powerup_layer)
+	context.surface.add_child(powerup_layer)
 	projectile_layer = ProjectileLayer.new()
 	projectile_layer.registry = authoritative_projectiles
 	projectile_layer.z_index = 2
-	view.add_child(projectile_layer)
+	context.surface.add_child(projectile_layer)
 	effects_layer = CombatEffectsLayer.new()
 	effects_layer.name = "CombatEffects"
 	effects_layer.z_index = 5
-	view.add_child(effects_layer)
+	context.surface.add_child(effects_layer)
 
 
 func apply_match_state(payload: Dictionary, state_name: String) -> void:
@@ -607,13 +604,12 @@ func apply_match_state(payload: Dictionary, state_name: String) -> void:
 		_projectile_history.reset(int(payload.get("entered_tick", -1)))
 		for projectile in authoritative_projectiles.all_projectiles():
 			authoritative_projectiles.remove(projectile.projectile_id)
-		view.local_prediction.predicted_projectile_ids.clear()
-		view.local_prediction.predicted_tracker = PredictedProjectileTracker.new()
+		ordnance_reset.emit()
 	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
 	if arena != null:
 		arena.set_map_id(payload_map_id)
-		arena.local_peer_id = view.local_peer_id
-		arena.local_team_id = team_for_peer(view.local_peer_id)
+		arena.local_peer_id = context.local_peer_id
+		arena.local_team_id = team_for_peer(context.local_peer_id)
 		arena.pilot_names.clear()
 		for player in payload.get("players", []):
 			var peer_id := int(player.get("peer_id", 0))
@@ -624,9 +620,9 @@ func apply_match_state(payload: Dictionary, state_name: String) -> void:
 		ship.visible = state_name != "DRAFT"
 		ship.display_name = _display_name(ship.combatant.peer_id)
 		ship.set_ship_appearance(_player_color(ship.combatant.peer_id), _player_pattern(ship.combatant.peer_id))
-		ship.set_team_identity(team_for_peer(ship.combatant.peer_id), team_for_peer(view.local_peer_id))
+		ship.set_team_identity(team_for_peer(ship.combatant.peer_id), team_for_peer(context.local_peer_id))
 	if projectile_layer != null:
-		projectile_layer.set_team_identity(view.match_payload.get("teams", {}) as Dictionary, team_for_peer(view.local_peer_id), GameModeRules.is_team_mode(int(view.match_payload.get("game_mode", 0))))
+		projectile_layer.set_team_identity(context.match_payload.get("teams", {}) as Dictionary, team_for_peer(context.local_peer_id), GameModeRules.is_team_mode(int(context.match_payload.get("game_mode", 0))))
 	if powerup_layer != null:
 		powerup_layer.set_powerups(payload.get("powerups", []) as Array)
 
@@ -646,22 +642,22 @@ func remove_missing_ships(present_ids: Dictionary) -> void:
 
 func apply_builds(builds: Dictionary) -> void:
 	if projectile_layer != null:
-		projectile_layer.set_beam_builds(builds, view.card_catalog)
+		projectile_layer.set_beam_builds(builds, context.card_catalog)
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
 		var ship := ships[peer_id] as CombatShipView
 		ship.combatant.stats = _stats_for_peer(peer_id, builds).duplicate_stats()
-		ship.set_shield_build(builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary, view.card_catalog)
+		ship.set_shield_build(builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary, context.card_catalog)
 
 
 func _stats_for_peer(peer_id: int, builds: Dictionary = {}) -> CombatStats:
-	var source_builds := builds if not builds.is_empty() else view.match_payload.get("builds", {}) as Dictionary
+	var source_builds := builds if not builds.is_empty() else context.match_payload.get("builds", {}) as Dictionary
 	var build := source_builds.get(peer_id, source_builds.get(str(peer_id), {})) as Dictionary
-	return StatSystem.derive(build, view.card_catalog)
+	return StatSystem.derive(build, context.card_catalog)
 
 
 func _build_for_peer(peer_id: int) -> Dictionary:
-	var builds := view.match_payload.get("builds", {}) as Dictionary
+	var builds := context.match_payload.get("builds", {}) as Dictionary
 	return builds.get(peer_id, builds.get(str(peer_id), {})) as Dictionary
 
 func reset_for_countdown() -> void:
@@ -683,3 +679,18 @@ func apply_accessibility_settings(settings: Dictionary) -> void:
 		ship.high_contrast = bool(settings.high_contrast)
 		ship.reduced_flashes = bool(settings.reduced_flashes)
 		ship.queue_redraw()
+
+
+func audio_listener_position() -> Vector2:
+	var ship := ships.get(context.local_peer_id) as CombatShipView
+	return ship.global_position if ship != null else context.camera.position if context.camera != null else Vector2.ZERO
+
+
+func add_predicted(projectile: ProjectileState) -> void:
+	assert(projectile.projectile_id < 0)
+	authoritative_projectiles.add(projectile)
+
+
+func remove_predicted(projectile_id: int) -> void:
+	assert(projectile_id < 0)
+	authoritative_projectiles.remove(projectile_id)

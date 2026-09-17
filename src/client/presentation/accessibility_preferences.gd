@@ -1,5 +1,7 @@
 extends RefCounted
 
+const SettingsStore = preload("res://src/client/settings_store.gd")
+
 const DEFAULTS: Dictionary = {
 	"hud_scale": 1.0,
 	"reduced_shake": false,
@@ -11,7 +13,7 @@ const DEFAULTS: Dictionary = {
 }
 
 var values: Dictionary = DEFAULTS.duplicate()
-var settings_path: String = AudioDirector.SETTINGS_PATH
+var settings_path: String = SettingsStore.PATH
 
 
 func load_settings() -> void:
@@ -35,11 +37,10 @@ func set_values(changes: Dictionary) -> void:
 
 
 func save_settings() -> Error:
-	var config := ConfigFile.new()
-	config.load(settings_path)
-	for key in DEFAULTS:
-		config.set_value("accessibility", key, values[key])
-	return config.save(settings_path)
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		for key in DEFAULTS:
+			config.set_value("accessibility", key, values[key])
+	, settings_path)
 
 
 static func hud_safe_rect(viewport_size: Vector2, constrained: bool = true) -> Rect2:

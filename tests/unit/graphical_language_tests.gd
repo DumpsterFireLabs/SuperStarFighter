@@ -42,7 +42,7 @@ static func run(context: TestContext, parent: Node) -> void:
 
 	connection.connection_screen.hide()
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "builds": {2: {&"twin_shot": 5}}, "deadline_tick": 1800}
-	client.draft_controller._show_draft_offer({"offer_token": "review", "deadline_tick": 1800, "card_ids": [&"twin_shot", &"reinforced_hull", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"]})
+	client.draft_controller.show_draft_offer({"offer_token": "review", "deadline_tick": 1800, "card_ids": [&"twin_shot", &"reinforced_hull", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"]})
 	await parent.get_tree().process_frame
 	var card := client.draft_controller.draft_buttons[0] as CardHoverButton
 	card.grab_focus()
@@ -63,7 +63,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_false(client.card_inspector.visible, "controller Back closes inspection")
 	context.expect_false(client.network_world.input_blocked, "closing inspection releases its gameplay block")
 	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
-	client.draft_controller._select_draft_card(0)
+	client.draft_controller.select_draft_card(0)
 	await parent.get_tree().process_frame
 	await parent.get_tree().process_frame
 	var state := card.get_node("CardContent/Details/State") as Label
@@ -71,9 +71,9 @@ static func run(context: TestContext, parent: Node) -> void:
 	var rarity := client.draft_controller.draft_rarity_labels[0] as Label
 	context.expect_true(state.get_global_rect().end.y <= rarity.get_global_rect().position.y, "card selection and rarity footer do not overlap")
 	for card_id in client.card_catalog.all_ids():
-		client.latest_match_payload["builds"] = {2: {card_id: 20}}
-		client.draft_controller._show_draft_offer({"offer_token": "fit", "deadline_tick": 1800, "card_ids": [card_id]})
-		client.draft_controller._select_draft_card(0)
+		client.match_state.update_fields({"builds": {2: {card_id: 20}}})
+		client.draft_controller.show_draft_offer({"offer_token": "fit", "deadline_tick": 1800, "card_ids": [card_id]})
+		client.draft_controller.select_draft_card(0)
 		await parent.get_tree().process_frame
 		await parent.get_tree().process_frame
 		var margin := card.get_node("CardContent") as MarginContainer
@@ -91,7 +91,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(client.card_inspector.visible, "activating a result chip opens its details")
 	_press_key(client.get_viewport(), KEY_ESCAPE)
 	context.expect_equal(client.get_viewport().gui_get_focus_owner(), chip, "result inspection restores the result chip")
-	var feed := client.network_world.kill_feed as KillFeed
+	var feed := client.network_world.hud_camera.kill_feed as KillFeed
 	feed.clear()
 	feed.add_eliminations([{"killer_id": 2, "victim_id": 3, "reason": "combat"}, {"killer_id": 0, "victim_id": 3, "reason": "combat"}, {"killer_id": 0, "victim_id": 3, "reason": "disconnect"}], 42, 2, [{"peer_id": 2, "display_name": "A deliberately long pilot name"}, {"peer_id": 3, "display_name": "Another deliberately long pilot"}])
 	feed.set_match_state("ACTIVE_HEAT")

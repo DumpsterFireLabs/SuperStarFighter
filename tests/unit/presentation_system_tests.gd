@@ -201,7 +201,7 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	ship.free()
 	var bridge := NetworkBridge.new()
 	bridge.session.latest_lobby_state = {"players": [{"peer_id": 8, "display_name": "Guest", "ship_color": "42e8ff", "ship_pattern": "solid"}]}
-	var identity_view := NetworkWorldView.new()
+	var identity_view := NetworkWorldFixture.new()
 	identity_view.bridge = bridge
 	var guest_ship := identity_view._ensure_ship(8, {"position": Vector2.ZERO})
 	context.expect_equal(guest_ship.ship_color.to_html(false), "42e8ff", "guest ship can spawn from the lobby state available with its first snapshot")
@@ -251,24 +251,24 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	context.expect_empty(powerup_layer.powerups, "collected arena card disappears from the world presentation")
 	powerup_layer.free()
 
-	var view := NetworkWorldView.new()
+	var view := NetworkWorldFixture.new()
 	view.local_peer_id = 1
-	view.input_sequence = 40
-	view.client_tick = 80
-	view._advance_input_clock()
-	context.expect_equal(view.input_sequence, 41, "every predicted physics frame advances its replay sequence")
-	context.expect_equal(view.client_tick, 81, "prediction input time advances with its replay sequence")
+	view.local_prediction.input_sequence = 40
+	view.local_prediction.client_tick = 80
+	view.local_prediction._advance_input_clock()
+	context.expect_equal(view.local_prediction.input_sequence, 41, "every predicted physics frame advances its replay sequence")
+	context.expect_equal(view.local_prediction.client_tick, 81, "prediction input time advances with its replay sequence")
 	var local_ship := CombatShipView.new()
 	local_ship.setup(1, CombatStats.create_base(), Vector2(100.0, 100.0), Color.WHITE, true, "Local")
-	view.ships[1] = local_ship
+	view.replicated_visuals.ships[1] = local_ship
 	var projectile := ProjectileState.create(50, 2, 1, Vector2(900.0, 100.0), PI, CombatStats.create_base())
-	view.authoritative_projectiles.add(projectile)
+	view.replicated_visuals.authoritative_projectiles.add(projectile)
 	context.expect_equal(view.nearest_incoming_offscreen_projectile(), projectile, "nearest incoming projectile is selected for a shape indicator")
-	view.camera = Camera2D.new()
+	view.hud_camera.camera = Camera2D.new()
 	view.trigger_camera_shake(5.0, 0.2)
-	context.expect_true(view.camera_shake_remaining > 0.0, "local damage can trigger restrained presentation-only camera shake")
+	context.expect_true(view.hud_camera.camera_shake_remaining > 0.0, "local damage can trigger restrained presentation-only camera shake")
 	view.trigger_afterburner_feedback(Vector2.RIGHT)
-	context.expect_true(view.camera_kick_remaining > 0.0 and view.camera_kick_offset.x < 0.0, "local Afterburner ignition recoils the camera opposite the boost direction")
+	context.expect_true(view.hud_camera.camera_kick_remaining > 0.0 and view.hud_camera.camera_kick_offset.x < 0.0, "local Afterburner ignition recoils the camera opposite the boost direction")
 	var feedback_events: Array[StringName] = []
 	var feedback_payloads: Array[Dictionary] = []
 	view.presentation_event.connect(func(event_name: StringName, payload: Dictionary) -> void:
@@ -276,128 +276,128 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 		feedback_payloads.append(payload)
 	)
 	view.latest_server_tick = 20
-	view._handle_snapshot_feedback(1, {"health": 100.0, "shield": 100.0, "shielding": true, "alive": true, "ammunition": 2, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
+	view.replicated_visuals._handle_snapshot_feedback(1, {"health": 100.0, "shield": 100.0, "shielding": true, "alive": true, "ammunition": 2, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
 	view.latest_server_tick = 21
-	view._handle_snapshot_feedback(1, {"health": 75.0, "shield": 20.0, "shielding": false, "alive": true, "ammunition": 8, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
+	view.replicated_visuals._handle_snapshot_feedback(1, {"health": 75.0, "shield": 20.0, "shielding": false, "alive": true, "ammunition": 8, "position": Vector2(100.0, 100.0), "velocity": Vector2.ZERO, "aim_angle": 0.0}, local_ship)
 	context.expect_true(&"damage" in feedback_events, "snapshot deltas emit damage feedback once")
 	context.expect_false(&"shield_break" in feedback_events or &"shield_block" in feedback_events, "energy deltas alone cannot confirm shield impacts or depletion")
 	context.expect_true(&"reload" in feedback_events, "snapshot deltas distinguish reload completion")
 	local_ship.combatant.alive = false
 	local_ship.set_eliminated()
-	view._apply_snapshot_resources(local_ship, {"position": Vector2(160.0, 120.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "shielding": false, "ammunition": 8, "alive": true})
+	view.replicated_visuals._apply_snapshot_resources(local_ship, {"position": Vector2(160.0, 120.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "shielding": false, "ammunition": 8, "alive": true})
 	context.expect_true(local_ship.combatant.alive and local_ship.collision_layer == 2, "a respawn snapshot fully revives an eliminated ship visual for the next heat")
 	context.expect_true(local_ship.z_index > 0, "ships render above arena geometry")
 	var remote_ship := CombatShipView.new()
 	remote_ship.setup(2, CombatStats.create_base(), Vector2(112.0, 120.0), Color.CYAN, false, "Remote")
 	remote_ship.global_position = Vector2(112.0, 120.0)
-	view.ships[2] = remote_ship
+	view.replicated_visuals.ships[2] = remote_ship
 	view.latest_server_tick = 30
-	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": false}, remote_ship)
+	view.replicated_visuals._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": false}, remote_ship)
 	view.latest_server_tick = 31
-	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": true, "breakaway_active": false}, remote_ship)
+	view.replicated_visuals._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": true, "breakaway_active": false}, remote_ship)
 	context.expect_equal(feedback_events.back(), &"afterburner", "a remote authoritative activation edge emits one Afterburner presentation event")
 	context.expect_true(remote_ship.afterburner_bloom_remaining > 0.0, "remote Afterburner presentation anchors its dedicated lance from authoritative facing")
 	remote_ship.afterburner_bloom_remaining = 0.0
 	view.latest_server_tick = 32
-	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": false}, remote_ship)
+	view.replicated_visuals._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": false}, remote_ship)
 	view.latest_server_tick = 33
-	view._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": true}, remote_ship)
+	view.replicated_visuals._handle_snapshot_feedback(2, {"health": 100.0, "shield": 100.0, "shielding": false, "alive": true, "ammunition": 8, "position": remote_ship.global_position, "velocity": Vector2.RIGHT * 200.0, "aim_angle": PI * 0.5, "afterburner_active": false, "breakaway_active": true}, remote_ship)
 	context.expect_equal(feedback_events.back(), &"breakaway", "Breakaway retains its own presentation event")
 	context.expect_approx(remote_ship.afterburner_bloom_remaining, 0.0, "Breakaway no longer impersonates the facing-aligned Afterburner lance")
-	view.prediction_initialized = true
-	view.prediction.predicted_position = Vector2(100.0, 120.0)
-	view.prediction.predicted_velocity = Vector2(240.0, 0.0)
-	local_ship.global_position = view.prediction.predicted_position
-	view._separate_local_visual_from_remote(local_ship)
+	view.local_prediction.prediction_initialized = true
+	view.local_prediction.prediction.predicted_position = Vector2(100.0, 120.0)
+	view.local_prediction.prediction.predicted_velocity = Vector2(240.0, 0.0)
+	local_ship.global_position = view.local_prediction.prediction.predicted_position
+	view.local_prediction._separate_local_visual_from_remote(local_ship)
 	context.expect_true(local_ship.global_position.distance_to(remote_ship.global_position) >= GameConstants.SHIP_COLLISION_RADIUS * 2.0, "client prediction immediately separates a local ship from an overlapping remote ship")
-	context.expect_true(view.prediction.smoothing_remaining <= 0.0, "contact escape clears smoothing that could visually glue ships together")
-	view.ships.erase(2)
+	context.expect_true(view.local_prediction.prediction.smoothing_remaining <= 0.0, "contact escape clears smoothing that could visually glue ships together")
+	view.replicated_visuals.ships.erase(2)
 	remote_ship.free()
-	view.authoritative_projectiles.remove(projectile.projectile_id)
-	view.local_stats = StatSystem.derive({&"scatter_array": 1}, CardCatalog.create_default())
-	view.local_weapon.shot_sequence = 9
-	view._spawn_predicted_projectile(local_ship, 0.0)
+	view.replicated_visuals.authoritative_projectiles.remove(projectile.projectile_id)
+	view.local_prediction.local_stats = StatSystem.derive({&"scatter_array": 1}, CardCatalog.create_default())
+	view.local_prediction.local_weapon.shot_sequence = 9
+	view.local_prediction._spawn_predicted_projectile(local_ship, 0.0)
 	context.expect_equal(feedback_events.back(), &"weapon_fire", "predicted local fire emits the profile-driven weapon event")
 	context.expect_equal((feedback_payloads.back().profile as WeaponSoundProfile).family, WeaponSoundProfile.FAMILY_SCATTER, "predicted volley carries its derived scatter sound profile")
 	context.expect_equal(
-		view.authoritative_projectiles.size(),
-		view.local_stats.projectile_count,
+		view.replicated_visuals.authoritative_projectiles.size(),
+		view.local_prediction.local_stats.projectile_count,
 		"Scatter Array predicts every projectile in the local multi-shot"
 	)
 	var authoritative_scatter: Array[ProjectileState] = []
-	for projectile_index in view.local_stats.projectile_count:
+	for projectile_index in view.local_prediction.local_stats.projectile_count:
 		authoritative_scatter.append(ProjectileState.create(
 			projectile_index + 1,
 			view.local_peer_id,
-			view.local_weapon.shot_sequence,
+			view.local_prediction.local_weapon.shot_sequence,
 			local_ship.global_position,
 			0.0,
-			view.local_stats
+			view.local_prediction.local_stats
 		))
 	var weapon_events_before_batch := feedback_events.count(&"weapon_fire")
-	view._on_projectile_batch({"server_tick": 10, "batch_sequence": 1, "spawned": authoritative_scatter, "removed": []})
+	view.replicated_visuals._on_projectile_batch({"server_tick": 10, "batch_sequence": 1, "spawned": authoritative_scatter, "removed": []})
 	context.expect_equal(feedback_events.count(&"weapon_fire"), weapon_events_before_batch + 1, "authoritative multi-projectile volley emits one deduplicatable sound event")
 	context.expect_equal(
-		view.authoritative_projectiles.size(),
+		view.replicated_visuals.authoritative_projectiles.size(),
 		authoritative_scatter.size(),
 		"authoritative multi-shot reconciliation removes every collisionless predicted visual"
 	)
 	var only_authoritative_projectiles := true
-	for scatter_projectile in view.authoritative_projectiles.all_projectiles():
+	for scatter_projectile in view.replicated_visuals.authoritative_projectiles.all_projectiles():
 		if scatter_projectile.projectile_id <= 0:
 			only_authoritative_projectiles = false
 	context.expect_true(
 		only_authoritative_projectiles,
 		"only authoritative barrier-colliding projectiles remain after multi-shot reconciliation"
 	)
-	for scatter_projectile in view.authoritative_projectiles.all_projectiles():
-		view.authoritative_projectiles.remove(scatter_projectile.projectile_id)
-	view.local_stats = CombatStats.create_base()
-	view.local_weapon.shot_sequence = 18
-	view._spawn_predicted_projectile(local_ship, 0.0)
-	var recovered_projectile := ProjectileState.create(1800, 1, 18, local_ship.global_position, 0.0, view.local_stats)
-	view._on_projectile_correction({"server_tick": 11, "batch_sequence": 2, "spawned": [recovered_projectile]})
-	context.expect_false(view.predicted_projectile_ids.has(18), "a correction promotes a local shot when its unreliable spawn delta was lost")
-	context.expect_true(view.authoritative_projectiles.get_projectile(1800) != null, "correction recovery leaves one authoritative local projectile")
-	view.authoritative_projectiles.remove(1800)
-	view.local_weapon.shot_sequence = 19
-	view._spawn_predicted_projectile(local_ship, 0.0)
-	context.expect_true(view.predicted_projectile_ids.has(19), "unconfirmed local volley starts under bounded prediction tracking")
-	view._expire_unconfirmed_predicted_projectiles(
-		Time.get_ticks_msec() / 1000.0 + NetworkWorldView.MAX_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS + 0.1
+	for scatter_projectile in view.replicated_visuals.authoritative_projectiles.all_projectiles():
+		view.replicated_visuals.authoritative_projectiles.remove(scatter_projectile.projectile_id)
+	view.local_prediction.local_stats = CombatStats.create_base()
+	view.local_prediction.local_weapon.shot_sequence = 18
+	view.local_prediction._spawn_predicted_projectile(local_ship, 0.0)
+	var recovered_projectile := ProjectileState.create(1800, 1, 18, local_ship.global_position, 0.0, view.local_prediction.local_stats)
+	view.replicated_visuals._on_projectile_correction({"server_tick": 11, "batch_sequence": 2, "spawned": [recovered_projectile]})
+	context.expect_false(view.local_prediction.predicted_projectile_ids.has(18), "a correction promotes a local shot when its unreliable spawn delta was lost")
+	context.expect_true(view.replicated_visuals.authoritative_projectiles.get_projectile(1800) != null, "correction recovery leaves one authoritative local projectile")
+	view.replicated_visuals.authoritative_projectiles.remove(1800)
+	view.local_prediction.local_weapon.shot_sequence = 19
+	view.local_prediction._spawn_predicted_projectile(local_ship, 0.0)
+	context.expect_true(view.local_prediction.predicted_projectile_ids.has(19), "unconfirmed local volley starts under bounded prediction tracking")
+	view.local_prediction._expire_unconfirmed_predicted_projectiles(
+		Time.get_ticks_msec() / 1000.0 + NetworkWorldFixture.MAX_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS + 0.1
 	)
-	context.expect_false(view.predicted_projectile_ids.has(19), "timed-out local volley cannot survive as a client-only ghost")
-	context.expect_equal(view.expired_predicted_volleys, 1, "expired local volleys increment network diagnostics")
+	context.expect_false(view.local_prediction.predicted_projectile_ids.has(19), "timed-out local volley cannot survive as a client-only ghost")
+	context.expect_equal(view.local_prediction.expired_predicted_volleys, 1, "expired local volleys increment network diagnostics")
 	var beam_volley_stats := CombatStats.create_base()
 	beam_volley_stats.beam_weapon = true
 	beam_volley_stats.projectile_count = 3
 	beam_volley_stats.projectile_spread_degrees = 18.0
 	beam_volley_stats.ricochet_count = 1
-	view.local_stats = beam_volley_stats
-	view.local_weapon.shot_sequence = 10
+	view.local_prediction.local_stats = beam_volley_stats
+	view.local_prediction.local_weapon.shot_sequence = 10
 	local_ship.global_position = Vector2(100.0, 900.0)
-	view._spawn_predicted_projectile(local_ship, PI)
-	view._step_projectile_visuals(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
-	context.expect_equal(view.authoritative_projectiles.size(), 3, "client retains every reflected beam in the predicted multi-shot volley")
+	view.local_prediction._spawn_predicted_projectile(local_ship, PI)
+	view.replicated_visuals._step_projectile_visuals(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), 3, "client retains every reflected beam in the predicted multi-shot volley")
 	var every_beam_visually_rebounded := true
-	for beam_projectile in view.authoritative_projectiles.all_projectiles():
+	for beam_projectile in view.replicated_visuals.authoritative_projectiles.all_projectiles():
 		if beam_projectile.velocity.x <= 0.0 or beam_projectile.remaining_ricochets != 0:
 			every_beam_visually_rebounded = false
 	context.expect_true(every_beam_visually_rebounded, "client immediately renders rebound behavior for every beam instead of waiting for correction")
-	for beam_projectile in view.authoritative_projectiles.all_projectiles():
-		view.authoritative_projectiles.remove(beam_projectile.projectile_id)
+	for beam_projectile in view.replicated_visuals.authoritative_projectiles.all_projectiles():
+		view.replicated_visuals.authoritative_projectiles.remove(beam_projectile.projectile_id)
 	var correction_stats := CombatStats.create_base()
 	correction_stats.ricochet_count = 2
 	var stale_projectile := ProjectileState.create(400, 2, 12, Vector2(500.0, 500.0), 0.0, correction_stats)
-	view.authoritative_projectiles.add(stale_projectile)
+	view.replicated_visuals.authoritative_projectiles.add(stale_projectile)
 	var corrected_projectile := ProjectileState.create(400, 2, 12, Vector2(540.0, 510.0), PI * 0.5, correction_stats)
 	corrected_projectile.remaining_ricochets = 0
 	corrected_projectile.remaining_pierces = 1
 	corrected_projectile.lifetime_remaining = 0.4
 	corrected_projectile.owner_id = 3
 	corrected_projectile.has_rebounded = true
-	view._on_projectile_correction({"server_tick": 12, "batch_sequence": 3, "spawned": [corrected_projectile]})
-	var synchronized_projectile := view.authoritative_projectiles.get_projectile(400)
+	view.replicated_visuals._on_projectile_correction({"server_tick": 12, "batch_sequence": 3, "spawned": [corrected_projectile]})
+	var synchronized_projectile := view.replicated_visuals.authoritative_projectiles.get_projectile(400)
 	context.expect_true(
 		synchronized_projectile.velocity.y > 0.0
 		and synchronized_projectile.remaining_ricochets == 0
@@ -412,11 +412,11 @@ static func _validate_visual_feedback(context: TestContext) -> void:
 	unseen_rebound.has_rebounded = true
 	var weapon_events_before_rebound := feedback_events.count(&"weapon_fire")
 	var rebound_events_before_delta := feedback_events.count(&"rebound")
-	view._on_projectile_batch({"server_tick": 13, "batch_sequence": 4, "spawned": [unseen_rebound], "removed": []})
+	view.replicated_visuals._on_projectile_batch({"server_tick": 13, "batch_sequence": 4, "spawned": [unseen_rebound], "removed": []})
 	context.expect_equal(feedback_events.count(&"rebound"), rebound_events_before_delta + 1, "a rebound delta remains visible when the original spawn packet was lost")
 	context.expect_equal(feedback_events.count(&"weapon_fire"), weapon_events_before_rebound, "a rebound update is not misreported as a fresh weapon shot")
 	local_ship.free()
-	view.camera.free()
+	view.hud_camera.camera.free()
 	view.free()
 
 
@@ -454,7 +454,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")
 	context.expect_equal(client.connection_controller.connection_primary_button.theme_type_variation, &"PrimaryButton", "primary connection action uses the shared semantic action language")
 	context.expect_equal(client.connection_controller.lobby.lobby_options_button.theme_type_variation, &"SecondaryButton", "secondary lobby action uses the shared semantic action language")
-	context.expect_equal(client.connection_controller.version_label.text, "BETA 10  ·  VERSION 0.1.0-beta.10", "main screen displays the canonical Beta 10 version")
+	context.expect_equal(client.connection_controller.version_label.text, "%s  ·  VERSION %s" % [GameConstants.RELEASE_LABEL, GameConstants.GAME_VERSION], "main screen displays the canonical release version")
 	context.expect_equal(client._pointer_mode_for_gameplay(true), Input.MOUSE_MODE_CONFINED_HIDDEN, "active gameplay confines the hidden mouse pointer to the game window")
 	context.expect_equal(client._pointer_mode_for_gameplay(true, true), Input.MOUSE_MODE_CONFINED, "native macOS gameplay cursor remains compositor-driven while confined to the game window")
 	context.expect_equal(client._pointer_mode_for_gameplay(false), Input.MOUSE_MODE_VISIBLE, "interactive screens release and reveal the mouse pointer")
@@ -524,11 +524,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.connection_controller.lobby.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
 	context.expect_equal(client.connection_controller.lobby.ship_pattern_control.item_count, ShipAppearanceScript.PATTERNS.size(), "ship customization exposes every supported hull pattern")
 	context.expect_true(client.draft_controller.draft_panel != null, "production draft screen exists")
-	context.expect_true(client.network_world.hud_panel != null, "production combat HUD exists")
+	context.expect_true(client.network_world.hud_camera.hud_panel != null, "production combat HUD exists")
 	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")
-	context.expect_true(client.network_world.match_status_label != null, "match timing and state integrate into the combat HUD")
-	context.expect_true(client.network_world.hud_panel.custom_minimum_size.x < 520.0 and client.network_world.hud_panel.custom_minimum_size.y < 190.0, "upper-left combat HUD uses the compact footprint")
-	context.expect_true(client.network_world.spectator_label != null, "production spectator banner exists")
+	context.expect_true(client.network_world.hud_camera.match_status_label != null, "match timing and state integrate into the combat HUD")
+	context.expect_true(client.network_world.hud_camera.hud_panel.custom_minimum_size.x < 520.0 and client.network_world.hud_camera.hud_panel.custom_minimum_size.y < 190.0, "upper-left combat HUD uses the compact footprint")
+	context.expect_true(client.network_world.hud_camera.spectator_label != null, "production spectator banner exists")
 	context.expect_false(client.offline_sandbox.camera.enabled, "inactive offline camera cannot steal the online viewport")
 	context.expect_true(client.standings_controller.scoreboard_panel != null, "production scoreboard exists")
 	context.expect_true(client.standings_controller.results_panel != null, "production results screen exists")
@@ -712,7 +712,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.connection_controller.lobby.start_button.disabled, "ready solo human may start after enabling NPCs")
 	context.expect_equal(client.connection_controller.lobby.start_button.text, "Start Match with NPCs", "solo NPC launch uses descriptive wording")
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
-	client.draft_controller._show_draft_offer({"offer_token": "test", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
+	client.draft_controller.show_draft_offer({"offer_token": "test", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	var first_draft_card := client.draft_controller.draft_buttons[0] as Button
 	context.expect_true(first_draft_card.get_node_or_null("CardContent/Details/CardName") != null, "draft choices expose a structured and scannable content hierarchy")
 	context.expect_true(first_draft_card.has_theme_stylebox_override(&"focus"), "draft choices expose a dedicated focus treatment")
@@ -721,33 +721,33 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world._on_snapshot({"server_tick": 1, "acknowledged_input": 0, "states": [
 		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "position": Vector2(400.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 0.0, "shield": 0.0, "ammunition": 0, "alive": false, "shielding": false},
 	]})
-	context.expect_false((client.network_world.ships[ServerLobby.NPC_PEER_ID_BASE + 1] as CombatShipView).visible, "inactive NPC markers remain hidden during the initial draft")
-	context.expect_false(client.network_world.arena.show_spawn_anchors, "production arena never exposes internal spawn anchors")
+	context.expect_false((client.network_world.replicated_visuals.ships[ServerLobby.NPC_PEER_ID_BASE + 1] as CombatShipView).visible, "inactive NPC markers remain hidden during the initial draft")
+	context.expect_false(client.network_world.replicated_visuals.arena.show_spawn_anchors, "production arena never exposes internal spawn anchors")
 	client._on_match_event(&"OBJECTIVE_UPDATED", 2, {"objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(800.0, 600.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 7.5}, "target_seconds": 20.0}})
-	context.expect_equal(int(client.network_world.arena.objective_state.controller_id), 2, "live objective updates reach the arena presentation")
+	context.expect_equal(int(client.network_world.replicated_visuals.arena.objective_state.controller_id), 2, "live objective updates reach the arena presentation")
 	context.expect_true(client._objective_status_text().contains("7.5/20s"), "combat HUD reports live hill-control progress")
 	var overtime_hill := Vector2(800.0, 600.0)
-	client.network_world.match_payload["overtime_center"] = overtime_hill
-	client.network_world.match_payload["overtime_minimum_radius"] = GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
-	client.network_world.match_payload["overtime_start_tick"] = 0
+	client.network_world.match_state.update_fields({"overtime_center": overtime_hill})
+	client.network_world.match_state.update_fields({"overtime_minimum_radius": GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS})
+	client.network_world.match_state.update_fields({"overtime_start_tick": 0})
 	client.network_world.controls_enabled = true
 	client.network_world.latest_server_tick = roundi(
 		GameConstants.OVERTIME_SHRINK_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND
 	)
-	client.network_world._update_overtime_presentation()
-	context.expect_equal(client.network_world.arena.overtime_center, overtime_hill, "client overtime rendering follows the authoritative hill center")
-	context.expect_approx(client.network_world.arena.overtime_radius, GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS, "client renders the larger minimum KOTH overtime radius")
-	client.latest_match_payload["game_mode"] = GameModeRules.Mode.KING_OF_THE_HILL
-	client.latest_match_payload["participant_peer_ids"] = [2, 3]
-	client.latest_match_payload["scores"] = {2: {"heat_wins": 0, "round_wins": 0, "kills": 0}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 0}}
-	client.latest_match_payload["objective"] = {"mode": GameModeRules.Mode.KING_OF_THE_HILL, "controller_id": 0, "progress": {2: 7.5, 3: 3.0}, "target_seconds": 20.0}
+	client.network_world.replicated_visuals._update_overtime_presentation()
+	context.expect_equal(client.network_world.replicated_visuals.arena.overtime_center, overtime_hill, "client overtime rendering follows the authoritative hill center")
+	context.expect_approx(client.network_world.replicated_visuals.arena.overtime_radius, GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS, "client renders the larger minimum KOTH overtime radius")
+	client.match_state.update_fields({"game_mode": GameModeRules.Mode.KING_OF_THE_HILL})
+	client.match_state.update_fields({"participant_peer_ids": [2, 3]})
+	client.match_state.update_fields({"scores": {2: {"heat_wins": 0, "round_wins": 0, "kills": 0}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 0}}})
+	client.match_state.update_fields({"objective": {"mode": GameModeRules.Mode.KING_OF_THE_HILL, "controller_id": 0, "progress": {2: 7.5, 3: 3.0}, "target_seconds": 20.0}})
 	context.expect_true(client._objective_status_text().contains("LEADER") and client._objective_status_text().contains("7.5/20s"), "contested hill HUD preserves and identifies the leading cumulative score")
-	client.standings_controller._set_scoreboard_open(true)
+	client.standings_controller.set_scoreboard_open(true)
 	var hill_time := client.standings_controller.scoreboard_rows_container.get_child(0).find_child("HillTime", true, false) as Label
 	context.expect_true(client.standings_controller.scoreboard_hill_heading.visible and hill_time != null, "King of the Hill scoreboard exposes a dedicated live hill-time column")
 	context.expect_equal(hill_time.text, "7.5s", "King of the Hill scoreboard displays cumulative control time")
-	client.standings_controller._set_scoreboard_open(false)
-	client.latest_match_payload["respawn_deadlines"] = {2: 302}
+	client.standings_controller.set_scoreboard_open(false)
+	client.match_state.update_fields({"respawn_deadlines": {2: 302}})
 	client.network_world.latest_server_tick = 2
 	context.expect_equal(client._objective_status_text(), "RESPAWN 5.0s", "combat HUD shows the local five-second objective respawn countdown")
 	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 120, "deadline_tick": 300, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {}, "round_number": 2, "heat_number": 3}
@@ -755,8 +755,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	context.expect_true(client.heat_intro_panel.visible and client.heat_intro_title.text == "READY", "heat countdown opens the READY banner")
-	client.latest_match_payload["map_id"] = &"solar_tide"
-	client.latest_match_payload["map_name"] = "Solar Tide"
+	client.match_state.update_fields({"map_id": &"solar_tide"})
+	client.match_state.update_fields({"map_name": "Solar Tide"})
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	context.expect_true(client.heat_intro_subtitle.text.contains("SOLAR CURRENT") and client.heat_intro_subtitle.text.contains("CLOCKWISE"), "Solar Tide countdown teaches its movement field and direction")
@@ -775,10 +775,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._update_match_presentation()
 	context.expect_false(client.heat_intro_panel.visible, "BEGIN clears after its 0.10-second post-roll")
 	client._on_match_event(&"CARD_POWERUP_SPAWNED", 307, {"powerup_id": 9, "card_id": &"kinetic_prow", "position": Vector2(700.0, 500.0), "rarity": CardDefinition.Rarity.RARE})
-	context.expect_true(client.network_world.powerup_layer.powerups.has(9), "reliable spawn event adds the arena card visual")
+	context.expect_true(client.network_world.replicated_visuals.powerup_layer.powerups.has(9), "reliable spawn event adds the arena card visual")
 	client._on_match_event(&"CARD_POWERUP_COLLECTED", 308, {"powerup_id": 9, "card_id": &"kinetic_prow", "peer_id": 2, "position": Vector2(700.0, 500.0), "builds": {2: {&"kinetic_prow": 1}}})
-	context.expect_false(client.network_world.powerup_layer.powerups.has(9), "reliable collection event removes the arena card visual")
-	context.expect_true(client.network_world.local_stats.shield_ram_damage > 0.0, "local prediction adopts a collected card build immediately")
+	context.expect_false(client.network_world.replicated_visuals.powerup_layer.powerups.has(9), "reliable collection event removes the arena card visual")
+	context.expect_true(client.network_world.local_prediction.local_stats.shield_ram_damage > 0.0, "local prediction adopts a collected card build immediately")
 	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "deadline_tick": 900, "overtime_start_tick": 3600, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "players": [{"peer_id": 2, "display_name": "Local Ace", "ship_color": "42e8ff"}, {"peer_id": 3, "display_name": "Rival Pilot", "ship_color": "ff5f7f"}], "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 4}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}, "builds": {2: {&"heavy_rounds": 2}, 3: {&"glass_reactor": 2}}, "round_number": 2, "heat_number": 3, "map_id": &"riftline", "map_name": "Riftline"}
 	client.network_world.latest_server_tick = 300
 	client.network_world.apply_match_state(client.latest_match_payload)
@@ -787,27 +787,27 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		{"peer_id": 2, "position": Vector2(500.0, 500.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 		{"peer_id": 3, "position": Vector2(800.0, 500.0), "velocity": Vector2.ZERO, "aim_angle": PI, "health": npc_max_health, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 	]})
-	var npc_ship := client.network_world.ships[3] as CombatShipView
+	var npc_ship := client.network_world.replicated_visuals.ships[3] as CombatShipView
 	context.expect_approx(npc_ship.combatant.stats.max_health, npc_max_health, "remote NPC presentation derives its own card-modified maximum health")
 	context.expect_approx(npc_ship.combatant.health_fraction(), 1.0, "a full-health NPC renders a full health ring even when its build changes maximum hull")
 	client._update_match_presentation()
 	context.expect_false(client.match_panel.visible, "former top-center match banner stays hidden during combat")
-	context.expect_true(client.network_world.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.match_status_label.text.contains("ROUND 2 / HEAT 3"), "compact upper-left HUD carries match state and clearly labeled round details")
-	context.expect_equal(client.network_world.arena.map_id, &"riftline", "client rebuilds the arena from the authoritative map ID")
-	context.expect_true(client.network_world.match_status_label.text.contains("RIFTLINE"), "combat HUD identifies the active round map")
-	var local_ship := client.network_world.ships[2] as CombatShipView
+	context.expect_true(client.network_world.hud_camera.match_status_label.text.contains("ACTIVE HEAT") and client.network_world.hud_camera.match_status_label.text.contains("ROUND 2 / HEAT 3"), "compact upper-left HUD carries match state and clearly labeled round details")
+	context.expect_equal(client.network_world.replicated_visuals.arena.map_id, &"riftline", "client rebuilds the arena from the authoritative map ID")
+	context.expect_true(client.network_world.hud_camera.match_status_label.text.contains("RIFTLINE"), "combat HUD identifies the active round map")
+	var local_ship := client.network_world.replicated_visuals.ships[2] as CombatShipView
 	local_ship.combatant.alive = false
 	local_ship.combatant.health = 0.0
 	local_ship.combatant.shield.energy = 64.0
-	client.network_world._update_spectator_target()
-	client.network_world._update_diagnostics()
-	context.expect_equal(client.network_world.shield_bar.value, 0.0, "eliminated spectator HUD clears shield energy that remained at death")
-	context.expect_equal(client.network_world.resources_label.text, "SHIP ELIMINATED", "eliminated spectator HUD replaces resource totals with the elimination state")
+	client.network_world.hud_camera._update_spectator_target()
+	client.network_world.hud_camera._update_diagnostics()
+	context.expect_equal(client.network_world.hud_camera.shield_bar.value, 0.0, "eliminated spectator HUD clears shield energy that remained at death")
+	context.expect_equal(client.network_world.hud_camera.resources_label.text, "SHIP ELIMINATED", "eliminated spectator HUD replaces resource totals with the elimination state")
 	local_ship.combatant.alive = true
 	local_ship.combatant.health = 100.0
 	local_ship.combatant.shield.energy = 100.0
-	client.network_world._update_spectator_target()
-	client.network_world._update_diagnostics()
+	client.network_world.hud_camera._update_spectator_target()
+	client.network_world.hud_camera._update_diagnostics()
 	var tab_event := InputEventKey.new()
 	tab_event.keycode = KEY_TAB
 	tab_event.physical_keycode = KEY_TAB
@@ -830,28 +830,28 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	var live_kills := client.standings_controller.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
 	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})
-	context.expect_equal(client.network_world.kill_feed.entries.size(), 1, "reliable elimination event adds one top-right kill-feed entry")
-	var kill_feed_entry := client.network_world.kill_feed.entries[0].node as PanelContainer
+	context.expect_equal(client.network_world.hud_camera.kill_feed.entries.size(), 1, "reliable elimination event adds one top-right kill-feed entry")
+	var kill_feed_entry := client.network_world.hud_camera.kill_feed.entries[0].node as PanelContainer
 	context.expect_equal(int(kill_feed_entry.get_meta("killer_id")), 2, "kill-feed entry retains the killer identity")
 	context.expect_equal(int(kill_feed_entry.get_meta("victim_id")), 3, "kill-feed entry retains the victim identity")
 	context.expect_true(bool(kill_feed_entry.get_meta("local_involved")), "kill-feed highlights an elimination involving the local pilot")
 	context.expect_equal((kill_feed_entry.get_child(0).get_child(0) as Label).text, "Local Ace", "kill-feed resolves the killer's immutable match name")
 	context.expect_equal((kill_feed_entry.get_child(0).get_child(2) as Label).text, "Rival Pilot", "kill-feed resolves the victim's immutable match name")
 	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}]})
-	context.expect_equal(client.network_world.kill_feed.entries.size(), 1, "kill-feed deduplicates a repeated reliable elimination record")
-	client.network_world.kill_feed.set_match_state("HEAT_RESULT")
-	context.expect_true(client.network_world.kill_feed.visible and client.network_world.kill_feed.entries.size() == 1, "decisive elimination remains visible through the heat result")
-	client.network_world.kill_feed.set_match_state("COUNTDOWN")
-	context.expect_false(client.network_world.kill_feed.visible, "kill-feed hides for the next heat countdown")
-	context.expect_empty(client.network_world.kill_feed.entries, "new heat countdown clears prior elimination entries")
-	client.network_world.kill_feed.set_match_state("ACTIVE_HEAT")
+	context.expect_equal(client.network_world.hud_camera.kill_feed.entries.size(), 1, "kill-feed deduplicates a repeated reliable elimination record")
+	client.network_world.hud_camera.kill_feed.set_match_state("HEAT_RESULT")
+	context.expect_true(client.network_world.hud_camera.kill_feed.visible and client.network_world.hud_camera.kill_feed.entries.size() == 1, "decisive elimination remains visible through the heat result")
+	client.network_world.hud_camera.kill_feed.set_match_state("COUNTDOWN")
+	context.expect_false(client.network_world.hud_camera.kill_feed.visible, "kill-feed hides for the next heat countdown")
+	context.expect_empty(client.network_world.hud_camera.kill_feed.entries, "new heat countdown clears prior elimination entries")
+	client.network_world.hud_camera.kill_feed.set_match_state("ACTIVE_HEAT")
 	for feed_index in 7:
 		client.network_world.add_kill_feed_entries([{"killer_id": 2, "victim_id": 100 + feed_index, "reason": "combat"}], 400 + feed_index)
-	context.expect_equal(client.network_world.kill_feed.entries.size(), KillFeedScript.MAX_ENTRIES, "kill-feed remains bounded during a large elimination burst")
-	context.expect_equal(int(client.network_world.kill_feed.entries[0].victim_id), 106, "newest elimination stays at the top of the feed")
-	client.network_world.kill_feed.advance(KillFeedScript.ENTRY_LIFETIME_SECONDS + 0.1)
-	context.expect_empty(client.network_world.kill_feed.entries, "kill-feed entries expire after their display lifetime")
-	client.standings_controller._update_scoreboard()
+	context.expect_equal(client.network_world.hud_camera.kill_feed.entries.size(), KillFeedScript.MAX_ENTRIES, "kill-feed remains bounded during a large elimination burst")
+	context.expect_equal(int(client.network_world.hud_camera.kill_feed.entries[0].victim_id), 106, "newest elimination stays at the top of the feed")
+	client.network_world.hud_camera.kill_feed.advance(KillFeedScript.ENTRY_LIFETIME_SECONDS + 0.1)
+	context.expect_empty(client.network_world.hud_camera.kill_feed.entries, "kill-feed entries expire after their display lifetime")
+	client.standings_controller.update_scoreboard()
 	live_kills = client.standings_controller.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "5", "live elimination score payload refreshes cached scoreboard rows immediately")
 	context.expect_equal(client.standings_controller.scoreboard_rows_container.get_child_count(), 2, "scoreboard renders one structured row per match participant")
@@ -915,21 +915,21 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.network_world._on_snapshot({"server_tick": 400, "acknowledged_input": 20, "states": [
 		{"peer_id": 2, "position": Vector2(500.0, 400.0), "velocity": Vector2.ZERO, "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 	]})
-	context.expect_true(client.network_world.ships.has(2), "first match renderer owns the local ship before lobby reset")
-	client.network_world.input_sequence = 782
-	client.network_world.client_tick = 940
+	context.expect_true(client.network_world.replicated_visuals.ships.has(2), "first match renderer owns the local ship before lobby reset")
+	client.network_world.local_prediction.input_sequence = 782
+	client.network_world.local_prediction.client_tick = 940
 	client._on_match_event(&"STATE_CHANGED", 420, {"state_name": "LOBBY", "round_number": 0, "heat_number": 0, "builds": {}})
 	context.expect_equal(client.network_world.local_peer_id, 2, "lobby return preserves the connected local peer identity")
-	context.expect_equal(client.network_world.input_sequence, 782, "lobby return preserves the monotonic input sequence expected by the server")
-	context.expect_equal(client.network_world.client_tick, 940, "lobby return preserves the connected client tick")
-	context.expect_empty(client.network_world.ships, "lobby return clears first-match ship visuals")
+	context.expect_equal(client.network_world.local_prediction.input_sequence, 782, "lobby return preserves the monotonic input sequence expected by the server")
+	context.expect_equal(client.network_world.local_prediction.client_tick, 940, "lobby return preserves the connected client tick")
+	context.expect_empty(client.network_world.replicated_visuals.ships, "lobby return clears first-match ship visuals")
 	client._on_match_event(&"STATE_CHANGED", 440, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
 	client._on_match_event(&"STATE_CHANGED", 500, {"state_name": "COUNTDOWN", "entered_tick": 500, "deadline_tick": 680, "round_number": 1, "heat_number": 1, "participant_peer_ids": [2], "alive_peer_ids": [2], "builds": {2: {}}})
 	client.network_world._on_snapshot({"server_tick": 520, "acknowledged_input": 0, "states": [
 		{"peer_id": 2, "position": Vector2(640.0, 440.0), "velocity": Vector2(120.0, 0.0), "aim_angle": 0.0, "health": 100.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": false},
 	]})
-	context.expect_true(client.network_world.visible and client.network_world.prediction_initialized, "second match initializes local rendering and prediction from its first snapshot")
-	context.expect_true((client.network_world.ships[2] as CombatShipView).local_control, "second-match ship is recognized as the local controllable ship")
+	context.expect_true(client.network_world.visible and client.network_world.local_prediction.prediction_initialized, "second match initializes local rendering and prediction from its first snapshot")
+	context.expect_true((client.network_world.replicated_visuals.ships[2] as CombatShipView).local_control, "second-match ship is recognized as the local controllable ship")
 	client.connection_controller.connection_screen.visible = false
 	client._toggle_pause_overlay()
 	context.expect_true(client.pause_overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")

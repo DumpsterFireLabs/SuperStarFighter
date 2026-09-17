@@ -31,8 +31,8 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.10 |
-| Protocol version | 35 (binary packets 15) |
+| Game version | 0.1.0-beta.12 |
+| Protocol version | 36 (binary packets 15) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 
@@ -495,3 +495,12 @@ Run `tools/verify-admission-burst.ps1` for three real-ENet 32-client bursts, mat
 Connection refactor validation: 6,322 unit assertions; local hosting, LAN discovery, teardown and reconnect; 69 rendered 1280×720 presentation states, with host and full-lobby screens visually inspected; editor import and shipping allowlists. Preference tests cover reload, invalid stored appearance, successful versus cancelled admission, forgetting passwords, endpoint isolation and preservation of unrelated settings.
 
 The gameplay study accepts `-Section shield` for paired base/multishot, shield/multishot and shield-mirror bouts across three maps, plus controlled frontal/arc/rear volleys. Schema 2 adds per-side shield activity, lock time, block/depletion counts and authoritative heat timeout classification. `tools/summarize-gameplay-followup.py` validates coverage and summarizes retained shield/pacing JSON. See the [gameplay follow-up](GAMEPLAY-FOLLOWUP-2026-09-04.md) for 54 bouts, 48 controlled cases and 135 pacing heats, and the [LAN playtest sheet](LAN-PLAYTEST-2026-09-04.md) for the human validation still required. These exploratory bot results do not change production balance values.
+
+
+Architecture follow-up (17 September 2026): `ClientMain` and `NetworkWorldView` share a `ClientMatchState`; update through its commands rather than mutating a published dictionary. Published observations are recursively read-only and copied on network changes, not per render frame. Presentation owners consume `ClientViewContext` and explicit collaborators/signals. The old convenience properties and forwarding methods live in the test-only `NetworkWorldFixture`. Client projectile storage uses `ProjectileRegistry.presentation_store()` to preserve server membership independently of authority budgets; prediction expiry and complete recovery retire visuals.
+
+Both hosting entry points compose `ServerRuntime`, including the bounded asynchronous log writer and draining shutdown. `SillyCombatObserver` is optional and owns only enabled cue policy/history; normal damage attribution and shield/hit feedback do not depend on it. Overtime logging reads the coordinator's compact observation rather than reconstructing a full match payload.
+
+`src/client/settings_store.gd` owns the shared settings path and guarded read/modify/save operation. Preferences must preserve unrelated sections and return/report persistence failures through that boundary.
+
+`release.json` is the canonical release identity. For the next release, edit that manifest and run `python tools/update-release-metadata.py --write`, then `python tools/update-export-policy.py`. Build scripts read the manifest through `tools/common.ps1` / `tools/release_metadata.py`; the shipping and foundation gates reject stale generated metadata. Run `python tools/test_release_metadata.py` to exercise release propagation without building packages. Updating metadata does not publish or overwrite a packaged release.

@@ -1,5 +1,7 @@
 extends RefCounted
 
+const SettingsStore = preload("res://src/client/settings_store.gd")
+
 ## Persistence boundary for connection UI. No node, control or bridge dependency.
 ## Pending credentials are committed only after admission succeeds.
 const Appearance = preload("res://src/shared/models/ship_appearance.gd")
@@ -12,7 +14,7 @@ var _pending_password: String = ""
 var _pending_remember: bool = false
 
 
-func _init(path: String = AudioDirector.SETTINGS_PATH) -> void:
+func _init(path: String = SettingsStore.PATH) -> void:
 	settings_path = path
 
 
@@ -30,16 +32,15 @@ func load_appearance() -> Error:
 
 
 func save_appearance(random_value: bool, color: Color, pattern: StringName) -> Error:
-	var config := ConfigFile.new()
-	var error := config.load(settings_path)
-	if error not in [OK, ERR_FILE_NOT_FOUND]: return error
-	random_color = random_value
-	ship_color = color
-	ship_pattern = pattern
-	config.set_value("appearance", "random_ship_color", random_color)
-	config.set_value("appearance", "ship_color", ship_color.to_html(false))
-	config.set_value("appearance", "ship_pattern", String(ship_pattern))
-	return config.save(settings_path)
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		random_color = random_value
+		ship_color = color
+		ship_pattern = pattern
+		config.set_value("appearance", "random_ship_color", random_color)
+		config.set_value("appearance", "ship_color", ship_color.to_html(false))
+		config.set_value("appearance", "ship_pattern", String(ship_pattern))
+	, settings_path)
+
 
 
 func password_for_endpoint(address: String, port: int) -> String:
@@ -69,14 +70,12 @@ func confirm_connected() -> Error:
 	var remember := _pending_remember
 	discard_attempt()
 	if key.is_empty(): return OK
-	var config := ConfigFile.new()
-	var error := config.load(settings_path)
-	if error not in [OK, ERR_FILE_NOT_FOUND]: return error
-	if remember and NetworkProtocol.is_valid_lobby_password(password):
-		config.set_value("lobby_passwords", key, password)
-	elif config.has_section_key("lobby_passwords", key):
-		config.erase_section_key("lobby_passwords", key)
-	return config.save(settings_path)
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		if remember and NetworkProtocol.is_valid_lobby_password(password):
+			config.set_value("lobby_passwords", key, password)
+		elif config.has_section_key("lobby_passwords", key):
+			config.erase_section_key("lobby_passwords", key)
+	, settings_path)
 
 
 static func endpoint_key(address: String, port: int) -> String:

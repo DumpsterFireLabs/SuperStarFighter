@@ -58,12 +58,12 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(client.connection_controller.lobby.lobby_options_popup.is_ancestor_of(client.connection_controller.lobby.rounds_control), "host round configuration lives in the separate setup panel")
 	context.expect_true(client.standings_controller.results_action_note.text.contains("resets cards, scores and objectives"), "fresh rematch visibly explains resets")
 	client.network_world.local_peer_id = 2
-	client.network_world.input_sequence = 50
+	client.network_world.local_prediction.input_sequence = 50
 	client.network_world.match_payload = {"state_name": "MATCH_RESULT"}
 	client._on_match_event(&"MATCH_START_ACCEPTED", 100, {"fresh_rematch": true})
 	context.expect_true(client.network_world.match_payload.is_empty(), "fresh rematch clears previous client match presentation")
 	context.expect_equal(client.network_world.local_peer_id, 2, "fresh rematch presentation reset keeps connected identity")
-	context.expect_equal(client.network_world.input_sequence, 50, "fresh rematch presentation reset preserves network input sequence")
+	context.expect_equal(client.network_world.local_prediction.input_sequence, 50, "fresh rematch presentation reset preserves network input sequence")
 	client.free()
 
 

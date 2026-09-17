@@ -1595,20 +1595,20 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	context.expect_equal(bridge.local_peer_id, 0, "disconnect clears the prior network peer identity")
 	context.expect_empty(bridge.latest_lobby_state, "disconnect clears lobby revision state so a new server can start from revision one")
 	bridge.free()
-	var view := NetworkWorldView.new()
-	view.camera = Camera2D.new()
-	view.camera.position = Vector2(50.0, 75.0)
+	var view := NetworkWorldFixture.new()
+	view.hud_camera.camera = Camera2D.new()
+	view.hud_camera.camera.position = Vector2(50.0, 75.0)
 	view.local_peer_id = 99
-	view.input_sequence = 400
-	view.client_tick = 500
-	view.prediction_initialized = true
-	view.prediction.predicted_position = Vector2(3000.0, 1700.0)
+	view.local_prediction.input_sequence = 400
+	view.local_prediction.client_tick = 500
+	view.local_prediction.prediction_initialized = true
+	view.local_prediction.prediction.predicted_position = Vector2(3000.0, 1700.0)
 	view.reset_session()
 	context.expect_equal(view.local_peer_id, 0, "disconnect clears prior local peer identity")
-	context.expect_equal(view.input_sequence, 0, "disconnect clears prior input sequence")
-	context.expect_equal(view.client_tick, 0, "disconnect clears prior client tick")
-	context.expect_false(view.prediction_initialized, "disconnect clears prior prediction initialization")
-	context.expect_equal(view.camera.position, ArenaLayout.center(), "disconnect recenters network camera on the arena")
+	context.expect_equal(view.local_prediction.input_sequence, 0, "disconnect clears prior input sequence")
+	context.expect_equal(view.local_prediction.client_tick, 0, "disconnect clears prior client tick")
+	context.expect_false(view.local_prediction.prediction_initialized, "disconnect clears prior prediction initialization")
+	context.expect_equal(view.hud_camera.camera.position, ArenaLayout.center(), "disconnect recenters network camera on the arena")
 	view.local_peer_id = 99
 	view.set_network_active(false, false)
 	context.expect_equal(view.local_peer_id, 99, "hiding the arena in a connected lobby preserves local peer identity")
@@ -1616,10 +1616,10 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	context.expect_equal(view.local_peer_id, 99, "match activation restores rendering with the same local peer identity")
 	var local_ship := CombatShipView.new()
 	local_ship.setup(99, CombatStats.create_base(), Vector2(140.0, 220.0), Color.WHITE, true)
-	view.ships[99] = local_ship
+	view.replicated_visuals.ships[99] = local_ship
 	view.local_peer_id = 99
 	view.apply_match_state({"state_name": "COUNTDOWN", "builds": {}})
-	context.expect_equal(view.camera.position, local_ship.global_position, "round countdown snaps the camera to the local ship")
+	context.expect_equal(view.hud_camera.camera.position, local_ship.global_position, "round countdown snaps the camera to the local ship")
 	local_ship.free()
-	view.camera.free()
+	view.hud_camera.camera.free()
 	view.free()

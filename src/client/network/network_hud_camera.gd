@@ -7,10 +7,15 @@ const AccessibilityPreferencesScript = preload("res://src/client/presentation/ac
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
 
-var view: NetworkWorldView
+const ViewContext = preload("res://src/client/network/client_view_context.gd")
+var context: ViewContext
+var visuals: NetworkReplicatedVisuals
+var local_prediction: NetworkLocalPrediction
 var indicator_layer: OffscreenIndicatorLayer
 var competitive_view_policy = preload("res://src/client/presentation/competitive_view_policy.gd").new()
-var camera: Camera2D
+var camera: Camera2D:
+	get: return context.camera
+	set(value): context.camera = value
 var diagnostics_label: Label
 var hud_panel: PanelContainer
 var hud_root: Control
@@ -41,15 +46,15 @@ func add_kill_feed_entries(eliminations: Array, server_tick: int) -> void:
 		kill_feed.add_eliminations(
 			eliminations,
 			server_tick,
-			view.local_peer_id,
-			view.match_payload.get("players", []) as Array
+			context.local_peer_id,
+			context.match_payload.get("players", []) as Array
 		)
 
 
 func snap_camera_to_local_ship() -> void:
-	if camera == null or not view.replicated_visuals.ships.has(view.local_peer_id):
+	if camera == null or not visuals.ships.has(context.local_peer_id):
 		return
-	camera.position = (view.replicated_visuals.ships[view.local_peer_id] as CombatShipView).global_position
+	camera.position = (visuals.ships[context.local_peer_id] as CombatShipView).global_position
 
 
 func set_match_status(status: String) -> void:
@@ -58,14 +63,14 @@ func set_match_status(status: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not view.visible:
+	if not context.surface.visible:
 		return
 	if event.is_action_pressed(&"diagnostics") and not (event is InputEventKey and event.echo):
 		diagnostics_visible = not diagnostics_visible
 		diagnostics_label.visible = diagnostics_visible
-		view.get_viewport().set_input_as_handled()
+		context.surface.get_viewport().set_input_as_handled()
 		return
-	if not _local_is_eliminated() or view.local_prediction.input_blocked:
+	if not _local_is_eliminated() or local_prediction.input_blocked:
 		return
 	var direction := 0
 	if event.is_action_pressed(&"spectator_previous") and not (event is InputEventKey and event.echo):
@@ -74,34 +79,34 @@ func _unhandled_input(event: InputEvent) -> void:
 		direction = 1
 	if direction != 0:
 		_cycle_spectator(direction)
-		view.get_viewport().set_input_as_handled()
+		context.surface.get_viewport().set_input_as_handled()
 
 
 func _audio_listener_position() -> Vector2:
-	if view.replicated_visuals.ships.has(view.local_peer_id):
-		return (view.replicated_visuals.ships[view.local_peer_id] as CombatShipView).global_position
+	if visuals.ships.has(context.local_peer_id):
+		return (visuals.ships[context.local_peer_id] as CombatShipView).global_position
 	return camera.position if camera != null else Vector2.ZERO
 
 
 func _update_camera(local_ship: CombatShipView, delta: float) -> void:
 	var target_position := local_ship.global_position
 	if not local_ship.combatant.alive:
-		if spectator_target_id != 0 and view.replicated_visuals.ships.has(spectator_target_id):
-			target_position = (view.replicated_visuals.ships[spectator_target_id] as CombatShipView).global_position
+		if spectator_target_id != 0 and visuals.ships.has(spectator_target_id):
+			target_position = (visuals.ships[spectator_target_id] as CombatShipView).global_position
 		else:
-			target_position = ArenaLayout.center(view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
+			target_position = ArenaLayout.center(visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
 	camera.position = camera.position.lerp(target_position, 1.0 - exp(-8.0 * delta))
 
 
 func _create_camera_and_hud() -> void:
 	camera = Camera2D.new()
-	camera.position = ArenaLayout.center(view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
+	camera.position = ArenaLayout.center(visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
 	camera.enabled = true
-	view.add_child(camera)
+	context.surface.add_child(camera)
 	var canvas := CanvasLayer.new()
 	canvas.name = "CombatHUD"
 	canvas.layer = 10
-	view.add_child(canvas)
+	context.surface.add_child(canvas)
 	hud_root = Control.new()
 	hud_root.name = "HUDSafeArea"
 	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -171,23 +176,23 @@ func _create_camera_and_hud() -> void:
 	combat_feedback_panel = CombatFeedbackPanel.new()
 	combat_feedback_panel.name = "CombatFeedback"
 	feedback_anchor.add_child(combat_feedback_panel)
-	view.get_viewport().size_changed.connect(_layout_accessible_hud)
+	context.surface.get_viewport().size_changed.connect(_layout_accessible_hud)
 	_layout_accessible_hud()
 
 
 func apply_combat_feedback(payload: Dictionary) -> void:
 	var names: Dictionary = {}
-	for player in view.match_payload.get("players", []):
+	for player in context.match_payload.get("players", []):
 		names[int(player.get("peer_id", 0))] = String(player.get("display_name", "Pilot"))
 	if combat_feedback_panel != null:
-		combat_feedback_panel.apply_feedback(payload, view.local_peer_id, names)
+		combat_feedback_panel.apply_feedback(payload, context.local_peer_id, names)
 
 
 func _layout_accessible_hud() -> void:
 	if hud_root == null:
 		return
-	var safe_rect: Rect2 = AccessibilityPreferencesScript.hud_safe_rect(view.get_viewport_rect().size, bool(view.accessibility_settings.constrain_hud))
-	var hud_scale := float(view.accessibility_settings.hud_scale)
+	var safe_rect: Rect2 = AccessibilityPreferencesScript.hud_safe_rect(context.surface.get_viewport_rect().size, bool(context.accessibility_settings.constrain_hud))
+	var hud_scale := float(context.accessibility_settings.hud_scale)
 	hud_root.position = safe_rect.position
 	hud_root.scale = Vector2.ONE * hud_scale
 	hud_root.size = safe_rect.size / hud_scale
@@ -205,60 +210,60 @@ func _layout_accessible_hud() -> void:
 
 
 func uses_compact_hud() -> bool:
-	return float(view.accessibility_settings.hud_scale) >= 1.25 or view.replicated_visuals.ships.size() >= 16
+	return float(context.accessibility_settings.hud_scale) >= 1.25 or visuals.ships.size() >= 16
 
 
 func _update_diagnostics(delta: float = 0.0) -> void:
 	var compact := uses_compact_hud()
-	view.local_prediction.selected_special_slot = SpecialAbilitySelection.ensure_owned(view.local_prediction.selected_special_slot, view.local_prediction.local_stats)
-	var selected := view.local_prediction.selected_special_slot
+	local_prediction.current_special_slot()
+	var selected := local_prediction.selected_special_slot
 	var resources := "Waiting for combat snapshot"
-	var diagnostics_hint: String = view.input_profiles.binding_text(&"diagnostics") if view.input_profiles != null else "F3"
-	var scoreboard_hint: String = view.input_profiles.binding_text(&"scoreboard") if view.input_profiles != null else "Tab"
+	var diagnostics_hint: String = context.input_profiles.binding_text(&"diagnostics") if context.input_profiles != null else "F3"
+	var scoreboard_hint: String = context.input_profiles.binding_text(&"scoreboard") if context.input_profiles != null else "Tab"
 	var combat_status := "%s network diagnostics · Hold %s scoreboard" % [diagnostics_hint, scoreboard_hint]
-	if view.replicated_visuals.ships.has(view.local_peer_id):
-		var local_ship := view.replicated_visuals.ships[view.local_peer_id] as CombatShipView
-		health_bar.max_value = view.local_prediction.local_stats.max_health
+	if visuals.ships.has(context.local_peer_id):
+		var local_ship := visuals.ships[context.local_peer_id] as CombatShipView
+		health_bar.max_value = local_prediction.local_stats.max_health
 		health_bar.value = local_ship.combatant.health
-		shield_bar.max_value = view.local_prediction.local_stats.shield_capacity
+		shield_bar.max_value = local_prediction.local_stats.shield_capacity
 		shield_bar.value = local_ship.combatant.shield.energy
-		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, view.local_prediction.local_stats.max_health, local_ship.combatant.shield.energy, view.local_prediction.local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, view.local_prediction.local_stats.magazine_size]
+		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_prediction.local_stats.max_health, local_ship.combatant.shield.energy, local_prediction.local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_prediction.local_stats.magazine_size]
 		if compact:
-			resources = "HULL %.0f · SHIELD %.0f\nAMMO %d/%d" % [local_ship.combatant.health, local_ship.combatant.shield.energy, local_ship.combatant.weapon.ammunition, view.local_prediction.local_stats.magazine_size]
-		if view.local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
-			var mine_status := "%d" % view.local_prediction.local_mine_charges_remaining
-			if view.local_prediction.local_mine_cooldown_remaining > 0.05:
-				mine_status += " (%.1fs)" % view.local_prediction.local_mine_cooldown_remaining
+			resources = "HULL %.0f · SHIELD %.0f\nAMMO %d/%d" % [local_ship.combatant.health, local_ship.combatant.shield.energy, local_ship.combatant.weapon.ammunition, local_prediction.local_stats.magazine_size]
+		if local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
+			var mine_status := "%d" % local_prediction.local_mine_charges_remaining
+			if local_prediction.local_mine_cooldown_remaining > 0.05:
+				mine_status += " (%.1fs)" % local_prediction.local_mine_cooldown_remaining
 			resources += "   MINES %s" % mine_status
-		if view.local_prediction.local_stats.missile_launcher_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MISSILE):
-			var missile_status := "%d" % view.local_prediction.local_missile_charges_remaining
-			if view.local_prediction.local_missile_cooldown_remaining > 0.05:
-				missile_status += " (%.1fs)" % view.local_prediction.local_missile_cooldown_remaining
+		if local_prediction.local_stats.missile_launcher_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MISSILE):
+			var missile_status := "%d" % local_prediction.local_missile_charges_remaining
+			if local_prediction.local_missile_cooldown_remaining > 0.05:
+				missile_status += " (%.1fs)" % local_prediction.local_missile_cooldown_remaining
 			resources += "   MISSILES %s" % missile_status
-		if view.local_prediction.local_stats.cloak_enabled and (not compact or selected == SpecialAbilitySelection.Slot.CLOAK or view.local_prediction.local_cloak_remaining > 0.0):
-			var cloak_status := "ACTIVE" if view.local_prediction.local_cloak_remaining > 0.0 else "READY"
-			if view.local_prediction.local_cloak_remaining <= 0.0 and view.local_prediction.local_cloak_cooldown_remaining > 0.05:
-				cloak_status = "%.1fs" % view.local_prediction.local_cloak_cooldown_remaining
+		if local_prediction.local_stats.cloak_enabled and (not compact or selected == SpecialAbilitySelection.Slot.CLOAK or local_prediction.local_cloak_remaining > 0.0):
+			var cloak_status := "ACTIVE" if local_prediction.local_cloak_remaining > 0.0 else "READY"
+			if local_prediction.local_cloak_remaining <= 0.0 and local_prediction.local_cloak_cooldown_remaining > 0.05:
+				cloak_status = "%.1fs" % local_prediction.local_cloak_cooldown_remaining
 			resources += "   CLOAK %s" % cloak_status
-		if view.local_prediction.local_stats.kinetic_vent_enabled:
-			resources += "   VENT %.0f/%.0f" % [view.local_prediction.local_kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
-		if view.local_prediction.local_stats.breakaway_thrusters_enabled:
-			var breakaway_status := "ACTIVE" if view.local_prediction.local_breakaway_remaining > 0.0 else ("%.1fs" % view.local_prediction.local_breakaway_cooldown_remaining if view.local_prediction.local_breakaway_cooldown_remaining > 0.05 else "READY")
+		if local_prediction.local_stats.kinetic_vent_enabled:
+			resources += "   VENT %.0f/%.0f" % [local_prediction.local_kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
+		if local_prediction.local_stats.breakaway_thrusters_enabled:
+			var breakaway_status := "ACTIVE" if local_prediction.local_breakaway_remaining > 0.0 else ("%.1fs" % local_prediction.local_breakaway_cooldown_remaining if local_prediction.local_breakaway_cooldown_remaining > 0.05 else "READY")
 			resources += "   BREAKAWAY %s" % breakaway_status
-		var reload_hint: String = view.input_profiles.binding_text(&"manual_reload") if view.input_profiles != null else "R"
+		var reload_hint: String = context.input_profiles.binding_text(&"manual_reload") if context.input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
 		# Controls remain discoverable in countdown and pause/settings. During
 		# combat reserve this space for selected abilities and actionable warnings.
-		if String(view.match_payload.get("state_name", "")) == "ACTIVE_HEAT":
+		if String(context.match_payload.get("state_name", "")) == "ACTIVE_HEAT":
 			combat_status = ""
-		view.local_prediction.selected_special_slot = SpecialAbilitySelection.ensure_owned(view.local_prediction.selected_special_slot, view.local_prediction.local_stats)
-		if view.local_prediction.selected_special_slot >= 0:
-			var special_hint: String = view.input_profiles.binding_text(&"special") if view.input_profiles != null else "Shift"
-			var cycle_hint: String = "%s/%s" % [view.input_profiles.binding_text(&"special_previous"), view.input_profiles.binding_text(&"special_next")] if view.input_profiles != null else "Q/E"
-			combat_status += "\n%s %s · %s select" % [special_hint, SpecialAbilitySelection.label(view.local_prediction.selected_special_slot), cycle_hint]
-		if view.local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
-			combat_status += " · DEPLOYED %d/16" % view.local_prediction.local_active_mines
-		if view.local_prediction.budget_warning_remaining > 0.0:
+		local_prediction.current_special_slot()
+		if local_prediction.selected_special_slot >= 0:
+			var special_hint: String = context.input_profiles.binding_text(&"special") if context.input_profiles != null else "Shift"
+			var cycle_hint: String = "%s/%s" % [context.input_profiles.binding_text(&"special_previous"), context.input_profiles.binding_text(&"special_next")] if context.input_profiles != null else "Q/E"
+			combat_status += "\n%s %s · %s select" % [special_hint, SpecialAbilitySelection.label(local_prediction.selected_special_slot), cycle_hint]
+		if local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
+			combat_status += " · DEPLOYED %d/16" % local_prediction.local_active_mines
+		if local_prediction.budget_warning_remaining > 0.0:
 			combat_status += "\nORDNANCE LIMIT · oldest eligible weapon replaced"
 		if not local_ship.combatant.alive:
 			# Elimination can leave authoritative shield energy above zero (for
@@ -266,9 +271,9 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			# resource as an available shield while spectating.
 			shield_bar.value = 0.0
 			resources = "SHIP ELIMINATED"
-			var previous_hint: String = view.input_profiles.binding_text(&"spectator_previous") if view.input_profiles != null else "A"
-			var next_hint: String = view.input_profiles.binding_text(&"spectator_next") if view.input_profiles != null else "D"
-			spectator_label.text = "SPECTATING %s   ◀ %s     %s ▶" % [view.replicated_visuals._display_name(spectator_target_id), previous_hint, next_hint] if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
+			var previous_hint: String = context.input_profiles.binding_text(&"spectator_previous") if context.input_profiles != null else "A"
+			var next_hint: String = context.input_profiles.binding_text(&"spectator_next") if context.input_profiles != null else "D"
+			spectator_label.text = "SPECTATING %s   ◀ %s     %s ▶" % [visuals._display_name(spectator_target_id), previous_hint, next_hint] if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
 			spectator_label.visible = true
 		else:
 			spectator_label.visible = false
@@ -276,16 +281,16 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 	combat_status_label.text = combat_status.strip_edges()
 	combat_status_label.visible = not combat_status_label.text.is_empty()
 	if toggle_status_label == null and hud_root != null:
-		toggle_status_label = view.local_prediction.action_latch.create_status_label(hud_root)
+		toggle_status_label = local_prediction.action_latch.create_status_label(hud_root)
 	if toggle_status_label != null:
-		toggle_status_label.text = view.local_prediction.action_latch.status(view.accessibility_settings)
+		toggle_status_label.text = local_prediction.action_latch.status(context.accessibility_settings)
 	_diagnostics_refresh_accumulator += maxf(delta, 0.0)
 	if diagnostics_visible and _diagnostics_refresh_accumulator >= 0.25:
 		_diagnostics_refresh_accumulator = fmod(_diagnostics_refresh_accumulator, 0.25)
-		var network_stats := view.bridge.get_network_statistics()
+		var network_stats := context.bridge.get_network_statistics()
 		var extrapolation_percent := (
-			float(view.replicated_visuals.interpolation_extrapolated_count) / view.replicated_visuals.interpolation_sample_count * 100.0
-			if view.replicated_visuals.interpolation_sample_count > 0
+			float(visuals.interpolation_extrapolated_count) / visuals.interpolation_sample_count * 100.0
+			if visuals.interpolation_sample_count > 0
 			else 0.0
 		)
 		diagnostics_label.text = (
@@ -298,28 +303,28 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			int(network_stats.rtt_variance_ms),
 			float(network_stats.packet_loss_percent),
 			float(network_stats.packet_throttle_percent),
-			view.replicated_visuals.snapshot_jitter_ms,
-			view.replicated_visuals.snapshot_gap_count,
+			visuals.snapshot_jitter_ms,
+			visuals.snapshot_gap_count,
 			extrapolation_percent,
 			roundi(RemoteInterpolator.INTERPOLATION_DELAY_SECONDS * 1000.0),
-			view.local_prediction.prediction.last_reconciliation_error,
-			view.local_prediction.prediction.snap_count,
-			view.local_prediction.prediction.buffered_inputs.size(),
-			view.local_prediction.expired_predicted_volleys,
-			view.local_prediction.latest_acknowledged_input,
+			local_prediction.prediction.last_reconciliation_error,
+			local_prediction.prediction.snap_count,
+			local_prediction.prediction.buffered_inputs.size(),
+			local_prediction.expired_predicted_volleys,
+			local_prediction.latest_acknowledged_input,
 		]
 
 
 func _local_is_eliminated() -> bool:
-	return view.replicated_visuals.ships.has(view.local_peer_id) and not (view.replicated_visuals.ships[view.local_peer_id] as CombatShipView).combatant.alive
+	return visuals.ships.has(context.local_peer_id) and not (visuals.ships[context.local_peer_id] as CombatShipView).combatant.alive
 
 
 func _living_spectator_targets() -> Array[int]:
 	var result: Array[int] = []
-	for peer_value in view.replicated_visuals.ships.keys():
+	for peer_value in visuals.ships.keys():
 		var peer_id := int(peer_value)
-		var ship := view.replicated_visuals.ships[peer_id] as CombatShipView
-		if peer_id != view.local_peer_id and ship.combatant.alive and not ship.combatant.is_cloaked():
+		var ship := visuals.ships[peer_id] as CombatShipView
+		if peer_id != context.local_peer_id and ship.combatant.alive and not ship.combatant.is_cloaked():
 			result.append(peer_id)
 	result.sort()
 	return result
@@ -348,25 +353,25 @@ func _cycle_spectator(direction: int) -> void:
 
 
 func nearest_incoming_offscreen_projectile() -> ProjectileState:
-	if _nearest_incoming_revision != view.replicated_visuals.authoritative_projectiles.revision:
+	if _nearest_incoming_revision != visuals.authoritative_projectiles.revision:
 		_refresh_nearest_incoming_projectile()
 	return _nearest_incoming_cache
 
 
 func _refresh_nearest_incoming_projectile() -> void:
 	_nearest_incoming_cache = null
-	_nearest_incoming_revision = view.replicated_visuals.authoritative_projectiles.revision
-	if not view.replicated_visuals.ships.has(view.local_peer_id):
+	_nearest_incoming_revision = visuals.authoritative_projectiles.revision
+	if not visuals.ships.has(context.local_peer_id):
 		return
-	var local_position := (view.replicated_visuals.ships[view.local_peer_id] as CombatShipView).global_position
+	var local_position := (visuals.ships[context.local_peer_id] as CombatShipView).global_position
 	var nearest_distance := INF
-	for projectile_id in view.replicated_visuals.authoritative_projectiles.ordered_ids_view():
+	for projectile_id in visuals.authoritative_projectiles.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
-		var projectile := view.replicated_visuals.authoritative_projectiles.get_projectile(projectile_id)
+		var projectile := visuals.authoritative_projectiles.get_projectile(projectile_id)
 		if projectile == null:
 			continue
-		if view.replicated_visuals.is_friendly_peer(projectile.owner_id):
+		if visuals.is_friendly_peer(projectile.owner_id):
 			continue
 		var offset := local_position - projectile.position
 		var distance := offset.length()
@@ -380,21 +385,21 @@ func _refresh_nearest_incoming_projectile() -> void:
 func _visible_world_rect() -> Rect2:
 	if camera == null:
 		return Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
-	var viewport_size := view.get_viewport_rect().size
+	var viewport_size := context.surface.get_viewport_rect().size
 	var zoom := Vector2(maxf(camera.zoom.x, 0.001), maxf(camera.zoom.y, 0.001))
 	var world_size := viewport_size / zoom
 	return Rect2(camera.position - world_size * 0.5, world_size)
 
 
 func trigger_camera_shake(intensity: float, duration: float) -> void:
-	if bool(view.accessibility_settings.reduced_shake):
+	if bool(context.accessibility_settings.reduced_shake):
 		return
 	camera_shake_intensity = maxf(camera_shake_intensity, intensity)
 	camera_shake_remaining = maxf(camera_shake_remaining, duration)
 
 
 func trigger_afterburner_feedback(forward: Vector2) -> void:
-	if bool(view.accessibility_settings.reduced_shake):
+	if bool(context.accessibility_settings.reduced_shake):
 		return
 	var direction := forward.normalized()
 	if direction.is_zero_approx():
@@ -409,9 +414,9 @@ func _create_indicator_layer() -> void:
 	var canvas := CanvasLayer.new()
 	canvas.name = "OffscreenIndicators"
 	canvas.layer = 8
-	view.add_child(canvas)
+	context.surface.add_child(canvas)
 	indicator_layer = OffscreenIndicatorLayer.new()
-	indicator_layer.setup(view)
+	indicator_layer.setup(self, visuals, context)
 	canvas.add_child(indicator_layer)
 
 
@@ -435,13 +440,13 @@ func _update_camera_shake(delta: float) -> void:
 
 
 func gameplay_mouse_position() -> Vector2:
-	return competitive_view_policy.gameplay_point(view.get_viewport().get_mouse_position())
+	return competitive_view_policy.gameplay_point(context.surface.get_viewport().get_mouse_position())
 
 
 func _unshaken_mouse_world_position() -> Vector2:
 	if camera == null:
-		return view.get_canvas_transform().affine_inverse() * gameplay_mouse_position()
-	var screen_offset := gameplay_mouse_position() - view.get_viewport_rect().size * 0.5
+		return context.surface.get_canvas_transform().affine_inverse() * gameplay_mouse_position()
+	var screen_offset := gameplay_mouse_position() - context.surface.get_viewport_rect().size * 0.5
 	return camera.position + Vector2(screen_offset.x / camera.zoom.x, screen_offset.y / camera.zoom.y)
 
 
@@ -473,8 +478,8 @@ func _flat_style(background: Color, border: Color, width: int) -> StyleBoxFlat:
 
 
 func _update_competitive_view() -> void:
-	if view.is_inside_tree():
-		competitive_view_policy.apply(view.get_window(), view._network_active and bool(view.match_payload.get("competitive_view", false)))
+	if context.surface.is_inside_tree():
+		competitive_view_policy.apply(context.surface.get_window(), context._network_active and bool(context.match_payload.get("competitive_view", false)))
 
 
 func step_incoming_refresh(delta: float) -> void:
@@ -521,8 +526,8 @@ func reset_for_countdown() -> void:
 
 func shutdown() -> void:
 	competitive_view_policy.restore()
-	if view.is_inside_tree() and view.get_viewport().size_changed.is_connected(_layout_accessible_hud):
-		view.get_viewport().size_changed.disconnect(_layout_accessible_hud)
+	if context.surface.is_inside_tree() and context.surface.get_viewport().size_changed.is_connected(_layout_accessible_hud):
+		context.surface.get_viewport().size_changed.disconnect(_layout_accessible_hud)
 
 
 func apply_accessibility_settings(settings: Dictionary) -> void:
@@ -532,3 +537,8 @@ func apply_accessibility_settings(settings: Dictionary) -> void:
 		if camera != null:
 			camera.offset = Vector2.ZERO
 	_layout_accessible_hud()
+
+
+func reset_feedback_for_life(generation: int) -> void:
+	if combat_feedback_panel != null:
+		combat_feedback_panel.reset_for_life(generation)

@@ -57,10 +57,10 @@ var splash_stage: int = 0
 var splash_transitioning: bool = false
 var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
-var latest_match_payload: Dictionary = {}:
-	set(value):
-		latest_match_payload = value
-		standings_controller.invalidate_context()
+var match_state := preload("res://src/client/network/client_match_state.gd").new()
+var latest_match_payload: Dictionary:
+	get: return match_state.payload
+	set(value): match_state.replace(value)
 
 var interface_theme: Theme
 var last_countdown_second: int = -1
@@ -80,6 +80,7 @@ var _native_gameplay_cursor_active: bool = false
 
 
 func _init() -> void:
+	match_state.changed.connect(standings_controller.invalidate_context)
 	draft_controller.inspection_requested.connect(_inspect_card)
 	draft_controller.presentation_changed.connect(_update_match_presentation)
 	draft_controller.name = "DraftScreenController"
@@ -134,6 +135,7 @@ func _ready() -> void:
 	input_profiles.controller_connections_changed.connect(settings_controller._update_controller_status)
 	settings_controller._load_video_settings()
 	network_world = NetworkWorldView.new()
+	network_world.match_state = match_state
 	network_world.name = "NetworkWorld"
 	add_child(network_world)
 	network_world.setup(bridge, input_profiles)
@@ -183,7 +185,7 @@ func _inspect_card(button: CardHoverButton) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if draft_controller.draft_panel != null and draft_controller.draft_panel.visible and draft_controller.pending_draft_index >= 0 and (event.is_action_pressed("pause_overlay") or event.is_action_pressed(&"ui_cancel")) and not (event is InputEventKey and event.echo):
-		draft_controller._cancel_draft_confirmation()
+		draft_controller.cancel_draft_confirmation()
 		get_viewport().set_input_as_handled()
 		return
 	if (event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"pause_overlay")) and not (event is InputEventKey and event.echo):
@@ -215,7 +217,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if draft_controller.draft_panel != null and draft_controller.draft_panel.visible:
 		for index in draft_controller.draft_buttons.size():
 			if event.is_action_pressed("draft_%d" % (index + 1)):
-				draft_controller._select_draft_card(index)
+				draft_controller.select_draft_card(index)
 				get_viewport().set_input_as_handled()
 				break
 
@@ -236,7 +238,7 @@ func _input(event: InputEvent) -> void:
 	if card_inspector != null and card_inspector.visible:
 		if event.is_action_released(&"scoreboard") and standings_controller.scoreboard_open:
 			card_inspector.close(false)
-			standings_controller._set_scoreboard_open(false)
+			standings_controller.set_scoreboard_open(false)
 			get_viewport().set_input_as_handled()
 		else:
 			card_inspector.handle_input(event)
@@ -247,11 +249,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"scoreboard") and not (event is InputEventKey and event.echo):
 		if _scoreboard_available():
-			standings_controller._set_scoreboard_open(true)
+			standings_controller.set_scoreboard_open(true)
 			get_viewport().set_input_as_handled()
 	elif event.is_action_released(&"scoreboard"):
 		if standings_controller.scoreboard_open:
-			standings_controller._set_scoreboard_open(false)
+			standings_controller.set_scoreboard_open(false)
 			get_viewport().set_input_as_handled()
 
 
@@ -734,7 +736,7 @@ func _focus_connection_menu() -> void:
 func _toggle_pause_overlay() -> void:
 	if connection_controller.is_visible():
 		return
-	standings_controller._set_scoreboard_open(false)
+	standings_controller.set_scoreboard_open(false)
 	pause_overlay.visible = not pause_overlay.visible
 	network_world.input_blocked = pause_overlay.visible
 	if pause_overlay.visible and pause_resume_button != null:
@@ -811,8 +813,8 @@ func _play_tutorial() -> void:
 func _play_offline() -> void:
 	bridge.stop()
 	connection_controller.stop_hosting()
-	standings_controller._set_scoreboard_open(false)
-	latest_match_payload.clear()
+	standings_controller.set_scoreboard_open(false)
+	match_state.reset()
 	network_world.set_network_active(false)
 	connection_controller.hide_screens()
 	match_panel.visible = false
@@ -843,9 +845,9 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 		bridge.stop()
 	connection_controller.reset_connection(message, is_error)
 	network_world.set_network_active(false)
-	standings_controller._set_scoreboard_open(false)
+	standings_controller.set_scoreboard_open(false)
 	offline_sandbox.set_sandbox_active(false)
-	latest_match_payload.clear()
+	match_state.reset()
 	draft_controller.clear_offer()
 	match_panel.visible = false
 	heat_intro_panel.visible = false
@@ -872,10 +874,9 @@ func _on_connected(peer_id: int) -> void:
 
 func _on_lobby_state(state: Dictionary) -> void:
 	standings_controller.invalidate_context()
-	standings_controller._scoreboard_rows_dirty = true
-	standings_controller._results_rows_dirty = true
+	standings_controller.invalidate_rows()
 	if not bool(state.get("match_active", false)):
-		standings_controller._set_scoreboard_open(false)
+		standings_controller.set_scoreboard_open(false)
 		network_world.set_network_active(false, false)
 	connection_controller.render_lobby(state)
 
@@ -883,12 +884,13 @@ func _on_lobby_state(state: Dictionary) -> void:
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
 	standings_controller.invalidate_context()
 	if event_type == &"MATCH_PAUSE_CHANGED":
-		latest_match_payload["paused"] = bool(payload.get("paused", false))
+		match_state.update_fields({"paused": bool(payload.get("paused", false))})
 		network_world.latest_server_tick = server_tick
 		network_world.apply_match_pause(bool(payload.get("paused", false)))
 		_update_global_pause_ui()
 	elif event_type == &"COMBAT_FEEDBACK":
 		network_world.apply_combat_feedback(payload)
+
 	elif event_type == &"MINE_DETONATIONS":
 		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
 	elif event_type == &"REQUEST_REJECTED":
@@ -897,16 +899,14 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		standings_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
 		draft_controller.recover_rejected_offer()
 	elif event_type == &"DRAFT_OFFER":
-		draft_controller._show_draft_offer(payload)
+		draft_controller.show_draft_offer(payload)
 	elif event_type == &"MATCH_START_ACCEPTED" and bool(payload.get("fresh_rematch", false)):
 		network_world.reset_match_presentation()
 		audio_director.reset_match_deduplication()
-		standings_controller._rematch_requested = false
+		standings_controller.reset_rematch_request()
 	elif event_type == &"STATE_CHANGED":
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
-		latest_match_payload = payload.duplicate(true)
-		standings_controller._scoreboard_rows_dirty = true
-		standings_controller._results_rows_dirty = true
+		standings_controller.invalidate_rows()
 		var entering_match := String(payload.get("state_name", "LOBBY")) != "LOBBY"
 		if entering_match:
 			network_world.set_network_active(true)
@@ -918,23 +918,21 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		else:
 			connection_controller.show_waiting_lobby()
 		network_world.apply_match_state(payload, server_tick)
-		latest_match_payload["objective"] = (network_world.match_payload.get("objective", {}) as Dictionary).duplicate(true)
 		if network_world.match_paused:
 			network_world.latest_server_tick = server_tick
 		audio_director.set_objective_baseline(latest_match_payload.get("objective", {}) as Dictionary)
 		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
 		_update_match_presentation()
 	elif event_type == &"DRAFT_RESOLVED":
-		latest_match_payload["builds"] = payload.get("builds", {})
-		standings_controller._scoreboard_rows_dirty = true
-		standings_controller._results_rows_dirty = true
+		network_world.apply_builds(payload.get("builds", {}) as Dictionary)
+		standings_controller.invalidate_rows()
 		draft_controller.clear_offer()
 	elif event_type == &"PLAYER_ELIMINATED":
 		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
 		for peer_value in payload.get("peer_ids", []):
 			alive_peer_ids.erase(int(peer_value))
-		latest_match_payload["alive_peer_ids"] = alive_peer_ids
-		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
+		match_state.update_fields({"alive_peer_ids": alive_peer_ids})
+		match_state.update_fields({"respawn_deadlines": (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)})
 		var eliminations := payload.get("eliminations", []) as Array
 		if eliminations.is_empty():
 			for peer_value in payload.get("peer_ids", []):
@@ -945,28 +943,24 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 				})
 		network_world.add_kill_feed_entries(eliminations, server_tick)
 		if payload.has("scores"):
-			latest_match_payload["scores"] = (payload.scores as Dictionary).duplicate(true)
-			standings_controller._scoreboard_rows_dirty = true
-			standings_controller._results_rows_dirty = true
+			match_state.update_fields({"scores": (payload.scores as Dictionary).duplicate(true)})
+			standings_controller.invalidate_rows()
 	elif event_type == &"PLAYER_RESPAWNED":
-		latest_match_payload["alive_peer_ids"] = (payload.get("alive_peer_ids", []) as Array).duplicate()
-		latest_match_payload["respawn_deadlines"] = (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)
+		match_state.update_fields({"alive_peer_ids": (payload.get("alive_peer_ids", []) as Array).duplicate()})
+		match_state.update_fields({"respawn_deadlines": (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)})
 	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
 		if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, event_type == &"OBJECTIVE_UPDATED"):
 			return
-		latest_match_payload["objective"] = (payload.get("objective", {}) as Dictionary).duplicate(true)
-		standings_controller._scoreboard_rows_dirty = true
+		standings_controller.invalidate_rows()
 		audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
 	elif event_type == &"CARD_POWERUP_SPAWNED":
 		network_world.add_card_powerup(payload)
 	elif event_type == &"CARD_POWERUP_REMOVED":
-		if network_world.powerup_layer != null:
-			network_world.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
+		if network_world.replicated_visuals.powerup_layer != null:
+			network_world.replicated_visuals.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
 	elif event_type == &"CARD_POWERUP_COLLECTED":
-		latest_match_payload["builds"] = payload.get("builds", latest_match_payload.get("builds", {}))
-		standings_controller._scoreboard_rows_dirty = true
-		standings_controller._results_rows_dirty = true
-		network_world.apply_builds(latest_match_payload.get("builds", {}) as Dictionary)
+		network_world.apply_builds(payload.get("builds", latest_match_payload.get("builds", {})) as Dictionary)
+		standings_controller.invalidate_rows()
 		network_world.collect_card_powerup(payload)
 		audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
 
@@ -980,7 +974,7 @@ func _process(_delta: float) -> void:
 			standings_controller.scoreboard_open = false
 		standings_controller.scoreboard_panel.visible = standings_controller.scoreboard_open
 		if standings_controller.scoreboard_panel.visible:
-			standings_controller._update_scoreboard()
+			standings_controller.update_scoreboard()
 	_update_pointer_visibility()
 	_update_timed_audio()
 
@@ -1001,7 +995,7 @@ func _update_pointer_visibility() -> void:
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()
-	if gameplay_pointer_active and network_world.competitive_view_policy.active and not input_profiles.uses_controller() and DisplayServer.get_name() != "headless" and not pointer_position.is_equal_approx(get_viewport().get_mouse_position()):
+	if gameplay_pointer_active and network_world.hud_camera.competitive_view_policy.active and not input_profiles.uses_controller() and DisplayServer.get_name() != "headless" and not pointer_position.is_equal_approx(get_viewport().get_mouse_position()):
 		get_viewport().warp_mouse(pointer_position)
 	if gameplay_cursor != null:
 		gameplay_cursor.visible = gameplay_pointer_active and not input_profiles.uses_controller() and not native_gameplay_cursor
@@ -1042,7 +1036,7 @@ func _update_match_presentation() -> void:
 		heat_intro_panel.visible = false
 		network_world.set_match_status("")
 		draft_controller.draft_panel.visible = false
-		standings_controller._set_win_screen_visible(false)
+		standings_controller.set_win_screen_visible(false)
 		if bridge.role == NetworkBridge.Role.CLIENT:
 			connection_controller.show_waiting_lobby()
 		else:
@@ -1053,7 +1047,7 @@ func _update_match_presentation() -> void:
 	match_panel.visible = false
 	if state_name != "DRAFT":
 		draft_controller.draft_panel.visible = false
-	standings_controller._set_win_screen_visible(state_name == "MATCH_RESULT")
+	standings_controller.set_win_screen_visible(state_name == "MATCH_RESULT")
 	var deadline := int(latest_match_payload.get("deadline_tick", -1))
 	if state_name == "DRAFT" and draft_controller.active_offer_deadline >= 0:
 		deadline = draft_controller.active_offer_deadline
@@ -1083,7 +1077,7 @@ func _update_match_presentation() -> void:
 	elif state_name == "MATCH_RESULT":
 		var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 		status = "★ VICTORY · %s ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(int(latest_match_payload.get("match_winner", 0))))
-		standings_controller._update_results_screen()
+		standings_controller.update_results_screen()
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
 	if state_name == "DRAFT":
@@ -1281,7 +1275,7 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 	if state_name == "LOBBY":
 		standings_controller.reset_actions()
 		audio_director.set_context(&"lobby")
-		standings_controller._set_win_screen_visible(false)
+		standings_controller.set_win_screen_visible(false)
 		return
 	audio_director.set_context(&"win" if state_name == "MATCH_RESULT" else &"gameplay")
 	if previous_state == "LOBBY" and state_name == "DRAFT":
@@ -1348,15 +1342,15 @@ func _world_audio_details(payload: Dictionary) -> Dictionary:
 	if peer_id != 0:
 		if not details.has("local"):
 			details["local"] = peer_id == bridge.local_peer_id
-		var source_ship := network_world.ships.get(peer_id) as CombatShipView
+		var source_ship := network_world.replicated_visuals.ships.get(peer_id) as CombatShipView
 		if source_ship != null and not details.has("position"):
 			details["position"] = source_ship.global_position
 	if not details.has("listener_position"):
-		var local_ship := network_world.ships.get(bridge.local_peer_id) as CombatShipView
+		var local_ship := network_world.replicated_visuals.ships.get(bridge.local_peer_id) as CombatShipView
 		if local_ship != null:
 			details["listener_position"] = local_ship.global_position
-		elif network_world.camera != null:
-			details["listener_position"] = network_world.camera.global_position
+		elif network_world.hud_camera.camera != null:
+			details["listener_position"] = network_world.hud_camera.camera.global_position
 	return details
 
 

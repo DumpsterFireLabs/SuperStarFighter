@@ -1,6 +1,8 @@
 class_name AudioDirector
 extends Node
 
+const SettingsStore = preload("res://src/client/settings_store.gd")
+
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 
 const MixPolicy = preload("res://src/client/presentation/audio_mix_policy.gd")
@@ -8,7 +10,7 @@ const MixPolicy = preload("res://src/client/presentation/audio_mix_policy.gd")
 const MUSIC_DIRECTORY: String = "res://assets/audio/music"
 const GAMEPLAY_MUSIC_DIRECTORY: String = "res://assets/audio/music/gameplay"
 const SFX_DIRECTORY: String = "res://assets/audio/sfx"
-const SETTINGS_PATH: String = "user://super_star_fighter_settings.cfg"
+const SETTINGS_PATH: String = SettingsStore.PATH
 const MUSIC_BUS: StringName = &"Music"
 const SFX_BUS: StringName = &"SFX"
 const MENU_CROSSFADE_SECONDS: float = 3.0
@@ -674,14 +676,14 @@ func _load_settings() -> void:
 	muted = bool(config.get_value("audio", "muted", muted))
 
 
-func _save_settings() -> void:
-	var config := ConfigFile.new()
-	config.load(SETTINGS_PATH)
-	config.set_value("audio", "master", master_volume_percent)
-	config.set_value("audio", "music", music_volume_percent)
-	config.set_value("audio", "sfx", sfx_volume_percent)
-	config.set_value("audio", "muted", muted)
-	config.save(SETTINGS_PATH)
+func _save_settings() -> Error:
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		config.set_value("audio", "master", master_volume_percent)
+		config.set_value("audio", "music", music_volume_percent)
+		config.set_value("audio", "sfx", sfx_volume_percent)
+		config.set_value("audio", "muted", muted)
+	, SETTINGS_PATH)
+
 
 
 func _synthesize_weapon(profile, variant: int) -> AudioStreamWAV:

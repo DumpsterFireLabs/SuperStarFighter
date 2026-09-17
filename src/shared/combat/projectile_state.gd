@@ -19,6 +19,8 @@ var missile_target_id: int = 0
 var mine_activation_remaining: float = 0.0
 var kinetic_vent_displacement_remaining: float = 0.0
 var has_rebounded: bool = false
+var original_shooter_id: int = 0
+var ricochet_count: int = 0
 var hit_peer_ids: Dictionary = {}
 
 
@@ -150,6 +152,7 @@ func ricochet(collision_normal: Vector2) -> bool:
 		return false
 	velocity = velocity.bounce(collision_normal.normalized())
 	remaining_ricochets -= 1
+	ricochet_count += 1
 	return true
 
 
@@ -165,6 +168,7 @@ func rebound_toward(
 	if return_direction.is_zero_approx():
 		return_direction = -velocity
 	velocity = return_direction.normalized() * velocity.length()
+	original_shooter_id = owner_id
 	owner_id = new_owner_id
 	damage *= clampf(damage_factor, 0.0, 1.0)
 	lifetime_remaining *= clampf(range_factor, 0.0, 1.0)

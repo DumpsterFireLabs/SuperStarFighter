@@ -10,7 +10,11 @@ const PROJECTILE_CONFIRMATION_RTT_MULTIPLIER: float = 2.0
 const PROJECTILE_CONFIRMATION_GRACE_SECONDS: float = 0.2
 const SPECIAL_ACTIVATION_RETRY_SECONDS: float = 1.25
 
-var view: NetworkWorldView
+const ViewContext = preload("res://src/client/network/client_view_context.gd")
+var context: ViewContext
+var visuals: NetworkReplicatedVisuals
+signal afterburner_requested(forward: Vector2)
+signal life_received(generation: int)
 var prediction := ClientPredictionBuffer.new()
 var predicted_tracker := PredictedProjectileTracker.new()
 var predicted_projectile_ids: Dictionary = {}
@@ -93,19 +97,19 @@ func _spawn_predicted_projectile(ship: CombatShipView, aim_angle: float) -> void
 	var muzzle := ship.global_position + Vector2.from_angle(aim_angle) * 31.0
 	var predicted_ids: Array[int] = []
 	for angle in MovementSystem.spread_angles(aim_angle, local_stats.projectile_count, local_stats.projectile_spread_degrees):
-		var projectile := ProjectileState.create(next_predicted_id, view.local_peer_id, local_weapon.shot_sequence, muzzle, angle, local_stats)
-		view.replicated_visuals.authoritative_projectiles.add(projectile)
+		var projectile := ProjectileState.create(next_predicted_id, context.local_peer_id, local_weapon.shot_sequence, muzzle, angle, local_stats)
+		visuals.add_predicted(projectile)
 		predicted_ids.append(next_predicted_id)
 		next_predicted_id -= 1
 	predicted_projectile_ids[local_weapon.shot_sequence] = predicted_ids
-	predicted_tracker.add(view.local_peer_id, local_weapon.shot_sequence, view._now_seconds())
-	view.replicated_visuals._emit_weapon_shot(view.local_peer_id, local_weapon.shot_sequence, muzzle)
+	predicted_tracker.add(context.local_peer_id, local_weapon.shot_sequence, context.now_seconds())
+	visuals._emit_weapon_shot(context.local_peer_id, local_weapon.shot_sequence, muzzle, null, local_stats)
 
 
 func _expire_unconfirmed_predicted_projectiles(now_seconds: float) -> void:
 	for key in predicted_tracker.step(now_seconds, _projectile_confirmation_timeout_seconds()):
 		var parts := key.split(":", false, 1)
-		if parts.size() != 2 or int(parts[0]) != view.local_peer_id:
+		if parts.size() != 2 or int(parts[0]) != context.local_peer_id:
 			continue
 		_remove_predicted_volley(int(parts[1]))
 		expired_predicted_volleys += 1
@@ -115,12 +119,12 @@ func _remove_predicted_volley(shot_sequence: int) -> void:
 	if not predicted_projectile_ids.has(shot_sequence):
 		return
 	for predicted_id in predicted_projectile_ids[shot_sequence] as Array:
-		view.replicated_visuals.authoritative_projectiles.remove(int(predicted_id))
+		visuals.remove_predicted(int(predicted_id))
 	predicted_projectile_ids.erase(shot_sequence)
 
 
 func _reconcile_predicted_projectile(projectile: ProjectileState) -> void:
-	if projectile.owner_id != view.local_peer_id or not predicted_projectile_ids.has(projectile.shot_sequence):
+	if projectile.owner_id != context.local_peer_id or not predicted_projectile_ids.has(projectile.shot_sequence):
 		return
 	_remove_predicted_volley(projectile.shot_sequence)
 	predicted_tracker.reconcile(projectile.owner_id, projectile.shot_sequence)
@@ -128,8 +132,8 @@ func _reconcile_predicted_projectile(projectile: ProjectileState) -> void:
 
 func _projectile_confirmation_timeout_seconds() -> float:
 	var rtt_seconds := 0.0
-	if view.bridge != null:
-		rtt_seconds = maxf(float(view.bridge.get_round_trip_time_ms()), 0.0) / 1000.0
+	if context.bridge != null:
+		rtt_seconds = maxf(float(context.bridge.get_round_trip_time_ms()), 0.0) / 1000.0
 	return clampf(
 		maxf(
 			MIN_PROJECTILE_CONFIRMATION_TIMEOUT_SECONDS,
@@ -144,11 +148,11 @@ func _separate_local_visual_from_remote(local_ship: CombatShipView) -> void:
 	if not prediction_initialized or not local_ship.combatant.alive:
 		return
 	var target_distance := GameConstants.SHIP_COLLISION_RADIUS * 2.0 + 1.0
-	for peer_value in view.replicated_visuals.ships.keys():
+	for peer_value in visuals.ships.keys():
 		var peer_id := int(peer_value)
-		if peer_id == view.local_peer_id:
+		if peer_id == context.local_peer_id:
 			continue
-		var remote := view.replicated_visuals.ships[peer_id] as CombatShipView
+		var remote := visuals.ships[peer_id] as CombatShipView
 		if not remote.combatant.alive:
 			continue
 		var difference := prediction.predicted_position - remote.global_position
@@ -156,7 +160,7 @@ func _separate_local_visual_from_remote(local_ship: CombatShipView) -> void:
 			continue
 		var preferred := difference.normalized()
 		if preferred.is_zero_approx():
-			preferred = Vector2.from_angle(float(posmod(view.local_peer_id * 31 + peer_id * 17, 360)) * PI / 180.0)
+			preferred = Vector2.from_angle(float(posmod(context.local_peer_id * 31 + peer_id * 17, 360)) * PI / 180.0)
 		var candidate := Vector2.INF
 		var best_cost := INF
 		for sample_index in 24:
@@ -184,20 +188,20 @@ func _separate_local_visual_from_remote(local_ship: CombatShipView) -> void:
 
 
 func _local_visual_candidate_available(position: Vector2, contacted_peer_id: int, minimum_distance: float) -> bool:
-	var selected_map := view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID
+	var selected_map := visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID
 	if not ArenaCollisionSystem.is_ship_position_clear(position, selected_map, 1.0):
 		return false
-	for peer_value in view.replicated_visuals.ships.keys():
+	for peer_value in visuals.ships.keys():
 		var peer_id := int(peer_value)
-		if peer_id == view.local_peer_id or peer_id == contacted_peer_id:
+		if peer_id == context.local_peer_id or peer_id == contacted_peer_id:
 			continue
-		var other := view.replicated_visuals.ships[peer_id] as CombatShipView
+		var other := visuals.ships[peer_id] as CombatShipView
 		if other.combatant.alive and position.distance_to(other.global_position) < minimum_distance:
 			return false
 	return true
 
 
-func step(delta: float, local_ship: CombatShipView) -> void:
+func step(delta: float, local_ship: CombatShipView, mouse_world_position: Vector2) -> void:
 	_advance_input_clock()
 	_expire_special_activation(Time.get_ticks_msec())
 	input_send_accumulator += delta
@@ -209,13 +213,13 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	local_cloak_cooldown_remaining = maxf(local_cloak_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_breakaway_remaining = maxf(local_breakaway_remaining - maxf(delta, 0.0), 0.0)
 	local_breakaway_cooldown_remaining = maxf(local_breakaway_cooldown_remaining - maxf(delta, 0.0), 0.0)
-	var aim_vector: Vector2 = view.input_profiles.aim_vector() if view.input_profiles != null and view.input_profiles.uses_controller() else view.hud_camera._unshaken_mouse_world_position() - local_ship.global_position
+	var aim_vector: Vector2 = context.input_profiles.aim_vector() if context.input_profiles != null and context.input_profiles.uses_controller() else mouse_world_position - local_ship.global_position
 	var aim_angle := local_ship.combatant.aim_angle
 	if not aim_vector.is_zero_approx():
 		aim_angle = aim_vector.angle()
-	var local_movement: Vector2 = view.input_profiles.movement_input_for_aim(aim_angle) if view.input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var local_movement: Vector2 = context.input_profiles.movement_input_for_aim(aim_angle) if context.input_profiles != null else Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var local_alive := local_ship.combatant.alive
-	if not view.controls_enabled or input_blocked or not local_alive:
+	if not context.controls_enabled or input_blocked or not local_alive:
 		local_movement = Vector2.ZERO
 	local_ship.set_thrust_input(local_movement)
 	var afterburner_ready := local_stats.afterburner_enabled and local_special_cooldown_remaining <= 0.0
@@ -225,7 +229,7 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
 	var readiness := [afterburner_ready, mine_ready, missile_ready, cloak_ready]
 	var special_just_pressed := (
-		view.controls_enabled
+		context.controls_enabled
 		and not input_blocked
 		and local_alive
 		and selected_special_slot >= 0 and bool(readiness[selected_special_slot])
@@ -240,21 +244,21 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 		special_activation_deadline_msec = Time.get_ticks_msec() + int(SPECIAL_ACTIVATION_RETRY_SECONDS * 1000)
 		special_activation_sequence = input_sequence
 		special_activation_slot = selected_special_slot
-	elif not view.controls_enabled or input_blocked or not local_alive:
+	elif not context.controls_enabled or input_blocked or not local_alive:
 		special_activation_sends_remaining = 0
 	var frame := PlayerInputFrame.new(
 		input_sequence,
 		client_tick,
 		local_movement,
 		aim_angle,
-		action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(view.accessibility_settings.toggle_fire), view.controls_enabled and not input_blocked and local_alive),
-		action_latch.sample(&"shield", Input.is_action_pressed("shield"), bool(view.accessibility_settings.toggle_shield), view.controls_enabled and not input_blocked and local_alive),
-		view.controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
+		action_latch.sample(&"fire", Input.is_action_pressed("fire"), bool(context.accessibility_settings.toggle_fire), context.controls_enabled and not input_blocked and local_alive),
+		action_latch.sample(&"shield", Input.is_action_pressed("shield"), bool(context.accessibility_settings.toggle_shield), context.controls_enabled and not input_blocked and local_alive),
+		context.controls_enabled and not input_blocked and local_alive and Input.is_action_pressed("manual_reload"),
 		special_activation_sends_remaining > 0,
 		special_activation_sequence,
 		special_activation_slot
 	)
-	if not view.controls_enabled or input_blocked or not local_alive:
+	if not context.controls_enabled or input_blocked or not local_alive:
 		_shield_press_sequence = -1
 	elif frame.shielding and not _shield_was_held:
 		_shield_press_sequence = input_sequence
@@ -271,21 +275,21 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 	if action_edge:
 		# Edges bypass unreliable throttling. Ordinary samples still carry the
 		# press identity; shared sequence checks discard late reliable frames.
-		view.bridge.send_action_input(frame)
+		context.bridge.send_action_input(frame)
 	var send_interval := 1.0 / GameConstants.INPUT_SEND_RATE
 	if input_send_accumulator >= send_interval:
 		input_send_accumulator = fmod(input_send_accumulator, send_interval)
 		if not action_edge:
-			view.bridge.send_input(frame)
+			context.bridge.send_input(frame)
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
-	if prediction_initialized and local_alive and view.controls_enabled:
-		prediction.predict(frame, local_stats, delta, view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID, local_breakaway_remaining > 0.0)
+	if prediction_initialized and local_alive and context.controls_enabled:
+		prediction.predict(frame, local_stats, delta, visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID, local_breakaway_remaining > 0.0)
 		_sync_predicted_resources(local_ship)
 		if prediction.last_actions & CombatantState.ACTION_BOOST:
 			local_ship.flash_afterburner(local_stats.afterburner_duration)
-			view.hud_camera.trigger_afterburner_feedback(Vector2.from_angle(aim_angle))
-			view.presentation_event.emit(&"afterburner", {
-				"peer_id": view.local_peer_id,
+			afterburner_requested.emit(Vector2.from_angle(aim_angle))
+			context.presentation_event.emit(&"afterburner", {
+				"peer_id": context.local_peer_id,
 				"server_tick": client_tick,
 				"position": local_ship.global_position,
 				"listener_position": local_ship.global_position,
@@ -297,7 +301,7 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 		local_ship.combatant.aim_angle = aim_angle
 		local_ship.set_movement_field_strength(ArenaMovementSystem.influence_at(
 			local_ship.global_position,
-			view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID
+			visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID
 		))
 		local_ship.queue_redraw()
 		if prediction.last_actions & CombatantState.ACTION_SHOT:
@@ -311,7 +315,7 @@ func step(delta: float, local_ship: CombatShipView) -> void:
 func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatShipView, revived: bool) -> void:
 	var correction := state.duplicate()
 	var local_state := decoded.get("local_state", {}) as Dictionary
-	if int(local_state.get("peer_id", 0)) == view.local_peer_id:
+	if int(local_state.get("peer_id", 0)) == context.local_peer_id:
 		correction.merge(local_state, true)
 		_acknowledge_special_activation(int(local_state.get("last_special_sequence", -1)))
 		local_active_ordnance = int(local_state.get("active_ordnance", 0))
@@ -321,9 +325,8 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 			budget_warning_remaining = 2.0
 		local_budget_evictions = evictions
 	var new_life := prediction.simulated_combatant != null and int(correction.get("life_generation", prediction.simulated_combatant.life_generation)) != prediction.simulated_combatant.life_generation
-	if view.match_paused or not prediction_initialized or revived or new_life or not bool(state.alive):
-		if view.hud_camera.combat_feedback_panel != null:
-			view.hud_camera.combat_feedback_panel.reset_for_life(int(correction.get("life_generation", 0)))
+	if context.match_paused or not prediction_initialized or revived or new_life or not bool(state.alive):
+		life_received.emit(int(correction.get("life_generation", 0)))
 		prediction.reset_to_snapshot(correction, local_stats)
 		if revived or new_life or not bool(state.alive):
 			_shield_press_sequence = -1
@@ -336,7 +339,7 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 		# Dead snapshots still reset replay/resources, but the HUD owns the
 		# spectator camera. Recentring on the corpse fights its follow each tick.
 		if bool(state.alive):
-			view.hud_camera.camera.position = state.position
+			context.camera.position = state.position
 		prediction_initialized = true
 	else:
 		prediction.reconcile(
@@ -344,7 +347,7 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 			state.velocity,
 			decoded.acknowledged_input,
 			local_stats,
-			view.replicated_visuals.arena.map_id if view.replicated_visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID,
+			visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID,
 			local_breakaway_remaining > 0.0,
 			correction
 		)
@@ -408,3 +411,26 @@ func reset_for_countdown() -> void:
 	prediction_initialized = false
 	special_activation_sends_remaining = 0
 	special_activation_deadline_msec = 0
+
+
+func receive_visual_resources(ship: CombatShipView, state: Dictionary) -> void:
+	local_mine_charges_remaining = ship.combatant.mine_charges_remaining
+	local_mine_cooldown_remaining = ship.combatant.mine_cooldown_remaining
+	local_missile_charges_remaining = ship.combatant.missile_charges_remaining
+	local_missile_cooldown_remaining = ship.combatant.missile_cooldown_remaining
+	local_cloak_charges_remaining = ship.combatant.cloak_charges_remaining
+	local_cloak_remaining = maxf(local_cloak_remaining, 0.1) if bool(state.get("cloaked", false)) else 0.0
+	local_cloak_cooldown_remaining = ship.combatant.cloak_cooldown_remaining
+	local_breakaway_remaining = maxf(local_breakaway_remaining, 0.1) if bool(state.get("breakaway_active", false)) else 0.0
+	local_kinetic_vent_charge = ship.combatant.shield.kinetic_vent_charge
+	local_breakaway_cooldown_remaining = ship.combatant.breakaway_cooldown_remaining
+
+
+func reset_ordnance() -> void:
+	predicted_projectile_ids.clear()
+	predicted_tracker = PredictedProjectileTracker.new()
+
+
+func current_special_slot() -> int:
+	selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
+	return selected_special_slot

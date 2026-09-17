@@ -43,6 +43,7 @@ func _ready() -> void:
 	preload("res://tests/unit/movement_reconciliation_tests.gd").run(_context)
 	StatMetadataTests.run(_context)
 	NetworkOwnershipTests.run(_context)
+	preload("res://tests/unit/architecture_followup_tests.gd").run(_context)
 	ObjectiveContractTests.run(_context)
 	NetworkViewOwnershipTests.run(_context, self)
 	preload("res://tests/unit/spectator_camera_tests.gd").run(_context, self)
@@ -86,7 +87,8 @@ func _ready() -> void:
 
 
 func _run_foundation_tests() -> void:
-	_context.expect_equal(GameConstants.GAME_VERSION, "0.1.0-beta.10", "game version is pinned to Beta 10")
+	var release: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://release.json"))
+	_context.expect_equal(GameConstants.GAME_VERSION, release.version, "game version matches the release manifest")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
 	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 36, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")

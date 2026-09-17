@@ -5,13 +5,13 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 Assert-SsfShippingPolicy
 
-$presetName = 'Windows Beta 10'
-$releaseLabel = 'Beta 10'
-$expectedGameVersion = '0.1.0-beta.10'
-$expectedWindowsVersion = '0.1.0.10'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-10'
-$clientPath = Join-Path $buildRoot 'SuperStarFighter-Beta10.exe'
-$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta10-Windows-x64.zip'
+$presetName = "Windows $($SsfRelease.label)"
+$releaseLabel = "$($SsfRelease.label)"
+$expectedGameVersion = "$($SsfRelease.version)"
+$expectedWindowsVersion = "$($SsfRelease.platform_version)"
+$buildRoot = Join-Path $SsfRepositoryRoot "$($SsfRelease.directory)"
+$clientPath = Join-Path $buildRoot "SuperStarFighter-$($SsfRelease.tag).exe"
+$archivePath = Join-Path $buildRoot "SuperStarFighter-$($SsfRelease.tag)-Windows-x64.zip"
 $smokeLog = Join-Path $buildRoot 'beta-smoke.log'
 $friendReadme = Join-Path $buildRoot 'README-BETA.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES.txt'

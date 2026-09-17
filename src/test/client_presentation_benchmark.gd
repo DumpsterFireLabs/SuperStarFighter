@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Fixed 32-pilot workload. Measures CPU callbacks, not display frame cadence.
-var view: NetworkWorldView
+var view: NetworkWorldFixture
 var emitted_shots: int = 0
 
 
@@ -12,7 +12,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var bridge := NetworkBridge.new()
 	root.add_child(bridge)
-	view = NetworkWorldView.new()
+	view = NetworkWorldFixture.new()
 	root.add_child(view)
 	view.setup(bridge)
 	view.local_peer_id = 1
@@ -49,10 +49,10 @@ func _run() -> void:
 		"snapshot_p95_usec": NetworkBridge.percentile_usec(snapshot_times, 0.95),
 		"shot_batch_p50_usec": NetworkBridge.percentile_usec(shot_times, 0.5),
 		"shot_batch_p95_usec": NetworkBridge.percentile_usec(shot_times, 0.95),
-		"measured_batches": snapshot_times.size(), "ships": view.ships.size(), "shot_events": emitted_shots,
+		"measured_batches": snapshot_times.size(), "ships": view.replicated_visuals.ships.size(), "shot_events": emitted_shots,
 		"scope": "300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering."
 	}))
-	var valid := emitted_shots == 340 * 32 and view.ships.size() == 32
+	var valid := emitted_shots == 340 * 32 and view.replicated_visuals.ships.size() == 32
 	view.free()
 	bridge.free()
 	quit(0 if valid else 1)

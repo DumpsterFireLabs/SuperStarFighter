@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Real ENet loopback, production server/NPC stepping and client rendering in one
 ## process. Frame intervals include their combined work; this is not remote RTT.
-class MeasuredWorldView extends NetworkWorldView:
+class MeasuredWorldView extends NetworkWorldFixture:
 	var snapshot_usec: Array[int] = []
 	var physics_usec: Array[int] = []
 	var measuring: bool = false
@@ -39,40 +39,40 @@ class MeasuredVisuals extends NetworkReplicatedVisuals:
 	func _ensure_ship_from_identity(peer_id: int, state: Dictionary, identity: Dictionary) -> CombatShipView:
 		var began := Time.get_ticks_usec()
 		var result := super._ensure_ship_from_identity(peer_id, state, identity)
-		(view as MeasuredWorldView).record_operation(&"ship_identity", began)
+		(context.surface as MeasuredWorldView).record_operation(&"ship_identity", began)
 		return result
 
 	func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 		var began := Time.get_ticks_usec()
 		super._apply_snapshot_resources(ship, state)
-		(view as MeasuredWorldView).record_operation(&"ship_resources", began)
+		(context.surface as MeasuredWorldView).record_operation(&"ship_resources", began)
 
 	func _update_remote_ships() -> void:
 		var began := Time.get_ticks_usec()
 		super._update_remote_ships()
-		(view as MeasuredWorldView).record_operation(&"remote_motion", began)
+		(context.surface as MeasuredWorldView).record_operation(&"remote_motion", began)
 
 	func _step_projectile_visuals(delta: float) -> void:
 		var began := Time.get_ticks_usec()
 		super._step_projectile_visuals(delta)
-		(view as MeasuredWorldView).record_operation(&"projectile_motion", began)
+		(context.surface as MeasuredWorldView).record_operation(&"projectile_motion", began)
 
 class MeasuredPrediction extends NetworkLocalPrediction:
-	func step(delta: float, ship: CombatShipView) -> void:
+	func step(delta: float, ship: CombatShipView, mouse_world_position: Vector2) -> void:
 		var began := Time.get_ticks_usec()
-		super.step(delta, ship)
-		(view as MeasuredWorldView).record_operation(&"local_prediction", began)
+		super.step(delta, ship, mouse_world_position)
+		(context.surface as MeasuredWorldView).record_operation(&"local_prediction", began)
 
 	func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatShipView, revived: bool) -> void:
 		var began := Time.get_ticks_usec()
 		super.apply_local_snapshot(decoded, state, ship, revived)
-		(view as MeasuredWorldView).record_operation(&"local_reconciliation", began)
+		(context.surface as MeasuredWorldView).record_operation(&"local_reconciliation", began)
 
 class MeasuredHud extends NetworkHudCamera:
 	func _update_diagnostics(delta: float = 0.0) -> void:
 		var began := Time.get_ticks_usec()
 		super._update_diagnostics(delta)
-		(view as MeasuredWorldView).record_operation(&"hud", began)
+		(context.surface as MeasuredWorldView).record_operation(&"hud", began)
 
 var server: NetworkBridge
 var client: NetworkBridge
@@ -125,11 +125,9 @@ func _run() -> void:
 	client = _runtime("Client")
 	view = MeasuredWorldView.new()
 	view.replicated_visuals = MeasuredVisuals.new()
-	view.replicated_visuals.view = view
 	view.local_prediction = MeasuredPrediction.new()
-	view.local_prediction.view = view
 	view.hud_camera = MeasuredHud.new()
-	view.hud_camera.view = view
+	view.configure_owners()
 	root.add_child(view)
 	view.setup(client)
 	client.client_snapshot_received.connect(func(_snapshot: Dictionary) -> void: snapshots += 1)
@@ -153,8 +151,8 @@ func _run() -> void:
 			physics_samples.append(roundi(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000000))
 			draw_calls.append(roundi(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
 		if hide_world: view.hide()
-		peak_projectiles = maxi(peak_projectiles, view.authoritative_projectiles.size())
-		peak_ships = maxi(peak_ships, view.ships.size())
+		peak_projectiles = maxi(peak_projectiles, view.replicated_visuals.authoritative_projectiles.size())
+		peak_ships = maxi(peak_ships, view.replicated_visuals.ships.size())
 		previous = now
 	# Leave render-signal dispatch before tearing down presentation/transport.
 	await process_frame

@@ -98,6 +98,15 @@ static func _validate_elimination_attribution_payload(context: TestContext) -> v
 		context.expect_equal(int(records[0].killer_id), 2, "kill-feed record preserves the authoritative killer")
 		context.expect_equal(int(records[0].victim_id), 3, "kill-feed record preserves the authoritative victim")
 		context.expect_equal(String(records[0].reason), "combat", "credited kill-feed record identifies combat attribution")
+	coordinator.machine.config.silly_mode = true
+	var special := coordinator._elimination_records([3], [{"killer_id": 2, "target_id": 3, "silly_cue": "nope"}])
+	context.expect_equal(special[0].get("silly_cue", ""), "nope", "authoritative comeback cue reaches elimination payload")
+	coordinator._flag.state.flag_carrier_id = 3
+	var carrier_stop := coordinator._elimination_records([3], [{"killer_id": 2, "target_id": 3, "mechanic": "ram_contact"}])
+	context.expect_equal(carrier_stop[0].get("silly_cue", ""), "you_shall_not_pass", "ram kill stopping the flag carrier carries Gandalf cue")
+	var ordinary_stop := coordinator._elimination_records([3], [{"killer_id": 2, "target_id": 3}])
+	context.expect_true(not ordinary_stop[0].has("silly_cue"), "ordinary carrier kill does not trigger Gandalf")
+	coordinator._flag.state.flag_carrier_id = 0
 	var uncredited := coordinator._elimination_records([3], [])
 	context.expect_equal(int(uncredited[0].killer_id), 0, "uncredited elimination does not invent a killer")
 	context.expect_equal(String(uncredited[0].reason), "environment", "uncredited elimination is labeled as environmental")
@@ -198,6 +207,7 @@ static func _validate_complete_match_and_rematch(context: TestContext) -> void:
 
 static func _validate_match_extension(context: TestContext) -> void:
 	var config := _fast_config()
+	config.silly_mode = true
 	var lobby := ServerLobby.new(config)
 	var world := AuthoritativeWorld.new()
 	for peer_id in [20, 21]:
@@ -218,6 +228,7 @@ static func _validate_match_extension(context: TestContext) -> void:
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.ROUND_RESULT, "coordinator broadcasts a resumed round intermission")
 	context.expect_equal(coordinator.current_state_payload().extension_end_round_number, 6, "extension payload publishes the fixed ending round")
 	context.expect_equal(coordinator.current_state_payload().rounds_to_win, 1, "extension payload retains the original score target")
+	context.expect_true(coordinator.current_state_payload().silly_mode, "extension retains the authoritative DOINK music rule")
 	context.expect_equal((coordinator.machine.players[21] as PlayerMatchState).card_stacks, retained_build, "coordinator preserves drafted builds across extension")
 	_advance_until_state(world, coordinator, MatchStateMachine.State.DRAFT)
 	context.expect_equal(coordinator.current_state_payload().draft_bye_peer_id, 20, "decisive-round winner keeps the normal next-draft bye after extension")

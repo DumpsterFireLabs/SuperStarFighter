@@ -46,7 +46,10 @@ static func resolve_tick_with_feedback(
 			"damage": maxf(health_before - target.health, 0.0),
 			"source": String(event.get("source", "projectile")),
 			"mechanic": String(event.get("mechanic", "")),
+			"original_shooter_id": int(event.get("original_shooter_id", 0)),
 			"life_generation": target.life_generation,
+			"health_before": health_before,
+			"ricochet_count": int(event.get("ricochet_count", 0)),
 			"lethal": lethal,
 		})
 	return impacts

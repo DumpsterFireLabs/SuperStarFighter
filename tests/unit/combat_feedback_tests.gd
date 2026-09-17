@@ -5,6 +5,10 @@ const Buffer = preload("res://src/shared/combat/combat_feedback_buffer.gd")
 
 
 static func run(context: TestContext) -> void:
+	_silly_contacts(context)
+	_silly_comebacks(context)
+	_silly_danger(context)
+	_silly_more(context)
 	_damage_resolution(context)
 	_world_feedback(context)
 	_shield_feedback(context)
@@ -153,13 +157,13 @@ static func _shield_presentation_contract(context: TestContext) -> void:
 		var shield := defender.shield
 		shield.active = true
 		shield.energy = 26.0
-		var view := NetworkWorldView.new()
+		var view := NetworkWorldFixture.new()
 		view.local_peer_id = 1
 		view.controls_enabled = true
 		var ship := CombatShipView.new()
 		# Deliberately use base presentation stats, even for the upgraded remote.
 		ship.setup(peer_id, CombatStats.create_base(), Vector2(400, 400), Color.WHITE, peer_id == 1, "Shield")
-		view.ships[peer_id] = ship
+		view.replicated_visuals.ships[peer_id] = ship
 		var events: Array[StringName] = []
 		view.presentation_event.connect(func(event: StringName, _payload: Dictionary) -> void:
 			if event in [&"shield_block", &"shield_break"]:
@@ -221,12 +225,12 @@ static func _shield_presentation_contract(context: TestContext) -> void:
 		view.match_payload = {"entered_tick": 1255}
 		view.apply_combat_feedback(impact_payload)
 		context.expect_equal(events.size(), 5, "previous-heat feedback cannot replay even without a fresh snapshot")
-		view.ships.clear()
+		view.replicated_visuals.ships.clear()
 		ship.free()
 		view.free()
 
 
-static func _present_shield(world: AuthoritativeWorld, view: NetworkWorldView, ship: CombatShipView, tick: int, deliver_snapshot: bool = true) -> Dictionary:
+static func _present_shield(world: AuthoritativeWorld, view: NetworkWorldFixture, ship: CombatShipView, tick: int, deliver_snapshot: bool = true) -> Dictionary:
 	# Snapshot delivery is independent of the authoritative reliable feedback.
 	if deliver_snapshot:
 		var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view())
@@ -326,3 +330,185 @@ static func _profiling(context: TestContext) -> void:
 	context.expect_equal(profiled.drain_combat_feedback(), ordinary.drain_combat_feedback(), "profiling does not change recipient feedback")
 	context.expect_true(profiled.last_projectile_profile_usec.has("ship_candidates"), "projectile profile exposes broad-phase candidate counts")
 	context.expect_true(profiled.last_projectile_profile_usec.has("obstacle_sweep"), "projectile profile exposes static collision timing")
+
+
+static func _silly_contacts(context: TestContext) -> void:
+	var world := AuthoritativeWorld.new()
+	world.set_silly_mode(true)
+	var attacker := world.add_peer(1)
+	var target := world.add_peer(2)
+	attacker.velocity = Vector2(300, 0)
+	target.aim_angle = 0.0
+	world.silly_observer.record_silly_contact(world, attacker, target, Vector2.RIGHT)
+	var batch := world.drain_combat_feedback()
+	context.expect_equal(batch[1].silly_cue, "uwu", "rear impact confirms uwu to attacker")
+	world.silly_observer.record_silly_contact(world, attacker, target, Vector2.RIGHT)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "sustained contact is throttled")
+	world.server_tick += GameConstants.PHYSICS_TICKS_PER_SECOND * 2
+	attacker.shield.active = true
+	attacker.stats.shield_ram_damage = 10.0
+	world.silly_observer.record_silly_contact(world, attacker, target, Vector2.RIGHT)
+	context.expect_equal(world.drain_combat_feedback()[1].silly_cue, "bonk", "active shield ram takes priority over rear impact")
+	world._resolve_damage_events([{"target_id": 2, "attacker_id": 1, "damage": 1.0}])
+	target.health = CombatStats.create_base().max_health
+	context.expect_true(world.heat_damaged_peers.has(2), "healing cannot restore flawless eligibility")
+	world.prepare_heat({1: CombatStats.create_base(), 2: CombatStats.create_base()}, {1: Vector2(350, 400), 2: Vector2(600, 400)})
+	context.expect_true(world.heat_damaged_peers.is_empty(), "new heat restores flawless eligibility despite earlier damage")
+	world._resolve_damage_events([{"target_id": 2, "attacker_id": 1, "damage": 1.0}])
+	context.expect_true(world.heat_damaged_peers.has(2), "damage in the new heat independently disqualifies flawless")
+
+	world.reset_match_inventories()
+	context.expect_true(world.heat_damaged_peers.is_empty(), "fresh match resets flawless eligibility")
+
+
+static func _silly_comebacks(context: TestContext) -> void:
+	var world := AuthoritativeWorld.new()
+	world.set_silly_mode(true)
+	var hero := world.add_peer(1)
+	var enemy := world.add_peer(2)
+	world._resolve_damage_events([{"attacker_id": 2, "target_id": 1, "damage": 92.0}])
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "call_an_ambulance", "critical hull after enemy damage qualifies for ambulance")
+	hero.health = 10.0
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "", "ten percent hull is not below ten percent")
+	hero.health = 8.0
+	world.server_tick = GameConstants.PHYSICS_TICKS_PER_SECOND * 5 + 1
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "", "old damage cannot qualify for ambulance")
+	world._record_shield_feedback(2, 1, "perfect_guard")
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "nope", "perfect guard enables counterkill against that shooter")
+	world.server_tick += GameConstants.PHYSICS_TICKS_PER_SECOND * 2
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "nope", "counterkill allows the two second boundary")
+	world.server_tick += 1
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "", "counterkill expires after two seconds")
+	world._record_shield_feedback(2, 1, "perfect_guard")
+	hero.life_generation += 1
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "", "new life does not inherit block history")
+	world._record_shield_feedback(2, 1, "perfect_guard")
+	enemy.life_generation += 1
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {}), "", "shooter respawn invalidates old block history")
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {"mechanic": "reflected", "original_shooter_id": 3}), "", "reflected kill of a bystander is not Uno Reverse")
+	var projectile := ProjectileState.create(123, 2, 1, hero.position, 0.0, CombatStats.create_base())
+	projectile.rebound_toward(1, enemy.position, 1.0, 1.0)
+	context.expect_equal(projectile.original_shooter_id, 2, "reflection retains original shooter identity")
+	projectile.damage = 200.0
+	projectile.position = enemy.position
+	var damage: Array[Dictionary] = []
+	world._resolve_projectile_ship_hit(projectile, 2, damage)
+	world._resolve_damage_events(damage)
+	var kills := world.drain_kill_events()
+	context.expect_equal(kills[0].get("silly_cue", ""), "jokes_on_you", "real reflected projectile kill carries reversal cue")
+	world.reset_match_inventories()
+	context.expect_true(world.silly_observer._silly_perfect_blocks.is_empty() and world.silly_observer._silly_recent_damage.is_empty(), "rematch clears comeback history")
+
+
+static func _silly_danger(context: TestContext) -> void:
+	var world := AuthoritativeWorld.new()
+	world.set_silly_mode(true)
+	var hero := world.add_peer(1)
+	for peer_id in [2, 3, 4]:
+		world.add_peer(peer_id).position = hero.position + Vector2(0, 30 * (peer_id - 1))
+	hero.health = 14.0
+	var peers: Array[int] = [1, 2, 3, 4]
+	(world.combatants[4] as CombatantState).cloak_remaining = 5.0
+	world.silly_observer.observe_silly_danger(world, peers)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "cloaked enemies cannot trigger danger proximity")
+	(world.combatants[4] as CombatantState).cloak_remaining = 0.0
+	world.silly_observer.observe_silly_danger(world, peers)
+	context.expect_equal(world.drain_combat_feedback().get(1, {}).get("silly_cue", ""), "im_in_danger", "critical hull with three visible enemies triggers Ralph")
+	world.server_tick += GameConstants.PHYSICS_TICKS_PER_SECOND * 31
+	world.silly_observer.observe_silly_danger(world, peers)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "remaining in danger does not repeat the line")
+	hero.health = 15.0
+	world.silly_observer.observe_silly_danger(world, peers)
+	hero.health = 14.0
+	world.silly_observer.observe_silly_danger(world, peers)
+	context.expect_true(world.drain_combat_feedback().has(1), "re-entering danger after cooldown can play again")
+	hero.health = 100.0
+	world.silly_observer.observe_silly_danger(world, peers)
+	hero.health = 14.0
+	world.silly_observer.observe_silly_danger(world, peers)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "danger re-entry inside thirty seconds stays silent")
+	world.silly_observer._silly_danger_active.clear()
+	world.silly_observer._silly_danger_ticks.clear()
+	world.team_assignments = {1: 1, 4: 1}
+	world.silly_observer.observe_silly_danger(world, peers)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "allies do not count toward danger")
+	var cloak_world := AuthoritativeWorld.new()
+	cloak_world.set_silly_mode(true)
+	var cloaker := cloak_world.add_peer(1)
+	cloak_world.add_peer(2)
+	cloaker.cloak_remaining = 0.001
+	cloak_world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_equal(cloak_world.silly_observer.silly_kill_cue(cloak_world, 1, 2, {}), "surprise", "cloak expiration starts surprise window")
+	cloak_world.server_tick += GameConstants.PHYSICS_TICKS_PER_SECOND
+	context.expect_equal(cloak_world.silly_observer.silly_kill_cue(cloak_world, 1, 2, {}), "surprise", "surprise permits one second boundary")
+	cloak_world.server_tick += 1
+	context.expect_equal(cloak_world.silly_observer.silly_kill_cue(cloak_world, 1, 2, {}), "", "surprise expires after one second")
+	cloak_world.silly_observer._silly_uncloaked[1] = {"tick": cloak_world.server_tick, "life": cloaker.life_generation}
+	cloaker.life_generation += 1
+	context.expect_equal(cloak_world.silly_observer.silly_kill_cue(cloak_world, 1, 2, {}), "", "new life cannot inherit surprise eligibility")
+	var feedback := Buffer.new()
+	feedback.record_silly_cue(1, "im_in_danger")
+	feedback.record_silly_cue(1, "bonk")
+	context.expect_equal(feedback.drain()[1].silly_cue, "im_in_danger", "collision feedback cannot overwrite danger cue")
+
+
+static func _silly_more(context: TestContext) -> void:
+	var world := AuthoritativeWorld.new()
+	world.set_silly_mode(true)
+	var hero := world.add_peer(1)
+	var enemy := world.add_peer(2)
+	hero.velocity = Vector2(700, 0)
+	hero.afterburner_remaining = 1.0
+	world.silly_observer.observe_silly_wall_collision(world, hero, Vector2.ZERO)
+	context.expect_equal(world.drain_combat_feedback().get(1, {}).get("silly_cue", ""), "record_scratch", "afterburner wall crash emits record scratch")
+	world.silly_observer.observe_silly_wall_collision(world, hero, Vector2.ZERO)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "wall crash cue has twenty second cooldown")
+	world.silly_observer._silly_feedback_ticks.clear()
+	hero.afterburner_remaining = 0.0
+	world.silly_observer.observe_silly_wall_collision(world, hero, Vector2.ZERO)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "ordinary wall contact stays silent")
+	enemy.position = hero.position + Vector2(0, 80)
+	enemy.velocity = Vector2(0, -200)
+	world.observe_silly_pickup(1, hero.position)
+	context.expect_equal(world.drain_combat_feedback().get(1, {}).get("silly_cue", ""), "yoink", "pickup raced by nearby approaching enemy emits yoink")
+	world.silly_observer._silly_feedback_ticks.clear()
+	enemy.cloak_remaining = 1.0
+	world.observe_silly_pickup(1, hero.position)
+	context.expect_true(world.drain_combat_feedback().is_empty(), "yoink does not reveal cloaked rivals")
+	enemy.cloak_remaining = 0.0
+	enemy.position = hero.position + Vector2(0, 200)
+	hero.velocity = Vector2(0, 100)
+	enemy.velocity = Vector2(0, 300)
+	enemy.afterburner_remaining = 1.0
+	world.silly_observer._remember_silly_contact(world, world.silly_observer._silly_recent_damage, 2, 1)
+	world.silly_observer.observe_silly_pursuit(world, [1, 2])
+	context.expect_equal(world.drain_combat_feedback().get(1, {}).get("silly_cue", ""), "why_are_you_running", "recently hit enemy fleeing an active pursuit triggers why are you running")
+	world.silly_observer._silly_feedback_ticks.clear()
+	enemy.velocity = Vector2(0, -300)
+	world.silly_observer.observe_silly_pursuit(world, [1, 2])
+	context.expect_true(world.drain_combat_feedback().is_empty(), "enemy charging toward player is not fleeing")
+	hero.health = 9.0
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {"ricochet_count": 1}), "calculated", "critical hull ricochet kill qualifies for calculated")
+	hero.health = 10.0
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {"ricochet_count": 1}), "", "calculated needs less than ten percent hull")
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {"source": "missile"}), "technologia", "missile kill qualifies for technologia")
+	context.expect_equal(world.silly_observer.silly_kill_cue(world, 1, 2, {"source": "missile"}), "", "technologia has twenty second cooldown")
+	var mine_world := AuthoritativeWorld.new()
+	mine_world.set_silly_mode(true)
+	mine_world.add_peer(1).health = 10.0
+	mine_world.add_peer(2)
+	mine_world._resolve_damage_events([{"target_id": 1, "attacker_id": 2, "damage": 20.0, "source": "mine"}])
+	context.expect_equal(mine_world.drain_combat_feedback().get(1, {}).get("silly_cue", ""), "it_was_at_this_moment", "critical mine victim hears moment cue before sad trombone")
+	var trade := AuthoritativeWorld.new()
+	trade.set_silly_mode(true)
+	trade.add_peer(1)
+	trade.add_peer(2)
+	trade._resolve_damage_events([{"projectile_id": 1, "target_id": 1, "attacker_id": 2, "damage": 100.0}, {"projectile_id": 2, "target_id": 2, "attacker_id": 1, "damage": 100.0}])
+	var batch := trade.drain_combat_feedback()
+	context.expect_true(not batch[1].has("silly_cue") and not batch[2].has("silly_cue"), "simultaneous traded hits prevent false hitless-death cues")
+	var hitless := AuthoritativeWorld.new()
+	hitless.set_silly_mode(true)
+	hitless.add_peer(1)
+	hitless.add_peer(2)
+	hitless._resolve_damage_events([{"target_id": 1, "attacker_id": 2, "damage": 100.0}])
+	context.expect_equal(hitless.drain_combat_feedback().get(1, {}).get("silly_cue", ""), "sad_trombone", "death without landing hull damage plays sad trombone")

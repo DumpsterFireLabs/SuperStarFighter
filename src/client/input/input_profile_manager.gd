@@ -1,6 +1,8 @@
 class_name InputProfileManager
 extends Node
 
+const SettingsStore = preload("res://src/client/settings_store.gd")
+
 signal scheme_changed(scheme: Scheme)
 signal flight_mode_changed(flight_mode: FlightMode)
 signal bindings_changed()
@@ -16,7 +18,7 @@ enum FlightMode {
 	RELATIVE,
 }
 
-const SETTINGS_PATH: String = "user://super_star_fighter_settings.cfg"
+const SETTINGS_PATH: String = SettingsStore.PATH
 const SETTINGS_SECTION: String = "input"
 const KEYBOARD_SECTION: String = "input_keyboard_mouse"
 const CONTROLLER_SECTION: String = "input_controller"
@@ -132,14 +134,14 @@ func load_settings() -> void:
 
 
 func save_settings() -> Error:
-	var config := ConfigFile.new()
-	config.load(settings_path)
-	config.set_value(SETTINGS_SECTION, "scheme", int(active_scheme))
-	config.set_value(SETTINGS_SECTION, "flight_mode", int(flight_mode))
-	config.set_value(SETTINGS_SECTION, "controller_deadzone", controller_deadzone)
-	_save_profile(config, KEYBOARD_SECTION, keyboard_bindings, KEYBOARD_REBIND_ACTIONS)
-	_save_profile(config, CONTROLLER_SECTION, controller_bindings, CONTROLLER_REBIND_ACTIONS)
-	return config.save(settings_path)
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		config.set_value(SETTINGS_SECTION, "scheme", int(active_scheme))
+		config.set_value(SETTINGS_SECTION, "flight_mode", int(flight_mode))
+		config.set_value(SETTINGS_SECTION, "controller_deadzone", controller_deadzone)
+		_save_profile(config, KEYBOARD_SECTION, keyboard_bindings, KEYBOARD_REBIND_ACTIONS)
+		_save_profile(config, CONTROLLER_SECTION, controller_bindings, CONTROLLER_REBIND_ACTIONS)
+	, settings_path)
+
 
 
 func set_scheme(scheme: Scheme, save: bool = true) -> void:

@@ -1,5 +1,8 @@
 extends Node
 
+const ServerRuntime = preload("res://src/server/server_runtime.gd")
+var runtime := ServerRuntime.new()
+
 ## Owns the embedded authority and its isolated MultiplayerAPI registration.
 ## RPC paths under the registration stay Main/NetworkBridge, like a dedicated host.
 var runtime_root: Node
@@ -23,9 +26,7 @@ func start(configuration: Dictionary) -> Error:
 	var server_main := Node.new()
 	server_main.name = "Main"
 	runtime_root.add_child(server_main)
-	server_bridge = NetworkBridge.new()
-	server_bridge.name = "NetworkBridge"
-	server_main.add_child(server_bridge)
+	server_bridge = runtime.attach(server_main)
 	var error := server_bridge.start_server(configuration)
 	if error != OK:
 		last_error = server_bridge.last_error
@@ -34,8 +35,7 @@ func start(configuration: Dictionary) -> Error:
 
 
 func stop() -> void:
-	if is_instance_valid(server_bridge):
-		server_bridge.stop()
+	runtime.stop()
 	if is_instance_valid(runtime_root):
 		_registered_tree.set_multiplayer(null, _registered_path)
 		runtime_root.free()

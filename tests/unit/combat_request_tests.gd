@@ -148,19 +148,19 @@ static func _missile_interception(context: TestContext) -> void:
 static func _selection_events(context: TestContext, parent: Node) -> void:
 	var profiles := InputProfileManager.new()
 	profiles.apply_active_bindings()
-	var view := NetworkWorldView.new()
+	var view := NetworkWorldFixture.new()
 	parent.add_child(view)
 	view.set_network_active(true)
 	view.set_physics_process(false)
 	view.local_peer_id = 1
 	view.controls_enabled = true
 	var stats := StatSystem.derive({&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1}, CardCatalog.create_default())
-	view.local_stats = stats
+	view.local_prediction.local_stats = stats
 	var ship := CombatShipView.new()
 	view.add_child(ship)
 	ship.setup(1, stats, Vector2(400, 300), Color.WHITE, true)
-	view.ships[1] = ship
-	view.selected_special_slot = 0
+	view.replicated_visuals.ships[1] = ship
+	view.local_prediction.selected_special_slot = 0
 	var event := InputEventKey.new()
 	event.physical_keycode = KEY_E
 	event.pressed = true
@@ -169,24 +169,24 @@ static func _selection_events(context: TestContext, parent: Node) -> void:
 	view.get_viewport().push_input(event)
 	event.pressed = true
 	view.get_viewport().push_input(event)
-	context.expect_equal(view.selected_special_slot, 2, "two quick E taps select missiles before any physics tick")
+	context.expect_equal(view.local_prediction.selected_special_slot, 2, "two quick E taps select missiles before any physics tick")
 	event.echo = true
 	view.get_viewport().push_input(event)
-	context.expect_equal(view.selected_special_slot, 2, "holding E does not repeatedly cycle abilities")
+	context.expect_equal(view.local_prediction.selected_special_slot, 2, "holding E does not repeatedly cycle abilities")
 	event.echo = false
 	event.pressed = false
 	view.get_viewport().push_input(event)
 	event.physical_keycode = KEY_Q
 	event.pressed = true
 	view.get_viewport().push_input(event)
-	context.expect_equal(view.selected_special_slot, 1, "Q selects the previous special")
+	context.expect_equal(view.local_prediction.selected_special_slot, 1, "Q selects the previous special")
 	view.controls_enabled = false
 	view.match_payload = {"state_name": "COUNTDOWN"}
 	view._input(event)
-	context.expect_equal(view.selected_special_slot, 0, "countdown allows selecting the ability advertised in the HUD")
+	context.expect_equal(view.local_prediction.selected_special_slot, 0, "countdown allows selecting the ability advertised in the HUD")
 	view.input_blocked = true
 	view._input(event)
-	context.expect_equal(view.selected_special_slot, 0, "modal input blocking preserves ability selection")
+	context.expect_equal(view.local_prediction.selected_special_slot, 0, "modal input blocking preserves ability selection")
 	event.pressed = false
 	view.get_viewport().push_input(event)
 	view.free()

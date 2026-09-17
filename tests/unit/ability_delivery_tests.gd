@@ -58,7 +58,7 @@ static func _reliable_press_delivery(context: TestContext, parent: Node) -> void
 		await parent.get_tree().process_frame
 		var bridge := RecordingBridge.new()
 		parent.add_child(bridge)
-		var view := NetworkWorldView.new()
+		var view := NetworkWorldFixture.new()
 		parent.add_child(view)
 		view.setup(bridge)
 		view.set_network_active(true)
@@ -76,21 +76,21 @@ static func _reliable_press_delivery(context: TestContext, parent: Node) -> void
 		var ship := CombatShipView.new()
 		view.add_child(ship)
 		ship.setup(2, stats, Vector2(500, 720), Color.WHITE, true)
-		view.ships[2] = ship
-		view.local_stats = stats
+		view.replicated_visuals.ships[2] = ship
+		view.local_prediction.local_stats = stats
 		var correction := ship.combatant.prediction_state()
 		correction.merge({"mine_charges": 3, "missile_charges": 3, "cloak_charges": 3})
-		view.prediction.reset_to_snapshot(correction, stats)
+		view.local_prediction.prediction.reset_to_snapshot(correction, stats)
 		view.local_prediction.prediction_initialized = true
 		view.local_prediction._sync_predicted_resources(ship)
-		view.selected_special_slot = slot
-		view.local_prediction.step(1.0 / 60.0, ship)
+		view.local_prediction.selected_special_slot = slot
+		view.local_prediction.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 		view.local_prediction.input_send_accumulator = 0.0
 		Input.action_press("special")
 		# Exercise standalone ability presses as well as a simultaneous edge;
 		# shield reliability must not accidentally hide an ability regression.
 		if slot == SpecialAbilitySelection.Slot.CLOAK: Input.action_press("shield")
-		view.local_prediction.step(1.0 / 60.0, ship)
+		view.local_prediction.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 		Input.action_release("special")
 		Input.action_release("shield")
 		context.expect_equal(bridge.edges.size(), 1, "standalone or combined ability edge sends one immediate reliable frame")
@@ -109,7 +109,7 @@ static func _movement_edge_delivery(context: TestContext, parent: Node) -> void:
 	await parent.get_tree().process_frame
 	var bridge := RecordingBridge.new()
 	parent.add_child(bridge)
-	var view := NetworkWorldView.new()
+	var view := NetworkWorldFixture.new()
 	parent.add_child(view)
 	view.setup(bridge)
 	view.set_network_active(true)
@@ -119,19 +119,19 @@ static func _movement_edge_delivery(context: TestContext, parent: Node) -> void:
 	var ship := CombatShipView.new()
 	view.add_child(ship)
 	ship.setup(2, CombatStats.create_base(), Vector2(500, 720), Color.WHITE, true)
-	view.ships[2] = ship
+	view.replicated_visuals.ships[2] = ship
 	var owner := view.local_prediction
 	Input.action_press("move_right")
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_equal(bridge.edges.size(), 1, "thrust begins reliably when ordinary input is lost")
 	for index in 12:
-		owner.step(1.0 / 60.0, ship)
+		owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	Input.action_press("move_up")
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_equal(bridge.edges.size(), 1, "held thrust and direction changes do not flood reliable input")
 	Input.action_release("move_right")
 	Input.action_release("move_up")
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_equal(bridge.edges.size(), 2, "thrust release bypasses ordinary packet loss")
 	var world := AuthoritativeWorld.new()
 	world.add_peer(2)
@@ -143,23 +143,23 @@ static func _movement_edge_delivery(context: TestContext, parent: Node) -> void:
 	context.expect_false(world.submit_input(2, start), "delayed reliable start cannot override a newer stop")
 	Input.action_press("move_right")
 	Input.action_press("shield")
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_equal(bridge.edges.size(), 3, "simultaneous shield and thrust start share one reliable frame")
 	context.expect_true(InputPacketCodec.decode(bridge.edges[2]).frame.shielding, "coalescing thrust preserves shield protection")
 	Input.action_release("shield")
 	owner.input_blocked = true
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_true(InputPacketCodec.decode(bridge.edges.back()).frame.movement.is_zero_approx(), "opening an input-blocking screen reliably releases thrust")
 	owner.input_blocked = false
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	ship.combatant.alive = false
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_true(InputPacketCodec.decode(bridge.edges.back()).frame.movement.is_zero_approx(), "death releases thrust even while the movement key remains held")
 	ship.combatant.alive = true
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	owner.reset_for_countdown()
 	var before_reset := bridge.edges.size()
-	owner.step(1.0 / 60.0, ship)
+	owner.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 	context.expect_equal(bridge.edges.size(), before_reset + 1, "a new heat sends held thrust as a fresh start")
 	Input.action_release("move_right")
 	view.free()

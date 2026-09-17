@@ -1,5 +1,7 @@
 extends Node
 
+const SettingsStore = preload("res://src/client/settings_store.gd")
+
 ## Owns settings controls, preferences, display modes, and binding capture.
 ## The client coordinates navigation between gameplay and these screens.
 
@@ -574,7 +576,7 @@ func _load_video_settings() -> void:
 	if DisplayServer.get_name() != "headless":
 		current_resolution = DisplayServer.window_get_size()
 	var config := ConfigFile.new()
-	if config.load(AudioDirector.SETTINGS_PATH) == OK:
+	if config.load(SettingsStore.PATH) == OK:
 		var configured_mode := int(config.get_value("video", "window_mode", WindowModeOption.WINDOWED))
 		if configured_mode >= WindowModeOption.WINDOWED and configured_mode <= WindowModeOption.EXCLUSIVE_FULLSCREEN:
 			current_window_mode = configured_mode
@@ -625,13 +627,12 @@ func _update_resolution_control_state() -> void:
 		display_mode_note.text = "Windowed mode uses the selected client-area resolution."
 
 
-func _save_video_settings() -> void:
-	var config := ConfigFile.new()
-	config.load(AudioDirector.SETTINGS_PATH)
-	config.set_value("video", "window_mode", current_window_mode)
-	config.set_value("video", "width", current_resolution.x)
-	config.set_value("video", "height", current_resolution.y)
-	config.save(AudioDirector.SETTINGS_PATH)
+func _save_video_settings() -> Error:
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		config.set_value("video", "window_mode", current_window_mode)
+		config.set_value("video", "width", current_resolution.x)
+		config.set_value("video", "height", current_resolution.y)
+	, SettingsStore.PATH)
 
 
 

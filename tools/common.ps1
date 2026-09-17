@@ -1,6 +1,8 @@
 Set-StrictMode -Version Latest
 
 $SsfRepositoryRoot = Split-Path -Parent $PSScriptRoot
+$SsfRelease = (& python (Join-Path $PSScriptRoot 'release_metadata.py') | ConvertFrom-Json)
+if ($LASTEXITCODE -ne 0) { throw 'Could not load release.json.' }
 $SsfGodotVersionTag = '4.7.2-stable'
 $SsfGodotTemplateVersion = '4.7.2.stable'
 $SsfToolsRoot = Join-Path $SsfRepositoryRoot '.tools'
@@ -57,6 +59,8 @@ function Assert-SsfGodotResult {
 }
 
 function Assert-SsfShippingPolicy {
+    & python (Join-Path $PSScriptRoot 'update-release-metadata.py')
+    if ($LASTEXITCODE -ne 0) { throw 'Release metadata is stale.' }
     & python (Join-Path $SsfRepositoryRoot 'tools/update-export-policy.py') --check
     if ($LASTEXITCODE -ne 0) { throw 'Shipping resource allowlists are stale.' }
     & python (Join-Path $SsfRepositoryRoot 'tools/verify-attribution.py')

@@ -206,29 +206,29 @@ static func _team_presentation(context: TestContext, parent: Node) -> void:
 	for id in [1, 2, 3]:
 		world.add_peer(id)
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(1, 0, world.snapshot_states(), (world.combatants[1] as CombatantState).prediction_state())))
-	var ally := view.ships[2] as CombatShipView
-	var enemy := view.ships[3] as CombatShipView
+	var ally := view.replicated_visuals.ships[2] as CombatShipView
+	var enemy := view.replicated_visuals.ships[3] as CombatShipView
 	context.expect_equal(ally.team_marker_text(), "T1 ALLY", "ally has explicit team identity independent of cosmetic color")
 	context.expect_equal(enemy.team_marker_text(), "T8 ENEMY", "eighth team retains an explicit enemy number and label")
 	context.expect_true(ally.allied_to_local and not enemy.allied_to_local, "ship marker shape follows authoritative allegiance")
-	context.expect_equal(view.projectile_layer.projectile_color_for_owner(3), GameModeRules.team_color(8), "team projectile color follows ownership rather than weapon rarity")
-	context.expect_true(view.projectile_layer.is_friendly_owner(2), "friendly ordnance uses the ally marker")
-	var local_position := (view.ships[1] as CombatShipView).global_position
-	view.authoritative_projectiles.add(ProjectileState.create(1, 2, 1, local_position - Vector2(200, 0), 0.0, CombatStats.create_base()))
-	view._refresh_nearest_incoming_projectile()
+	context.expect_equal(view.replicated_visuals.projectile_layer.projectile_color_for_owner(3), GameModeRules.team_color(8), "team projectile color follows ownership rather than weapon rarity")
+	context.expect_true(view.replicated_visuals.projectile_layer.is_friendly_owner(2), "friendly ordnance uses the ally marker")
+	var local_position := (view.replicated_visuals.ships[1] as CombatShipView).global_position
+	view.replicated_visuals.authoritative_projectiles.add(ProjectileState.create(1, 2, 1, local_position - Vector2(200, 0), 0.0, CombatStats.create_base()))
+	view.hud_camera._refresh_nearest_incoming_projectile()
 	context.expect_true(view.nearest_incoming_offscreen_projectile() == null, "friendly projectiles do not produce hostile incoming warnings")
-	view.authoritative_projectiles.transfer_owner(1, 3)
+	view.replicated_visuals.authoritative_projectiles.transfer_owner(1, 3)
 	context.expect_true(view.nearest_incoming_offscreen_projectile() != null, "reflected hostile ownership restores incoming threat warning")
 	client.latest_match_payload = payload.duplicate(true)
-	client.latest_match_payload["overtime_start_tick"] = 1
-	client.latest_match_payload["heat_end_tick"] = 601
+	client.match_state.update_fields({"overtime_start_tick": 1})
+	client.match_state.update_fields({"heat_end_tick": 601})
 	context.expect_true(client._combat_hud_status("ACTIVE_HEAT", 0.0).contains("ENDS 10s"), "HUD shows authoritative overtime end countdown")
-	view.powerup_layer.add_powerup({"powerup_id": 7, "position": Vector2(400, 400), "card_id": &"twin_shot"})
+	view.replicated_visuals.powerup_layer.add_powerup({"powerup_id": 7, "position": Vector2(400, 400), "card_id": &"twin_shot"})
 	client._on_match_event(&"CARD_POWERUP_REMOVED", 2, {"powerup_id": 7, "reason": "expired"})
-	context.expect_false(view.powerup_layer.powerups.has(7), "server expiry event removes the pickup marker without awarding a card")
+	context.expect_false(view.replicated_visuals.powerup_layer.powerups.has(7), "server expiry event removes the pickup marker without awarding a card")
 	payload.game_mode = GameModeRules.Mode.DEATH_MATCH
 	view.apply_match_state(payload)
 	context.expect_equal(ally.team_marker_text(), "", "switching to free-for-all clears stale team labels")
-	context.expect_false(view.projectile_layer.has_team_marker(2), "free-for-all restores weapon rarity presentation")
+	context.expect_false(view.replicated_visuals.projectile_layer.has_team_marker(2), "free-for-all restores weapon rarity presentation")
 	parent.remove_child(client)
 	client.free()

@@ -20,7 +20,7 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 		&"rail_accelerant",
 		&"piercing_rounds",
 	]
-	client.draft_controller._show_draft_offer({
+	client.draft_controller.show_draft_offer({
 		"offer_token": "render-test-token",
 		"card_ids": card_ids,
 		"deadline_tick": 1800,
@@ -53,22 +53,22 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	var draft_preview := draft_hover._make_custom_tooltip(draft_hover.tooltip_text) as PanelContainer
 	context.expect_true(draft_preview != null and draft_preview.name == "CardPreview", "draft hover opens the rarity-styled graphical card preview")
 	draft_preview.free()
-	client.draft_controller._select_draft_card(0)
+	client.draft_controller.select_draft_card(0)
 	context.expect_equal(client.draft_controller.pending_draft_index, 0, "clicking a draft card stages it for confirmation")
 	context.expect_true(client.draft_controller.draft_confirmation_row.visible, "staged card displays explicit confirmation controls")
 	context.expect_true(client.draft_controller.draft_confirmation_label.text.contains("OVERCHARGED THRUSTERS"), "confirmation names the card about to be locked")
 	for button_value in client.draft_controller.draft_buttons:
 		context.expect_false((button_value as Button).disabled, "staging a card keeps the draw changeable")
-	client.draft_controller._cancel_draft_confirmation()
+	client.draft_controller.cancel_draft_confirmation()
 	context.expect_equal(client.draft_controller.pending_draft_index, -1, "choose another clears the staged card")
 	context.expect_false(client.draft_controller.draft_confirmation_row.visible, "choose another dismisses confirmation controls")
-	client.draft_controller._select_draft_card(0)
+	client.draft_controller.select_draft_card(0)
 	client.draft_controller._confirm_draft_card()
 	context.expect_equal(client.draft_controller.pending_draft_index, -1, "confirming clears the pending choice")
 	context.expect_true((client.draft_controller.draft_buttons[0] as Button).text.contains("SELECTED"), "confirmed draft card renders its locked selection")
 	for button_value in client.draft_controller.draft_buttons:
 		context.expect_true((button_value as Button).disabled, "all draft choices lock only after confirmation")
-	client.draft_controller._show_draft_offer({
+	client.draft_controller.show_draft_offer({
 		"offer_token": "rarity-precision-token",
 		"card_ids": [&"reality_shredder", &"chronal_shield", &"sunbeam_core", &"aegis_matrix", &"hollow_points"],
 		"deadline_tick": 1800,
@@ -76,12 +76,12 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	context.expect_true(client.draft_controller.draft_rarity_labels[0].text.contains("0.50%"), "unobtanium card badge renders the rebalanced fractional chance")
 	context.expect_true(client.draft_controller.draft_rarity_labels[1].text.contains("1.2%"), "mythical card badge renders fractional chance precision")
 	client.bridge.session.local_peer_id = 7
-	client.latest_match_payload["draft_bye_peer_id"] = 7
+	client.match_state.update_fields({"draft_bye_peer_id": 7})
 	client._update_match_presentation()
 	context.expect_true(client.draft_controller.draft_title.text.contains("SKIPS THIS DRAFT"), "round winner sees a plain explanation of the draft bye")
-	client.latest_match_payload.erase("draft_bye_peer_id")
-	client.latest_match_payload["builds"] = {"7": {&"twin_shot": 5, &"heavy_rounds": 2}}
-	client.draft_controller._show_draft_offer({"offer_token": "cap-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	client.match_state.update_fields({"draft_bye_peer_id": 0})
+	client.match_state.update_fields({"builds": {"7": {&"twin_shot": 5, &"heavy_rounds": 2}}})
+	client.draft_controller.show_draft_offer({"offer_token": "cap-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
 	var capped := client.draft_controller.draft_buttons[0] as CardHoverButton
 	context.expect_true(capped.has_limited_effect(), "sixth Twin Shot detects the projectile count limit")
 	context.expect_true((capped.get_node("CardContent/Details/Stack") as Label).text.contains("NO BENEFIT"), "draft exposes drawback-only pick without requiring hover")
@@ -96,11 +96,11 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 	context.expect_approx(rows[&"projectile_damage"].before, before.projectile_damage, "comparison includes other owned cards in current damage")
 	context.expect_approx(rows[&"projectile_damage"].after, after.projectile_damage, "comparison exposes actual damage drawback after the capped pick")
 	context.expect_true(float(rows[&"projectile_damage"].after) < float(rows[&"projectile_damage"].before), "capped Twin Shot still visibly shows its damage penalty")
-	client.draft_controller._select_draft_card(0)
+	client.draft_controller.select_draft_card(0)
 	context.expect_true(client.draft_controller.draft_confirmation_label.text.contains("NO EFFECTIVE BENEFIT"), "confirmation retains the drawback-only warning")
-	client.draft_controller._cancel_draft_confirmation()
-	client.latest_match_payload["builds"] = {7: {}}
-	client.draft_controller._show_draft_offer({"offer_token": "new-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	client.draft_controller.cancel_draft_confirmation()
+	client.match_state.update_fields({"builds": {7: {}}})
+	client.draft_controller.show_draft_offer({"offer_token": "new-feedback", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
 	context.expect_false(capped.has_limited_effect(), "a reused offer button clears the previous build's cap warning")
 	context.expect_true(capped.output_warning.is_empty(), "fresh multishot benefit clears a reused output-loss warning")
 	_validate_output_warnings(context, client)
@@ -111,8 +111,8 @@ static func run(context: TestContext, tree_parent: Node) -> void:
 
 static func _validate_output_warnings(context: TestContext, client: Node) -> void:
 	# Third Twin Shot loses output while still adding a projectile below the cap.
-	client.latest_match_payload["builds"] = {7: {&"twin_shot": 2}}
-	client.draft_controller._show_draft_offer({"offer_token": "pre-cap-loss", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	client.match_state.update_fields({"builds": {7: {&"twin_shot": 2}}})
+	client.draft_controller.show_draft_offer({"offer_token": "pre-cap-loss", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
 	var button := client.draft_controller.draft_buttons[0] as CardHoverButton
 	context.expect_false(button.has_limited_effect(), "pre-cap output loss is distinct from stat saturation")
 	context.expect_false(button.no_effective_benefit, "output warning still appears when another stat improves")
@@ -125,18 +125,18 @@ static func _validate_output_warnings(context: TestContext, client: Node) -> voi
 	context.expect_true(visible_warning, "draft face shows output loss without requiring hover")
 	context.expect_true(button.tooltip_text.contains("Potential sustained DPS") and button.tooltip_text.contains("assumes every projectile hits one target"), "details explain combined output and its assumptions")
 	context.expect_true(button._effect_rows().any(func(row: Dictionary) -> bool: return row.name == "Potential sustained DPS"), "graphical inspector includes the combined output comparison")
-	client.draft_controller._select_draft_card(0)
+	client.draft_controller.select_draft_card(0)
 	context.expect_true(client.draft_controller.draft_confirmation_label.text.contains(button.output_warning), "confirmation repeats the output loss before committing")
-	client.draft_controller._cancel_draft_confirmation()
+	client.draft_controller.cancel_draft_confirmation()
 	for id in [&"twin_shot", &"scatter_array", &"micro_barrage", &"needle_storm", &"trident_array"]:
-		client.latest_match_payload["builds"] = {7: {id: 5, &"heavy_rounds": 2}}
-		client.draft_controller._show_draft_offer({"offer_token": "stack-loss", "card_ids": [id], "deadline_tick": 1800})
+		client.match_state.update_fields({"builds": {7: {id: 5, &"heavy_rounds": 2}}})
+		client.draft_controller.show_draft_offer({"offer_token": "stack-loss", "card_ids": [id], "deadline_tick": 1800})
 		context.expect_false(button.output_warning.is_empty(), "%s warns about repeat loss in a damage-supported build" % id)
-	client.latest_match_payload["builds"] = {7: {&"micro_barrage": 1, &"trident_array": 1}}
-	client.draft_controller._show_draft_offer({"offer_token": "mixed-loss", "card_ids": [&"needle_storm"], "deadline_tick": 1800})
+	client.match_state.update_fields({"builds": {7: {&"micro_barrage": 1, &"trident_array": 1}}})
+	client.draft_controller.show_draft_offer({"offer_token": "mixed-loss", "card_ids": [&"needle_storm"], "deadline_tick": 1800})
 	context.expect_false(button.output_warning.is_empty(), "mixed multishot pick warns when capped count cannot offset the damage penalty")
-	client.latest_match_payload["builds"] = {7: {&"twin_shot": 1}}
-	client.draft_controller._show_draft_offer({"offer_token": "useful-repeat", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
+	client.match_state.update_fields({"builds": {7: {&"twin_shot": 1}}})
+	client.draft_controller.show_draft_offer({"offer_token": "useful-repeat", "card_ids": [&"twin_shot"], "deadline_tick": 1800})
 	context.expect_true(button.output_warning.is_empty(), "second Twin Shot is correctly treated as an output gain")
 	context.expect_false(button.tooltip_text.contains("Potential sustained DPS"), "reused details clear the previous loss comparison")
 
@@ -152,15 +152,15 @@ static func _validate_weapon_correction(context: TestContext, client: Node) -> v
 	pilot.weapon.request_reload(pilot.stats)
 	pilot.weapon.step(pilot.stats, 0.3)
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(2, 0, world.snapshot_states(), pilot.prediction_state())))
-	context.expect_true(view.local_weapon.reloading, "production client adopts authoritative mid-reload state")
-	context.expect_approx(view.local_weapon.reload_remaining, pilot.weapon.reload_remaining, "production client corrects reload progress", 0.001)
-	context.expect_equal(view.local_weapon.shot_sequence, 9, "production client corrects shot identity")
-	view.prediction.predict(PlayerInputFrame.new(1, 1, Vector2.UP), pilot.stats, 1.0 / 60.0)
+	context.expect_true(view.local_prediction.local_weapon.reloading, "production client adopts authoritative mid-reload state")
+	context.expect_approx(view.local_prediction.local_weapon.reload_remaining, pilot.weapon.reload_remaining, "production client corrects reload progress", 0.001)
+	context.expect_equal(view.local_prediction.local_weapon.shot_sequence, 9, "production client corrects shot identity")
+	view.local_prediction.prediction.predict(PlayerInputFrame.new(1, 1, Vector2.UP), pilot.stats, 1.0 / 60.0)
 	pilot.alive = false
 	world.respawn_peer(7, pilot.stats, Vector2(420, 340))
 	# Deliberately skip the dead snapshot, as can happen on the unreliable channel.
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(3, 0, world.snapshot_states(), pilot.prediction_state())))
-	context.expect_empty(view.prediction.buffered_inputs, "life generation clears old replay even when the death snapshot was lost")
-	context.expect_false(view.local_weapon.reloading, "respawn clears stale reload in the production client")
-	context.expect_equal(view.local_weapon.ammunition, pilot.stats.magazine_size, "respawn restores production client ammo immediately")
-	context.expect_equal(view.local_weapon.shot_sequence, 0, "respawn resets production client shot identity")
+	context.expect_empty(view.local_prediction.prediction.buffered_inputs, "life generation clears old replay even when the death snapshot was lost")
+	context.expect_false(view.local_prediction.local_weapon.reloading, "respawn clears stale reload in the production client")
+	context.expect_equal(view.local_prediction.local_weapon.ammunition, pilot.stats.magazine_size, "respawn restores production client ammo immediately")
+	context.expect_equal(view.local_prediction.local_weapon.shot_sequence, 0, "respawn resets production client shot identity")

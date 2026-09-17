@@ -2,8 +2,8 @@ class_name GameConstants
 extends RefCounted
 
 const GAME_NAME: String = "Super Star Fighter"
-const GAME_VERSION: String = "0.1.0-beta.10"
-const RELEASE_LABEL: String = "BETA 10"
+const GAME_VERSION: String = "0.1.0-beta.12"
+const RELEASE_LABEL: String = "BETA 12"
 const ENGINE_VERSION: String = "4.7.2"
 const PROTOCOL_VERSION: int = 36
 const SHIELD_PRESS_RETENTION_TICKS: int = 15

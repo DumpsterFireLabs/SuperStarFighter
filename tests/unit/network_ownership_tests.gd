@@ -1,6 +1,20 @@
 extends RefCounted
 
 
+class RecordingBridge extends NetworkBridge:
+	var log_writes: Array[String] = []
+
+	func _write_log_output(text: String) -> void:
+		log_writes.append(text)
+
+
+class RecordingLogWriter extends "res://src/server/server_log_writer.gd":
+	var writes: Array[String] = []
+
+	func _write_output(text: String) -> void:
+		writes.append(text)
+
+
 class RecordingReplication extends NetworkReplicationScheduler:
 	var calls: Array[StringName] = []
 
@@ -22,6 +36,9 @@ class RecordingReplication extends NetworkReplicationScheduler:
 
 static func run(context: TestContext) -> void:
 	_admission_queue(context)
+	_server_health(context)
+	_server_log_batching(context)
+	_server_log_worker(context)
 	var first := NetworkBridge.new()
 	var second := NetworkBridge.new()
 	context.expect_true(first.session != second.session and first.replication != second.replication, "each bridge owns an independent session and packet scheduler")
@@ -65,6 +82,79 @@ static func run(context: TestContext) -> void:
 	_ban_persistence(context)
 	_replication_contract(context)
 	_session_observations(context)
+
+
+static func _server_log_worker(context: TestContext) -> void:
+	var writer := RecordingLogWriter.new(12)
+	writer.enqueue("first")
+	writer.enqueue("second")
+	writer.enqueue("over-capacity")
+	context.expect_equal(writer.start(), OK, "dedicated log worker starts")
+	writer.stop()
+	context.expect_equal(writer.writes[0], "first\nsecond", "worker drains queued records in order before shutdown")
+	context.expect_equal(writer.writes.size(), 2, "bounded worker reports output pressure explicitly")
+	var overflow: Dictionary = JSON.parse_string(writer.writes[1])
+	context.expect_equal(overflow.event, "server_log_overflow", "slow output produces a visible overflow marker")
+	context.expect_equal(overflow.dropped_batches, 1, "worker accounts for batches beyond its memory bound")
+	context.expect_equal(writer.status().dropped_batches, 1, "admin-visible log pressure survives draining the output queue")
+	context.expect_equal(writer.status().queued_characters, 0, "shutdown drains the bounded producer queue")
+	writer.stop()
+	context.expect_false(writer._thread.is_started(), "repeated log shutdown leaves no running thread")
+
+
+static func _server_log_batching(context: TestContext) -> void:
+	var bridge := RecordingBridge.new()
+	bridge._batch_tick_logs = true
+	bridge._log("info", "first_event", {"count": 1})
+	bridge._log("warning", "second_event", {"count": 2})
+	context.expect_empty(bridge.log_writes, "tick events do not each flush the output sink")
+	bridge._flush_tick_logs()
+	context.expect_equal(bridge.log_writes.size(), 1, "a tick flush writes its complete event batch once")
+	var lines := bridge.log_writes[0].split("\n")
+	context.expect_equal(lines.size(), 2, "batching preserves JSON-line record boundaries")
+	context.expect_equal(JSON.parse_string(lines[0]).event, "first_event", "batched logs preserve event order")
+	context.expect_equal(JSON.parse_string(lines[1]).count, 2, "batched logs preserve structured fields")
+	bridge._flush_tick_logs()
+	context.expect_equal(bridge.log_writes.size(), 1, "an empty batch does not duplicate output")
+	bridge._log("info", "outside_tick")
+	context.expect_equal(bridge.log_writes.size(), 2, "startup and operator logs outside a tick remain immediate")
+	bridge._batch_tick_logs = true
+	bridge._log("info", "pending_shutdown")
+	bridge.stop()
+	context.expect_equal(bridge.log_writes.size(), 3, "teardown flushes any pending tick records")
+	bridge.free()
+
+
+static func _server_health(context: TestContext) -> void:
+	var bridge := NetworkBridge.new()
+	bridge.session.role = NetworkBridge.Role.SERVER
+	bridge.lobby = ServerLobby.new()
+	bridge.world = AuthoritativeWorld.new()
+	bridge._server_started_usec = Time.get_ticks_usec()
+	bridge._reset_metrics_window()
+	context.expect_equal(bridge.operator_status().metrics_age_seconds, -1.0, "health has an explicit unavailable age before its first window")
+	# Age the operational clock instead of sleeping. Frozen simulation time must
+	# not prevent a report or retain timing samples indefinitely.
+	bridge.world.simulation_paused = true
+	bridge.world.server_tick = 42
+	bridge._metrics_started_usec -= NetworkBridge.METRICS_INTERVAL_USEC
+	bridge._physics_process(1.0 / 60.0)
+	context.expect_equal(bridge.world.server_tick, 42, "health reporting does not advance a paused match")
+	context.expect_equal(bridge._metrics_window, 1, "paused idle server rotates health on wall time")
+	context.expect_empty(bridge._simulation_sample_usec, "paused health rotation releases timing samples")
+	var status := bridge.operator_status()
+	context.expect_equal(status.metrics.physics_samples, 1, "health counts callbacks independently of match ticks")
+	context.expect_true(status.metrics.window_seconds >= 10.0 and status.metrics.physics_ticks_per_second < 1.0, "wall-time health exposes a stalled callback rate despite cheap simulation work")
+	context.expect_true(status.metrics.simulation_paused, "operators can distinguish pause from simulation failure")
+	status.metrics.clear()
+	context.expect_false(bridge.operator_status().metrics.is_empty(), "admin status cannot mutate retained health metrics")
+	bridge.world.simulation_paused = false
+	bridge._physics_process(1.0 / 60.0)
+	bridge.flush_metrics()
+	context.expect_equal(bridge._metrics_window, 2, "shutdown flush includes an idle server's partial window")
+	bridge.flush_metrics()
+	context.expect_equal(bridge._metrics_window, 2, "repeated flush does not duplicate an empty health window")
+	bridge.free()
 
 
 static func _replication_contract(context: TestContext) -> void:

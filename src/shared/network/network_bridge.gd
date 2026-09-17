@@ -42,13 +42,23 @@ var last_error: String:
 	get:
 		return session.last_error
 
-var _last_metrics_tick: int = 0
+const METRICS_INTERVAL_USEC: int = 10_000_000
+var _metrics_started_usec: int = 0
+var _server_started_usec: int = 0
+var _last_physics_usec: int = 0
+var _max_physics_gap_usec: int = 0
+var _latest_metrics: Dictionary = {}
 var _simulation_total_usec: int = 0
 var _simulation_max_usec: int = 0
 var _simulation_samples: int = 0
 var _simulation_sample_usec: Array[int] = []
 var _simulation_over_budget_ticks: int = 0
-var _phase_totals_usec: Dictionary = {"simulation": 0, "coordination": 0, "replication": 0}
+var _phase_totals_usec: Dictionary = {"simulation": 0, "coordination": 0, "replication": 0, "logging": 0}
+var _max_logging_usec: int = 0
+var _batch_tick_logs: bool = false
+var _tick_log_lines: PackedStringArray = []
+var log_output: Callable
+var log_status: Callable
 var _active_sample_usec: Array[int] = []
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
@@ -81,6 +91,7 @@ func start_server(configuration: Dictionary) -> Error:
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
 	match_config.competitive_view = bool(configuration.get("competitive_view", false))
+	match_config.silly_mode = bool(configuration.get("silly_mode", false))
 	if bool(configuration.get("test_fast_match", false)):
 		match_config.draft_duration_seconds = 0.75
 		match_config.countdown_duration_seconds = 0.25
@@ -97,6 +108,9 @@ func start_server(configuration: Dictionary) -> Error:
 		_activate_added_npcs(preset_result)
 	match_coordinator = null
 	_reset_metrics_window()
+	_server_started_usec = Time.get_ticks_usec()
+	_last_physics_usec = 0
+	_latest_metrics.clear()
 	_metrics_window = 0
 	_logged_overtime_key = ""
 	return session.start_server(configuration, match_config)
@@ -113,11 +127,12 @@ func start_client(
 
 
 func stop() -> void:
+	_flush_tick_logs()
 	session.stop()
 
 
 func flush_metrics() -> void:
-	if role == Role.SERVER and _simulation_samples > 0 and lobby != null and lobby.match_active:
+	if role == Role.SERVER and _simulation_samples > 0:
 		_log_metrics()
 
 
@@ -212,6 +227,11 @@ func send_competitive_view(enabled: bool) -> void:
 		request_competitive_view.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
+func send_silly_mode(enabled: bool) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_silly_mode.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
+
+
 func send_overtime_start(seconds: float) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_overtime_start.rpc_id(NetworkProtocol.SERVER_PEER_ID, seconds)
@@ -271,6 +291,10 @@ func _physics_process(delta: float) -> void:
 	if role != Role.SERVER or world == null:
 		return
 	var start_usec := Time.get_ticks_usec()
+	_batch_tick_logs = true
+	if _last_physics_usec > 0:
+		_max_physics_gap_usec = maxi(_max_physics_gap_usec, start_usec - _last_physics_usec)
+	_last_physics_usec = start_usec
 	session.process_pending_connections()
 	var controls_enabled := match_coordinator != null and match_coordinator.controls_enabled()
 	var npc_peer_ids := lobby.npc_peer_ids_view()
@@ -294,10 +318,17 @@ func _physics_process(delta: float) -> void:
 	var coordination_done_usec := Time.get_ticks_usec()
 	var tick := world.server_tick
 	replication.replicate_tick(tick, lobby, world)
+	var replication_done_usec := Time.get_ticks_usec()
+	# A heat result may produce a row for every player. Preserve all JSON lines
+	# but perform only one synchronous release-log flush for this callback.
+	_flush_tick_logs()
 	var duration_usec := Time.get_ticks_usec() - start_usec
 	_phase_totals_usec.simulation += simulation_done_usec - start_usec
 	_phase_totals_usec.coordination += coordination_done_usec - simulation_done_usec
-	_phase_totals_usec.replication += start_usec + duration_usec - coordination_done_usec
+	_phase_totals_usec.replication += replication_done_usec - coordination_done_usec
+	var logging_usec := start_usec + duration_usec - replication_done_usec
+	_phase_totals_usec.logging += logging_usec
+	_max_logging_usec = maxi(_max_logging_usec, logging_usec)
 	if controls_enabled:
 		_active_sample_usec.append(duration_usec)
 	_simulation_total_usec += duration_usec
@@ -306,12 +337,10 @@ func _physics_process(delta: float) -> void:
 	_simulation_sample_usec.append(duration_usec)
 	if duration_usec > int(1_000_000.0 / GameConstants.PHYSICS_TICKS_PER_SECOND):
 		_simulation_over_budget_ticks += 1
-	if tick - _last_metrics_tick >= GameConstants.PHYSICS_TICKS_PER_SECOND * 10:
-		if lobby != null and lobby.match_active:
-			_log_metrics()
-		else:
-			_reset_metrics_window()
-		_last_metrics_tick = tick
+	# Match time freezes during pause. Operational health must keep rotating in
+	# idle/paused sessions, both to report liveness and to bound sample storage.
+	if Time.get_ticks_usec() - _metrics_started_usec >= METRICS_INTERVAL_USEC:
+		_log_metrics()
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -525,6 +554,20 @@ func request_competitive_view(enabled: bool) -> void:
 	if not _accept_control_request(sender_id, "competitive_view"):
 		return
 	var result := lobby.request_competitive_view(sender_id, enabled)
+	if not result.ok:
+		_send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_broadcast_lobby_state()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_silly_mode(enabled: bool) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "silly_mode"):
+		return
+	var result := lobby.request_silly_mode(sender_id, enabled)
 	if not result.ok:
 		_send_request_rejected(sender_id, result.error)
 	elif bool(result.get("changed", false)):
@@ -875,6 +918,10 @@ func operator_status() -> Dictionary:
 		"npc_count": lobby.npc_count() if lobby != null else 0,
 		"active_projectiles": world.projectile_registry.size() if world != null else 0,
 		"blocked_source_count": session.blocked_sources().size(),
+		"uptime_seconds": float(Time.get_ticks_usec() - _server_started_usec) / 1_000_000.0 if role == Role.SERVER else 0.0,
+		"metrics": _latest_metrics.duplicate(true),
+		"logging": log_status.call() if log_status.is_valid() else {},
+		"metrics_age_seconds": float(Time.get_ticks_usec() - _metrics_started_usec) / 1_000_000.0 if not _latest_metrics.is_empty() else -1.0,
 		"lobby": lobby_summary,
 	}
 
@@ -1171,12 +1218,20 @@ func _accept_projectile_correction_chunk(decoded: Dictionary) -> void:
 
 
 func _log_metrics() -> void:
+	var elapsed_seconds := maxf(float(Time.get_ticks_usec() - _metrics_started_usec) / 1_000_000.0, 0.000001)
+	var logging_status: Dictionary = log_status.call() if log_status.is_valid() else {}
 	var mean_usec := 0.0
 	if _simulation_samples > 0:
 		mean_usec = float(_simulation_total_usec) / _simulation_samples
 	_metrics_window += 1
-	_log("info", "simulation_metrics", {
+	_latest_metrics = {
 		"window": _metrics_window,
+		"window_seconds": elapsed_seconds,
+		"physics_samples": _simulation_samples,
+		"physics_ticks_per_second": float(_simulation_samples) / elapsed_seconds,
+		"max_physics_gap_usec": _max_physics_gap_usec,
+		"match_active": lobby.match_active if lobby != null else false,
+		"simulation_paused": world.simulation_paused if world != null else false,
 		"server_tick": world.server_tick if world != null else 0,
 		"connected_peers": lobby.human_count() if lobby != null else 0,
 		"npc_pilots": lobby.npc_count() if lobby != null else 0,
@@ -1196,41 +1251,50 @@ func _log_metrics() -> void:
 		"mean_world_and_npc_usec": float(_phase_totals_usec.simulation) / maxi(_simulation_samples, 1),
 		"mean_coordination_usec": float(_phase_totals_usec.coordination) / maxi(_simulation_samples, 1),
 		"mean_replication_usec": float(_phase_totals_usec.replication) / maxi(_simulation_samples, 1),
+		"mean_logging_usec": float(_phase_totals_usec.logging) / maxi(_simulation_samples, 1),
+		"max_logging_usec": _max_logging_usec,
+		"log_queued_batches": int(logging_status.get("queued_batches", 0)),
+		"log_dropped_batches": int(logging_status.get("dropped_batches", 0)),
 		"projectile_budget_evictions": world.projectile_registry.budget_evictions if world != null else 0,
 		"max_simulation_usec": _simulation_max_usec,
 		"over_budget_ticks": _simulation_over_budget_ticks,
 		"over_budget_percent": float(_simulation_over_budget_ticks) / maxi(_simulation_samples, 1) * 100.0,
 		"outbound_bytes": replication.outbound_bytes(),
-	})
+		"outbound_bytes_per_second": float(replication.outbound_bytes()) / elapsed_seconds,
+	}
+	_log("info", "simulation_metrics", _latest_metrics)
 	_reset_metrics_window()
 
 
 func _reset_metrics_window() -> void:
+	_metrics_started_usec = Time.get_ticks_usec()
+	_max_physics_gap_usec = 0
 	_simulation_total_usec = 0
 	_simulation_max_usec = 0
 	_simulation_samples = 0
 	_simulation_sample_usec.clear()
 	_simulation_over_budget_ticks = 0
 	replication.reset_outbound_bytes()
-	_phase_totals_usec = {"simulation": 0, "coordination": 0, "replication": 0}
+	_phase_totals_usec = {"simulation": 0, "coordination": 0, "replication": 0, "logging": 0}
+	_max_logging_usec = 0
 	_active_sample_usec.clear()
 
 
 func _log_overtime_if_needed() -> void:
 	if match_coordinator == null or match_coordinator.state() != MatchStateMachine.State.ACTIVE_HEAT:
 		return
-	var payload := match_coordinator.current_state_payload()
-	var overtime_tick := int(payload.get("overtime_start_tick", -1))
+	var observation := match_coordinator.overtime_observation()
+	var overtime_tick := observation.x
 	if overtime_tick < 0 or world.server_tick < overtime_tick:
 		return
-	var overtime_key := "%d:%d" % [int(payload.get("round_number", 0)), int(payload.get("heat_number", 0))]
+	var overtime_key := "%d:%d" % [observation.y, observation.z]
 	if overtime_key == _logged_overtime_key:
 		return
 	_logged_overtime_key = overtime_key
 	_log("info", "overtime_started", {
 		"server_tick": world.server_tick,
-		"round": payload.get("round_number", 0),
-		"heat": payload.get("heat_number", 0),
+		"round": observation.y,
+		"heat": observation.z,
 	})
 
 
@@ -1242,7 +1306,26 @@ func _log(level: String, event_name: String, fields: Dictionary = {}) -> void:
 	}
 	for key in fields:
 		entry[key] = _bounded_log_value(fields[key])
-	print(JSON.stringify(entry))
+	var line := JSON.stringify(entry)
+	if _batch_tick_logs:
+		_tick_log_lines.append(line)
+	else:
+		_write_log_output(line)
+
+
+func _flush_tick_logs() -> void:
+	_batch_tick_logs = false
+	if _tick_log_lines.is_empty():
+		return
+	_write_log_output("\n".join(_tick_log_lines))
+	_tick_log_lines.clear()
+
+
+func _write_log_output(text: String) -> void:
+	if log_output.is_valid():
+		log_output.call(text)
+	else:
+		print(text)
 
 
 static func percentile_usec(samples: Array, percentile: float) -> int:

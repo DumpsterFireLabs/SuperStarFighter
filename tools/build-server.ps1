@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 Assert-SsfShippingPolicy
 $godot = Get-SsfGodotExecutable
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds/server'
+$buildRoot = Join-Path $SsfRepositoryRoot "$($SsfRelease.directory)/server"
 $serverPath = Join-Path $buildRoot 'SuperStarFighter-Server.exe'
 $logPath = Join-Path $buildRoot 'server-smoke.log'
 New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
@@ -33,5 +33,5 @@ foreach ($name in @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'SERVER_RE
     Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot "docs/$name") -Destination $buildRoot
 }
 $files = @($serverPath) + @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'SERVER_README.txt' | ForEach-Object { Join-Path $buildRoot $_ })
-Compress-Archive -LiteralPath $files -DestinationPath (Join-Path $buildRoot 'SuperStarFighter-Server-Windows-x64.zip') -Force
+Compress-Archive -LiteralPath $files -DestinationPath (Join-Path $buildRoot "SuperStarFighter-$($SsfRelease.tag)-Server-Windows-x64.zip") -Force
 Write-Host "Dedicated server export, resource audit and isolated startup passed: $serverPath"

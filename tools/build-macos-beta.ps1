@@ -7,12 +7,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 Assert-SsfShippingPolicy
 
-$presetName = 'macOS Beta 10'
-$releaseLabel = 'Beta 10'
-$expectedGameVersion = '0.1.0-beta.10'
-$expectedBundleVersion = '0.1.0.10'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-10'
-$archivePath = Join-Path $buildRoot 'SuperStarFighter-Beta10-macOS-universal.zip'
+$presetName = "macOS $($SsfRelease.label)"
+$releaseLabel = "$($SsfRelease.label)"
+$expectedGameVersion = "$($SsfRelease.version)"
+$expectedBundleVersion = "$($SsfRelease.platform_version)"
+$buildRoot = Join-Path $SsfRepositoryRoot "$($SsfRelease.directory)"
+$archivePath = Join-Path $buildRoot "SuperStarFighter-$($SsfRelease.tag)-macOS-universal.zip"
 
 function Assert-BetaBuildPath {
     param([Parameter(Mandatory = $true)][string]$Path)

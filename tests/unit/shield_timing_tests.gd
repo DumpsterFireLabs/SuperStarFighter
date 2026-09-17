@@ -105,7 +105,7 @@ static func _pressure_and_replay(context: TestContext) -> void:
 static func _input_delivery(context: TestContext, parent: Node, profile: String, seed_value: int) -> void:
 	var bridge := RecordingBridge.new()
 	parent.add_child(bridge)
-	var view := NetworkWorldView.new()
+	var view := NetworkWorldFixture.new()
 	parent.add_child(view)
 	view.setup(bridge)
 	view.set_network_active(true)
@@ -115,10 +115,10 @@ static func _input_delivery(context: TestContext, parent: Node, profile: String,
 	var ship := CombatShipView.new()
 	view.add_child(ship)
 	ship.setup(2, CombatStats.create_base(), Vector2(500, 720), Color.WHITE, true)
-	view.ships[2] = ship
+	view.replicated_visuals.ships[2] = ship
 	var initial := ship.combatant.prediction_state()
 	initial.position = ship.global_position
-	view.prediction.reset_to_snapshot(initial, ship.combatant.stats)
+	view.local_prediction.prediction.reset_to_snapshot(initial, ship.combatant.stats)
 	view.local_prediction.prediction_initialized = true
 	var world := AuthoritativeWorld.new()
 	var defender := world.add_peer(2)
@@ -133,7 +133,7 @@ static func _input_delivery(context: TestContext, parent: Node, profile: String,
 			Input.action_press("shield")
 		else:
 			Input.action_release("shield")
-		view.local_prediction.step(1.0 / 60.0, ship)
+		view.local_prediction.step(1.0 / 60.0, ship, view.hud_camera._unshaken_mouse_world_position())
 		if tick == 10:
 			local_immediate = ship.combatant.shield.active and ship.combatant.shield.is_perfect_guard_active()
 		for packet in bridge.packets:

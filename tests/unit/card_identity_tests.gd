@@ -46,7 +46,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(summary.omitted, 2, "summary offers complete omitted change count")
 	var client := (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()
 	parent.add_child(client)
-	client.draft_controller._show_draft_offer({"card_ids": ["glass_reactor", "beam_emitter", "twin_shot"]})
+	client.draft_controller.show_draft_offer({"card_ids": ["glass_reactor", "beam_emitter", "twin_shot"]})
 	var button := client.draft_controller.draft_buttons[0] as Button
 	context.expect_true(button.get_node_or_null("CardContent/Details/MechanicIcon") != null, "actual draft displays vector family icon")
 	context.expect_equal((button.get_node("CardContent/Details/Category") as Label).text, "FLIGHT CONTROL", "actual draft displays build role")

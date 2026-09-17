@@ -36,22 +36,22 @@ static func _cloak_replication(context: TestContext, parent: Node) -> void:
 	# First visible, then hidden, then revealed at a new location.
 	hidden.cloak_remaining = 0.0
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.assemble(11, 0, PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 1))))
-	context.expect_true(view.ships.has(2), "visible opponent creates production ship")
+	context.expect_true(view.replicated_visuals.ships.has(2), "visible opponent creates production ship")
 	hidden.cloak_remaining = 5.0
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.assemble(12, 0, PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 1))))
-	context.expect_false(view.ships.has(2), "cloak omission removes ship from client targeting and markers")
-	context.expect_false(view.presentation_states.has(2), "cloak omission discards prior feedback history")
-	context.expect_false(2 in view._living_spectator_targets(), "spectator cannot follow cloaked pilot")
+	context.expect_false(view.replicated_visuals.ships.has(2), "cloak omission removes ship from client targeting and markers")
+	context.expect_false(view.replicated_visuals.presentation_states.has(2), "cloak omission discards prior feedback history")
+	context.expect_false(2 in view.hud_camera._living_spectator_targets(), "spectator cannot follow cloaked pilot")
 	hidden.cloak_remaining = 0.0
 	hidden.position = Vector2(1400, 900)
 	hidden.health = 50.0
 	view._on_snapshot(PlayerSnapshotCodec.decode(PlayerSnapshotCodec.assemble(13, 0, PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 1))))
-	context.expect_equal((view.ships[2] as CombatShipView).global_position, hidden.position, "reveal starts at fresh position without interpolation through hidden travel")
-	context.expect_equal(float(view.presentation_states[2].health), 50.0, "reveal initializes feedback at current health")
+	context.expect_equal((view.replicated_visuals.ships[2] as CombatShipView).global_position, hidden.position, "reveal starts at fresh position without interpolation through hidden travel")
+	context.expect_equal(float(view.replicated_visuals.presentation_states[2].health), 50.0, "reveal initializes feedback at current health")
 	client.latest_match_payload = {"game_mode": GameModeRules.Mode.KING_OF_THE_HILL, "objective": {"mode": GameModeRules.Mode.KING_OF_THE_HILL, "controller_id": 0, "progress": {1: 5.0, 2: 5.0}}}
 	context.expect_true(client._objective_status_text().contains("NEUTRAL"), "empty hill is not mislabeled contested")
 	context.expect_true(client._objective_status_text().contains("TIED LEAD"), "equal accumulated hill leaders do not favor dictionary order")
-	client.latest_match_payload.objective.contested = true
+	client.match_state.update_fields({"objective": client.latest_match_payload.get("objective", {}).merged({"contested": true}, true)})
 	context.expect_true(client._objective_status_text().contains("CONTESTED"), "HUD uses authoritative hill contest state")
 	parent.remove_child(client)
 	client.free()

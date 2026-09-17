@@ -1,5 +1,7 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
+& python (Join-Path $PSScriptRoot 'update-release-metadata.py')
+if ($LASTEXITCODE -ne 0) { throw 'Release metadata is stale.' }
 
 $godot = Get-SsfGodotExecutable
 $verificationCount = 0

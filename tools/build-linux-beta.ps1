@@ -10,12 +10,12 @@ $ErrorActionPreference = 'Stop'
 Assert-SsfShippingPolicy
 
 $isArm64 = $Architecture -eq 'arm64'
-$presetName = if ($isArm64) { 'Linux ARM64 Beta 10' } else { 'Linux Beta 10' }
-$releaseLabel = 'Beta 10'
-$expectedGameVersion = '0.1.0-beta.10'
-$buildRoot = Join-Path $SsfRepositoryRoot 'builds\beta-10'
-$clientPath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta10.arm64' } else { 'SuperStarFighter-Beta10.x86_64' })
-$archivePath = Join-Path $buildRoot $(if ($isArm64) { 'SuperStarFighter-Beta10-Linux-arm64.zip' } else { 'SuperStarFighter-Beta10-Linux-x64.zip' })
+$presetName = if ($isArm64) { "Linux ARM64 $($SsfRelease.label)" } else { "Linux $($SsfRelease.label)" }
+$releaseLabel = "$($SsfRelease.label)"
+$expectedGameVersion = "$($SsfRelease.version)"
+$buildRoot = Join-Path $SsfRepositoryRoot "$($SsfRelease.directory)"
+$clientPath = Join-Path $buildRoot $(if ($isArm64) { "SuperStarFighter-$($SsfRelease.tag).arm64" } else { "SuperStarFighter-$($SsfRelease.tag).x86_64" })
+$archivePath = Join-Path $buildRoot $(if ($isArm64) { "SuperStarFighter-$($SsfRelease.tag)-Linux-arm64.zip" } else { "SuperStarFighter-$($SsfRelease.tag)-Linux-x64.zip" })
 $friendReadme = Join-Path $buildRoot 'README-BETA-LINUX.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES-LINUX.txt'
 $engineNotices = Join-Path $buildRoot 'GODOT_COPYRIGHT.txt'

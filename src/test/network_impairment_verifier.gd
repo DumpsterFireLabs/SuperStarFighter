@@ -28,7 +28,7 @@ class FixtureMatch extends AuthoritativeMatchCoordinator:
 
 var server: NetworkBridge
 var client: NetworkBridge
-var view: NetworkWorldView
+var view: NetworkWorldFixture
 var stats := CombatStats.create_base()
 var snapshots: int = 0
 var previous_ack: int = 0
@@ -85,9 +85,9 @@ func _run() -> void:
 		if argument.begins_with("--proxy-port="): proxy_port = int(argument.get_slice("=", 1))
 	server = _runtime("Server")
 	client = _runtime("Client")
-	view = NetworkWorldView.new()
+	view = NetworkWorldFixture.new()
 	root.add_child(view)
-	client.client_snapshot_received.connect(func(_decoded: Dictionary) -> void: before_prediction = view.prediction.predicted_position)
+	client.client_snapshot_received.connect(func(_decoded: Dictionary) -> void: before_prediction = view.local_prediction.prediction.predicted_position)
 	view.setup(client)
 	client.client_snapshot_received.connect(_snapshot)
 	client.client_connection_lost.connect(func(_message: String) -> void: _fail("unexpected disconnect"))
@@ -112,9 +112,9 @@ func _run() -> void:
 	server.lobby.match_active = true
 	server.match_coordinator = FixtureMatch.new(server.lobby, server.world, 230926)
 	server.match_coordinator.machine.state = MatchStateMachine.State.ACTIVE_HEAT
-	view.local_stats = stats
+	view.local_prediction.local_stats = stats
 	view.controls_enabled = true
-	if not await _until(func() -> bool: return view.prediction_initialized, 8.0):
+	if not await _until(func() -> bool: return view.local_prediction.prediction_initialized, 8.0):
 		_fail("first snapshot")
 		return
 	active = true
@@ -131,7 +131,7 @@ func _run() -> void:
 		if phase == 2: Input.action_press("manual_reload")
 		if phase == 3: Input.action_press("shield")
 		if phase >= 4 and phase <= 7:
-			view.selected_special_slot = [SpecialAbilitySelection.Slot.MINE, SpecialAbilitySelection.Slot.MISSILE, SpecialAbilitySelection.Slot.CLOAK, SpecialAbilitySelection.Slot.AFTERBURNER][phase - 4]
+			view.local_prediction.selected_special_slot = [SpecialAbilitySelection.Slot.MINE, SpecialAbilitySelection.Slot.MISSILE, SpecialAbilitySelection.Slot.CLOAK, SpecialAbilitySelection.Slot.AFTERBURNER][phase - 4]
 			Input.action_press("special")
 		await _until(func() -> bool: return false, 1.0)
 		if phase >= 4 and phase <= 7:
@@ -142,7 +142,7 @@ func _run() -> void:
 		if not await _until(func() -> bool: return _phase_covered(phase, shots_before, ship), 2.0):
 			_fail("delivery coverage missing in phase %d: %s" % [phase, _comparison()])
 			return
-		print("IMPAIRMENT_PHASE=%d shots=%d ammo=%d fire=%s shield=%s pending=%d" % [phase, ship.weapon.shot_sequence, ship.weapon.ammunition, str(Input.is_action_pressed("fire")), str(ship.shield.active), view.prediction.buffered_inputs.size()])
+		print("IMPAIRMENT_PHASE=%d shots=%d ammo=%d fire=%s shield=%s pending=%d" % [phase, ship.weapon.shot_sequence, ship.weapon.ammunition, str(Input.is_action_pressed("fire")), str(ship.shield.active), view.local_prediction.prediction.buffered_inputs.size()])
 		if failed: return
 	_release_inputs()
 	if shield_only:
@@ -157,8 +157,8 @@ func _run() -> void:
 	# the normal send cadence until authority acknowledges it; a lost final UDP
 	# sample must not strand replay or be misreported as resource divergence.
 	view.set_physics_process(false)
-	final_input = PlayerInputFrame.new(SequenceMath.increment(view.input_sequence), SequenceMath.increment(view.client_tick), Vector2.ZERO, ship.aim_angle)
-	view.prediction.push(final_input, 0.0)
+	final_input = PlayerInputFrame.new(SequenceMath.increment(view.local_prediction.input_sequence), SequenceMath.increment(view.local_prediction.client_tick), Vector2.ZERO, ship.aim_angle)
+	view.local_prediction.prediction.push(final_input, 0.0)
 	print("IMPAIRMENT_SETTLEMENT_BEGIN sequence=%d" % final_input.sequence)
 	await create_timer(0.1).timeout
 	var acknowledgment_deadline := Time.get_ticks_msec() + 8000
@@ -179,7 +179,7 @@ func _run() -> void:
 		_fail("ability was lost or spent multiple charges: %s" % _comparison())
 		return
 	view.local_prediction._expire_unconfirmed_predicted_projectiles(view._now_seconds() + 2.0)
-	if not view.predicted_projectile_ids.is_empty():
+	if not view.local_prediction.predicted_projectile_ids.is_empty():
 		_fail("unconfirmed predicted volleys leaked")
 		return
 	print("SSF_IMPAIRMENT_OK=%s" % JSON.stringify({"snapshots": snapshots, "max_buffered_inputs": max_buffer, "max_transient_ammo_difference": max_ammo_error, "reload_observed": observed_reload, "shield_observed": observed_shield, "shots": ship.weapon.shot_sequence, "mine_spent": 3 - ship.mine_charges_remaining, "missile_spent": 3 - ship.missile_charges_remaining, "cloak_spent": 3 - ship.cloak_charges_remaining, "cloak_observed": observed_cloak, "comparison": _comparison(), "delivery": _delivery_diagnostics(), "movement": _movement_diagnostics(), "shield_taps": {"attempts": shield_tap_attempts, "delivery_ms": shield_tap_latencies_ms, "volleys": (server.match_coordinator as FixtureMatch).shield_probes}}))
@@ -198,13 +198,13 @@ func _verify_shield_taps(ship: CombatantState) -> bool:
 		await create_timer(0.3).timeout
 		ship.shield.reset(stats)
 		view.set_physics_process(false)
-		var local_ship := view.ships[client.local_peer_id] as CombatShipView
+		var local_ship := view.replicated_visuals.ships[client.local_peer_id] as CombatShipView
 		var began := Time.get_ticks_msec()
 		Input.action_press("shield")
-		view.local_prediction.step(1.0 / 60.0, local_ship)
-		var press := view.prediction.simulated_combatant.last_shield_press_sequence
+		view.local_prediction.step(1.0 / 60.0, local_ship, view.hud_camera._unshaken_mouse_world_position())
+		var press := view.local_prediction.prediction.simulated_combatant.last_shield_press_sequence
 		Input.action_release("shield")
-		view.local_prediction.step(1.0 / 60.0, local_ship)
+		view.local_prediction.step(1.0 / 60.0, local_ship, view.hud_camera._unshaken_mouse_world_position())
 		view.set_physics_process(true)
 		shield_tap_attempts += 1
 		# Retry coverage with a fresh player tap only after an expired attempt.
@@ -236,27 +236,27 @@ func _snapshot(decoded: Dictionary) -> void:
 	previous_tick = tick
 	snapshots += 1
 	latest_correction = decoded.local_state
-	max_buffer = maxi(max_buffer, view.prediction.buffered_inputs.size())
+	max_buffer = maxi(max_buffer, view.local_prediction.prediction.buffered_inputs.size())
 	if max_buffer > ClientPredictionBuffer.MAX_BUFFERED_INPUTS:
 		_fail("unbounded replay")
 		return
 	if not active: return
-	correction_errors.append(view.prediction.last_reconciliation_error)
+	correction_errors.append(view.local_prediction.prediction.last_reconciliation_error)
 	var ship := server.world.combatants[client.local_peer_id] as CombatantState
-	if view.prediction.last_reconciliation_error > 64.0 and large_corrections.size() < 64:
+	if view.local_prediction.prediction.last_reconciliation_error > 64.0 and large_corrections.size() < 64:
 		var snapshot_position := Vector2.ZERO
 		for state in decoded.states:
 			if int(state.peer_id) == client.local_peer_id: snapshot_position = state.position
-		var trace := {"tick": tick, "ack": ack, "client_tick": view.client_tick,
-			"error": view.prediction.last_reconciliation_error, "pending": view.prediction.buffered_inputs.size(),
+		var trace := {"tick": tick, "ack": ack, "client_tick": view.local_prediction.client_tick,
+			"error": view.local_prediction.prediction.last_reconciliation_error, "pending": view.local_prediction.prediction.buffered_inputs.size(),
 			"current_server_input_age": server.world.input_ages.get(client.local_peer_id, 0.0),
 			"snapshot_input_age_ticks": decoded.local_state.get("input_age_ticks", 0),
-			"position": str(view.prediction.predicted_position), "authority_position": str(ship.position),
+			"position": str(view.local_prediction.prediction.predicted_position), "authority_position": str(ship.position),
 			"snapshot_position": str(snapshot_position), "before_prediction": str(before_prediction),
-			"boost": ship.afterburner_remaining, "predicted_boost": view.prediction.simulated_combatant.afterburner_remaining}
+			"boost": ship.afterburner_remaining, "predicted_boost": view.local_prediction.prediction.simulated_combatant.afterburner_remaining}
 		large_corrections.append(trace)
 		print("IMPAIRMENT_CORRECTION=%s" % JSON.stringify(trace))
-	max_ammo_error = maxi(max_ammo_error, absi(ship.weapon.ammunition - view.local_weapon.ammunition))
+	max_ammo_error = maxi(max_ammo_error, absi(ship.weapon.ammunition - view.local_prediction.local_weapon.ammunition))
 	observed_reload = observed_reload or bool(decoded.local_state.get("reloading", false))
 	for state in decoded.states:
 		if int(state.peer_id) == client.local_peer_id:
@@ -265,12 +265,12 @@ func _snapshot(decoded: Dictionary) -> void:
 
 func _comparison() -> Dictionary:
 	var authority := server.world.combatants[client.local_peer_id] as CombatantState
-	var predicted := view.prediction.simulated_combatant
+	var predicted := view.local_prediction.prediction.simulated_combatant
 	return {"ammo": [authority.weapon.ammunition, predicted.weapon.ammunition], "shots": [authority.weapon.shot_sequence, predicted.weapon.shot_sequence], "reloading": [authority.weapon.reloading, predicted.weapon.reloading], "mines": [authority.mine_charges_remaining, predicted.mine_charges_remaining], "missiles": [authority.missile_charges_remaining, predicted.missile_charges_remaining], "cloak": [authority.cloak_charges_remaining, predicted.cloak_charges_remaining], "special_identity": [authority.last_special_sequence, predicted.last_special_sequence], "shield_identity": [authority.last_shield_press_sequence, predicted.last_shield_press_sequence], "shield_energy": [authority.shield.energy, predicted.shield.energy], "shield_locked": [authority.shield.depletion_locked, predicted.shield.depletion_locked], "shield_active": [authority.shield.active, predicted.shield.active], "guard_window": [authority.shield.perfect_guard_window_remaining, predicted.shield.perfect_guard_window_remaining]}
 
 
 func _settled() -> bool:
-	if not view.prediction.buffered_inputs.is_empty(): return false
+	if not view.local_prediction.prediction.buffered_inputs.is_empty(): return false
 	for values in _comparison().values():
 		if values[0] != values[1]: return false
 	var authority := server.world.combatants[client.local_peer_id] as CombatantState
@@ -295,7 +295,7 @@ func _phase_covered(phase: int, shots_before: int, ship: CombatantState) -> bool
 func _movement_diagnostics() -> Dictionary:
 	var sorted := correction_errors.duplicate()
 	sorted.sort()
-	return {"samples": sorted.size(), "snap_count": view.prediction.snap_count,
+	return {"samples": sorted.size(), "snap_count": view.local_prediction.prediction.snap_count,
 		"large_corrections": large_corrections,
 		"correction_p95_pixels": sorted[clampi(ceili(sorted.size() * 0.95) - 1, 0, sorted.size() - 1)] if not sorted.is_empty() else 0.0,
 		"correction_p99_pixels": sorted[clampi(ceili(sorted.size() * 0.99) - 1, 0, sorted.size() - 1)] if not sorted.is_empty() else 0.0,
@@ -303,7 +303,7 @@ func _movement_diagnostics() -> Dictionary:
 
 
 func _delivery_diagnostics() -> Dictionary:
-	var buffered := view.prediction.buffered_inputs
+	var buffered := view.local_prediction.prediction.buffered_inputs
 	var authority := server.world.combatants.get(client.local_peer_id) as CombatantState
 	return {"pending_count": buffered.size(),
 		"abilities": ability_delivery,

@@ -1,16 +1,16 @@
 extends Node
 
 const RemoteAdminServiceScript = preload("res://src/server/remote_admin_service.gd")
+const ServerRuntime = preload("res://src/server/server_runtime.gd")
 
 var bridge: NetworkBridge
 var remote_admin: Node
+var runtime := ServerRuntime.new()
 
 
 func _ready() -> void:
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
-	bridge = NetworkBridge.new()
-	bridge.name = "NetworkBridge"
-	add_child(bridge)
+	bridge = runtime.attach(self)
 	var error := bridge.start_server(configuration)
 	if error != OK:
 		push_error(bridge.last_error)
@@ -65,5 +65,4 @@ func _on_admin_shutdown_requested() -> void:
 func _exit_tree() -> void:
 	if remote_admin != null:
 		remote_admin.stop()
-	if bridge != null:
-		bridge.stop()
+	runtime.stop()

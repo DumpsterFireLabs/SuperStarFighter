@@ -19,12 +19,12 @@ static func _frame_cadence(context: TestContext) -> void:
 
 
 static func _shot_profile_reuse(context: TestContext) -> void:
-	var view := NetworkWorldView.new()
+	var view := NetworkWorldFixture.new()
 	view.local_peer_id = 1
 	var builds := {1: {&"heavy_rounds": 2}, 2: {&"rapid_cycling": 2, &"twin_shot": 1}, 3: {&"heavy_rounds": 1}}
 	view.match_payload = {"builds": builds}
 	view.local_prediction.local_stats = StatSystem.derive(builds[1], view.card_catalog)
-	var ship := view._ensure_ship(2, {"position": Vector2.ZERO})
+	var ship := view.replicated_visuals._ensure_ship(2, {"position": Vector2.ZERO})
 	var profiles: Array = []
 	view.presentation_event.connect(func(event: StringName, payload: Dictionary) -> void:
 		if event == &"weapon_fire": profiles.append(payload.profile)

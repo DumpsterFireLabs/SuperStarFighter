@@ -31,15 +31,15 @@ static func run(context: TestContext, parent: Node) -> void:
 	client.bridge.session.local_peer_id = 2
 	client.bridge.session.latest_lobby_state = {"leader_id": 2, "players": [{"peer_id": 2, "display_name": "Host"}, {"peer_id": 3, "display_name": "Guest"}]}
 	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "builds": {2: {}}}
-	client.draft_controller._show_draft_offer({"offer_token": "owned-offer", "deadline_tick": 1800, "card_ids": [&"heavy_rounds", &"quick_loader"]})
-	client.draft_controller._select_draft_card(0)
+	client.draft_controller.show_draft_offer({"offer_token": "owned-offer", "deadline_tick": 1800, "card_ids": [&"heavy_rounds", &"quick_loader"]})
+	client.draft_controller.select_draft_card(0)
 	context.expect_equal(client.draft_controller.pending_draft_index, 0, "draft selection state lives with its controller")
 	client.draft_controller._confirm_draft_card()
 	context.expect_true(client.draft_controller.draft_buttons[0].disabled, "confirmed selection remains locked pending authority")
 	client._on_match_event(&"REQUEST_REJECTED", 2, {"message": "Try another card"})
 	context.expect_false(client.draft_controller.draft_buttons[0].disabled, "server rejection restores actionable draft controls")
 	context.expect_equal(client.draft_controller.active_offer_token, "owned-offer", "rejection preserves the live server offer token")
-	client.draft_controller._select_draft_card(1)
+	client.draft_controller.select_draft_card(1)
 	client._on_match_event(&"DRAFT_RESOLVED", 3, {"builds": {2: {&"heavy_rounds": 1}}})
 	context.expect_equal(client.draft_controller.active_offer_token, "", "draft resolution clears controller offer state")
 	context.expect_equal(client.draft_controller.pending_draft_index, -1, "draft resolution clears pending confirmation")
@@ -56,15 +56,15 @@ static func run(context: TestContext, parent: Node) -> void:
 	client.standings_controller._on_results_rematch_pressed()
 	context.expect_true(client.standings_controller._rematch_requested, "rematch pending state lives with standings controller")
 	client._on_match_event(&"REQUEST_REJECTED", 4, {"message": "Only the current leader may continue"})
-	client.standings_controller._update_results_screen()
+	client.standings_controller.update_results_screen()
 	context.expect_false(client.standings_controller._rematch_requested, "result action rejection clears controller pending state")
 	context.expect_true(client.standings_controller.results_action_note.text.contains("Only the current leader"), "result rejection remains visible in the results surface")
-	client.latest_match_payload.state_name = "ACTIVE_HEAT"
+	client.match_state.update_fields({"state_name": "ACTIVE_HEAT"})
 	client.network_world.set_network_active(true)
 	client.standings_controller._scoreboard_rows_dirty = true
-	client.standings_controller._update_scoreboard()
+	client.standings_controller.update_scoreboard()
 	var scoreboard_row: Node = client.standings_controller.scoreboard_rows_container.get_child(0)
-	client.standings_controller._update_scoreboard()
+	client.standings_controller.update_scoreboard()
 	context.expect_equal(client.standings_controller.scoreboard_rows_container.get_child(0), scoreboard_row, "unchanged scoreboard refresh retains row nodes")
 	client._show_connection_screen("Review finished")
 	context.expect_equal(client.draft_controller.active_offer_deadline, -1, "session navigation clears owned draft deadline")
@@ -119,7 +119,7 @@ static func _global_pause_shortcut(context: TestContext, client: Node) -> void:
 	client.latest_match_payload = {"state_name": "LOBBY"}
 	client._input(remapped)
 	context.expect_equal(recording.pause_requests.size(), 3, "host hotkey does nothing in the lobby")
-	client.latest_match_payload.clear()
+	client.match_state.reset()
 	client.network_world.reset_session()
 	client.pause_overlay.visible = false
 	client.bridge = original_bridge
@@ -182,9 +182,9 @@ static func _independent_controllers(context: TestContext, parent: Node) -> void
 	standings.inspection_requested.connect(func(_button: CardHoverButton) -> void: events.inspected += 1)
 	standings.inspection_close_requested.connect(func() -> void: events.inspection_closed += 1)
 	standings.create_ui()
-	standings._update_results_screen()
+	standings.update_results_screen()
 	context.expect_equal(events.observations, 1, "standings takes one match observation for the whole refresh")
-	standings._update_results_screen()
+	standings.update_results_screen()
 	context.expect_equal(events.observations, 1, "unchanged standings frames do not copy match state again")
 	context.expect_equal(standings._player_team(2), 2, "standings resolves string-keyed match teams before lobby teams")
 	bridge.session.latest_lobby_state = {"leader_id": 3, "players": []}
@@ -195,13 +195,13 @@ static func _independent_controllers(context: TestContext, parent: Node) -> void
 	(flow.get_child(0) as CardHoverButton).request_inspection()
 	context.expect_equal(events.inspected, 1, "standalone standings emits card inspection intent")
 	standings.invalidate_context()
-	standings._update_results_screen()
+	standings.update_results_screen()
 	context.expect_true(standings.results_rematch_button.disabled, "standings refresh revokes actions after leadership changes")
 	standings._on_results_rematch_pressed()
 	context.expect_equal(bridge.rematches, 0, "guest cannot submit a disabled result action")
 	bridge.session.latest_lobby_state = {"leader_id": 2, "players": []}
 	standings.invalidate_context()
-	standings._update_results_screen()
+	standings.update_results_screen()
 	standings._on_results_rematch_pressed()
 	standings._on_results_rematch_pressed()
 	context.expect_equal(bridge.rematches, 1, "leader rematch is submitted once while awaiting authority")

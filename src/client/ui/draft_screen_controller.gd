@@ -87,7 +87,7 @@ func create_ui() -> void:
 		button.add_theme_color_override("font_pressed_color", Color.TRANSPARENT)
 		button.add_theme_color_override("font_focus_color", Color.TRANSPARENT)
 		button.add_theme_color_override("font_disabled_color", Color.TRANSPARENT)
-		button.pressed.connect(_select_draft_card.bind(index))
+		button.pressed.connect(select_draft_card.bind(index))
 		button.inspection_requested.connect(inspection_requested.emit)
 		button.focus_entered.connect(_set_inspected_card.bind(index))
 		button.mouse_entered.connect(_set_inspected_card.bind(index))
@@ -135,7 +135,7 @@ func create_ui() -> void:
 	draft_change_button.text = "CHOOSE ANOTHER"
 	draft_change_button.theme_type_variation = &"QuietButton"
 	draft_change_button.custom_minimum_size = Vector2(180.0, 48.0)
-	draft_change_button.pressed.connect(_cancel_draft_confirmation)
+	draft_change_button.pressed.connect(cancel_draft_confirmation)
 	draft_confirmation_row.add_child(draft_change_button)
 	draft_confirm_button = Button.new()
 	draft_confirm_button.text = "CONFIRM PICK"
@@ -209,7 +209,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	state.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
 	column.add_child(state)
 
-func _show_draft_offer(payload: Dictionary) -> void:
+func show_draft_offer(payload: Dictionary) -> void:
 	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
 	draft_title.add_theme_font_size_override("font_size", 34)
 	draft_cards.show()
@@ -286,7 +286,7 @@ func _set_inspected_card(index: int) -> void:
 	inspect_button.text = "Inspect %s · I / Y" % card.display_name if card != null else "Inspect card · I / Y"
 
 
-func _select_draft_card(index: int) -> void:
+func select_draft_card(index: int) -> void:
 	if index < 0 or index >= draft_buttons.size():
 		return
 	var button := draft_buttons[index]
@@ -341,7 +341,7 @@ func _confirm_draft_card() -> void:
 	draft_confirmation_row.visible = false
 
 
-func _cancel_draft_confirmation() -> void:
+func cancel_draft_confirmation() -> void:
 	var previous_index := pending_draft_index
 	pending_draft_index = -1
 	draft_confirmation_row.visible = false

@@ -3,6 +3,7 @@ extends RefCounted
 
 var maximum_per_owner: int = GameConstants.MAX_PROJECTILES_PER_OWNER
 var maximum_global: int = GameConstants.MAX_PROJECTILES_GLOBAL
+var _enforce_budgets: bool = true
 var _by_id: Dictionary = {}
 var _ordered_ids: Array[int] = []
 var _slot_by_id: Dictionary = {}
@@ -21,6 +22,12 @@ var _moving_eviction_cursor: int = 0
 # Authority uses positive IDs and local prediction uses negative IDs.
 const REMOVED_ID: int = 0
 const COMPACT_MINIMUM_SLOTS: int = 128
+
+
+static func presentation_store() -> ProjectileRegistry:
+	var registry := ProjectileRegistry.new()
+	registry._enforce_budgets = false
+	return registry
 
 
 func add(projectile: ProjectileState) -> Array[int]:
@@ -43,6 +50,8 @@ func add(projectile: ProjectileState) -> Array[int]:
 	_owner_ordered_ids[projectile.owner_id] = owner_ids
 	if not _owner_heads.has(projectile.owner_id):
 		_owner_heads[projectile.owner_id] = 0
+	if not _enforce_budgets:
+		return removed
 	# Mines have a bounded reservation inside the existing total budgets.
 	# Ordinary fire may replace moving ordnance, never a deployed mine.
 	if projectile.is_mine:
@@ -104,6 +113,9 @@ func transfer_owner(projectile_id: int, new_owner_id: int) -> Array[int]:
 	_owner_ordered_ids[new_owner_id] = owner_ids
 	if not _owner_heads.has(new_owner_id):
 		_owner_heads[new_owner_id] = 0
+	if not _enforce_budgets:
+		revision += 1
+		return removed
 	if projectile.is_mine:
 		while mine_count_for_owner(new_owner_id) > mine_limit_per_owner():
 			_evict(_oldest_for_owner(new_owner_id, true), removed)

@@ -1,12 +1,17 @@
 class_name OffscreenIndicatorLayer
 extends Control
 
-var world_view: NetworkWorldView
+var hud: NetworkHudCamera
+var visuals: NetworkReplicatedVisuals
+const ViewContext = preload("res://src/client/network/client_view_context.gd")
+var context: ViewContext
 var _redraw_accumulator: float = 0.0
 
 
-func setup(view: NetworkWorldView) -> void:
-	world_view = view
+func setup(camera_hud: NetworkHudCamera, world_visuals: NetworkReplicatedVisuals, session_context: ViewContext) -> void:
+	hud = camera_hud
+	visuals = world_visuals
+	context = session_context
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
@@ -19,24 +24,24 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	if world_view == null or world_view.camera == null or not world_view.visible:
+	if context == null or hud.camera == null or not context.surface.visible:
 		return
 	var viewport_size := size
 	if viewport_size.is_zero_approx():
 		viewport_size = get_viewport_rect().size
 	var center := viewport_size * 0.5
 	var margin := Vector2(54.0, 54.0)
-	for peer_value in world_view.ships.keys():
+	for peer_value in visuals.ships.keys():
 		var peer_id := int(peer_value)
-		if peer_id == world_view.local_peer_id:
+		if peer_id == context.local_peer_id:
 			continue
-		var ship := world_view.ships[peer_id] as CombatShipView
+		var ship := visuals.ships[peer_id] as CombatShipView
 		if not ship.combatant.alive or ship.combatant.is_cloaked():
 			continue
-		var screen_position := center + (ship.global_position - world_view.camera.position) * world_view.camera.zoom
+		var screen_position := center + (ship.global_position - hud.camera.position) * hud.camera.zoom
 		if Rect2(Vector2.ZERO, viewport_size).grow(-36.0).has_point(screen_position):
 			continue
-		if world_view.camera.position.distance_to(ship.global_position) > 900.0:
+		if hud.camera.position.distance_to(ship.global_position) > 900.0:
 			continue
 		_draw_ship_indicator(screen_position, center, viewport_size, margin, ship.ship_color, ship.identity_pattern)
 		if ship.team_id > 0:
@@ -47,24 +52,24 @@ func _draw() -> void:
 			else:
 				draw_polyline(PackedVector2Array([point + Vector2(0, -25), point + Vector2(25, 0), point + Vector2(0, 25), point + Vector2(-25, 0), point + Vector2(0, -25)]), team_color, 3.0)
 			draw_string(ThemeDB.fallback_font, point + Vector2(-42, 44), ship.team_marker_text(), HORIZONTAL_ALIGNMENT_CENTER, 84.0, 13, team_color)
-	var incoming := world_view.nearest_incoming_offscreen_projectile()
+	var incoming := hud.nearest_incoming_offscreen_projectile()
 	if incoming != null:
-		var projectile_screen := center + (incoming.position - world_view.camera.position) * world_view.camera.zoom
+		var projectile_screen := center + (incoming.position - hud.camera.position) * hud.camera.zoom
 		if not Rect2(Vector2.ZERO, viewport_size).grow(-36.0).has_point(projectile_screen):
 			_draw_projectile_indicator(projectile_screen, center, viewport_size, margin)
-	if world_view.arena != null:
+	if visuals.arena != null:
 		var occupied: Array[Rect2] = []
-		for overlay in [world_view.hud_camera.hud_panel, world_view.hud_camera.toggle_status_label, world_view.hud_camera.diagnostics_label, world_view.hud_camera.spectator_label]:
+		for overlay in [hud.hud_panel, hud.toggle_status_label, hud.diagnostics_label, hud.spectator_label]:
 			if overlay != null and overlay.is_visible_in_tree():
 				occupied.append(overlay.get_global_rect())
-		var feed := world_view.hud_camera.kill_feed as KillFeed
+		var feed := hud.kill_feed as KillFeed
 		if feed != null and feed.is_visible_in_tree():
 			# KillFeed itself covers the viewport; only its entries obscure play.
 			occupied.append(feed.entries_container.get_global_rect())
-		var targets := world_view.arena.navigation_targets()
+		var targets := visuals.arena.navigation_targets()
 		targets.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return objective_priority(a) < objective_priority(b))
 		for target in targets:
-			var screen_position := center + ((target.position as Vector2) - world_view.camera.position) * world_view.camera.zoom
+			var screen_position := center + ((target.position as Vector2) - hud.camera.position) * hud.camera.zoom
 			if not Rect2(Vector2.ZERO, viewport_size).grow(-36.0).has_point(screen_position):
 				var point := _draw_objective_indicator(target, screen_position, center, viewport_size, occupied)
 				if point.is_finite(): occupied.append(objective_bounds(point))
@@ -85,7 +90,7 @@ func _draw_objective_indicator(target: Dictionary, screen_position: Vector2, cen
 	else:
 		for segment in 4:
 			draw_arc(point, 16, segment * PI / 2.0, segment * PI / 2.0 + PI / 3.0, 8, color, 3.0)
-	var distance := world_view.camera.position.distance_to(target.position as Vector2)
+	var distance := hud.camera.position.distance_to(target.position as Vector2)
 	var caption := "%s · %d px" % [target.label, roundi(distance)]
 	draw_rect(Rect2(point + Vector2(-142, 26), Vector2(284, 26)), Color("030716", 0.9))
 	draw_string(ThemeDB.fallback_font, point + Vector2(-140, 46), caption, HORIZONTAL_ALIGNMENT_CENTER, 280, 18, color)

@@ -244,7 +244,7 @@ func create_ui() -> void:
 	results_actions.add_child(results_return_button)
 
 
-func _update_scoreboard() -> void:
+func update_scoreboard() -> void:
 	if _context_dirty or _scoreboard_rows_dirty:
 		refresh_context()
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
@@ -273,7 +273,7 @@ func _update_scoreboard() -> void:
 		_add_scoreboard_row(index + 1, peer_ids[index])
 
 
-func _set_scoreboard_open(open: bool) -> void:
+func set_scoreboard_open(open: bool) -> void:
 	if not open:
 		inspection_close_requested.emit()
 	scoreboard_open = open and _scoreboard_available()
@@ -281,7 +281,7 @@ func _set_scoreboard_open(open: bool) -> void:
 		scoreboard_panel.visible = scoreboard_open
 	if scoreboard_open:
 		_scoreboard_rows_dirty = true
-		_update_scoreboard()
+		update_scoreboard()
 		_focus_first_card(scoreboard_rows_container)
 	else:
 		get_viewport().gui_release_focus()
@@ -354,7 +354,7 @@ func _hill_score(peer_id: int) -> float:
 	return float(progress.get(peer_id, progress.get(str(peer_id), 0.0)))
 
 
-func _update_results_screen() -> void:
+func update_results_screen() -> void:
 	if _context_dirty or _results_rows_dirty:
 		refresh_context()
 	var winner_id := int(latest_match_payload.get("match_winner", 0))
@@ -399,7 +399,7 @@ func _on_results_rematch_pressed() -> void:
 	if results_rematch_button.disabled:
 		return
 	_rematch_requested = true
-	_update_results_screen()
+	update_results_screen()
 	bridge.send_rematch()
 
 
@@ -407,7 +407,7 @@ func _on_results_extend_pressed() -> void:
 	if results_extend_button.disabled:
 		return
 	_extend_match_requested = true
-	_update_results_screen()
+	update_results_screen()
 	bridge.send_extend_match()
 
 
@@ -415,7 +415,7 @@ func _on_results_return_pressed() -> void:
 	if results_return_button.disabled:
 		return
 	_return_to_lobby_requested = true
-	_update_results_screen()
+	update_results_screen()
 	bridge.send_return_to_lobby()
 
 
@@ -585,7 +585,7 @@ func _result_card_chip_focus_style(rarity_color: Color) -> StyleBoxFlat:
 	return style
 
 
-func _set_win_screen_visible(visible: bool) -> void:
+func set_win_screen_visible(visible: bool) -> void:
 	var was_visible := win_overlay != null and win_overlay.visible
 	if win_overlay != null:
 		win_overlay.visible = visible
@@ -639,8 +639,8 @@ func reset_session() -> void:
 	latest_match_payload.clear()
 	_lobby_state.clear()
 	invalidate_context()
-	_set_scoreboard_open(false)
-	_set_win_screen_visible(false)
+	set_scoreboard_open(false)
+	set_win_screen_visible(false)
 	reset_actions(true)
 	_scoreboard_rows_dirty = true
 
@@ -649,3 +649,13 @@ func show_request_rejection(message: String) -> void:
 	reset_actions()
 	if win_overlay.visible:
 		results_action_note.text = "Could not continue: %s\nChoose another action or return to the lobby." % message
+
+
+func invalidate_rows() -> void:
+	invalidate_context()
+	_scoreboard_rows_dirty = true
+	_results_rows_dirty = true
+
+
+func reset_rematch_request() -> void:
+	_rematch_requested = false
