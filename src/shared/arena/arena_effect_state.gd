@@ -30,6 +30,7 @@ func reset(selected_map: StringName, options: Dictionary) -> void:
 	cargo_health.clear()
 	elapsed = 0.0
 	safe = false
+	pulse_center = Vector2.ZERO
 	pulse_radius = -1.0
 	warning = false
 	door_warning_mask = 0
@@ -60,12 +61,13 @@ func step(seconds: float, overtime_seconds: float, combatants: Dictionary) -> Ar
 		var cycle := int(elapsed / ArenaEffectRules.interval(settings))
 		var closing := 17 if cycle % 2 == 0 else 34
 		# Open first, warn, then close only unoccupied doors. Never crush a ship.
-		hidden_cover = DOOR_MASK
+		hidden_cover |= DOOR_MASK & ~closing
+		if phase < 6.0: hidden_cover = DOOR_MASK
 		if phase >= 3.0 and phase < 6.0: door_warning_mask = closing
 		if phase >= 6.0:
 			var rectangles := ArenaLayout.cover_rectangles(map_id)
 			for index in rectangles.size():
-				if not (closing & (1 << index)): continue
+				if not (closing & (1 << index)) or not (hidden_cover & (1 << index)): continue
 				var occupied := false
 				for value in combatants.values():
 					var ship := value as CombatantState
@@ -105,7 +107,7 @@ func step(seconds: float, overtime_seconds: float, combatants: Dictionary) -> Ar
 	return events
 
 func damage_cover(position: Vector2, radius: float, damage: float) -> bool:
-	if not (enabled & ArenaEffectRules.CARGO) or safe or damage <= 0.0: return false
+	if not (enabled & ArenaEffectRules.CARGO) or safe or not is_finite(damage) or damage <= 0.0: return false
 	var rectangles := ArenaLayout.cover_rectangles(map_id)
 	for index in rectangles.size():
 		if hidden_cover & (1 << index): continue

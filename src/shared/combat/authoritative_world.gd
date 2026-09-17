@@ -229,6 +229,7 @@ func respawn_peer(peer_id: int, stats: CombatStats, spawn_position: Vector2) -> 
 
 func set_map_id(value: StringName) -> void:
 	map_id = ArenaLayout.normalized_map_id(value)
+	arena_effects.reset(map_id, arena_effects.settings)
 	movement_fields = ArenaLayout.movement_fields(map_id)
 	# These dictionaries reference immutable entries owned by ArenaCollisionSystem's
 	# shared geometry cache. Detach from them instead of clearing the cache entry.
@@ -404,6 +405,8 @@ func _spawn_shot(combatant: CombatantState) -> void:
 			projectile.radius,
 			map_id, arena_effects.hidden_cover)
 		if not spawn_normal.is_zero_approx():
+			arena_effects.damage_cover(projectile.position, projectile.radius, projectile.damage)
+			_refresh_effect_geometry()
 			if not projectile.ricochet(spawn_normal):
 				continue
 			projectile.position = combatant.position + spawn_normal * (

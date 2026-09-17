@@ -61,6 +61,9 @@ static func run(context: TestContext, parent: Node) -> void:
 	ship.position = Vector2(400, 400)
 	effects.step(7, 60, {2: ship})
 	context.expect_equal(effects.hidden_cover, 34, "clear doors close after warning")
+	ship.position = door.get_center() - Vector2(0, door.size.y * 0.5 + GameConstants.SHIP_COLLISION_RADIUS)
+	effects.step(8, 60, {2: ship})
+	context.expect_equal(effects.hidden_cover, 34, "approaching a closed door does not reopen it")
 	effects.step(25, 60, {2: ship})
 	context.expect_equal(effects.hidden_cover, 17, "next cycle alternates barrier group")
 	effects.step(55, 60, {2: ship})
@@ -85,6 +88,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	effects.step(6, 60, {})
 	effects.protect_respawn(2)
 	context.expect_true(effects.step(7, 60, {2: ship}).is_empty(), "respawn grace protects newly returned pilot")
+	context.expect_true(effects.step(9.1, 60, {2: ship}).is_empty(), "expired grace does not apply a wave that already passed")
 	context.expect_true(effects.step(55, 60, {2: ship}).is_empty() and effects.pulse_radius < 0, "solar wave cancels at overtime warning")
 	var world := AuthoritativeWorld.new()
 	world.set_map_id(&"dead_freight")
@@ -113,3 +117,69 @@ static func run(context: TestContext, parent: Node) -> void:
 	arena.set_effect_state({})
 	context.expect_equal(arena.obstacle_root.get_child_count(), 6, "client reset restores solid collision bodies")
 	arena.free()
+	_validate_combat(context, options)
+	_validate_match_lifecycle(context, options)
+
+
+static func _validate_combat(context: TestContext, options: Dictionary) -> void:
+	for distance in [21.0, 150.0]:
+		var world := AuthoritativeWorld.new()
+		world.set_map_id(&"dead_freight")
+		world.arena_effects.reset(world.map_id, options)
+		var pilot := world.add_peer(2)
+		pilot.position = Vector2(635 - distance, 550)
+		pilot.stats.projectile_damage = 120
+		pilot.aim_angle = 0
+		world._spawn_shot(pilot)
+		for tick in 30: world.step(1.0 / 60.0)
+		context.expect_equal(world.arena_effects.hidden_cover, 1, "real shot destroys cargo at distance %s" % distance)
+	var solar := AuthoritativeWorld.new()
+	solar.set_map_id(&"twin_suns")
+	solar.arena_effects.reset(solar.map_id, options)
+	var victim := solar.add_peer(2)
+	victim.position = Vector2(1500, 900)
+	victim.health = 1
+	solar.step_arena_effects(7, 60)
+	context.expect_true(not victim.alive, "solar damage resolves through authoritative combat")
+	var feedback := solar.drain_combat_feedback()
+	context.expect_true(str(feedback).contains("solar_pulse"), "solar elimination retains explicit death attribution")
+	context.expect_true(CombatFeedbackPresentation.death_text({"source": "solar_pulse"}, 2).contains("SOLAR PULSE"), "death explanation names the arena hazard")
+
+static func _validate_match_lifecycle(context: TestContext, options: Dictionary) -> void:
+	for selected_map in [&"twin_suns", &"dead_freight", &"switchyard"]:
+		for mode in range(5):
+			var config := MatchConfig.new()
+			config.arena_effects = options.duplicate()
+			config.game_mode = mode
+			config.draft_duration_seconds = 0.05
+			config.countdown_duration_seconds = 0.05
+			var lobby := ServerLobby.new(config)
+			var world := AuthoritativeWorld.new()
+			for peer in range(2, 34):
+				lobby.admit(peer, "Pilot%d" % peer)
+				world.add_peer(peer)
+				lobby.request_ready(peer, true)
+			lobby.request_start(2)
+			var match_coordinator := AuthoritativeMatchCoordinator.new(lobby, world, 42)
+			match_coordinator._map_rotation = [selected_map]
+			match_coordinator.start(0)
+			for tick in 30:
+				world.step(1.0 / 60.0, match_coordinator.controls_enabled())
+				match_coordinator.step(1.0 / 60.0)
+			context.expect_equal(match_coordinator.state(), MatchStateMachine.State.ACTIVE_HEAT, "effect match reaches combat on %s mode %d" % [selected_map, mode])
+			context.expect_true(world.arena_effects.enabled != 0, "match initializes signature effect")
+			for value in world.combatants.values():
+				var pilot := value as CombatantState
+				context.expect_true(ArenaCollisionSystem.is_ship_position_clear(pilot.position, selected_map, 0, world.arena_effects.hidden_cover), "all 32 effect-map spawns remain clear")
+			world.server_tick = match_coordinator.machine.state_entered_tick + 7 * 60
+			match_coordinator.step(1.0 / 60.0)
+			context.expect_equal(match_coordinator.current_state_payload().arena_effect_state, world.arena_effects.snapshot(), "late spectator receives current terrain and pulse state")
+			var before := world.arena_effects.snapshot()
+			match_coordinator.request_pause(2, true)
+			world.step(1)
+			match_coordinator.step(1)
+			context.expect_equal(before, world.arena_effects.snapshot(), "host pause freezes effect schedule")
+			match_coordinator.request_pause(2, false)
+			world.server_tick = match_coordinator.machine.state_entered_tick + 55 * 60
+			match_coordinator.step(1.0 / 60.0)
+			context.expect_true(world.arena_effects.safe, "every mode enters effect-safe overtime warning")

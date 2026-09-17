@@ -129,12 +129,13 @@ func step(delta: float) -> void:
 				GameConstants.PHYSICS_TICKS_PER_SECOND,
 				0.0
 			)
-			world.step_arena_effects(heat_elapsed, overtime_start_seconds)
-			var effect_snapshot := world.arena_effects.snapshot()
-			if world.arena_effects.enabled != 0 and (tick - _last_arena_effect_tick >= 6 or effect_snapshot.hidden_cover != _last_arena_effect_snapshot.get("hidden_cover", -1)):
-				_last_arena_effect_snapshot = effect_snapshot
-				_last_arena_effect_tick = tick
-				_events.append(MatchEvent.new(&"ARENA_EFFECTS_UPDATED", tick, effect_snapshot))
+			if world.arena_effects.enabled != 0:
+				world.step_arena_effects(heat_elapsed, overtime_start_seconds)
+				var effect_snapshot := world.arena_effects.snapshot()
+				if tick - _last_arena_effect_tick >= 6 or effect_snapshot.hidden_cover != _last_arena_effect_snapshot.get("hidden_cover", -1):
+					_last_arena_effect_snapshot = effect_snapshot
+					_last_arena_effect_tick = tick
+					_events.append(MatchEvent.new(&"ARENA_EFFECTS_UPDATED", tick, effect_snapshot))
 			if heat_elapsed >= overtime_start_seconds:
 				var overtime_elapsed := (
 					GameConstants.OVERTIME_START_SECONDS +

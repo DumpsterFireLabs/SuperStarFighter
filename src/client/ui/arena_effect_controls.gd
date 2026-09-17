@@ -17,6 +17,8 @@ func _ready() -> void:
 		selector.custom_minimum_size = Vector2(190, 42)
 		for choice in entry[2]: selector.add_item(choice)
 		selector.item_selected.connect(func(_index: int) -> void: _changed())
+		if entry[0] == "frequency": selector.tooltip_text = "Changes the interval between solar pulses and door cycles. Cargo has fixed durability."
+		if entry[0] == "strength": selector.tooltip_text = "Solar pulse damage: Gentle 8, Standard 16, Brutal 28. Doors never crush ships."
 		selectors[entry[0]] = selector
 		row.add_child(selector)
 		add_child(row)

@@ -1,6 +1,6 @@
 # Super Star Fighter — Ten-Map Expansion Plan
 
-**Status:** Static ten-map roster and authoritative per-round rotation implemented. Advanced map mechanics and manual lobby selection remain planned.
+**Status:** Ten-map roster, authoritative per-round rotation, and optional solar pulses, destructible cargo, and alternating blast doors are implemented. Freely moving terrain, portals, and manual lobby selection remain planned. See [Arena effects](docs/ARENA_EFFECTS.md) for the shipped prototype rules.
 
 **Scope:** Preserve the existing arena, add nine distinct static topologies, rotate them authoritatively between rounds, and retain the advanced-mechanics/full-capacity roadmap.
 
