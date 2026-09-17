@@ -13,6 +13,7 @@ var smoothing_remaining: float = 0.0
 var snap_count: int = 0
 var last_reconciliation_error: float = 0.0
 var simulated_combatant: CombatantState
+var hidden_cover := 0
 var last_actions: int = 0
 
 
@@ -127,7 +128,7 @@ func _step_simulation(
 	simulated_combatant.stats = stats
 	var actions := ArenaMovementSystem.step_input(simulated_combatant, frame, delta, map_id)
 	var motion := ArenaCollisionSystem.move_ship(
-		simulated_combatant.position, simulated_combatant.velocity, delta, map_id
+		simulated_combatant.position, simulated_combatant.velocity, delta, map_id, hidden_cover
 	)
 	simulated_combatant.position = motion.position
 	simulated_combatant.velocity = motion.velocity

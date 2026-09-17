@@ -14,6 +14,8 @@ var input_timeouts: Dictionary = {}
 var input_ages: Dictionary = {}
 var projectile_registry := ProjectileRegistry.new()
 var spatial_index := CombatSpatialIndexScript.new()
+var arena_effects := ArenaEffectState.new()
+var _effect_geometry_mask := 0
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var movement_fields: Array[ArenaMovementField] = []
 var team_assignments: Dictionary = {}
@@ -117,6 +119,7 @@ func step(
 	server_tick = SequenceMath.increment(server_tick)
 	if not controls_enabled:
 		return
+	_refresh_effect_geometry()
 	var peer_ids := _ordered_peer_ids()
 	for peer_id in peer_ids:
 		var combatant := combatants[peer_id] as CombatantState
@@ -136,7 +139,7 @@ func step(
 			_spawn_mine(combatant)
 		if actions & CombatantState.ACTION_MISSILE:
 			_spawn_missile(combatant)
-		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id)
+		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id, arena_effects.hidden_cover)
 		if silly_observer != null:
 			silly_observer.observe_silly_wall_collision(self, combatant, motion.velocity)
 		combatant.position = motion.position
@@ -218,6 +221,7 @@ func respawn_peer(peer_id: int, stats: CombatStats, spawn_position: Vector2) -> 
 	if combatant == null or combatant.alive:
 		return false
 	combatant.reset_for_heat(stats, spawn_position, false)
+	arena_effects.protect_respawn(peer_id)
 	latest_inputs[peer_id] = PlayerInputFrame.new()
 	projectile_registry.schedule_owner_cleanup(peer_id)
 	return true
@@ -398,8 +402,7 @@ func _spawn_shot(combatant: CombatantState) -> void:
 		var spawn_normal := ArenaCollisionSystem.projectile_obstacle_normal(
 			projectile.position,
 			projectile.radius,
-			map_id
-		)
+			map_id, arena_effects.hidden_cover)
 		if not spawn_normal.is_zero_approx():
 			if not projectile.ricochet(spawn_normal):
 				continue
@@ -438,7 +441,7 @@ func _spawn_missile(combatant: CombatantState) -> void:
 		)
 	)
 	_next_projectile_id = SequenceMath.increment(_next_projectile_id)
-	if not ArenaCollisionSystem.projectile_obstacle_normal(missile.position, missile.radius, map_id).is_zero_approx():
+	if not ArenaCollisionSystem.projectile_obstacle_normal(missile.position, missile.radius, map_id, arena_effects.hidden_cover).is_zero_approx():
 		return
 	for removed_id in projectile_registry.add(missile):
 		_record_removed(removed_id)
@@ -463,7 +466,7 @@ func _acquire_missile_target(
 			continue
 		if absf(forward.angle_to(offset.normalized())) > GameConstants.MISSILE_ACQUISITION_HALF_ANGLE:
 			continue
-		if not ArenaCollisionSystem.has_clear_line_of_sight(origin, candidate.position, map_id):
+		if not ArenaCollisionSystem.has_clear_line_of_sight(origin, candidate.position, map_id, arena_effects.hidden_cover):
 			continue
 		if best_id != 0 and is_equal_approx(distance_squared, best_distance_squared) and peer_id > best_id:
 			continue
@@ -503,15 +506,13 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 	if _projectile_geometry_normal.is_empty():
 		_projectile_geometry_normal = ArenaCollisionSystem.projectile_geometry(
 			map_id,
-			GameConstants.PROJECTILE_RADIUS
-		)
+			GameConstants.PROJECTILE_RADIUS, arena_effects.hidden_cover)
 	if _projectile_geometry_beam.is_empty():
-		_projectile_geometry_beam = ArenaCollisionSystem.projectile_geometry(map_id, 7.0)
+		_projectile_geometry_beam = ArenaCollisionSystem.projectile_geometry(map_id, 7.0, arena_effects.hidden_cover)
 	if _projectile_geometry_missile.is_empty():
 		_projectile_geometry_missile = ArenaCollisionSystem.projectile_geometry(
 			map_id,
-			GameConstants.MISSILE_RADIUS
-		)
+			GameConstants.MISSILE_RADIUS, arena_effects.hidden_cover)
 	# Guide once, then test shots against missile motion over this same tick.
 	# Bullets resolve first so insertion order cannot protect incoming missiles.
 	var missile_paths: Dictionary = {}
@@ -565,6 +566,8 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 				else (_projectile_geometry_missile if projectile.is_missile else _projectile_geometry_normal)
 			)
 			var sweep_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
+			if arena_effects.enabled & ArenaEffectRules.CARGO:
+				projectile_geometry = ArenaCollisionSystem.projectile_geometry(map_id, projectile.radius, arena_effects.hidden_cover)
 			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
@@ -622,6 +625,8 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			if obstacle_hit != null:
 				projectile.position = obstacle_hit.position as Vector2
 				travel_remaining *= maxf(1.0 - obstacle_fraction, 0.0)
+				arena_effects.damage_cover(projectile.position, projectile.radius, projectile.damage)
+				_refresh_effect_geometry()
 				var obstacle_normal := obstacle_hit.normal as Vector2
 				if projectile.ricochet(obstacle_normal):
 					projectile.position += obstacle_normal * COLLISION_SURFACE_EPSILON
@@ -694,7 +699,7 @@ func _missile_target_is_visible_in_cone(
 		return true
 	if absf(missile.velocity.normalized().angle_to(offset.normalized())) > half_angle:
 		return false
-	return ArenaCollisionSystem.has_clear_line_of_sight(missile.position, target.position, map_id)
+	return ArenaCollisionSystem.has_clear_line_of_sight(missile.position, target.position, map_id, arena_effects.hidden_cover)
 
 
 func _step_mine_activation(delta: float, mine_ids: Array[int]) -> void:
@@ -731,7 +736,7 @@ func _step_mine_magnetism(delta: float, armed_mine_ids: Array[int]) -> void:
 			mine.position,
 			finish,
 			mine.radius,
-			map_id
+			map_id, {}, arena_effects.hidden_cover
 		)
 		if obstacle_hit == null:
 			mine.position = finish
@@ -838,7 +843,7 @@ func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> 
 				continue
 			if target.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS:
 				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, target.position, map_id):
+			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, target.position, map_id, arena_effects.hidden_cover):
 				continue
 			damage_events.append({
 				"projectile_id": current.projectile_id,
@@ -859,7 +864,7 @@ func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> 
 				continue
 			if candidate.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + candidate.radius:
 				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, candidate.position, map_id):
+			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, candidate.position, map_id, arena_effects.hidden_cover):
 				continue
 			queued[candidate_id] = true
 			pending.append(candidate_id)
@@ -1000,8 +1005,8 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				right.velocity -= normal * right_into
 				left.velocity -= normal * SHIP_SEPARATION_SPEED
 				right.velocity += normal * SHIP_SEPARATION_SPEED
-				var left_safe := ArenaCollisionSystem.move_ship(left.position, left.velocity, 0.0, map_id)
-				var right_safe := ArenaCollisionSystem.move_ship(right.position, right.velocity, 0.0, map_id)
+				var left_safe := ArenaCollisionSystem.move_ship(left.position, left.velocity, 0.0, map_id, arena_effects.hidden_cover)
+				var right_safe := ArenaCollisionSystem.move_ship(right.position, right.velocity, 0.0, map_id, arena_effects.hidden_cover)
 				left.position = left_safe.position
 				left.velocity = left_safe.velocity
 				right.position = right_safe.position
@@ -1024,7 +1029,7 @@ func _resolve_rebound_shield_damage(peer_ids: Array[int], delta: float) -> void:
 			var target := combatants[target_id] as CombatantState
 			if not target.alive or source.position.distance_to(target.position) > radius:
 				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, target.position, map_id):
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, target.position, map_id, arena_effects.hidden_cover):
 				continue
 			events.append({"attacker_id": peer_id, "target_id": target_id,
 				"damage": GameConstants.REBOUND_SHIELD_DAMAGE_PER_SECOND * maxf(delta, 0.0),
@@ -1065,7 +1070,7 @@ func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:
 				or target.position.distance_to(source.position) > GameConstants.KINETIC_VENT_RADIUS
 			):
 				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, target.position, map_id):
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, target.position, map_id, arena_effects.hidden_cover):
 				continue
 			var outward := target.position - source.position
 			if outward.is_zero_approx():
@@ -1087,7 +1092,7 @@ func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:
 				continue
 			if projectile.position.distance_to(source.position) > GameConstants.KINETIC_VENT_RADIUS:
 				continue
-			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, projectile.position, map_id):
+			if not ArenaCollisionSystem.has_clear_line_of_sight(source.position, projectile.position, map_id, arena_effects.hidden_cover):
 				continue
 			var outward := projectile.position - source.position
 			if outward.is_zero_approx():
@@ -1113,8 +1118,8 @@ func _separate_ship_pair(
 	if penetration <= 0.0:
 		return
 	var half_correction := normal * penetration * 0.5
-	var left_safe := ArenaCollisionSystem.move_ship(left.position - half_correction, left.velocity, 0.0, map_id)
-	var right_safe := ArenaCollisionSystem.move_ship(right.position + half_correction, right.velocity, 0.0, map_id)
+	var left_safe := ArenaCollisionSystem.move_ship(left.position - half_correction, left.velocity, 0.0, map_id, arena_effects.hidden_cover)
+	var right_safe := ArenaCollisionSystem.move_ship(right.position + half_correction, right.velocity, 0.0, map_id, arena_effects.hidden_cover)
 	left.position = left_safe.position
 	right.position = right_safe.position
 	var remaining := maxf(target_distance - (right.position - left.position).dot(normal), 0.0)
@@ -1137,7 +1142,7 @@ func _move_separation_remainder(combatant: CombatantState, direction: Vector2, d
 	if distance <= 0.001:
 		return 0.0
 	var original_position := combatant.position
-	var safe := ArenaCollisionSystem.move_ship(original_position + direction * distance, combatant.velocity, 0.0, map_id)
+	var safe := ArenaCollisionSystem.move_ship(original_position + direction * distance, combatant.velocity, 0.0, map_id, arena_effects.hidden_cover)
 	combatant.position = safe.position
 	var achieved := maxf((combatant.position - original_position).dot(direction), 0.0)
 	return maxf(distance - achieved, 0.0)
@@ -1212,7 +1217,7 @@ func _best_separation_candidate(
 
 
 func _ship_position_available(position: Vector2, ignore_left_id: int, ignore_right_id: int, minimum_distance: float) -> bool:
-	if not ArenaCollisionSystem.is_ship_position_clear(position, map_id, SHIP_SEPARATION_SLOP):
+	if not ArenaCollisionSystem.is_ship_position_clear(position, map_id, SHIP_SEPARATION_SLOP, arena_effects.hidden_cover):
 		return false
 	for peer_value in combatants.keys():
 		var peer_id := int(peer_value)
@@ -1378,3 +1383,17 @@ func set_silly_mode(enabled: bool) -> void:
 func observe_silly_pickup(peer_id: int, position: Vector2) -> void:
 	if silly_observer != null:
 		silly_observer.observe_silly_pickup(self, peer_id, position)
+
+
+func _refresh_effect_geometry() -> void:
+	if _effect_geometry_mask == arena_effects.hidden_cover: return
+	_effect_geometry_mask = arena_effects.hidden_cover
+	_projectile_geometry_normal = {}
+	_projectile_geometry_beam = {}
+	_projectile_geometry_missile = {}
+
+func step_arena_effects(elapsed: float, overtime_seconds: float) -> void:
+	var events := arena_effects.step(elapsed, overtime_seconds, combatants)
+	_refresh_effect_geometry()
+	for peer_id in _resolve_damage_events(events):
+		projectile_registry.schedule_owner_cleanup(peer_id)

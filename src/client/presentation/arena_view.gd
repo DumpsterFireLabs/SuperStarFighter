@@ -12,6 +12,10 @@ var show_spawn_anchors: bool = false:
 			static_layer.queue_redraw()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var obstacle_root: Node2D
+var effect_state: Dictionary = {}
+var hidden_cover := 0
+var effect_paused := false
+var _effect_visual_age := 0.0
 var objective_state: Dictionary = {}
 var local_peer_id: int = 0
 var local_team_id: int = 0
@@ -31,6 +35,7 @@ func _ready() -> void:
 	static_layer.z_as_relative = false
 	static_layer.z_index = 0
 	static_layer.map_id = map_id
+	static_layer.hidden_cover = hidden_cover
 	static_layer.show_spawn_anchors = show_spawn_anchors
 	add_child(static_layer)
 	movement_field_layer = ArenaMovementFieldLayer.new()
@@ -53,6 +58,7 @@ func set_map_id(value: StringName) -> void:
 	map_id = normalized
 	if static_layer != null:
 		static_layer.map_id = map_id
+		static_layer.hidden_cover = hidden_cover
 		static_layer.queue_redraw()
 	if movement_field_layer != null:
 		movement_field_layer.set_map(map_id)
@@ -87,6 +93,7 @@ func set_objective(state: Dictionary) -> void:
 
 
 func _draw() -> void:
+	_draw_effects()
 	_draw_objective()
 	if overtime_visible:
 		var pulse := 0.72 + sin(Time.get_ticks_msec() * 0.008) * 0.2
@@ -206,7 +213,7 @@ func _rebuild_map_collision() -> void:
 	obstacle_root.name = "MapObstacles"
 	add_child(obstacle_root)
 	var index := 0
-	for rectangle in ArenaLayout.cover_rectangles(map_id):
+	for rectangle in ArenaCollisionSystem.cover_rectangles(map_id, hidden_cover):
 		_create_rectangle_body(rectangle.get_center(), rectangle.size, "Cover%d" % index, obstacle_root)
 		index += 1
 	index = 0
@@ -241,3 +248,75 @@ func _create_circle_body(body_position: Vector2, radius: float, body_name: Strin
 	collision.shape = shape
 	body.add_child(collision)
 	obstacle_root.add_child(body)
+
+
+func set_effect_state(state: Dictionary) -> void:
+	effect_state = state.duplicate(true)
+	_effect_visual_age = 0.0
+	var mask := int(state.get("hidden_cover", 0))
+	if mask != hidden_cover:
+		hidden_cover = mask
+		if static_layer != null:
+			static_layer.hidden_cover = mask
+			static_layer.queue_redraw()
+		if is_inside_tree(): _rebuild_map_collision()
+	queue_redraw()
+
+func _draw_effects() -> void:
+	var enabled := int(effect_state.get("enabled", 0))
+	if enabled == 0: return
+	var font := ThemeDB.fallback_font
+	var ink := Color("ffd66b")
+	if bool(effect_state.get("safe", false)):
+		draw_string(font, Vector2(70, 130), "ARENA EFFECTS: OVERTIME SAFE", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
+		return
+	if enabled & ArenaEffectRules.SOLAR:
+		var center := effect_state.get("pulse_center", Vector2.ZERO) as Vector2
+		if bool(effect_state.get("warning", false)):
+			_draw_solar_shelter(center)
+			draw_arc(center, 250, 0, TAU, 80, ink, 5)
+			draw_string(font, center + Vector2(-170, -270), "SOLAR PULSE: COVER OR SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
+		var radius := float(effect_state.get("pulse_radius", -1.0))
+		if radius >= 0.0:
+			radius += minf(_effect_visual_age, 0.15) * ArenaEffectState.PULSE_SPEED
+			draw_arc(center, radius, 0, TAU, 160, Color(ink, 0.7), 7)
+			draw_arc(center, maxf(radius - 18, 0), 0, TAU, 160, Color(ink, 0.25), 16)
+	var rectangles := ArenaLayout.cover_rectangles(map_id)
+	var health := effect_state.get("cargo_health", {}) as Dictionary
+	for index in rectangles.size():
+		var rectangle := rectangles[index]
+		if enabled & ArenaEffectRules.CARGO and not (hidden_cover & (1 << index)):
+			var fraction := float(health.get(index, ArenaEffectState.CARGO_HEALTH)) / ArenaEffectState.CARGO_HEALTH
+			draw_rect(rectangle.grow(-7), ink, false, 3)
+			draw_line(rectangle.position + Vector2(12, 14), rectangle.position + Vector2(12 + (rectangle.size.x - 24) * fraction, 14), ink, 5)
+			draw_string(font, rectangle.get_center() + Vector2(-62, 6), "BREAKABLE", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
+			if fraction < 1.0:
+				draw_polyline(PackedVector2Array([rectangle.position, rectangle.get_center() + Vector2(25, -20), rectangle.get_center() - Vector2(20, -20), rectangle.end]), ink, 3)
+		if enabled & ArenaEffectRules.DOORS and (ArenaEffectState.DOOR_MASK & (1 << index)):
+			var closing := (int(effect_state.get("door_warning_mask", 0)) & (1 << index)) != 0
+			var open := (hidden_cover & (1 << index)) != 0
+			draw_rect(rectangle, ink if closing else Color("79d9de"), false, 4)
+			draw_string(font, rectangle.get_center() + Vector2(-65, 6), "CLOSING - CLEAR" if closing else ("OPEN" if open else "CLOSED"), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ink)
+
+
+func _process(delta: float) -> void:
+	if effect_paused: return
+	_effect_visual_age += maxf(delta, 0.0)
+	if float(effect_state.get("pulse_radius", -1.0)) >= 0.0: queue_redraw()
+
+func _draw_solar_shelter(source: Vector2) -> void:
+	for circle in ArenaLayout.circle_obstacles(map_id):
+		var center: Vector2 = circle.center
+		var offset := center - source
+		var distance := offset.length()
+		var radius := float(circle.radius)
+		if distance <= radius: continue
+		var angle := offset.angle()
+		var tangent_angle := asin(radius / distance)
+		var tangent_distance := sqrt(distance * distance - radius * radius)
+		var left := Vector2.from_angle(angle - tangent_angle)
+		var right := Vector2.from_angle(angle + tangent_angle)
+		var shelter := PackedVector2Array([source + left * tangent_distance, source + left * 3800, source + right * 3800, source + right * tangent_distance])
+		var clipped := Geometry2D.intersect_polygons(shelter, PackedVector2Array([Vector2.ZERO, Vector2(GameConstants.ARENA_SIZE.x, 0), GameConstants.ARENA_SIZE, Vector2(0, GameConstants.ARENA_SIZE.y)]))
+		for polygon in clipped: draw_colored_polygon(polygon, Color(0.25, 0.95, 0.8, 0.12))
+		draw_string(ThemeDB.fallback_font, center + offset.normalized() * (radius + 120) + Vector2(-45, 0), "SHELTER", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("79d9de"))

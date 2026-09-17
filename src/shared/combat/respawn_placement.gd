@@ -19,7 +19,7 @@ static func choose(world: AuthoritativeWorld, peer_id: int, preferred: Vector2, 
 	for candidate in candidates:
 		if candidate.distance_to(safe_center) + GameConstants.SHIP_COLLISION_RADIUS > safe_radius:
 			continue
-		if not ArenaCollisionSystem.is_ship_position_clear(candidate, world.map_id):
+		if not ArenaCollisionSystem.is_ship_position_clear(candidate, world.map_id, 0.0, world.arena_effects.hidden_cover):
 			continue
 		var score := candidate.distance_to(preferred) * 0.05
 		var occupied := false
@@ -32,7 +32,7 @@ static func choose(world: AuthoritativeWorld, peer_id: int, preferred: Vector2, 
 				occupied = true
 				break
 			if not world.are_allies(peer_id, other.peer_id) and distance < ENEMY_CLEARANCE:
-				var exposed := ArenaCollisionSystem.has_clear_line_of_sight(other.position, candidate, world.map_id)
+				var exposed := ArenaCollisionSystem.has_clear_line_of_sight(other.position, candidate, world.map_id, world.arena_effects.hidden_cover)
 				score += (ENEMY_CLEARANCE - distance) * (4.0 if exposed else 1.0)
 		if occupied or score >= best_score:
 			continue

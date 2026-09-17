@@ -36,6 +36,7 @@ func _ready() -> void:
 		print("R22_TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
 		get_tree().quit(0 if _context.failed == 0 else 1)
 		return
+	preload("res://tests/unit/arena_effect_tests.gd").run(_context, self)
 	_run_foundation_tests()
 	MapResourceTests.run(_context)
 	await AbilityDeliveryTests.run(_context, self)

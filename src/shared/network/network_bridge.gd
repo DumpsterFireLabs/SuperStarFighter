@@ -1200,7 +1200,7 @@ func _drain_match_coordinator() -> void:
 			_broadcast_to_admitted(&"objective_snapshot", [server_tick_value, payload])
 		else:
 			_broadcast_to_admitted(&"match_event", [event_type, server_tick_value, payload])
-		if event_type != &"OBJECTIVE_UPDATED":
+		if event_type not in [&"OBJECTIVE_UPDATED", &"ARENA_EFFECTS_UPDATED"]:
 			_log("info", "match_event", {
 				"event_type": String(event_type),
 				"server_tick": server_tick_value,

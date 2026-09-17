@@ -44,6 +44,8 @@ var _flag_position: Vector2:
 var _flag_carrier_id: int:
 	get:
 		return _flag.state.flag_carrier_id
+var _last_arena_effect_snapshot: Dictionary = {}
+var _last_arena_effect_tick := -1
 var _last_objective_broadcast_tick: int = -1
 var _team_assignments_cache: Dictionary = {}
 var _capture_zones_cache: Dictionary:
@@ -127,6 +129,12 @@ func step(delta: float) -> void:
 				GameConstants.PHYSICS_TICKS_PER_SECOND,
 				0.0
 			)
+			world.step_arena_effects(heat_elapsed, overtime_start_seconds)
+			var effect_snapshot := world.arena_effects.snapshot()
+			if world.arena_effects.enabled != 0 and (tick - _last_arena_effect_tick >= 6 or effect_snapshot.hidden_cover != _last_arena_effect_snapshot.get("hidden_cover", -1)):
+				_last_arena_effect_snapshot = effect_snapshot
+				_last_arena_effect_tick = tick
+				_events.append(MatchEvent.new(&"ARENA_EFFECTS_UPDATED", tick, effect_snapshot))
 			if heat_elapsed >= overtime_start_seconds:
 				var overtime_elapsed := (
 					GameConstants.OVERTIME_START_SECONDS +
@@ -418,6 +426,9 @@ func _prepare_world_heat() -> void:
 	world.set_team_assignments(_team_assignments_cache)
 	_spawn_assignments_cache = spawn_assignments.duplicate(true)
 	world.prepare_heat(participant_stats, spawn_assignments)
+	world.arena_effects.reset(current_map_id, lobby.config.arena_effects)
+	_last_arena_effect_snapshot = {}
+	_last_arena_effect_tick = -1
 
 
 func _spread_spawn_assignments(participant_ids: Array[int], anchors: Array[Vector2]) -> Dictionary:
@@ -705,6 +716,8 @@ func _state_payload() -> Dictionary:
 		"players": _public_players(),
 		"builds": _public_builds(),
 		"powerups": powerups.snapshot() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else [],
+		"arena_effect_settings": lobby.config.arena_effects.duplicate(),
+		"arena_effect_state": world.arena_effects.snapshot(),
 		"random_spawn_powerups": lobby.config.random_spawn_powerups,
 		"random_powerup_interval_seconds": lobby.config.random_powerup_interval_seconds,
 		"random_powerups_permanent": lobby.config.random_powerups_permanent,

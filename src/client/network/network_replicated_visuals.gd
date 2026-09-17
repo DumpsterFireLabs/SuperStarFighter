@@ -278,7 +278,8 @@ func _step_projectile_visuals(delta: float) -> void:
 			var target := ships.get(projectile.missile_target_id) as CombatShipView
 			if target != null and target.combatant.alive and ArenaCollisionSystem.has_clear_line_of_sight(
 				projectile.position, target.combatant.position,
-				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID,
+				arena.hidden_cover if arena != null else 0
 			) and absf(projectile.velocity.angle_to(target.combatant.position - projectile.position)) <= GameConstants.MISSILE_GUIDANCE_HALF_ANGLE:
 				projectile.steer_missile_toward(target.combatant.position, safe_delta)
 		projectile.lifetime_remaining -= safe_delta
@@ -302,7 +303,8 @@ func _step_projectile_visuals(delta: float) -> void:
 				start,
 				finish,
 				projectile.radius,
-				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID, {},
+				arena.hidden_cover if arena != null else 0
 			)
 			if obstacle_hit == null:
 				projectile.position = finish
@@ -577,6 +579,7 @@ func reset_session() -> void:
 		powerup_layer.clear_powerups()
 	if arena != null:
 		arena.set_map_id(ArenaLayout.DEFAULT_MAP_ID)
+		arena.set_effect_state({})
 		arena.set_overtime(false, OvertimeSystem.initial_radius())
 		arena.set_objective({})
 
@@ -608,6 +611,7 @@ func apply_match_state(payload: Dictionary, state_name: String) -> void:
 	var payload_map_id := StringName(payload.get("map_id", ArenaLayout.DEFAULT_MAP_ID))
 	if arena != null:
 		arena.set_map_id(payload_map_id)
+		arena.set_effect_state(payload.get("arena_effect_state", {}) as Dictionary)
 		arena.local_peer_id = context.local_peer_id
 		arena.local_team_id = team_for_peer(context.local_peer_id)
 		arena.pilot_names.clear()

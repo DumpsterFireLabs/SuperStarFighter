@@ -147,7 +147,7 @@ func submit_inputs(
 			if peer_id < target.peer_id:
 				sidestep = -sidestep
 			tactical_movement = (away + sidestep * 0.35).normalized() * maxf(float(profile.pursuit), 0.65)
-		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position, world.map_id)
+		var blocking_obstacle := _first_blocking_obstacle(combatant.position, target.position, world.map_id, world.arena_effects.hidden_cover)
 		var has_line_of_sight := blocking_obstacle.is_empty()
 		var breaking_blocked_loop := false
 		if has_line_of_sight:
@@ -208,6 +208,12 @@ func submit_inputs(
 		var shielding := not escaping_close_contact and distance < float(profile.shield_range) and (
 			bool(projectile_threat.get("imminent", false)) or shield_phase < float(profile.shield_duty)
 		)
+		if world.arena_effects.warning or world.arena_effects.pulse_radius >= 0.0:
+			var source_direction := world.arena_effects.pulse_center - combatant.position
+			if not source_direction.is_zero_approx():
+				aim_angle = source_direction.angle()
+				shielding = true
+				movement = _world_to_ship_input(tactical_movement, aim_angle)
 		var fire_phase := float(posmod(world.server_tick + peer_id * 3, 120)) / 120.0
 		var firing := not combatant.is_cloaked() and not escaping_close_contact and has_line_of_sight and not shielding and distance < float(profile.fire_range) and fire_phase < float(profile.fire_duty)
 		var afterburner_special := (
@@ -250,7 +256,7 @@ func _objective_steering(world: AuthoritativeWorld, combatant: CombatantState, o
 	if objective_roles.get(combatant.peer_id, &"") != intent.role:
 		_objective_navigation.remove_peer(combatant.peer_id)
 	objective_roles[combatant.peer_id] = intent.role
-	return _objective_navigation.steering(combatant.peer_id, combatant.position, intent.destination, world.map_id, world.server_tick)
+	return _objective_navigation.steering(combatant.peer_id, combatant.position, intent.destination, world.map_id, world.server_tick, world.arena_effects.hidden_cover)
 
 
 func objective_intent(world: AuthoritativeWorld, combatant: CombatantState, objective: ObjectiveState) -> Dictionary:
@@ -478,8 +484,8 @@ static func _world_to_ship_input(world_movement: Vector2, aim_angle: float) -> V
 	return MovementSystem.world_to_ship_relative(world_movement, aim_angle)
 
 
-static func _first_blocking_obstacle(from: Vector2, to: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Dictionary:
-	var rectangles := ArenaLayout.cover_rectangles(map_id)
+static func _first_blocking_obstacle(from: Vector2, to: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, hidden_cover: int = 0) -> Dictionary:
+	var rectangles := ArenaCollisionSystem.cover_rectangles(map_id, hidden_cover)
 	for rectangle_index in rectangles.size():
 		var rectangle := rectangles[rectangle_index]
 		var expanded := rectangle.grow(GameConstants.PROJECTILE_RADIUS + 2.0)

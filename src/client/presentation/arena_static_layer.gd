@@ -4,6 +4,7 @@ extends Node2D
 # Cached canvas commands: objective pulses never invalidate static geometry.
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var show_spawn_anchors: bool = false
+var hidden_cover := 0
 var high_contrast: bool = false
 
 
@@ -15,7 +16,7 @@ func _draw() -> void:
 	_draw_grid()
 	draw_rect(ArenaLayout.arena_rect(), Color(palette.border, 0.65), false, 5.0)
 	var landmark_index := 0
-	for rectangle in ArenaLayout.cover_rectangles(map_id):
+	for rectangle in ArenaCollisionSystem.cover_rectangles(map_id, hidden_cover):
 		draw_rect(rectangle, palette.obstacle, true)
 		_draw_rect_material(rectangle, palette, landmark_index)
 		draw_rect(rectangle, Color(palette.line.lightened(0.3) if high_contrast else palette.line, 0.95 if high_contrast else 0.55), false, 4.0 if high_contrast else 3.0)

@@ -189,7 +189,7 @@ func _separate_local_visual_from_remote(local_ship: CombatShipView) -> void:
 
 func _local_visual_candidate_available(position: Vector2, contacted_peer_id: int, minimum_distance: float) -> bool:
 	var selected_map := visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID
-	if not ArenaCollisionSystem.is_ship_position_clear(position, selected_map, 1.0):
+	if not ArenaCollisionSystem.is_ship_position_clear(position, selected_map, 1.0, visuals.arena.hidden_cover if visuals.arena != null else 0):
 		return false
 	for peer_value in visuals.ships.keys():
 		var peer_id := int(peer_value)
@@ -283,6 +283,7 @@ func step(delta: float, local_ship: CombatShipView, mouse_world_position: Vector
 			context.bridge.send_input(frame)
 		special_activation_sends_remaining = maxi(special_activation_sends_remaining - 1, 0)
 	if prediction_initialized and local_alive and context.controls_enabled:
+		prediction.hidden_cover = visuals.arena.hidden_cover if visuals.arena != null else 0
 		prediction.predict(frame, local_stats, delta, visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID, local_breakaway_remaining > 0.0)
 		_sync_predicted_resources(local_ship)
 		if prediction.last_actions & CombatantState.ACTION_BOOST:
@@ -342,6 +343,7 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 			context.camera.position = state.position
 		prediction_initialized = true
 	else:
+		prediction.hidden_cover = visuals.arena.hidden_cover if visuals.arena != null else 0
 		prediction.reconcile(
 			state.position,
 			state.velocity,

@@ -208,6 +208,8 @@ func apply_match_pause(paused: bool) -> void:
 			local_prediction._remove_predicted_volley(int(shot_sequence))
 		replicated_visuals.interpolation.clear()
 	match_paused = paused
+	if replicated_visuals.arena != null:
+		replicated_visuals.arena.effect_paused = paused
 	match_state.update_fields({"paused": paused})
 	controls_enabled = not paused and String(match_payload.get("state_name", "")) == "ACTIVE_HEAT"
 

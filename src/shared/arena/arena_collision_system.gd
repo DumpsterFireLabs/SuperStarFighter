@@ -1,11 +1,12 @@
 class_name ArenaCollisionSystem
 extends RefCounted
 static var _projectile_geometry_cache: Dictionary = {}
+static var _cover_variant_cache: Dictionary = {}
 static var _empty_obstacle_indices: Array[int] = []
 const PROJECTILE_OBSTACLE_CELL_SIZE: float = 240.0
 
 
-static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Dictionary:
+static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, hidden_cover: int = 0) -> Dictionary:
 	var next_position := position + velocity * maxf(delta, 0.0)
 	var next_velocity := velocity
 	var radius := GameConstants.SHIP_COLLISION_RADIUS
@@ -15,7 +16,7 @@ static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id
 	if next_position.y < radius or next_position.y > GameConstants.ARENA_SIZE.y - radius:
 		next_position.y = clampf(next_position.y, radius, GameConstants.ARENA_SIZE.y - radius)
 		next_velocity.y = 0.0
-	for rectangle in ArenaLayout.cover_rectangles(map_id):
+	for rectangle in cover_rectangles(map_id, hidden_cover):
 		var expanded := rectangle.grow(radius)
 		if expanded.has_point(next_position):
 			var distances := [
@@ -51,13 +52,13 @@ static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id
 	return {"position": next_position, "velocity": next_velocity}
 
 
-static func is_ship_position_clear(position: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, margin: float = 0.0) -> bool:
+static func is_ship_position_clear(position: Vector2, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, margin: float = 0.0, hidden_cover: int = 0) -> bool:
 	var radius := GameConstants.SHIP_COLLISION_RADIUS + maxf(margin, 0.0)
 	if position.x < radius or position.x > GameConstants.ARENA_SIZE.x - radius:
 		return false
 	if position.y < radius or position.y > GameConstants.ARENA_SIZE.y - radius:
 		return false
-	for rectangle in ArenaLayout.cover_rectangles(map_id):
+	for rectangle in cover_rectangles(map_id, hidden_cover):
 		if rectangle.grow(radius).has_point(position):
 			return false
 	for circle in ArenaLayout.circle_obstacles(map_id):
@@ -67,7 +68,7 @@ static func is_ship_position_clear(position: Vector2, map_id: StringName = Arena
 	return true
 
 
-static func projectile_obstacle_normal(position: Vector2, radius: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID) -> Vector2:
+static func projectile_obstacle_normal(position: Vector2, radius: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, hidden_cover: int = 0) -> Vector2:
 	if position.x <= radius:
 		return Vector2.RIGHT
 	if position.x >= GameConstants.ARENA_SIZE.x - radius:
@@ -76,7 +77,7 @@ static func projectile_obstacle_normal(position: Vector2, radius: float, map_id:
 		return Vector2.DOWN
 	if position.y >= GameConstants.ARENA_SIZE.y - radius:
 		return Vector2.UP
-	var geometry := _projectile_geometry(map_id, radius)
+	var geometry := _projectile_geometry(map_id, radius, hidden_cover)
 	for rectangle in geometry.rectangles as Array:
 		if rectangle.has_point(position):
 			return _rectangle_normal(position, rectangle)
@@ -100,9 +101,10 @@ static func projectile_obstacle_sweep(
 static func has_clear_line_of_sight(
 	start: Vector2,
 	end: Vector2,
-	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
+	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
+	hidden_cover: int = 0
 ) -> bool:
-	return projectile_obstacle_sweep_hit(start, end, 0.0, map_id) == null
+	return projectile_obstacle_sweep_hit(start, end, 0.0, map_id, {}, hidden_cover) == null
 
 
 static func projectile_obstacle_sweep_hit(
@@ -110,7 +112,8 @@ static func projectile_obstacle_sweep_hit(
 	end: Vector2,
 	radius: float,
 	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID,
-	geometry_override: Dictionary = {}
+	geometry_override: Dictionary = {},
+	hidden_cover: int = 0
 ) -> Variant:
 	if start.x <= radius:
 		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.RIGHT}
@@ -120,7 +123,7 @@ static func projectile_obstacle_sweep_hit(
 		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.DOWN}
 	if start.y >= GameConstants.ARENA_SIZE.y - radius:
 		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.UP}
-	var geometry := geometry_override if not geometry_override.is_empty() else _projectile_geometry(map_id, radius)
+	var geometry := geometry_override if not geometry_override.is_empty() else _projectile_geometry(map_id, radius, hidden_cover)
 	var start_cell := _projectile_obstacle_cell(start)
 	var end_cell := _projectile_obstacle_cell(end)
 	# The common empty-cell path needs only one occupancy lookup. Defer typed
@@ -216,12 +219,12 @@ static func projectile_obstacle_sweep_hit(
 	}
 
 
-static func _projectile_geometry(map_id: StringName, radius: float) -> Dictionary:
-	var key := "%s:%d" % [ArenaLayout.normalized_map_id(map_id), roundi(radius * 100.0)]
+static func _projectile_geometry(map_id: StringName, radius: float, hidden_cover: int = 0) -> Dictionary:
+	var key := "%s:%d:%d" % [ArenaLayout.normalized_map_id(map_id), roundi(radius * 100.0), hidden_cover]
 	if _projectile_geometry_cache.has(key):
 		return _projectile_geometry_cache[key] as Dictionary
 	var rectangles: Array[Rect2] = []
-	for rectangle in ArenaLayout.cover_rectangles(map_id):
+	for rectangle in cover_rectangles(map_id, hidden_cover):
 		rectangles.append(rectangle.grow(radius))
 	var circles: Array[Vector3] = []
 	for circle in ArenaLayout.circle_obstacles(map_id):
@@ -248,8 +251,8 @@ static func _projectile_geometry(map_id: StringName, radius: float) -> Dictionar
 	return result
 
 
-static func projectile_geometry(map_id: StringName, radius: float) -> Dictionary:
-	return _projectile_geometry(map_id, radius)
+static func projectile_geometry(map_id: StringName, radius: float, hidden_cover: int = 0) -> Dictionary:
+	return _projectile_geometry(map_id, radius, hidden_cover)
 
 
 static func _append_obstacle_to_cells(cells: Dictionary, bounds: Rect2, obstacle_index: int) -> void:
@@ -327,3 +330,16 @@ static func _segment_circle_hit_vector(start: Vector2, direction: Vector2, cente
 	if normal.is_zero_approx():
 		normal = -direction.normalized()
 	return Vector3(fraction, normal.x, normal.y)
+
+
+static func cover_rectangles(map_id: StringName, hidden_cover: int = 0) -> Array[Rect2]:
+	var authored := ArenaLayout.cover_rectangles(map_id)
+	if hidden_cover == 0: return authored
+	var key := "%s:%d" % [map_id, hidden_cover]
+	if _cover_variant_cache.has(key): return _cover_variant_cache[key]
+	var result: Array[Rect2] = []
+	for index in authored.size():
+		if not (hidden_cover & (1 << index)): result.append(authored[index])
+	result.make_read_only()
+	_cover_variant_cache[key] = result
+	return result

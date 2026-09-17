@@ -948,6 +948,12 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 	elif event_type == &"PLAYER_RESPAWNED":
 		match_state.update_fields({"alive_peer_ids": (payload.get("alive_peer_ids", []) as Array).duplicate()})
 		match_state.update_fields({"respawn_deadlines": (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)})
+	elif event_type == &"ARENA_EFFECTS_UPDATED":
+		if network_world.replicated_visuals.arena != null:
+			var previous := network_world.replicated_visuals.arena.effect_state
+			if (bool(payload.get("warning", false)) and not bool(previous.get("warning", false))) or (int(payload.get("door_warning_mask", 0)) != 0 and int(previous.get("door_warning_mask", 0)) == 0):
+				audio_director.play_sfx(&"countdown")
+			network_world.replicated_visuals.arena.set_effect_state(payload)
 	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
 		if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, event_type == &"OBJECTIVE_UPDATED"):
 			return
