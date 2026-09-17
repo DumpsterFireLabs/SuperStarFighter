@@ -9,6 +9,7 @@ var draft_duration_seconds: float = GameConstants.DRAFT_DURATION_SECONDS
 var countdown_duration_seconds: float = GameConstants.COUNTDOWN_DURATION_SECONDS
 var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SECONDS
 var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
+var arena_effects: Dictionary = ArenaEffectRules.DEFAULT.duplicate()
 var competitive_view: bool = false
 var silly_mode: bool = false
 var random_spawn_powerups: bool = false
@@ -21,6 +22,8 @@ var team_count: int = GameModeRules.DEFAULT_TEAM_COUNT
 
 func validate() -> PackedStringArray:
 	var errors := PackedStringArray()
+	if not ArenaEffectRules.valid(arena_effects):
+		errors.append("Invalid arena effect settings.")
 	if protocol_version != GameConstants.PROTOCOL_VERSION:
 		errors.append("Protocol version must match the shared protocol version.")
 	if port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
@@ -73,6 +76,7 @@ func duplicate_config() -> MatchConfig:
 	copy.countdown_duration_seconds = countdown_duration_seconds
 	copy.heat_result_duration_seconds = heat_result_duration_seconds
 	copy.round_result_duration_seconds = round_result_duration_seconds
+	copy.arena_effects = arena_effects.duplicate()
 	copy.competitive_view = competitive_view
 	copy.silly_mode = silly_mode
 	copy.random_spawn_powerups = random_spawn_powerups

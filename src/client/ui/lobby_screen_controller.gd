@@ -38,6 +38,7 @@ var lobby_options_focus_return: Control
 var lobby_options_tabs: TabContainer
 var lobby_options_status: Label
 var lobby_options_close: Button
+var arena_effect_controls: ArenaEffectControls
 var powerups_button: CheckButton
 var powerup_interval_control: SpinBox
 var powerups_permanent_button: CheckButton
@@ -358,6 +359,10 @@ func _create_lobby_options_popup() -> void:
 	overtime_start_control.custom_minimum_size = Vector2(190.0, 48.0)
 	overtime_start_control.value_changed.connect(_on_overtime_start_changed)
 	overtime_row.add_child(overtime_start_control)
+	_setup_heading(rules_content, "Arena effects")
+	arena_effect_controls = ArenaEffectControls.new()
+	rules_content.add_child(arena_effect_controls)
+	arena_effect_controls.settings_changed.connect(bridge.send_arena_effects)
 	_setup_heading(rules_content, "Powerups")
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Enable powerup drops"
@@ -624,6 +629,7 @@ func render_lobby(state: Dictionary) -> void:
 	npcs_button.disabled = not settings_editable
 	npc_all_difficulty_control.disabled = not settings_editable or not bool(state.get("npcs_enabled", false))
 	powerups_button.disabled = not settings_editable
+	arena_effect_controls.refresh(state.get("arena_effects", ArenaEffectRules.DEFAULT) as Dictionary, settings_editable)
 	powerup_interval_control.editable = settings_editable and bool(state.get("random_spawn_powerups", false))
 	powerups_permanent_button.disabled = not settings_editable or not bool(state.get("random_spawn_powerups", false))
 	overtime_start_control.editable = settings_editable

@@ -172,6 +172,17 @@ func request_all_npc_difficulty(sender_id: int, difficulty: int) -> Dictionary:
 	return {"ok": true, "changed": changed}
 
 
+func request_arena_effects(sender_id: int, settings: Dictionary) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty(): return {"ok": false, "error": authority_error}
+	if not ArenaEffectRules.valid(settings): return {"ok": false, "error": "Invalid arena effect settings."}
+	if config.arena_effects == settings: return {"ok": true, "changed": false}
+	config.arena_effects = settings.duplicate()
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
 func request_random_spawn_powerups(sender_id: int, enabled: bool) -> Dictionary:
 	var authority_error := _settings_authority_error(sender_id)
 	if not authority_error.is_empty():
@@ -512,6 +523,7 @@ func serialize() -> Dictionary:
 		"team_count": GameModeRules.team_count_for_mode(config.game_mode, config.team_count) if GameModeRules.is_team_mode(config.game_mode) else config.team_count,
 		"team_setup_valid": setup_error.is_empty(),
 		"team_setup_error": setup_error,
+		"arena_effects": config.arena_effects.duplicate(),
 		"random_spawn_powerups": config.random_spawn_powerups,
 		"random_powerup_interval_seconds": config.random_powerup_interval_seconds,
 		"random_powerups_permanent": config.random_powerups_permanent,

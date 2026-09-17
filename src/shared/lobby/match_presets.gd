@@ -33,6 +33,9 @@ static func apply(lobby: ServerLobby, sender_id: int, preset_id: String) -> Dict
 	var filled := lobby.request_npcs_enabled(sender_id, true)
 	lobby.request_rounds_to_win(sender_id, int(preset.rounds))
 	lobby.request_all_npc_difficulty(sender_id, NpcPilotController.Difficulty.NEUTRAL)
+	var effects := ArenaEffectRules.DEFAULT.duplicate()
+	effects.mode = ArenaEffectRules.SIGNATURE if preset_id == "chaos" else ArenaEffectRules.OFF
+	lobby.request_arena_effects(sender_id, effects)
 	lobby.request_random_spawn_powerups(sender_id, bool(preset.powerups))
 	lobby.request_random_powerup_interval(sender_id, 10.0 if preset_id == "chaos" else 20.0)
 	lobby.request_random_powerups_permanent(sender_id, false)
