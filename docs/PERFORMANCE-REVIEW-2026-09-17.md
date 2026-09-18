@@ -7,7 +7,7 @@ The user's 58 FPS limit is accounted for throughout. A displayed frame has appro
 | Finding | Status | Priority and next action |
 | --- | --- | --- |
 | 1. Full projectile recovery creates a periodic encoding spike | **Fixed — protocol and ENet acceptance passed** | High under heavy ordnance. Pre-size packets and use native integer writes while preserving bytes and chunk boundaries. |
-| 2. Ship patterns rebuild transformed vertex arrays during drawing | **Open — exploratory prototype measured** | High for client presentation. Retain local geometry and apply a draw transform; validate appearance and batching. |
+| 2. Ship patterns rebuild transformed vertex arrays during drawing | **Fixed — paired rendered acceptance passed** | High for client presentation. Retain local geometry and apply a draw transform; validate appearance and batching. |
 | 3. Client projectile sweeps repeatedly resolve cached geometry | **Fixed — dynamic geometry acceptance passed** | Medium; straightforward CPU saving. Retain geometry by map, radius, and cover revision. |
 | 4. Small match updates copy and recursively freeze unrelated data | **Fixed — immutable publication acceptance passed** | Medium, especially large builds/objective modes. Share unchanged immutable subtrees. |
 | 5. Existing performance gates omit important work and include profiling overhead | **Open — measured coverage gap** | Improve the gate alongside the optimizations: combined simulation/replication tails, production composition, and cap-aware cadence. |
@@ -54,7 +54,7 @@ In the ordinary visible run, server callback active p95 ranged from 1.008–2.88
 
 2. **Ship patterns rebuild transformed vertex arrays during drawing.**
 
-   **Status: Open — instrumented and exploratory prototype measured.**
+   **Status: Fixed — cached local polygons use draw transforms; paired rendered acceptance passed on 18 September 2026.**
 
    [CombatShipView._draw_pattern_polygons](../src/client/presentation/combat_ship_view.gd) loops through each point, calls `_ship_local()`, and appends to a new packed array on every redraw. [ShipPatternGeometry](../src/client/presentation/ship_pattern_geometry.gd) already caches the clipped local shapes; repeatedly regenerating those shapes is not the issue. Their per-frame transformation and submission remain avoidable work.
 

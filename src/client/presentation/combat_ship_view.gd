@@ -509,12 +509,15 @@ func _ship_local(point: Vector2, forward: Vector2, side: Vector2) -> Vector2:
 
 
 func _draw_pattern_polygons(polygons: Array, forward: Vector2, side: Vector2, color: Color) -> void:
-	for polygon_value in polygons:
-		var polygon := polygon_value as PackedVector2Array
-		var transformed := PackedVector2Array()
-		for point in polygon:
-			transformed.append(_ship_local(point, forward, side))
-		draw_colored_polygon(transformed, color)
+	if polygons.is_empty():
+		return
+	# The clipped polygons are cached in ship-local space. Transform draw commands
+	# instead of allocating and rotating every vertex on every redraw.
+	draw_set_transform_matrix(Transform2D(forward, side, Vector2.ZERO))
+	for polygon: PackedVector2Array in polygons:
+		draw_colored_polygon(polygon, color)
+	# Later hull details, shields and nameplates use the canvas's original basis.
+	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 func _draw_team_marker() -> void:

@@ -19,3 +19,11 @@ Finding 4 — immutable match-state publication
 Small field updates shallow-copy the root, detach/freeze replacement fields, and share existing immutable subtrees. Full replacement still detaches externally owned input. One publication emits one invalidation; objective version rejection and reset semantics are unchanged.
 
 The 13,849-assertion suite includes retained observations, nested incoming dictionary/array aliases, replacement arrays, read-only nested containers, batched signal counts, rejected objective versions, full-state/objective ordering, build/prediction refresh and session reset. Tests assert the observation contract rather than object identity. Local log: `.tools/perf-finding3-4-tests.log`.
+
+Finding 2 — ship pattern drawing
+
+Cached local polygons now draw under a temporary canvas transform, restored before later hull details, shields and nameplates. `src/test/pattern_render_verifier.gd` renders the frozen legacy implementation and production implementation side by side at identical states, then alternates viewport ordering through a deterministic 240-frame angle replay.
+
+All 16 capture sheets were pixel-identical (six patterns × four angles × both pilot roles × both contrast modes × normal/shield/cloak/effects). The effects/local/contrast capture was also visually inspected. Both viewports recorded 900 draw calls. Across 11,520 pattern callbacks per implementation, legacy mean/p95 was 23.28/64 µs and production was 17.45/43 µs (25% lower mean). These are instrumented callback timings, not a whole-game FPS claim. The full unit suite also passes.
+
+Run: `.tools/godot/Godot_v4.7.2-stable_win64_console.exe --path . --audio-driver Dummy --resolution 1920x1080 --script res://src/test/pattern_render_verifier.gd`. Captures and machine-readable results are written to `.tools/performance-patterns/`; the tool exits nonzero on appearance differences beyond its small rasterization tolerance.
