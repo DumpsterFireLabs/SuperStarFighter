@@ -16,6 +16,7 @@ var projectile_registry := ProjectileRegistry.new()
 var spatial_index := CombatSpatialIndexScript.new()
 var arena_effects := ArenaEffectState.new()
 var _effect_geometry_mask := 0
+var _cargo_projectile_geometry := preload("res://src/shared/arena/projectile_geometry_references.gd").new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var movement_fields: Array[ArenaMovementField] = []
 var team_assignments: Dictionary = {}
@@ -236,6 +237,7 @@ func set_map_id(value: StringName) -> void:
 	_projectile_geometry_normal = {}
 	_projectile_geometry_beam = {}
 	_projectile_geometry_missile = {}
+	_cargo_projectile_geometry.reset()
 	clear_projectiles()
 
 
@@ -516,6 +518,7 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 		_projectile_geometry_missile = ArenaCollisionSystem.projectile_geometry(
 			map_id,
 			GameConstants.MISSILE_RADIUS, arena_effects.hidden_cover)
+	_cargo_projectile_geometry.prepare(map_id, arena_effects.hidden_cover)
 	# Guide once, then test shots against missile motion over this same tick.
 	# Bullets resolve first so insertion order cannot protect incoming missiles.
 	var missile_paths: Dictionary = {}
@@ -570,7 +573,7 @@ func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
 			)
 			var sweep_started := Time.get_ticks_usec() if performance_profiling_enabled else 0
 			if arena_effects.enabled & ArenaEffectRules.CARGO:
-				projectile_geometry = ArenaCollisionSystem.projectile_geometry(map_id, projectile.radius, arena_effects.hidden_cover)
+				projectile_geometry = _cargo_projectile_geometry.for_radius(projectile.radius)
 			var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(
 				start,
 				finish,
@@ -1391,6 +1394,8 @@ func observe_silly_pickup(peer_id: int, position: Vector2) -> void:
 func _refresh_effect_geometry() -> void:
 	if _effect_geometry_mask == arena_effects.hidden_cover: return
 	_effect_geometry_mask = arena_effects.hidden_cover
+	# Damage can open cargo during a sweep; subsequent impacts use the new revision.
+	_cargo_projectile_geometry.prepare(map_id, arena_effects.hidden_cover)
 	_projectile_geometry_normal = {}
 	_projectile_geometry_beam = {}
 	_projectile_geometry_missile = {}

@@ -8,7 +8,7 @@ The user's 58 FPS limit is accounted for throughout. A displayed frame has appro
 | --- | --- | --- |
 | 1. Full projectile recovery creates a periodic encoding spike | **Fixed — protocol and ENet acceptance passed** | High under heavy ordnance. Pre-size packets and use native integer writes while preserving bytes and chunk boundaries. |
 | 2. Ship patterns rebuild transformed vertex arrays during drawing | **Open — exploratory prototype measured** | High for client presentation. Retain local geometry and apply a draw transform; validate appearance and batching. |
-| 3. Client projectile sweeps repeatedly resolve cached geometry | **Open — paired experiment measured** | Medium; straightforward CPU saving. Retain geometry by map, radius, and cover revision. |
+| 3. Client projectile sweeps repeatedly resolve cached geometry | **Fixed — dynamic geometry acceptance passed** | Medium; straightforward CPU saving. Retain geometry by map, radius, and cover revision. |
 | 4. Small match updates copy and recursively freeze unrelated data | **Open — prototype measured** | Medium, especially large builds/objective modes. Share unchanged immutable subtrees. |
 | 5. Existing performance gates omit important work and include profiling overhead | **Open — measured coverage gap** | Improve the gate alongside the optimizations: combined simulation/replication tails, production composition, and cap-aware cadence. |
 
@@ -68,7 +68,7 @@ In the ordinary visible run, server callback active p95 ranged from 1.008–2.88
 
 3. **Client projectile sweeps repeatedly resolve cached geometry.**
 
-   **Status: Open — paired experiment measured.**
+   **Status: Fixed — retained per-radius references with map/cover invalidation; acceptance passed on 18 September 2026.**
 
    [NetworkReplicatedVisuals._step_projectile_visuals](../src/client/network/network_replicated_visuals.gd) supplies an empty geometry override for every collision sweep. [ArenaCollisionSystem._projectile_geometry](../src/shared/arena/arena_collision_system.gd) then normalizes the map, formats a map/radius/hidden-cover key, and looks up an already cached dictionary. The ordinary authoritative path already keeps direct geometry references; the client can use the same principle.
 

@@ -21,6 +21,7 @@ var arena: ArenaView
 var ships: Dictionary = {}
 var authoritative_projectiles := ProjectileRegistry.presentation_store()
 var _projectile_history := ReplicationHistory.new()
+var _projectile_geometry := preload("res://src/shared/arena/projectile_geometry_references.gd").new()
 var projectile_layer: ProjectileLayer
 var effects_layer: CombatEffectsLayer
 var powerup_layer: Node2D
@@ -263,6 +264,9 @@ func _update_remote_ships() -> void:
 
 func _step_projectile_visuals(delta: float) -> void:
 	update_combat_priorities()
+	var map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
+	var hidden_cover := arena.hidden_cover if arena != null else 0
+	_projectile_geometry.prepare(map_id, hidden_cover)
 	for projectile_id in authoritative_projectiles.ordered_ids_view():
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
 			continue
@@ -290,6 +294,7 @@ func _step_projectile_visuals(delta: float) -> void:
 				continue
 			authoritative_projectiles.remove(projectile.projectile_id)
 			continue
+		var geometry := _projectile_geometry.for_radius(projectile.radius)
 		var travel_remaining := projectile.velocity.length() * safe_delta
 		var collision_iterations := 0
 		while travel_remaining > 0.001 and collision_iterations < PROJECTILE_COLLISION_ITERATIONS:
@@ -303,8 +308,7 @@ func _step_projectile_visuals(delta: float) -> void:
 				start,
 				finish,
 				projectile.radius,
-				arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID, {},
-				arena.hidden_cover if arena != null else 0
+				map_id, geometry, hidden_cover
 			)
 			if obstacle_hit == null:
 				projectile.position = finish
@@ -556,6 +560,7 @@ func apply_mine_detonations(server_tick: int, events: Array) -> void:
 
 
 func reset_session() -> void:
+	_projectile_geometry.reset()
 	_projectile_history.reset()
 	_shield_feedback_ticks.clear()
 	for ship_value in ships.values():

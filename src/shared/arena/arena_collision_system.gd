@@ -220,9 +220,13 @@ static func projectile_obstacle_sweep_hit(
 
 
 static func _projectile_geometry(map_id: StringName, radius: float, hidden_cover: int = 0) -> Dictionary:
-	var key := "%s:%d:%d" % [ArenaLayout.normalized_map_id(map_id), roundi(radius * 100.0), hidden_cover]
-	if _projectile_geometry_cache.has(key):
-		return _projectile_geometry_cache[key] as Dictionary
+	var revision_key := "%s:%d" % [ArenaLayout.normalized_map_id(map_id), hidden_cover]
+	if not _projectile_geometry_cache.has(revision_key):
+		_projectile_geometry_cache[revision_key] = {}
+	var radius_cache: Dictionary = _projectile_geometry_cache[revision_key]
+	var key := radius
+	if radius_cache.has(key):
+		return radius_cache[key] as Dictionary
 	var rectangles: Array[Rect2] = []
 	for rectangle in cover_rectangles(map_id, hidden_cover):
 		rectangles.append(rectangle.grow(radius))
@@ -247,7 +251,7 @@ static func _projectile_geometry(map_id: StringName, radius: float, hidden_cover
 		"rectangle_cells": rectangle_cells,
 		"circle_cells": circle_cells,
 	}
-	_projectile_geometry_cache[key] = result
+	radius_cache[key] = result
 	return result
 
 
