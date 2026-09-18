@@ -12,6 +12,7 @@ static func run(context: TestContext) -> void:
 	_validate_input_codec(context)
 	_validate_snapshot_codec(context)
 	_validate_projectile_codec(context)
+	_validate_projectile_wire_compatibility(context)
 	_validate_lan_discovery_protocol(context)
 	_validate_rate_limiting(context)
 	_validate_observability_bounds(context)
@@ -1623,3 +1624,40 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	local_ship.free()
 	view.hud_camera.camera.free()
 	view.free()
+
+
+static func _validate_projectile_wire_compatibility(context: TestContext) -> void:
+	var legacy = preload("res://tests/fixtures/legacy_projectile_encoder.gd")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9172026
+	var records: Array[ProjectileState] = []
+	var removed: Array[int] = []
+	for index in 1024:
+		var p := ProjectileState.new()
+		p.projectile_id = index + 1
+		p.owner_id = rng.randi()
+		p.shot_sequence = rng.randi()
+		p.position = Vector2(rng.randf_range(-1000, 5000), rng.randf_range(-1000, 5000))
+		p.velocity = Vector2(rng.randf_range(-8000, 8000), rng.randf_range(-8000, 8000))
+		p.damage = rng.randf_range(-100, 1000)
+		p.remaining_pierces = rng.randi_range(-10, 300)
+		p.remaining_ricochets = rng.randi_range(-10, 300)
+		p.lifetime_remaining = rng.randf_range(-1, 100)
+		p.mine_activation_remaining = rng.randf_range(-1, 100)
+		p.is_beam = (index & 1) != 0
+		p.is_mine = (index & 2) != 0
+		p.has_rebounded = (index & 4) != 0
+		p.is_missile = (index & 8) != 0
+		p.missile_target_id = rng.randi()
+		records.append(p)
+		removed.append(index + 2000)
+	# Every count through the ceiling covers both sides of every chunk boundary.
+	for count in range(1025):
+		var active: Array[ProjectileState] = records.slice(0, count)
+		var retired: Array[int] = removed.slice(0, 1024 - count)
+		var tick: int = [0, 0xffffffff, 0x100000000][count % 3]
+		var sequence: int = [0, 0xffff, 0x10000][count % 3]
+		context.expect_true(ProjectilePacketCodec.encode_batch_chunks(tick, sequence, active, retired) == legacy.encode_batch_chunks(tick, sequence, active, retired), "projectile delta wire bytes count=%d" % count)
+		for complete in [false, true]:
+			context.expect_true(ProjectilePacketCodec.encode_correction_chunks(tick, sequence, active, complete) == legacy.encode_correction_chunks(tick, sequence, active, complete), "projectile correction wire bytes count=%d full=%s" % [count, complete])
+	context.expect_true(ProjectilePacketCodec.encode_batch_chunks(0, 0, [], []) == legacy.encode_batch_chunks(0, 0, [], []), "empty projectile delta preserves header")

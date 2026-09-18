@@ -70,28 +70,25 @@ static func _encode_chunks(
 	return result
 
 
-static func _encode_chunk(
-	server_tick: int,
-	batch_sequence: int,
-	kind: int,
-	chunk_index: int,
-	chunk_count: int,
-	spawned: Array[ProjectileState],
-	removed: Array[int]
-) -> PackedByteArray:
+static func _encode_chunk(server_tick: int, batch_sequence: int, kind: int, chunk_index: int, chunk_count: int, spawned: Array[ProjectileState], removed: Array[int]) -> PackedByteArray:
 	var bytes := PackedByteArray()
-	ByteCodec.append_u8(bytes, NetworkProtocol.PACKET_VERSION)
-	ByteCodec.append_u32(bytes, server_tick)
-	ByteCodec.append_u8(bytes, kind)
-	ByteCodec.append_u16(bytes, batch_sequence & 0xffff)
-	ByteCodec.append_u16(bytes, chunk_index)
-	ByteCodec.append_u16(bytes, chunk_count)
-	ByteCodec.append_u16(bytes, spawned.size())
+	bytes.resize(HEADER_SIZE + 2 + spawned.size() * PROJECTILE_RECORD_SIZE + removed.size() * 4)
+	bytes[0] = NetworkProtocol.PACKET_VERSION & 0xff
+	bytes.encode_u32(1, server_tick & 0xffffffff)
+	bytes[5] = kind & 0xff
+	bytes.encode_u16(6, batch_sequence & 0xffff)
+	bytes.encode_u16(8, chunk_index & 0xffff)
+	bytes.encode_u16(10, chunk_count & 0xffff)
+	bytes.encode_u16(12, spawned.size())
+	var offset := HEADER_SIZE
 	for projectile in spawned:
-		_append_projectile(bytes, projectile)
-	ByteCodec.append_u16(bytes, removed.size())
+		_write_projectile(bytes, offset, projectile)
+		offset += PROJECTILE_RECORD_SIZE
+	bytes.encode_u16(offset, removed.size())
+	offset += 2
 	for projectile_id in removed:
-		ByteCodec.append_u32(bytes, projectile_id)
+		bytes.encode_u32(offset, projectile_id & 0xffffffff)
+		offset += 4
 	return bytes
 
 
@@ -160,19 +157,19 @@ static func decode_correction(bytes: PackedByteArray) -> Dictionary:
 	return decoded
 
 
-static func _append_projectile(bytes: PackedByteArray, projectile: ProjectileState) -> void:
-	ByteCodec.append_u32(bytes, projectile.projectile_id)
-	ByteCodec.append_u32(bytes, projectile.owner_id)
-	ByteCodec.append_u32(bytes, projectile.shot_sequence)
-	ByteCodec.append_u16(bytes, roundi(clampf(projectile.position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
-	ByteCodec.append_u16(bytes, roundi(clampf(projectile.position.y, 0.0, GameConstants.ARENA_SIZE.y) * POSITION_SCALE))
-	ByteCodec.append_i16(bytes, roundi(clampf(projectile.velocity.x, -4095.0, 4095.0) * VELOCITY_SCALE))
-	ByteCodec.append_i16(bytes, roundi(clampf(projectile.velocity.y, -4095.0, 4095.0) * VELOCITY_SCALE))
-	ByteCodec.append_u16(bytes, roundi(clampf(projectile.damage, 0.0, 655.35) * DAMAGE_SCALE))
-	ByteCodec.append_u8(bytes, clampi(projectile.remaining_pierces, 0, 255))
-	ByteCodec.append_u8(bytes, clampi(projectile.remaining_ricochets, 0, 255))
+static func _write_projectile(bytes: PackedByteArray, offset: int, projectile: ProjectileState) -> void:
+	bytes.encode_u32(offset + 0, (projectile.projectile_id) & 0xffffffff)
+	bytes.encode_u32(offset + 4, (projectile.owner_id) & 0xffffffff)
+	bytes.encode_u32(offset + 8, (projectile.shot_sequence) & 0xffffffff)
+	bytes.encode_u16(offset + 12, (roundi(clampf(projectile.position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE)) & 0xffff)
+	bytes.encode_u16(offset + 14, (roundi(clampf(projectile.position.y, 0.0, GameConstants.ARENA_SIZE.y) * POSITION_SCALE)) & 0xffff)
+	bytes.encode_u16(offset + 16, (roundi(clampf(projectile.velocity.x, -4095.0, 4095.0) * VELOCITY_SCALE)) & 0xffff)
+	bytes.encode_u16(offset + 18, (roundi(clampf(projectile.velocity.y, -4095.0, 4095.0) * VELOCITY_SCALE)) & 0xffff)
+	bytes.encode_u16(offset + 20, (roundi(clampf(projectile.damage, 0.0, 655.35) * DAMAGE_SCALE)) & 0xffff)
+	bytes[offset + 22] = (clampi(projectile.remaining_pierces, 0, 255)) & 0xff
+	bytes[offset + 23] = (clampi(projectile.remaining_ricochets, 0, 255)) & 0xff
 	var serialized_lifetime := projectile.mine_activation_remaining if projectile.is_mine else projectile.lifetime_remaining
-	ByteCodec.append_u16(bytes, roundi(clampf(serialized_lifetime, 0.0, 65.535) * LIFETIME_SCALE))
+	bytes.encode_u16(offset + 24, (roundi(clampf(serialized_lifetime, 0.0, 65.535) * LIFETIME_SCALE)) & 0xffff)
 	var flags := 0
 	if projectile.is_beam:
 		flags |= 1
@@ -182,9 +179,8 @@ static func _append_projectile(bytes: PackedByteArray, projectile: ProjectileSta
 		flags |= 4
 	if projectile.is_missile:
 		flags |= 8
-	ByteCodec.append_u8(bytes, flags)
-	ByteCodec.append_u32(bytes, projectile.missile_target_id)
-
+	bytes[offset + 26] = (flags) & 0xff
+	bytes.encode_u32(offset + 27, (projectile.missile_target_id) & 0xffffffff)
 
 static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileState:
 	var projectile := ProjectileState.new()
