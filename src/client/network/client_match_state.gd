@@ -28,9 +28,15 @@ func replace(value: Dictionary, server_tick: int = -1) -> void:
 
 
 func update_fields(fields: Dictionary) -> void:
-	var next := payload.duplicate(true)
-	next.merge(fields.duplicate(true), true)
-	_publish(next)
+	# Existing subtrees are detached and recursively read-only. Only replacements
+	# need copying/freezing; publishing a small field must not traverse all builds.
+	var next := payload.duplicate()
+	var detached := fields.duplicate(true)
+	_freeze(detached)
+	next.merge(detached, true)
+	next.make_read_only()
+	_payload = next
+	changed.emit()
 
 
 func apply_objective(objective: Dictionary, server_tick: int = -1, periodic: bool = false) -> bool:

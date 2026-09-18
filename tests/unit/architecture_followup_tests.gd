@@ -105,6 +105,27 @@ static func _shared_match_state(context: TestContext) -> void:
 	source.builds[1].clear()
 	context.expect_equal(state.payload.builds[1][&"reinforced_hull"], 1, "match state detaches incoming nested builds")
 	context.expect_true(state.payload.is_read_only() and state.payload.builds[1].is_read_only() and state.payload.alive_peer_ids.is_read_only(), "shared observations are recursively read-only")
+	var notifications := [0]
+	state.changed.connect(func() -> void: notifications[0] += 1)
+	var retained := state.payload
+	var replacements := {"objective": {"progress": [{"points": 4}]}, "alive_peer_ids": [1, 2]}
+	state.update_fields(replacements)
+	replacements.objective.progress[0].points = 99
+	replacements.alive_peer_ids.clear()
+	context.expect_equal(state.payload.objective.progress[0].points, 4, "field updates detach deeply aliased incoming dictionaries and arrays")
+	context.expect_equal(state.payload.alive_peer_ids, [1, 2], "field updates detach replaced arrays")
+	context.expect_true(state.payload.objective.progress.is_read_only() and state.payload.objective.progress[0].is_read_only(), "replacement containers reject nested mutation")
+	context.expect_true(retained.alive_peer_ids == [1] and not retained.has("objective"), "retained observations keep earlier arrays and root membership")
+	context.expect_equal(notifications[0], 1, "a batched field update emits one UI invalidation")
+	state.apply_objective({"progress": 10}, 20, true)
+	context.expect_false(state.apply_objective({"progress": 9}, 19), "older objective update is rejected")
+	context.expect_false(state.apply_objective({"progress": 0}, 20), "same-tick lower priority objective update is rejected")
+	context.expect_equal(notifications[0], 2, "rejected objective updates do not invalidate UI")
+	state.replace({"objective": {"progress": -1}, "builds": {1: {&"reinforced_hull": 1}}}, 19)
+	context.expect_equal(state.payload.objective.progress, 10, "older full state preserves the newer objective while refreshing builds")
+	state.reset()
+	context.expect_true(state.apply_objective({"progress": 1}, 1), "reset accepts a new session with earlier ticks")
+	state.replace({"builds": {1: {&"reinforced_hull": 1}}})
 	var old := state.payload
 	state.update_fields({"builds": {1: {&"twin_shot": 2}}})
 	context.expect_true(old.builds[1].has(&"reinforced_hull"), "an earlier observation remains stable after publication")

@@ -13,3 +13,9 @@ Finding 3 — projectile geometry references
 Client sweeps prepare a cache once per presentation step, retain geometry by actual radius, and invalidate on map/hidden-cover changes or session reset. Cargo-enabled authoritative sweeps use the same reference owner; damage refreshes it immediately within the tick. Shared geometry keys now preserve the actual radius instead of rounding different radii to the same hundredth.
 
 The full suite passed 13,849 assertions. Added exact hit-dictionary comparisons across every map, five radii (including two formerly aliased radii), repeated cover/door masks and resets, plus a two-projectile test proving that cargo destroyed by the first projectile is traversable by the second in the same tick. Existing prediction, recovery, ricochet and multi-impact tests pass. Local log: `.tools/perf-finding3-4-tests.log`.
+
+Finding 4 — immutable match-state publication
+
+Small field updates shallow-copy the root, detach/freeze replacement fields, and share existing immutable subtrees. Full replacement still detaches externally owned input. One publication emits one invalidation; objective version rejection and reset semantics are unchanged.
+
+The 13,849-assertion suite includes retained observations, nested incoming dictionary/array aliases, replacement arrays, read-only nested containers, batched signal counts, rejected objective versions, full-state/objective ordering, build/prediction refresh and session reset. Tests assert the observation contract rather than object identity. Local log: `.tools/perf-finding3-4-tests.log`.
