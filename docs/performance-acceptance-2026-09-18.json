@@ -1,0 +1,306 @@
+{
+  "date": "2026-09-18",
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+    "godot": "4.7.2-stable (official)",
+    "logical_cpus": 16
+  },
+  "codec": {
+    "byte_identical": true,
+    "current": {
+      "max_usec": 2244,
+      "mean_usec": 1810.90833333333,
+      "p50_usec": 1786,
+      "p95_usec": 1932,
+      "samples": 120
+    },
+    "presized_native_writes_prototype": {
+      "max_usec": 3127,
+      "mean_usec": 1845.78333333333,
+      "p50_usec": 1796,
+      "p95_usec": 2108,
+      "samples": 120
+    },
+    "scope": "1024 projectile full recovery, 120 paired alternating samples; plus mixed flag/clamp/wrap vectors; no transport"
+  },
+  "world_scheduler_repeat": {
+    "full_recovery_tick": {
+      "max_usec": 17033,
+      "mean_usec": 14965.1666666667,
+      "p50_usec": 14452,
+      "p95_usec": 17033,
+      "samples": 6
+    },
+    "per_tick": {
+      "max_usec": 19582,
+      "mean_usec": 11051.5777777778,
+      "p50_usec": 10246,
+      "p95_usec": 13909,
+      "samples": 360
+    },
+    "scope": "32 stationary humans/1024 moving projectiles; real world plus scheduler, profiling disabled; excludes refill, inputs, coordinator, RPC and client; first recovery at tick12 then every60",
+    "ticks_over_16_667_usec": 4
+  },
+  "patterns": {
+    "comparisons": [
+      {
+        "case": "normal-localfalse-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "shield-localfalse-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "cloak-localfalse-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "effects-localfalse-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "normal-localfalse-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "shield-localfalse-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "cloak-localfalse-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "effects-localfalse-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "normal-localtrue-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "shield-localtrue-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "cloak-localtrue-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "effects-localtrue-contrastfalse",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "normal-localtrue-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "shield-localtrue-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "cloak-localtrue-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      },
+      {
+        "case": "effects-localtrue-contrasttrue",
+        "changed_pixel_fraction": 0.0,
+        "mean_channel_error": 0.0
+      }
+    ],
+    "scope": "24 ships, six patterns, four angles, both pilot roles/contrast modes, shields/cloak/effects; 240 alternating-order paired replay frames; callback instrumentation enabled",
+    "timing": [
+      {
+        "calls": 11520,
+        "draw_calls_max": 900,
+        "draw_calls_min": 900,
+        "mean_usec": 23.2751736111111,
+        "p95_usec": 64,
+        "variant": "legacy"
+      },
+      {
+        "calls": 11520,
+        "draw_calls_max": 900,
+        "draw_calls_min": 900,
+        "mean_usec": 17.4510416666667,
+        "p95_usec": 43,
+        "variant": "production"
+      }
+    ],
+    "valid": true
+  },
+  "combined_gate": {
+    "coordinator_events": 24,
+    "full_recovery_tick": {
+      "max_usec": 15094,
+      "over_physics_budget": 0,
+      "p50_usec": 14049,
+      "p95_usec": 15094,
+      "p99_usec": 15094,
+      "samples": 6
+    },
+    "game_mode": "KING_OF_THE_HILL",
+    "map_id": "core_arena",
+    "minimum_projectiles_before_step": 1024,
+    "payload_bytes": 12023680,
+    "per_tick": {
+      "max_usec": 15094,
+      "over_physics_budget": 0,
+      "p50_usec": 10034,
+      "p95_usec": 13237,
+      "p99_usec": 14576,
+      "samples": 360
+    },
+    "physics_budget_usec": 16666.6666666667,
+    "players": 32,
+    "profiled": false,
+    "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+    "valid": true
+  },
+  "empty_control": {
+    "draw_p95_usec": 17236,
+    "driver": "opengl3",
+    "frame_cap": 0,
+    "low_processor": false,
+    "p50_usec": 17241,
+    "p95_usec": 17296,
+    "pacing": {
+      "budget_usec": 17241.3793103448,
+      "expected_fps": 58.0,
+      "late_frames": 2,
+      "late_percent": 0.5,
+      "late_threshold_usec": 18241.3793103448,
+      "longest_late_streak": 1,
+      "max_usec": 18598,
+      "p50_usec": 17241,
+      "p95_usec": 17296,
+      "p99_usec": 17803,
+      "samples": 400,
+      "severe_frames": 0,
+      "severe_threshold_usec": 25862.0689655172
+    },
+    "refresh_hz": 59.9770011901855,
+    "samples": 400,
+    "scope": "Empty viewport, 7 measured seconds after 1s warmup; no gameplay, audio, physics actors or network. Draw includes presentation wait; not physical display latency.",
+    "viewport": "(1920, 1080)",
+    "vsync_mode": 0,
+    "window_mode": 0
+  },
+  "production_client": {
+    "audio_driver": "WASAPI",
+    "audio_events": 3334,
+    "audio_muted": false,
+    "frame_cap": 0,
+    "pacing": {
+      "budget_usec": 17241.3793103448,
+      "expected_fps": 58.0,
+      "late_frames": 146,
+      "late_percent": 6.46589902568645,
+      "late_threshold_usec": 18241.3793103448,
+      "longest_late_streak": 4,
+      "max_usec": 34761,
+      "p50_usec": 17243,
+      "p95_usec": 18973,
+      "p99_usec": 24400,
+      "samples": 2258,
+      "severe_frames": 20,
+      "severe_threshold_usec": 25862.0689655172
+    },
+    "peak_audio_voices": 16,
+    "peak_projectiles": 54,
+    "peak_ships": 32,
+    "samples": 2258,
+    "scope": "actual ClientMain with real audio driver, screen/event handlers and shared ServerRuntime; ENet loopback plus 31 NPCs; active heat frames after 5s warmup; cadence diagnostic, no pure GPU/audio execution timer",
+    "snapshots": 889,
+    "states": [
+      "DRAFT",
+      "COUNTDOWN",
+      "ACTIVE_HEAT",
+      "HEAT_RESULT"
+    ],
+    "valid": true,
+    "viewport": "(1920, 1080)",
+    "vsync_mode": 0
+  },
+  "dense_replay": {
+    "draw_calls_p95": 3012,
+    "final_state_sha256": "a0d148c29c2bc069806415ef4cb50755b8eef7eafc1a04b85ce6caa127a33094",
+    "minimum_drawn_projectiles": 1024,
+    "pacing": {
+      "budget_usec": 17241.3793103448,
+      "expected_fps": 58.0,
+      "late_frames": 600,
+      "late_percent": 100.0,
+      "late_threshold_usec": 18241.3793103448,
+      "longest_late_streak": 600,
+      "max_usec": 59610,
+      "p50_usec": 50055,
+      "p95_usec": 53154,
+      "p99_usec": 55752,
+      "samples": 600,
+      "severe_frames": 600,
+      "severe_threshold_usec": 25862.0689655172
+    },
+    "peak_effects": 24,
+    "scope": "600 rendered fixed-step frames after 60 warmup; 32 ships, 1024 mixed ordnance and bounded mine explosions; deterministic positions, angles, effect ages and cosmetic animation clock; no transport, simulation collision or audio",
+    "ships": 32,
+    "update_p95_usec": 1046,
+    "valid": true
+  },
+  "dense_replay_previous": {
+    "draw_calls_p95": 3012,
+    "final_state_sha256": "a0d148c29c2bc069806415ef4cb50755b8eef7eafc1a04b85ce6caa127a33094",
+    "minimum_drawn_projectiles": 1024,
+    "pacing": {
+      "budget_usec": 17241.3793103448,
+      "expected_fps": 58.0,
+      "late_frames": 600,
+      "late_percent": 100.0,
+      "late_threshold_usec": 18241.3793103448,
+      "longest_late_streak": 600,
+      "max_usec": 70035,
+      "p50_usec": 49667,
+      "p95_usec": 53615,
+      "p99_usec": 56413,
+      "samples": 600,
+      "severe_frames": 600,
+      "severe_threshold_usec": 25862.0689655172
+    },
+    "peak_effects": 24,
+    "scope": "600 rendered fixed-step frames after 60 warmup; 32 ships, 1024 mixed ordnance and bounded mine explosions; deterministic positions, angles and effect ages; no transport, simulation collision or audio",
+    "ships": 32,
+    "update_p95_usec": 1065,
+    "valid": true
+  },
+  "enet_profiles_passed": [
+    "baseline",
+    "latency",
+    "loss",
+    "reorder",
+    "blackout",
+    "combined",
+    "tail_loss",
+    "limited_bandwidth"
+  ],
+  "limitations": [
+    "No pure GPU or audio execution timing, long soak, release packaging, or native Linux/macOS acceptance.",
+    "Headless timing gates use documented defensive overload limits; presentation gates enforce coverage/errors and report cadence without claiming frame-budget acceptance.",
+    "Live runs have different match trajectories; do not subtract their percentiles to claim an isolated speedup."
+  ]
+}

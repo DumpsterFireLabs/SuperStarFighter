@@ -27,3 +27,25 @@ Cached local polygons now draw under a temporary canvas transform, restored befo
 All 16 capture sheets were pixel-identical (six patterns × four angles × both pilot roles × both contrast modes × normal/shield/cloak/effects). The effects/local/contrast capture was also visually inspected. Both viewports recorded 900 draw calls. Across 11,520 pattern callbacks per implementation, legacy mean/p95 was 23.28/64 µs and production was 17.45/43 µs (25% lower mean). These are instrumented callback timings, not a whole-game FPS claim. The full unit suite also passes.
 
 Run: `.tools/godot/Godot_v4.7.2-stable_win64_console.exe --path . --audio-driver Dummy --resolution 1920x1080 --script res://src/test/pattern_render_verifier.gd`. Captures and machine-readable results are written to `.tools/performance-patterns/`; the tool exits nonzero on appearance differences beyond its small rasterization tolerance.
+Finding 5 — performance coverage and timing scope
+
+`tools/run-performance-benchmark.ps1` now runs the existing overload fixture without detailed profiling and a separate combined world/coordinator/event-drain/replication gate. `-IncludeAttribution` retains the detailed profiling run, explicitly labeled. Recovery ticks are detected from emitted packet kinds rather than assumed tick offsets; their p95/p99/max and counts over the physics budget are reported separately. Coverage requires 32 pilots, 1,024 projectiles before each step, six complete recoveries, and actual objective events. Defensive limits remain 20 ms p95, 24 ms p99, 30 ms max; recovery p95 has a separate 24 ms bound. `-StrictPhysicsBudget` additionally rejects any combined tick exceeding 60 Hz.
+
+The final combined run measured 13.237 ms p95, 14.576 ms p99 and 15.094 ms maximum, with no over-budget ticks across 360 samples; all six full recoveries were below 16.667 ms. It exercised 24 coordinator events. An earlier run of this same gate had one over-budget tick (17.749 ms max). These are bounded fixture results, not a guarantee across all machines or match trajectories. The separate NPC overload and mixed-mine gates passed, including the explicitly profiled attribution run.
+
+`tools/verify-frame-pacing.ps1 -ExpectedFps 58` now runs an empty-window control, deterministic dense ordnance/effect replay, and actual ClientMain plus ServerRuntime over ENet with a real audio driver. It prints direct control/workload comparisons. `-IncludeAttribution` retains the old instrumented world-view fixture separately. The misleading `over_16ms_percent` field is removed; all rendered reports use the supplied display cadence and include p99/max, late and severe counts.
+
+The final production run used WASAPI with audio unmuted, reached 16 simultaneous SFX voices, and exercised lobby/draft/countdown/active/heat-result flow, 32 ships, 54 peak projectiles, 889 snapshots and 3,334 presentation events. Across 2,258 active frames, median/p95/p99 were 17.243/18.973/24.400 ms, with 6.47% late and 20 severe frames. Its paired empty-window control had p95 17.296 ms, 0.50% late and no severe frames. Other live runs varied (p95 17.467–19.640 ms); no release-wide FPS gain is claimed.
+
+The dense replay renders all 1,024 mixed projectiles, 32 ships and 24 simultaneous mine effects, with fixed simulation steps and a fixed cosmetic animation clock. Its final-state checksum and 3,012 p95 draw calls reproduced across runs. The fixed-clock run measured 53.154 ms p95 and 59.610 ms maximum; all 600 frames exceeded the 58 FPS cadence. This newly exposed extreme presentation limit remains a follow-up profiling target. The rendered gates pass coverage/error checks, not frame-budget acceptance.
+
+Reproduction (serial, without a competing benchmark):
+
+```powershell
+& tools/run-tests.ps1
+& tools/run-performance-benchmark.ps1 -IncludeAttribution
+& tools/verify-frame-pacing.ps1 -DurationSeconds 45 -ExpectedFps 58
+& .tools/godot/Godot_v4.7.2-stable_win64_console.exe --path . --audio-driver Dummy --resolution 1920x1080 --script res://src/test/pattern_render_verifier.gd
+```
+
+[Retained machine-readable results](performance-acceptance-2026-09-18.json) include codec, pattern, combined-tick, control, production-audio and replay measurements. The final unit run passed 13,856 assertions, including tests showing how overall p95 misses periodic stalls while explicit recovery tails expose them. Local logs: `.tools/perf-final-tests.log`, `.tools/perf-new-gates.log`, `.tools/perf-combined-final.log`, `.tools/perf-frame-final.log`, `.tools/perf-dense-fixed-clock.log`. The known root-certificate-store warning occurred; accepted runs contained no other engine/script errors. No long soak, pure GPU/audio execution profile, newly packaged release, or native Linux/macOS run was performed.

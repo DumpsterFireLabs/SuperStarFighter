@@ -22,7 +22,7 @@ func _ready() -> void:
 	var world := AuthoritativeWorld.new()
 	world.set_map_id(benchmark_map)
 	var npc_controller := NpcPilotController.new()
-	world.performance_profiling_enabled = true
+	world.performance_profiling_enabled = "--profile" in OS.get_cmdline_user_args()
 	var npc_ids: Array[int] = []
 	var difficulties: Dictionary = {}
 	var anchors := ArenaLayout.spawn_anchors(world.map_id)
@@ -62,7 +62,8 @@ func _ready() -> void:
 	var collision_means: Dictionary = {}
 	for phase in collision_totals:
 		collision_means[phase] = float(collision_totals[phase]) / SAMPLE_TICKS
-	print("SSF_COLLISION_PROFILE map=%s phases=%s" % [benchmark_map, JSON.stringify(collision_means)])
+	if world.performance_profiling_enabled:
+		print("SSF_COLLISION_PROFILE map=%s phases=%s" % [benchmark_map, JSON.stringify(collision_means)])
 	var p50 := _percentile(samples, 0.50)
 	var p95 := _percentile(samples, 0.95)
 	var p99 := _percentile(samples, 0.99)
@@ -70,21 +71,22 @@ func _ready() -> void:
 	print("SSF_PERFORMANCE_RESULT p50_usec=%d p95_usec=%d p99_usec=%d max_usec=%d projectiles=%d npcs=%d" % [
 		p50, p95, p99, maximum, maximum_projectiles, npc_ids.size(),
 	])
-	print("SSF_PERFORMANCE_PHASES npc=%d movement=%d overlaps=%d projectiles=%d cleanup_and_threats=%d" % [
-		int(phase_totals.npc) / SAMPLE_TICKS,
-		int(phase_totals.movement) / SAMPLE_TICKS,
-		int(phase_totals.overlaps) / SAMPLE_TICKS,
-		int(phase_totals.projectiles) / SAMPLE_TICKS,
-		int(phase_totals.cleanup_and_threats) / SAMPLE_TICKS,
-	])
-	var phase_tails: Dictionary = {}
-	for phase in phase_samples:
-		var sorted: Array[int] = []
-		sorted.assign(phase_samples[phase])
-		sorted.sort()
-		phase_tails[phase] = {"p95_usec": _percentile(sorted, 0.95), "p99_usec": _percentile(sorted, 0.99), "max_usec": sorted.back()}
-	print("SSF_PERFORMANCE_PHASE_TAILS %s" % JSON.stringify(phase_tails))
-	print("SSF_PERFORMANCE_SCOPE samples=%d warmup=%d includes=npc_and_authoritative_world excludes=refill_replication_client_render" % [SAMPLE_TICKS, WARMUP_TICKS])
+	if world.performance_profiling_enabled:
+		print("SSF_PERFORMANCE_PHASES npc=%d movement=%d overlaps=%d projectiles=%d cleanup_and_threats=%d" % [
+			int(phase_totals.npc) / SAMPLE_TICKS,
+			int(phase_totals.movement) / SAMPLE_TICKS,
+			int(phase_totals.overlaps) / SAMPLE_TICKS,
+			int(phase_totals.projectiles) / SAMPLE_TICKS,
+			int(phase_totals.cleanup_and_threats) / SAMPLE_TICKS,
+		])
+		var phase_tails: Dictionary = {}
+		for phase in phase_samples:
+			var sorted: Array[int] = []
+			sorted.assign(phase_samples[phase])
+			sorted.sort()
+			phase_tails[phase] = {"p95_usec": _percentile(sorted, 0.95), "p99_usec": _percentile(sorted, 0.99), "max_usec": sorted.back()}
+		print("SSF_PERFORMANCE_PHASE_TAILS %s" % JSON.stringify(phase_tails))
+	print("SSF_PERFORMANCE_SCOPE samples=%d warmup=%d detailed_profiling=%s includes=npc_and_authoritative_world excludes=refill_replication_client_render" % [SAMPLE_TICKS, WARMUP_TICKS, world.performance_profiling_enabled])
 	var mixed_mine_result := _run_mixed_mine_benchmark()
 	print("SSF_MINE_PERFORMANCE_RESULT p50_usec=%d p95_usec=%d p99_usec=%d max_usec=%d mines=%d projectiles=%d" % [
 		int(mixed_mine_result.p50),

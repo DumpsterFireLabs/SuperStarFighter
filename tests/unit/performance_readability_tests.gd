@@ -3,6 +3,7 @@ extends RefCounted
 
 static func run(context: TestContext, parent: Node) -> void:
 	_frame_cadence(context)
+	_recovery_tail_summary(context)
 	_shot_profile_reuse(context)
 	_sweep_parity(context)
 	_effect_pressure(context, parent)
@@ -124,3 +125,24 @@ static func _effect_pressure(context: TestContext, parent: Node) -> void:
 	context.expect_true(effects.effects.is_empty(), "distant decoration does not occupy the visible feedback budget")
 	parent.remove_child(effects)
 	effects.free()
+
+
+static func _recovery_tail_summary(context: TestContext) -> void:
+	var samples: Array[int] = []
+	samples.resize(360)
+	samples.fill(10000)
+	var recovery: Array[int] = []
+	for index in 6:
+		samples[index * 60] = 18000
+		recovery.append(18000)
+	var timing = preload("res://src/test/combined_performance_benchmark.gd")
+	var all_ticks: Dictionary = timing.summarize(samples)
+	var recoveries: Dictionary = timing.summarize(recovery)
+	context.expect_equal(all_ticks.p95_usec, 10000, "overall p95 can miss periodic recovery stalls")
+	context.expect_equal(all_ticks.over_physics_budget, 6, "combined gate counts every physics-budget overrun")
+	context.expect_equal(recoveries.p95_usec, 18000, "recovery tail reports stalls hidden below overall p95")
+	context.expect_equal(recoveries.max_usec, 18000, "recovery maximum is explicitly retained")
+	context.expect_equal(timing.summarize([]).samples, 0, "empty benchmark samples cannot masquerade as coverage")
+	var pacing := preload("res://src/test/frame_timing_summary.gd").summarize([17241, 17242, 20000, 28000], 58.0)
+	context.expect_equal(pacing.samples, 4, "cap-aware summaries retain sample counts for control comparisons")
+	context.expect_equal(pacing.p99_usec, 28000, "cap-aware summaries expose tail intervals")

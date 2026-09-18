@@ -20,6 +20,10 @@ static func summarize(intervals: Array[int], expected_fps: float) -> Dictionary:
 		if interval > budget * 1.5:
 			severe += 1
 	return {"expected_fps": expected_fps, "budget_usec": budget,
+		"samples": intervals.size(),
+		"p50_usec": NetworkBridge.percentile_usec(sorted, 0.5),
+		"p95_usec": NetworkBridge.percentile_usec(sorted, 0.95),
+		"p99_usec": NetworkBridge.percentile_usec(sorted, 0.99),
 		"late_threshold_usec": budget + 1000.0, "late_frames": late,
 		"late_percent": 100.0 * late / maxi(intervals.size(), 1),
 		"severe_threshold_usec": budget * 1.5, "severe_frames": severe,

@@ -1,4 +1,4 @@
-# Frozen protocol-v6 reference encoder: keep independent of the production writer.
+# Frozen projectile wire-layout reference encoder: keep independent of the production writer.
 extends RefCounted
 
 const HEADER_SIZE: int = 14

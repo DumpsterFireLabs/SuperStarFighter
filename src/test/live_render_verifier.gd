@@ -166,9 +166,6 @@ func _run() -> void:
 	draw_calls.sort()
 	view.snapshot_usec.sort()
 	view.physics_usec.sort()
-	var over_budget := 0
-	for interval in samples:
-		if interval > 16667: over_budget += 1
 	print("SSF_LIVE_RENDER_RESULT=%s" % JSON.stringify({"samples": samples.size(), "duration_seconds": duration,
 		"viewport": str(root.size), "vsync_mode": DisplayServer.window_get_vsync_mode(),
 		"frame_cap": frame_cap, "hide_world": hide_world,
@@ -180,7 +177,7 @@ func _run() -> void:
 		"client_snapshot_p95_usec": NetworkBridge.percentile_usec(view.snapshot_usec, 0.95),
 		"client_physics_p95_usec": NetworkBridge.percentile_usec(view.physics_usec, 0.95),
 		"p50_usec": NetworkBridge.percentile_usec(samples, 0.5), "p95_usec": NetworkBridge.percentile_usec(samples, 0.95),
-		"p99_usec": NetworkBridge.percentile_usec(samples, 0.99), "over_16ms_percent": 100.0 * over_budget / maxi(samples.size(), 1),
+		"p99_usec": NetworkBridge.percentile_usec(samples, 0.99),
 		"snapshots": snapshots, "peak_ships": peak_ships, "peak_projectiles": peak_projectiles,
 		"scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process ENet server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles."}))
 	view.set_network_active(false)

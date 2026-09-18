@@ -6,11 +6,11 @@ The user's 58 FPS limit is accounted for throughout. A displayed frame has appro
 
 | Finding | Status | Priority and next action |
 | --- | --- | --- |
-| 1. Full projectile recovery creates a periodic encoding spike | **Fixed — protocol and ENet acceptance passed** | High under heavy ordnance. Pre-size packets and use native integer writes while preserving bytes and chunk boundaries. |
-| 2. Ship patterns rebuild transformed vertex arrays during drawing | **Fixed — paired rendered acceptance passed** | High for client presentation. Retain local geometry and apply a draw transform; validate appearance and batching. |
-| 3. Client projectile sweeps repeatedly resolve cached geometry | **Fixed — dynamic geometry acceptance passed** | Medium; straightforward CPU saving. Retain geometry by map, radius, and cover revision. |
-| 4. Small match updates copy and recursively freeze unrelated data | **Fixed — immutable publication acceptance passed** | Medium, especially large builds/objective modes. Share unchanged immutable subtrees. |
-| 5. Existing performance gates omit important work and include profiling overhead | **Open — measured coverage gap** | Improve the gate alongside the optimizations: combined simulation/replication tails, production composition, and cap-aware cadence. |
+| 1. Full projectile recovery creates a periodic encoding spike | **Fixed — protocol and ENet acceptance passed** | Pre-sized packets and native writes preserve bytes and chunk boundaries. |
+| 2. Ship patterns rebuild transformed vertex arrays during drawing | **Fixed — paired rendered acceptance passed** | Cached local geometry uses a draw transform; paired appearance and draw-call checks passed. |
+| 3. Client projectile sweeps repeatedly resolve cached geometry | **Fixed — dynamic geometry acceptance passed** | Geometry references are retained by map, actual radius, and cover state. |
+| 4. Small match updates copy and recursively freeze unrelated data | **Fixed — immutable publication acceptance passed** | Small updates share unchanged immutable subtrees and freeze detached replacements. |
+| 5. Existing performance gates omit important work and include profiling overhead | **Fixed — expanded gates and production coverage passed** | Combined/recovery tails, separate attribution, production audio/client flow and cap-aware controls are covered; extreme dense-render limits are documented. |
 
 These statuses refer to production implementation. Original measurements below remain historical review evidence. Implementation and acceptance results are recorded in [the follow-up](PERFORMANCE-ACCEPTANCE-2026-09-18.md); findings are marked **Fixed** after their checks pass.
 
@@ -92,7 +92,7 @@ In the ordinary visible run, server callback active p95 ranged from 1.008–2.88
 
 5. **Performance gates need better coverage and separation of timing costs.**
 
-   **Status: Open — measurement gap confirmed.**
+   **Status: Fixed — unprofiled combined/recovery gates, deterministic replay and real-audio ClientMain acceptance passed on 18 September 2026.**
 
    The existing overload gate enables detailed timers inside projectile loops and measures NPC/world work only. Three alternating paired trials measured **13.325 ms mean with profiling off versus 14.471 ms on**, an 8.6% instrumentation overhead in this workload. Ship snapshots matched every tick. The profile is useful for attribution, but its elapsed time should not be presented as uninstrumented shipping cost.
 

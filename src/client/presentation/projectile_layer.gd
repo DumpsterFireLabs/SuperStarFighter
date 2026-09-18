@@ -85,6 +85,7 @@ func _draw() -> void:
 	last_drawn_projectiles = 0
 	if registry == null:
 		return
+	var animation_msec := _animation_time_msec()
 	var simplified := registry.size() >= SIMPLIFY_PROJECTILE_THRESHOLD
 	var cull_rect := visible_world_rect.grow(260.0)
 	for projectile_id in registry.ordered_ids_view():
@@ -100,7 +101,7 @@ func _draw() -> void:
 		var friendly_alpha := 0.5 if simplified and is_friendly_owner(projectile.owner_id) else 1.0
 		if projectile.is_mine:
 			var mine_color := projectile_color_for_owner(projectile.owner_id) if has_team_marker(projectile.owner_id) else Color("ff4f78")
-			var pulse := 0.5 + sin(Time.get_ticks_msec() * 0.008 + projectile.projectile_id) * 0.5
+			var pulse := 0.5 + sin(animation_msec * 0.008 + projectile.projectile_id) * 0.5
 			var armed := projectile.is_mine_armed()
 			if armed:
 				if not simplified:
@@ -188,3 +189,8 @@ func _draw_compact_friendly(projectile: ProjectileState) -> void:
 	else:
 		draw_circle(point, projectile.radius, color)
 		draw_line(point, point - direction * 14.0, color, 2.0)
+
+
+func _animation_time_msec() -> float:
+	# One clock sample per draw also lets deterministic replays supply their tick.
+	return Time.get_ticks_msec()
