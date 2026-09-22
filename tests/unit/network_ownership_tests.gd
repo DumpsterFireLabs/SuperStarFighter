@@ -1,5 +1,13 @@
 extends RefCounted
 
+class CommandBridge extends NetworkBridge:
+	var broadcasts := 0
+	var rejected := 0
+	func _broadcast_lobby_state() -> void:
+		broadcasts += 1
+	func _send_request_rejected(_peer: int, _message: String) -> void:
+		rejected += 1
+
 
 class RecordingBridge extends NetworkBridge:
 	var log_writes: Array[String] = []
@@ -35,6 +43,18 @@ class RecordingReplication extends NetworkReplicationScheduler:
 
 
 static func run(context: TestContext) -> void:
+	var command_bridge := CommandBridge.new()
+	command_bridge.lobby = ServerLobby.new()
+	command_bridge.lobby.admit(2, "Host")
+	command_bridge.lobby.admit(3, "Guest")
+	command_bridge.commands.request_lobby_config(3, 5)
+	context.expect_equal(command_bridge.rejected, 1, "command service retains leader authorization")
+	command_bridge.commands.request_lobby_config(2, 5)
+	context.expect_equal(command_bridge.lobby.config.rounds_to_win, 5, "command service applies accepted settings")
+	context.expect_equal(command_bridge.broadcasts, 1, "accepted command publishes once")
+	var service: RefCounted = command_bridge.commands
+	command_bridge.free()
+	context.expect_equal(service._owner.get_ref(), null, "command service cannot retain its bridge")
 	_admission_queue(context)
 	_server_health(context)
 	_server_log_batching(context)

@@ -2,6 +2,7 @@ class_name NetworkBridge
 extends Node
 
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
+const CommandService = preload("res://src/shared/network/lobby_match_commands.gd")
 
 
 signal server_peer_admitted(peer_id: int, player: PlayerMatchState)
@@ -23,6 +24,7 @@ enum Role {
 
 var session: NetworkSessionOwner
 var replication: NetworkReplicationScheduler
+var commands: CommandService
 
 # Read-only session observations; mutations go to the owning service.
 var role: Role:
@@ -65,6 +67,7 @@ var _logged_overtime_key: String = ""
 
 
 func _init() -> void:
+	commands = CommandService.new(self)
 	session = NetworkSessionOwner.new(self, _session_status)
 	session.log_requested.connect(_log)
 	session.challenge_requested.connect(func(peer_id: int, challenge: String) -> void: authentication_challenge.rpc_id(peer_id, challenge))
@@ -365,11 +368,7 @@ func request_lobby_config(rounds_to_win: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "lobby_config"):
 		return
-	var result := lobby.request_rounds_to_win(sender_id, rounds_to_win)
-	if result.ok:
-		_broadcast_lobby_state()
-	else:
-		_send_request_rejected(sender_id, result.error)
+	commands.request_lobby_config(sender_id, rounds_to_win)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -379,13 +378,7 @@ func request_player_limit(player_limit: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "player_limit"):
 		return
-	var result := lobby.request_player_limit(sender_id, player_limit)
-	if result.ok:
-		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-		_activate_added_npcs(result)
-		_broadcast_lobby_state()
-	else:
-		_send_request_rejected(sender_id, result.error)
+	commands.request_player_limit(sender_id, player_limit)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -395,13 +388,7 @@ func request_npcs_enabled(enabled: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "npcs_enabled"):
 		return
-	var result := lobby.request_npcs_enabled(sender_id, enabled)
-	if result.ok:
-		_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-		_activate_added_npcs(result)
-		_broadcast_lobby_state()
-	else:
-		_send_request_rejected(sender_id, result.error)
+	commands.request_npcs_enabled(sender_id, enabled)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -411,11 +398,7 @@ func request_game_mode(mode: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "game_mode"):
 		return
-	var result := lobby.request_game_mode(sender_id, mode)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_game_mode(sender_id, mode)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -425,11 +408,7 @@ func request_team_count(team_count: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "team_count"):
 		return
-	var result := lobby.request_team_count(sender_id, team_count)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_team_count(sender_id, team_count)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -439,11 +418,7 @@ func request_team_assignment(peer_id: int, team_selection: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "team_assignment"):
 		return
-	var result := lobby.request_team_assignment(sender_id, peer_id, team_selection)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_team_assignment(sender_id, peer_id, team_selection)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -451,11 +426,7 @@ func request_arena_effects(settings: Dictionary) -> void:
 	if role != Role.SERVER: return
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "arena_effects"): return
-	var result := lobby.request_arena_effects(sender_id, settings)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_arena_effects(sender_id, settings)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -465,11 +436,7 @@ func request_random_spawn_powerups(enabled: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "random_spawn_powerups"):
 		return
-	var result := lobby.request_random_spawn_powerups(sender_id, enabled)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_random_spawn_powerups(sender_id, enabled)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -482,11 +449,7 @@ func request_player_color(random_color: bool, color_value: String) -> void:
 	if color_value.length() > 7:
 		session.reject_malformed_control(sender_id, "oversized_player_color")
 		return
-	var result := lobby.request_player_color(sender_id, random_color, color_value)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_player_color(sender_id, random_color, color_value)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -499,12 +462,7 @@ func request_player_appearance(random_color: bool, color_value: String, pattern_
 	if color_value.length() > 7 or pattern_value.length() > 16:
 		session.reject_malformed_control(sender_id, "oversized_player_appearance")
 		return
-	var pattern := ShipAppearanceScript.normalized_pattern(pattern_value)
-	var result := lobby.request_player_appearance(sender_id, random_color, color_value, pattern)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_player_appearance(sender_id, random_color, color_value, pattern_value)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -514,12 +472,7 @@ func request_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "npc_difficulty"):
 		return
-	var result := lobby.request_npc_difficulty(sender_id, npc_peer_id, difficulty)
-	if result.ok:
-		if bool(result.get("changed", false)):
-			_broadcast_lobby_state()
-	else:
-		_send_request_rejected(sender_id, result.error)
+	commands.request_npc_difficulty(sender_id, npc_peer_id, difficulty)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -529,11 +482,7 @@ func request_all_npc_difficulty(difficulty: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "all_npc_difficulty"):
 		return
-	var result := lobby.request_all_npc_difficulty(sender_id, difficulty)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_all_npc_difficulty(sender_id, difficulty)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -543,11 +492,7 @@ func request_random_powerup_interval(seconds: float) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "random_powerup_interval"):
 		return
-	var result := lobby.request_random_powerup_interval(sender_id, seconds)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_random_powerup_interval(sender_id, seconds)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -557,11 +502,7 @@ func request_random_powerups_permanent(permanent: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "random_powerups_permanent"):
 		return
-	var result := lobby.request_random_powerups_permanent(sender_id, permanent)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_random_powerups_permanent(sender_id, permanent)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -571,11 +512,7 @@ func request_competitive_view(enabled: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "competitive_view"):
 		return
-	var result := lobby.request_competitive_view(sender_id, enabled)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_competitive_view(sender_id, enabled)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -585,11 +522,7 @@ func request_silly_mode(enabled: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "silly_mode"):
 		return
-	var result := lobby.request_silly_mode(sender_id, enabled)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_silly_mode(sender_id, enabled)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -599,11 +532,7 @@ func request_overtime_start(seconds: float) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "overtime_start"):
 		return
-	var result := lobby.request_overtime_start(sender_id, seconds)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_overtime_start(sender_id, seconds)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -613,11 +542,7 @@ func request_ready_state(ready: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "ready_state"):
 		return
-	var result := lobby.request_ready(sender_id, ready)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_broadcast_lobby_state()
+	commands.request_ready_state(sender_id, ready)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -627,20 +552,7 @@ func request_eject_player(target_peer_id: int) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "eject_player"):
 		return
-	var result := lobby.request_eject(sender_id, target_peer_id)
-	if not result.ok:
-		_send_request_rejected(sender_id, result.error)
-		return
-	if world != null:
-		world.remove_peer(target_peer_id)
-	session.forget_admission(target_peer_id)
-	_activate_added_npcs(result)
-	var reason := NetworkProtocol.REJECT_EJECTED
-	connection_rejected.rpc_id(target_peer_id, reason, NetworkProtocol.rejection_message(reason))
-	session.schedule_disconnect(target_peer_id)
-	_broadcast_lobby_state()
-	server_peer_departed.emit(target_peer_id)
-	_log("info", "peer_ejected", {"leader_id": sender_id, "peer_id": target_peer_id})
+	commands.request_eject_player(sender_id, target_peer_id)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -650,13 +562,7 @@ func request_start_match() -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "start_match"):
 		return
-	var result := lobby.request_start(sender_id)
-	if result.ok:
-		_activate_added_npcs(result)
-		_broadcast_lobby_state()
-		_start_match_coordinator(sender_id)
-	else:
-		_send_request_rejected(sender_id, result.error)
+	commands.request_start_match(sender_id)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -669,13 +575,7 @@ func request_match_preset(preset_id: String) -> void:
 	if preset_id.length() > 32:
 		session.reject_malformed_control(sender_id, "oversized_match_preset")
 		return
-	var result := preload("res://src/shared/lobby/match_presets.gd").apply(lobby, sender_id, preset_id)
-	if not bool(result.ok):
-		_send_request_rejected(sender_id, String(result.error))
-		return
-	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-	_activate_added_npcs(result)
-	_broadcast_lobby_state()
+	commands.request_match_preset(sender_id, preset_id)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -685,13 +585,7 @@ func request_rematch() -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "rematch"):
 		return
-	var result := _prepare_fresh_rematch(sender_id)
-	if not bool(result.ok):
-		_send_request_rejected(sender_id, String(result.error))
-		return
-	_broadcast_lobby_state()
-	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": sender_id, "fresh_rematch": true})
-	_drain_match_coordinator()
+	commands.request_rematch(sender_id)
 
 
 func _prepare_fresh_rematch(sender_id: int) -> Dictionary:
@@ -722,16 +616,7 @@ func request_return_to_lobby() -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "return_to_lobby"):
 		return
-	if sender_id != lobby.leader_id:
-		_send_request_rejected(sender_id, "Only the lobby leader may return the match to the lobby.")
-		return
-	if match_coordinator == null or not match_coordinator.return_to_lobby():
-		_send_request_rejected(sender_id, "Return to lobby is only available from the final results screen.")
-		return
-	_drain_match_coordinator()
-	if match_coordinator.is_finished():
-		match_coordinator = null
-		_broadcast_lobby_state()
+	commands.request_return_to_lobby(sender_id)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -741,13 +626,7 @@ func request_extend_match() -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "extend_match"):
 		return
-	if sender_id != lobby.leader_id:
-		_send_request_rejected(sender_id, "Only the lobby leader may extend the match.")
-		return
-	if match_coordinator == null or not match_coordinator.extend_match():
-		_send_request_rejected(sender_id, "Match extension is only available from final results with at least two competing participants.")
-		return
-	_drain_match_coordinator()
+	commands.request_extend_match(sender_id)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -757,10 +636,7 @@ func request_match_paused(paused: bool) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "match_paused"):
 		return
-	if match_coordinator == null or not match_coordinator.request_pause(sender_id, paused):
-		_send_request_rejected(sender_id, "Only the host may pause or resume a running match.")
-		return
-	_drain_match_coordinator()
+	commands.request_match_paused(sender_id, paused)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
