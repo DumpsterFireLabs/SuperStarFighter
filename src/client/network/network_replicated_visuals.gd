@@ -172,10 +172,13 @@ func _ensure_ship_from_identity(peer_id: int, state: Dictionary, identity: Dicti
 
 func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 	var was_alive := ship.combatant.alive
-	if bool(state.alive) and not was_alive:
+	var remote_life_changed := ship.combatant.peer_id != context.local_peer_id and state.has("life_generation") and int(state.life_generation) != (ship.combatant.life_generation & 0xffff)
+	if bool(state.alive) and (not was_alive or remote_life_changed):
 		ship.reset_ship(_stats_for_peer(ship.combatant.peer_id), state.position)
 		_shield_feedback_ticks[ship.combatant.peer_id] = maxi(int(_shield_feedback_ticks.get(ship.combatant.peer_id, -1)), context.latest_server_tick - 1)
 	ship.combatant.position = state.position
+	if ship.combatant.peer_id != context.local_peer_id and state.has("life_generation"):
+		ship.combatant.life_generation = int(state.life_generation)
 	ship.combatant.velocity = state.velocity
 	ship.combatant.aim_angle = state.aim_angle
 	ship.combatant.health = state.health

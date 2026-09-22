@@ -47,6 +47,20 @@ static func run(context: TestContext, parent: Node) -> void:
 	_snapshot(view, world, 136)
 	context.expect_equal(view.hud_camera.camera.position, pilot.position, "respawn restores the camera to the new local spawn")
 	context.expect_equal(view.hud_camera.spectator_target_id, 0, "respawn leaves spectator mode")
+	world.respawn_peer(2, remote.stats, Vector2(2500, 1300))
+	_snapshot(view, world, 137)
+	context.expect_equal((view.replicated_visuals.ships[2] as CombatShipView).global_position, remote.position, "remote respawn snaps to its spawn immediately")
+	view._physics_process(1.0 / 60.0)
+	context.expect_equal((view.replicated_visuals.ships[2] as CombatShipView).global_position, remote.position, "remote respawn cannot interpolate across its old life")
+	# No intervening dead snapshot, including a wrapped public epoch.
+	remote.life_generation = 65535
+	_snapshot(view, world, 138)
+	remote.alive = false
+	world.respawn_peer(2, remote.stats, Vector2(400, 300))
+	context.expect_equal(remote.position, Vector2(400, 300), "lost-death fixture really respawns at a new position")
+	_snapshot(view, world, 139)
+	view._physics_process(1.0 / 60.0)
+	context.expect_equal((view.replicated_visuals.ships[2] as CombatShipView).global_position, remote.position, "wrapped generation detects a respawn even when its death packet was lost")
 	# A late spectator's first snapshot is dead too: it must not center on
 	# the placeholder ship before the spectator camera takes over.
 	view.reset_session()

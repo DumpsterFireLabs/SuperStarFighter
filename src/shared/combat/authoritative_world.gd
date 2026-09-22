@@ -298,6 +298,7 @@ func snapshot_states() -> Array[Dictionary]:
 			"velocity": combatant.velocity,
 			"aim_angle": combatant.aim_angle,
 			"health": combatant.health,
+			"life_generation": combatant.life_generation,
 			"shield": combatant.shield.energy,
 			"ammunition": combatant.weapon.ammunition,
 			"alive": combatant.alive,

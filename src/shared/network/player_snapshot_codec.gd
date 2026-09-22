@@ -109,7 +109,8 @@ static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
 		float(state.get("kinetic_vent_charge", 0.0)),
 		float(state.get("breakaway_cooldown", 0.0)),
 		int(state.get("missile_charges", 0)),
-		float(state.get("missile_cooldown", 0.0))
+		float(state.get("missile_cooldown", 0.0)),
+		int(state.get("life_generation", 0))
 	)
 
 
@@ -137,7 +138,8 @@ static func _append_combatant(bytes: PackedByteArray, peer_id: int, combatant: C
 		combatant.shield.kinetic_vent_charge,
 		combatant.breakaway_cooldown_remaining,
 		combatant.missile_charges_remaining,
-		combatant.missile_cooldown_remaining
+		combatant.missile_cooldown_remaining,
+		combatant.life_generation
 	)
 
 
@@ -164,7 +166,8 @@ static func _append_values(
 	kinetic_vent_charge: float,
 	breakaway_cooldown: float,
 	missile_charges: int,
-	missile_cooldown: float
+	missile_cooldown: float,
+	life_generation: int
 ) -> void:
 	ByteCodec.append_u32(bytes, peer_id)
 	ByteCodec.append_u16(bytes, roundi(clampf(position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
@@ -191,14 +194,15 @@ static func _append_values(
 	if breakaway_active:
 		flags |= 64
 	ByteCodec.append_u8(bytes, flags)
-	ByteCodec.append_u16(bytes, clampi(mine_charges, 0, 65535))
+	# Three legal charge counts (each capped at 1000) fit in 30 bits.
+	# The saved two bytes carry the remote life epoch, keeping 32 pilots at 1193 bytes.
+	ByteCodec.append_u32(bytes, clampi(mine_charges, 0, 1023) | (clampi(cloak_charges, 0, 1023) << 10) | (clampi(missile_charges, 0, 1023) << 20))
 	ByteCodec.append_u16(bytes, roundi(clampf(mine_cooldown, 0.0, 65.535) * 1000.0))
-	ByteCodec.append_u16(bytes, clampi(cloak_charges, 0, 65535))
 	ByteCodec.append_u16(bytes, roundi(clampf(cloak_cooldown, 0.0, 65.535) * 1000.0))
 	ByteCodec.append_u8(bytes, roundi(clampf(kinetic_vent_charge, 0.0, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE)))
 	ByteCodec.append_u16(bytes, roundi(clampf(breakaway_cooldown, 0.0, 65.535) * 1000.0))
-	ByteCodec.append_u16(bytes, clampi(missile_charges, 0, 65535))
 	ByteCodec.append_u16(bytes, roundi(clampf(missile_cooldown, 0.0, 65.535) * 1000.0))
+	ByteCodec.append_u16(bytes, life_generation & 0xffff)
 
 
 static func decode(bytes: PackedByteArray) -> Dictionary:
@@ -226,21 +230,22 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 			"health": ByteCodec.read_u16(bytes, offset + 14) / RESOURCE_SCALE,
 			"shield": ByteCodec.read_u16(bytes, offset + 16) / RESOURCE_SCALE,
 			"ammunition": ByteCodec.read_u8(bytes, offset + 18),
+			"life_generation": ByteCodec.read_u16(bytes, offset + 33),
 			"alive": bool(flags & 1),
 			"shielding": bool(flags & 2),
 			"afterburner_active": bool(flags & 4),
-			"mine_charges": ByteCodec.read_u16(bytes, offset + 20),
-			"mine_cooldown": ByteCodec.read_u16(bytes, offset + 22) / 1000.0,
+			"mine_charges": ByteCodec.read_u32(bytes, offset + 20) & 1023,
+			"mine_cooldown": ByteCodec.read_u16(bytes, offset + 24) / 1000.0,
 			"cloaked": bool(flags & 8),
 			"perfect_guard_active": bool(flags & 16),
 			"kinetic_vent_active": bool(flags & 32),
 			"breakaway_active": bool(flags & 64),
-			"cloak_charges": ByteCodec.read_u16(bytes, offset + 24),
+			"cloak_charges": (ByteCodec.read_u32(bytes, offset + 20) >> 10) & 1023,
 			"cloak_cooldown": ByteCodec.read_u16(bytes, offset + 26) / 1000.0,
 			"kinetic_vent_charge": float(ByteCodec.read_u8(bytes, offset + 28)),
 			"breakaway_cooldown": ByteCodec.read_u16(bytes, offset + 29) / 1000.0,
-			"missile_charges": ByteCodec.read_u16(bytes, offset + 31),
-			"missile_cooldown": ByteCodec.read_u16(bytes, offset + 33) / 1000.0,
+			"missile_charges": (ByteCodec.read_u32(bytes, offset + 20) >> 20) & 1023,
+			"missile_cooldown": ByteCodec.read_u16(bytes, offset + 31) / 1000.0,
 		})
 		offset += PLAYER_RECORD_SIZE
 	var local_flags := ByteCodec.read_u8(bytes, offset + 16)

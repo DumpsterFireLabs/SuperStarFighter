@@ -167,6 +167,15 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 		context.expect_approx(float(first.kinetic_vent_charge), 75.0, "snapshot carries authoritative Kinetic Vent charge")
 		context.expect_approx(float(first.breakaway_cooldown), 6.25, "snapshot carries the Breakaway Thrusters cooldown")
 	context.expect_false(PlayerSnapshotCodec.decode(packet.slice(0, packet.size() - 1)).ok, "truncated player snapshot is rejected")
+	states[0].life_generation = 65535
+	states[0].mine_charges = 1000
+	states[0].cloak_charges = 1000
+	states[0].missile_charges = 1000
+	var packed := PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(901, 45, states))
+	context.expect_equal(packed.states[0].life_generation, 65535, "public life epoch round-trips")
+	for field in ["mine_charges", "cloak_charges", "missile_charges"]:
+		context.expect_equal(packed.states[0][field], 1000, "packed charge count retains the legal cap: " + field)
+	context.expect_true(packet.size() <= 1200, "remote life epochs keep the maximum snapshot within its transport budget")
 	var oversized := PackedByteArray()
 	oversized.resize(PlayerSnapshotCodec.HEADER_SIZE)
 	oversized[0] = NetworkProtocol.PACKET_VERSION

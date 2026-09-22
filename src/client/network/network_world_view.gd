@@ -166,12 +166,16 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		present_ids[peer_id] = true
 		var ship := replicated_visuals._ensure_ship_from_identity(peer_id, state, identities.get(peer_id, {}))
 		var revived := bool(state.alive) and not ship.combatant.alive
+		var remote_life_changed := peer_id != local_peer_id and state.has("life_generation") and int(state.life_generation) != (ship.combatant.life_generation & 0xffff)
 		ship.visible = String(match_payload.get("state_name", "")) != "DRAFT"
 		replicated_visuals._handle_snapshot_feedback(peer_id, state, ship)
 		replicated_visuals._apply_snapshot_resources(ship, state)
 		if peer_id == local_peer_id:
 			local_prediction.apply_local_snapshot(decoded, state, ship, revived)
 		else:
+			if revived or remote_life_changed:
+				replicated_visuals.interpolation.remove_peer(peer_id)
+				ship.global_position = state.position
 			replicated_visuals.interpolation.add_sample(peer_id, receive_time, latest_server_tick, state)
 			if match_paused:
 				ship.global_position = state.position
