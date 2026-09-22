@@ -101,6 +101,7 @@ static func run(context: TestContext) -> void:
 	_missile_corrections(context)
 	_ban_persistence(context)
 	_replication_contract(context)
+	_recovery_budget(context)
 	_session_observations(context)
 
 
@@ -320,3 +321,31 @@ static func _admission_queue(context: TestContext) -> void:
 	owner.stop()
 	context.expect_equal(owner._pending_handshakes.size(), 0, "session stop clears queued and active handshakes")
 	runtime.free()
+
+
+static func _recovery_budget(context: TestContext) -> void:
+	var scheduler := NetworkReplicationScheduler.new()
+	var lobby := ServerLobby.new()
+	for peer in range(1, 33): lobby.admit(peer, "P%d" % peer)
+	lobby.match_active = true
+	var world := AuthoritativeWorld.new()
+	var stats := CombatStats.create_base()
+	for index in 1024:
+		world.projectile_registry.add(ProjectileState.create(index + 1, index / 32 + 1, index, Vector2(700, 700), 0, stats))
+	var received: Array[PackedByteArray] = []
+	scheduler.projectile_recovery_ready.connect(func(packet: PackedByteArray) -> void: received.append(packet))
+	scheduler._send_projectile_correction(lobby, world)
+	context.expect_equal(received.size(), 0, "full recovery is queued without a synchronous fan-out burst")
+	var total := 0
+	for tick in 8:
+		var previous := received.size()
+		scheduler._flush_recovery(lobby)
+		context.expect_true(received.size() - previous <= 4, "each tick obeys the recovery chunk budget")
+	for packet in received: total += packet.size()
+	context.expect_equal(scheduler.payload_metrics().recovery_pending_chunks, 0, "maximum population drains before next correction")
+	context.expect_equal(scheduler.outbound_bytes(), total * 32, "accounting includes every recovery recipient")
+	context.expect_true(received.size() > 20, "dense fixture exercises chunking")
+	scheduler._projectile_correction_send_count = 0
+	scheduler._send_projectile_correction(lobby, world)
+	scheduler.clear()
+	context.expect_equal(scheduler.payload_metrics().recovery_pending_chunks, 0, "rematch discards old recovery queue")

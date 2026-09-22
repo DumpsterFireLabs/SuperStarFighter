@@ -70,8 +70,8 @@ func _init() -> void:
 	commands = CommandService.new(self)
 	session = NetworkSessionOwner.new(self, _session_status)
 	session.log_requested.connect(_log)
-	session.challenge_requested.connect(func(peer_id: int, challenge: String) -> void: authentication_challenge.rpc_id(peer_id, challenge))
-	session.rejection_requested.connect(func(peer_id: int, reason: StringName, message: String) -> void: connection_rejected.rpc_id(peer_id, reason, message))
+	session.challenge_requested.connect(func(peer_id: int, challenge: String) -> void: _send_control_to_peer(peer_id, &"authentication_challenge", [challenge]))
+	session.rejection_requested.connect(func(peer_id: int, reason: StringName, message: String) -> void: _send_control_to_peer(peer_id, &"connection_rejected", [reason, message]))
 	session.connection_lost.connect(func(message: String) -> void: client_connection_lost.emit(message))
 	session.peer_departed.connect(_on_session_peer_departed)
 	session.request_rejected.connect(_reject_request)
@@ -989,7 +989,12 @@ func _accept_control_request(peer_id: int, request_name: String) -> bool:
 
 
 func _send_request_rejected(peer_id: int, message_text: String) -> void:
-	match_event.rpc_id(peer_id, &"REQUEST_REJECTED", world.server_tick if world != null else 0, {"message": message_text})
+	_send_control_to_peer(peer_id, &"match_event", [&"REQUEST_REJECTED", world.server_tick if world != null else 0, {"message": message_text}])
+
+
+func _send_control_to_peer(peer_id: int, method: StringName, arguments: Array) -> void:
+	replication.record_payload("control", var_to_bytes(arguments).size())
+	callv(&"rpc_id", [peer_id, method] + arguments)
 
 
 func _broadcast_to_admitted(method: StringName, arguments: Array) -> void:
@@ -998,6 +1003,8 @@ func _broadcast_to_admitted(method: StringName, arguments: Array) -> void:
 	for peer_id in lobby.human_peer_ids_view():
 		if session.can_send_to(peer_id): recipients.append(peer_id)
 	if recipients.is_empty(): return
+	if method in [&"lobby_state", &"match_event", &"objective_snapshot"]:
+		replication.record_payload("control", var_to_bytes(arguments).size() * recipients.size())
 	# Retain one serialization/fan-out in steady play. During admission or a
 	# disconnect burst, exclude unauthenticated and already-closing transports.
 	if recipients.size() == multiplayer.get_peers().size():
@@ -1011,7 +1018,6 @@ func _broadcast_lobby_state() -> void:
 		return
 	var state := lobby.serialize()
 	_broadcast_to_admitted(&"lobby_state", [state])
-	replication.record_outbound_bytes(JSON.stringify(state).length() * maxi(lobby.human_count(), 1))
 
 
 func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void:
@@ -1104,12 +1110,9 @@ func _drain_match_coordinator() -> void:
 		var peer_id := int(offer.peer_id)
 		var player := lobby.players.get(peer_id) as PlayerMatchState
 		if player != null and not player.is_npc:
-			draft_offer.rpc_id(
-				peer_id,
-				String(offer.offer_token),
-				offer.card_ids as Array[StringName],
-				int(offer.deadline_tick)
-			)
+			_send_control_to_peer(peer_id, &"draft_offer", [
+				String(offer.offer_token), offer.card_ids as Array[StringName], int(offer.deadline_tick)
+			])
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PROJECTILE_DELTA)
@@ -1168,6 +1171,7 @@ func _log_metrics() -> void:
 		"over_budget_ticks": _simulation_over_budget_ticks,
 		"over_budget_percent": float(_simulation_over_budget_ticks) / maxi(_simulation_samples, 1) * 100.0,
 		"outbound_bytes": replication.outbound_bytes(),
+		"outbound_payload": replication.payload_metrics(),
 		"outbound_bytes_per_second": float(replication.outbound_bytes()) / elapsed_seconds,
 	}
 	_log("info", "simulation_metrics", _latest_metrics)
@@ -1301,15 +1305,11 @@ func complete_admission(sender_id: int, display_name: String) -> void:
 	world.input_timeouts[sender_id] = GameConstants.INPUT_STALE_SECONDS
 	if match_coordinator != null:
 		match_coordinator.add_late_spectator(player)
-	server_welcome.rpc_id(sender_id, sender_id, lobby.serialize())
+	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, lobby.serialize()])
 	if match_coordinator != null:
-		match_event.rpc_id(
-			sender_id,
-			&"STATE_CHANGED",
-			world.server_tick,
-			match_coordinator.current_state_payload()
-		)
-	replication.record_outbound_bytes(64)
+		_send_control_to_peer(sender_id, &"match_event", [
+			&"STATE_CHANGED", world.server_tick, match_coordinator.current_state_payload()
+		])
 	_broadcast_lobby_state()
 	server_peer_admitted.emit(sender_id, player)
 	_log("info", "peer_joined", {"peer_id": sender_id, "display_name": player.display_name, "spectator": player.spectator})
