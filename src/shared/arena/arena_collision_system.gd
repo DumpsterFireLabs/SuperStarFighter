@@ -4,6 +4,8 @@ static var _projectile_geometry_cache: Dictionary = {}
 static var _cover_variant_cache: Dictionary = {}
 static var _empty_obstacle_indices: Array[int] = []
 const PROJECTILE_OBSTACLE_CELL_SIZE: float = 240.0
+const OBSTACLE_GRID_WIDTH: int = ceili(GameConstants.ARENA_SIZE.x / PROJECTILE_OBSTACLE_CELL_SIZE)
+const OBSTACLE_GRID_HEIGHT: int = ceili(GameConstants.ARENA_SIZE.y / PROJECTILE_OBSTACLE_CELL_SIZE)
 
 
 static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, hidden_cover: int = 0) -> Dictionary:
@@ -124,18 +126,25 @@ static func projectile_obstacle_sweep_hit(
 	if start.y >= GameConstants.ARENA_SIZE.y - radius:
 		return {"hit": true, "fraction": 0.0, "position": start, "normal": Vector2.UP}
 	var geometry := geometry_override if not geometry_override.is_empty() else _projectile_geometry(map_id, radius, hidden_cover)
-	var start_cell := _projectile_obstacle_cell(start)
-	var end_cell := _projectile_obstacle_cell(end)
-	# The common empty-cell path needs only one occupancy lookup. Defer typed
-	# geometry extraction until a sweep can actually reach an obstacle.
+	var start_x := floori(start.x / PROJECTILE_OBSTACLE_CELL_SIZE)
+	var start_y := floori(start.y / PROJECTILE_OBSTACLE_CELL_SIZE)
+	var end_x := floori(end.x / PROJECTILE_OBSTACLE_CELL_SIZE)
+	var end_y := floori(end.y / PROJECTILE_OBSTACLE_CELL_SIZE)
+	# Most short sweeps touch no cover. Use immutable dense occupancy before
+	# allocating cell keys or extracting narrow-phase geometry. Radius and cargo
+	# revision are already part of the geometry cache identity.
 	if (
-		start_cell == end_cell
-		and not (geometry.occupied_cells as Dictionary).has(start_cell)
+		start_x == end_x and start_y == end_y
 		and end.x > radius and end.y > radius
 		and end.x < GameConstants.ARENA_SIZE.x - radius
 		and end.y < GameConstants.ARENA_SIZE.y - radius
+		and start_x >= 0 and start_x < OBSTACLE_GRID_WIDTH
+		and start_y >= 0 and start_y < OBSTACLE_GRID_HEIGHT
+		and (geometry.occupied_grid as PackedByteArray)[start_y * OBSTACLE_GRID_WIDTH + start_x] == 0
 	):
 		return null
+	var start_cell := Vector2i(start_x, start_y)
+	var end_cell := Vector2i(end_x, end_y)
 	var rectangles := geometry.rectangles as Array
 	var circles := geometry.circles as Array
 	var rectangle_cells := geometry.rectangle_cells as Dictionary
@@ -244,8 +253,14 @@ static func _projectile_geometry(map_id: StringName, radius: float, hidden_cover
 		_append_obstacle_to_cells(circle_cells, Rect2(Vector2(circle.x, circle.y) - extent, extent * 2.0), circle_index)
 	var occupied_cells := rectangle_cells.duplicate()
 	occupied_cells.merge(circle_cells)
+	var occupied_grid := PackedByteArray()
+	occupied_grid.resize(OBSTACLE_GRID_WIDTH * OBSTACLE_GRID_HEIGHT)
+	for cell: Vector2i in occupied_cells:
+		if cell.x >= 0 and cell.y >= 0 and cell.x < OBSTACLE_GRID_WIDTH and cell.y < OBSTACLE_GRID_HEIGHT:
+			occupied_grid[cell.y * OBSTACLE_GRID_WIDTH + cell.x] = 1
 	var result := {
 		"occupied_cells": occupied_cells,
+		"occupied_grid": occupied_grid,
 		"rectangles": rectangles,
 		"circles": circles,
 		"rectangle_cells": rectangle_cells,

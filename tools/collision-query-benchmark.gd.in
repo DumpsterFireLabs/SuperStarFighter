@@ -1,0 +1,54 @@
+extends SceneTree
+
+# Expanded into an isolated .tools directory by benchmark-collision-queries.py.
+
+const OldIndex = preload("res://.tools/old_spatial_index.gd")
+const OldObstacles = preload("res://.tools/old_arena_collision.gd")
+var starts: Array[Vector2] = []
+var finishes: Array[Vector2] = []
+var world := AuthoritativeWorld.new()
+
+func _initialize() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 629914
+	for id in range(1, 33): world.add_peer(id).position = Vector2(rng.randf_range(80, 3120), rng.randf_range(80, 1720))
+	for index in 1024:
+		var point := Vector2(rng.randf_range(10, 3190), rng.randf_range(10, 1790))
+		starts.append(point)
+		finishes.append(point + Vector2.from_angle(rng.randf_range(0, TAU)) * rng.randf_range(2, 35))
+	var old_index: RefCounted = OldIndex.new()
+	var new_index: RefCounted = CombatSpatialIndex.new()
+	var result := {"before_ships": [], "after_ships": [], "before_obstacles": [], "after_obstacles": []}
+	for iteration in 8:
+		var order := [false, true] if iteration % 2 == 0 else [true, false]
+		for current: bool in order:
+			var prefix := "after" if current else "before"
+			var ships := _ships(new_index if current else old_index)
+			var obstacles := _obstacles(ArenaCollisionSystem if current else OldObstacles)
+			if iteration > 1:
+				result[prefix + "_ships"].append(ships)
+				result[prefix + "_obstacles"].append(obstacles)
+	print("SSF_SWEEP_MICRO=" + JSON.stringify(result))
+	quit()
+
+func _ships(index: RefCounted) -> Dictionary:
+	var candidates := 0
+	var hits := 0
+	var started := Time.get_ticks_usec()
+	for tick in 16:
+		index.rebuild_ships(world.combatants, world.ordered_peer_ids_view())
+		for query in starts.size():
+			for peer: int in index.query_ships_along_segment(starts[query], finishes[query], 27.0):
+				candidates += 1
+				if AuthoritativeWorld._segment_circle_hit_fraction(starts[query], finishes[query], world.combatants[peer].position, 27.0) >= 0:
+					hits += 1
+	return {"usec": Time.get_ticks_usec() - started, "candidates": candidates, "hits": hits, "sweeps": 16384}
+
+func _obstacles(script: GDScript) -> Dictionary:
+	var geometry: Dictionary = script.projectile_geometry(&"dead_freight", 3.0, 0)
+	var hits := 0
+	var started := Time.get_ticks_usec()
+	for tick in 16:
+		for query in starts.size():
+			if script.projectile_obstacle_sweep_hit(starts[query], finishes[query], 3.0, &"dead_freight", geometry) != null: hits += 1
+	return {"usec": Time.get_ticks_usec() - started, "hits": hits, "sweeps": 16384}

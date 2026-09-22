@@ -1,0 +1,1319 @@
+{
+  "matrix_before": [
+    {
+      "active_ticks": 540,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 0,
+      "effects_enabled": 0,
+      "humans": 16,
+      "map": "core_arena",
+      "mode": "Death Match",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 676736,
+          "players": 3435840,
+          "projectile_delta": 1592576,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1536016
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 40022,
+          "total_usec": 40022
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 3494,
+          "total_usec": 39354
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 1,
+          "max_usec": 338,
+          "total_usec": 338
+        },
+        "enter_COUNTDOWN": {
+          "count": 1,
+          "max_usec": 6697,
+          "total_usec": 6697
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 325,
+          "total_usec": 325
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 17004,
+        "over_physics_budget": 1,
+        "p50_usec": 12154,
+        "p95_usec": 15221,
+        "p99_usec": 16059,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 216,
+            "over_physics_budget": 0,
+            "p50_usec": 115,
+            "p95_usec": 127,
+            "p99_usec": 165,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 282,
+            "over_physics_budget": 0,
+            "p50_usec": 87,
+            "p95_usec": 94,
+            "p99_usec": 136,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 2800,
+            "over_physics_budget": 0,
+            "p50_usec": 1830,
+            "p95_usec": 2014,
+            "p99_usec": 2576,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4570,
+            "over_physics_budget": 0,
+            "p50_usec": 59,
+            "p95_usec": 2603,
+            "p99_usec": 4199,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 12971,
+            "over_physics_budget": 0,
+            "p50_usec": 9743,
+            "p95_usec": 11285,
+            "p99_usec": 11862,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 540,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 498,
+      "effects_enabled": 2,
+      "humans": 16,
+      "map": "dead_freight",
+      "mode": "Team Death Match",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 406320,
+          "players": 3435840,
+          "projectile_delta": 1887232,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1514432
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 38761,
+          "total_usec": 38761
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 2519,
+          "total_usec": 37983
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 1,
+          "max_usec": 382,
+          "total_usec": 382
+        },
+        "enter_COUNTDOWN": {
+          "count": 1,
+          "max_usec": 5996,
+          "total_usec": 5996
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 375,
+          "total_usec": 375
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 22541,
+        "over_physics_budget": 3,
+        "p50_usec": 11428,
+        "p95_usec": 14771,
+        "p99_usec": 16473,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 295,
+            "over_physics_budget": 0,
+            "p50_usec": 132,
+            "p95_usec": 163,
+            "p99_usec": 223,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 163,
+            "over_physics_budget": 0,
+            "p50_usec": 88,
+            "p95_usec": 96,
+            "p99_usec": 133,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3376,
+            "over_physics_budget": 0,
+            "p50_usec": 1835,
+            "p95_usec": 2063,
+            "p99_usec": 2847,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 5560,
+            "over_physics_budget": 0,
+            "p50_usec": 67,
+            "p95_usec": 2622,
+            "p99_usec": 4380,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 16717,
+            "over_physics_budget": 1,
+            "p50_usec": 8999,
+            "p95_usec": 10547,
+            "p99_usec": 11658,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 540,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 361,
+      "effects_enabled": 1,
+      "humans": 16,
+      "map": "twin_suns",
+      "mode": "King of the Hill",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 624488,
+          "players": 3435840,
+          "projectile_delta": 1427200,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1534032
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 38606,
+          "total_usec": 38606
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 2537,
+          "total_usec": 37949
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 1,
+          "max_usec": 345,
+          "total_usec": 345
+        },
+        "enter_COUNTDOWN": {
+          "count": 1,
+          "max_usec": 7981,
+          "total_usec": 7981
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 338,
+          "total_usec": 338
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 15896,
+        "over_physics_budget": 0,
+        "p50_usec": 11396,
+        "p95_usec": 14381,
+        "p99_usec": 15259,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 413,
+            "over_physics_budget": 0,
+            "p50_usec": 185,
+            "p95_usec": 234,
+            "p99_usec": 308,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 333,
+            "over_physics_budget": 0,
+            "p50_usec": 86,
+            "p95_usec": 93,
+            "p99_usec": 136,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 2385,
+            "over_physics_budget": 0,
+            "p50_usec": 1856,
+            "p95_usec": 2117,
+            "p99_usec": 2338,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4341,
+            "over_physics_budget": 0,
+            "p50_usec": 53,
+            "p95_usec": 2594,
+            "p99_usec": 4098,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 12130,
+            "over_physics_budget": 0,
+            "p50_usec": 8927,
+            "p95_usec": 10316,
+            "p99_usec": 10996,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 417,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 540,
+      "effects_enabled": 4,
+      "humans": 16,
+      "map": "switchyard",
+      "mode": "Capture the Flag",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 555260,
+          "players": 3435840,
+          "projectile_delta": 1263568,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1515424
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 38710,
+          "total_usec": 38710
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 2544,
+          "total_usec": 38011
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 2,
+          "max_usec": 432,
+          "total_usec": 798
+        },
+        "enter_COUNTDOWN": {
+          "count": 2,
+          "max_usec": 14452,
+          "total_usec": 22577
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 525,
+          "total_usec": 525
+        },
+        "enter_HEAT_RESULT": {
+          "count": 1,
+          "max_usec": 8418,
+          "total_usec": 8418
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 20099,
+        "over_physics_budget": 3,
+        "p50_usec": 10718,
+        "p95_usec": 13718,
+        "p99_usec": 15491,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 19460,
+            "over_physics_budget": 1,
+            "p50_usec": 183,
+            "p95_usec": 226,
+            "p99_usec": 346,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 281,
+            "over_physics_budget": 0,
+            "p50_usec": 83,
+            "p95_usec": 92,
+            "p99_usec": 121,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3571,
+            "over_physics_budget": 0,
+            "p50_usec": 1814,
+            "p95_usec": 2065,
+            "p99_usec": 2454,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4388,
+            "over_physics_budget": 0,
+            "p50_usec": 53,
+            "p95_usec": 2424,
+            "p99_usec": 4148,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 12353,
+            "over_physics_budget": 0,
+            "p50_usec": 8473,
+            "p95_usec": 9796,
+            "p99_usec": 10745,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 417,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 0,
+      "effects_enabled": 0,
+      "humans": 16,
+      "map": "prism_array",
+      "mode": "Team Capture the Flag",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 208192,
+          "players": 3435840,
+          "projectile_delta": 1547696,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1519888
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 39170,
+          "total_usec": 39170
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 2597,
+          "total_usec": 38431
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 2,
+          "max_usec": 441,
+          "total_usec": 832
+        },
+        "enter_COUNTDOWN": {
+          "count": 2,
+          "max_usec": 15253,
+          "total_usec": 23159
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 435,
+          "total_usec": 435
+        },
+        "enter_HEAT_RESULT": {
+          "count": 1,
+          "max_usec": 8396,
+          "total_usec": 8396
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 21580,
+        "over_physics_budget": 5,
+        "p50_usec": 11795,
+        "p95_usec": 14928,
+        "p99_usec": 16791,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 20776,
+            "over_physics_budget": 1,
+            "p50_usec": 149,
+            "p95_usec": 193,
+            "p99_usec": 268,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 284,
+            "over_physics_budget": 0,
+            "p50_usec": 85,
+            "p95_usec": 94,
+            "p99_usec": 166,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3269,
+            "over_physics_budget": 0,
+            "p50_usec": 1824,
+            "p95_usec": 2129,
+            "p99_usec": 2472,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4430,
+            "over_physics_budget": 0,
+            "p50_usec": 61,
+            "p95_usec": 2543,
+            "p99_usec": 4037,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 14642,
+            "over_physics_budget": 0,
+            "p50_usec": 9437,
+            "p95_usec": 10921,
+            "p99_usec": 12688,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    }
+  ],
+  "matrix_after": [
+    {
+      "active_ticks": 540,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 0,
+      "effects_enabled": 0,
+      "humans": 16,
+      "map": "core_arena",
+      "mode": "Death Match",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 676736,
+          "players": 3435840,
+          "projectile_delta": 1592576,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1536016
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 39794,
+          "total_usec": 39794
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 2760,
+          "total_usec": 39054
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 1,
+          "max_usec": 335,
+          "total_usec": 335
+        },
+        "enter_COUNTDOWN": {
+          "count": 1,
+          "max_usec": 6861,
+          "total_usec": 6861
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 326,
+          "total_usec": 326
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 19503,
+        "over_physics_budget": 10,
+        "p50_usec": 12564,
+        "p95_usec": 15685,
+        "p99_usec": 17232,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 247,
+            "over_physics_budget": 0,
+            "p50_usec": 130,
+            "p95_usec": 163,
+            "p99_usec": 211,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 188,
+            "over_physics_budget": 0,
+            "p50_usec": 92,
+            "p95_usec": 108,
+            "p99_usec": 149,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3303,
+            "over_physics_budget": 0,
+            "p50_usec": 1978,
+            "p95_usec": 2262,
+            "p99_usec": 2738,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 5698,
+            "over_physics_budget": 0,
+            "p50_usec": 69,
+            "p95_usec": 2890,
+            "p99_usec": 4389,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 13603,
+            "over_physics_budget": 0,
+            "p50_usec": 10036,
+            "p95_usec": 11261,
+            "p99_usec": 12166,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 540,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 498,
+      "effects_enabled": 2,
+      "humans": 16,
+      "map": "dead_freight",
+      "mode": "Team Death Match",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 389584,
+          "players": 3435840,
+          "projectile_delta": 1874880,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1502272
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 40229,
+          "total_usec": 40229
+        },
+        "draft_slice": {
+          "count": 17,
+          "max_usec": 2602,
+          "total_usec": 39414
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 1,
+          "max_usec": 419,
+          "total_usec": 419
+        },
+        "enter_COUNTDOWN": {
+          "count": 1,
+          "max_usec": 6185,
+          "total_usec": 6185
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 407,
+          "total_usec": 407
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 16932,
+        "over_physics_budget": 2,
+        "p50_usec": 11680,
+        "p95_usec": 14395,
+        "p99_usec": 15951,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 323,
+            "over_physics_budget": 0,
+            "p50_usec": 143,
+            "p95_usec": 183,
+            "p99_usec": 236,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 167,
+            "over_physics_budget": 0,
+            "p50_usec": 92,
+            "p95_usec": 112,
+            "p99_usec": 150,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3233,
+            "over_physics_budget": 0,
+            "p50_usec": 1954,
+            "p95_usec": 2183,
+            "p99_usec": 2477,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 5176,
+            "over_physics_budget": 0,
+            "p50_usec": 72,
+            "p95_usec": 2856,
+            "p99_usec": 4441,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 12745,
+            "over_physics_budget": 0,
+            "p50_usec": 9090,
+            "p95_usec": 10575,
+            "p99_usec": 11651,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 540,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 361,
+      "effects_enabled": 1,
+      "humans": 16,
+      "map": "twin_suns",
+      "mode": "King of the Hill",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 624488,
+          "players": 3435840,
+          "projectile_delta": 1427200,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1534032
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 45797,
+          "total_usec": 45797
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 3555,
+          "total_usec": 44948
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 1,
+          "max_usec": 359,
+          "total_usec": 359
+        },
+        "enter_COUNTDOWN": {
+          "count": 1,
+          "max_usec": 8528,
+          "total_usec": 8528
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 339,
+          "total_usec": 339
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 17395,
+        "over_physics_budget": 2,
+        "p50_usec": 11864,
+        "p95_usec": 14892,
+        "p99_usec": 16332,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 658,
+            "over_physics_budget": 0,
+            "p50_usec": 214,
+            "p95_usec": 277,
+            "p99_usec": 340,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 530,
+            "over_physics_budget": 0,
+            "p50_usec": 92,
+            "p95_usec": 116,
+            "p99_usec": 166,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3264,
+            "over_physics_budget": 0,
+            "p50_usec": 2037,
+            "p95_usec": 2382,
+            "p99_usec": 2786,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4817,
+            "over_physics_budget": 0,
+            "p50_usec": 58,
+            "p95_usec": 2707,
+            "p99_usec": 4296,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 11920,
+            "over_physics_budget": 0,
+            "p50_usec": 9195,
+            "p95_usec": 10545,
+            "p99_usec": 11401,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 417,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 540,
+      "effects_enabled": 4,
+      "humans": 16,
+      "map": "switchyard",
+      "mode": "Capture the Flag",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 555260,
+          "players": 3435840,
+          "projectile_delta": 1263568,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1515424
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 39655,
+          "total_usec": 39655
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 2636,
+          "total_usec": 38891
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 2,
+          "max_usec": 413,
+          "total_usec": 789
+        },
+        "enter_COUNTDOWN": {
+          "count": 2,
+          "max_usec": 14965,
+          "total_usec": 24134
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 532,
+          "total_usec": 532
+        },
+        "enter_HEAT_RESULT": {
+          "count": 1,
+          "max_usec": 9134,
+          "total_usec": 9134
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 20998,
+        "over_physics_budget": 2,
+        "p50_usec": 11149,
+        "p95_usec": 14143,
+        "p99_usec": 16170,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 19972,
+            "over_physics_budget": 1,
+            "p50_usec": 208,
+            "p95_usec": 258,
+            "p99_usec": 351,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 179,
+            "over_physics_budget": 0,
+            "p50_usec": 91,
+            "p95_usec": 111,
+            "p99_usec": 146,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 3223,
+            "over_physics_budget": 0,
+            "p50_usec": 1952,
+            "p95_usec": 2305,
+            "p99_usec": 2612,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4749,
+            "over_physics_budget": 0,
+            "p50_usec": 58,
+            "p95_usec": 2598,
+            "p99_usec": 4232,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 11570,
+            "over_physics_budget": 0,
+            "p50_usec": 8648,
+            "p95_usec": 9521,
+            "p99_usec": 10903,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    },
+    {
+      "active_ticks": 417,
+      "build": {
+        "piercing_rounds": 2,
+        "rapid_cycling": 3,
+        "reinforced_hull": 4,
+        "ricochet_rounds": 3,
+        "twin_shot": 3
+      },
+      "effect_activity_ticks": 0,
+      "effects_enabled": 0,
+      "humans": 16,
+      "map": "prism_array",
+      "mode": "Team Capture the Flag",
+      "npcs": 16,
+      "payload": {
+        "bytes_by_category": {
+          "feedback": 208192,
+          "players": 3435840,
+          "projectile_delta": 1547696,
+          "projectile_motion": 732672,
+          "projectile_recovery": 1519888
+        },
+        "congested_peers": 0,
+        "peak_recovery_chunks": 27,
+        "recovery_active_peers": 0,
+        "recovery_inflight_chunks_per_peer": 0,
+        "recovery_pending_chunks": 0,
+        "scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission"
+      },
+      "phase_work": {
+        "draft_prepare_wall": {
+          "count": 1,
+          "max_usec": 41514,
+          "total_usec": 41514
+        },
+        "draft_slice": {
+          "count": 16,
+          "max_usec": 3365,
+          "total_usec": 40722
+        },
+        "enter_ACTIVE_HEAT": {
+          "count": 2,
+          "max_usec": 441,
+          "total_usec": 853
+        },
+        "enter_COUNTDOWN": {
+          "count": 2,
+          "max_usec": 14656,
+          "total_usec": 24172
+        },
+        "enter_DRAFT": {
+          "count": 1,
+          "max_usec": 395,
+          "total_usec": 395
+        },
+        "enter_HEAT_RESULT": {
+          "count": 1,
+          "max_usec": 8798,
+          "total_usec": 8798
+        }
+      },
+      "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim.",
+      "timings": {
+        "max_usec": 21188,
+        "over_physics_budget": 10,
+        "p50_usec": 12373,
+        "p95_usec": 15721,
+        "p99_usec": 17632,
+        "samples": 480
+      },
+      "valid": true,
+      "attribution": {
+        "collision_totals": {},
+        "phases": {
+          "coordinator": {
+            "max_usec": 19665,
+            "over_physics_budget": 1,
+            "p50_usec": 174,
+            "p95_usec": 248,
+            "p99_usec": 331,
+            "samples": 480
+          },
+          "input": {
+            "max_usec": 173,
+            "over_physics_budget": 0,
+            "p50_usec": 91,
+            "p95_usec": 117,
+            "p99_usec": 156,
+            "samples": 480
+          },
+          "npc": {
+            "max_usec": 4115,
+            "over_physics_budget": 0,
+            "p50_usec": 2004,
+            "p95_usec": 2467,
+            "p99_usec": 3342,
+            "samples": 480
+          },
+          "replication": {
+            "max_usec": 4738,
+            "over_physics_budget": 0,
+            "p50_usec": 69,
+            "p95_usec": 2801,
+            "p99_usec": 4258,
+            "samples": 480
+          },
+          "world": {
+            "max_usec": 16401,
+            "over_physics_budget": 0,
+            "p50_usec": 9712,
+            "p95_usec": 11253,
+            "p99_usec": 13121,
+            "samples": 480
+          }
+        },
+        "profiled": false
+      }
+    }
+  ],
+  "isolated_queries": {
+    "baseline_commit": "2ca9eadb4c89a8047e089a826e5c2ec3bb7fffa8",
+    "seed": 629914,
+    "measurements": {
+      "after_obstacles": [
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 39933
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 39566
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 39346
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 39448
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 39071
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 39578
+        }
+      ],
+      "after_ships": [
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 19532
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 18794
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 19315
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 19022
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 19091
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 19699
+        }
+      ],
+      "before_obstacles": [
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 43575
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 41532
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 43044
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 42118
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 48319
+        },
+        {
+          "hits": 1664,
+          "sweeps": 16384,
+          "usec": 41617
+        }
+      ],
+      "before_ships": [
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 18514
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 19093
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 18551
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 18712
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 18800
+        },
+        {
+          "candidates": 6176,
+          "hits": 288,
+          "sweeps": 16384,
+          "usec": 18987
+        }
+      ]
+    },
+    "median_usec": {
+      "after_obstacles": 39507.0,
+      "after_ships": 19203.0,
+      "before_obstacles": 42581.0,
+      "before_ships": 18756.0
+    },
+    "scope": "Six alternating samples after two warmups; 16 batches of 1024 fixed short sweeps per sample. Includes ship-index rebuild and exact circle tests. Obstacle geometry preparation is excluded. Does not measure full simulation or FPS."
+  }
+}

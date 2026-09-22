@@ -27,6 +27,20 @@ static func run(context: TestContext) -> void:
 	_retained_geometry(context)
 	_cargo_opens_mid_tick(context)
 	_lazy_threat_queries(context)
+	_dense_obstacle_occupancy(context)
+
+
+static func _dense_obstacle_occupancy(context: TestContext) -> void:
+	var mismatches := 0
+	for map_id in ArenaLayout.map_ids():
+		for radius in [0.0, 3.0, 7.0, 70.0]:
+			for mask in [0, 1, 51]:
+				var geometry := ArenaCollisionSystem.projectile_geometry(map_id, radius, mask)
+				for y in ArenaCollisionSystem.OBSTACLE_GRID_HEIGHT:
+					for x in ArenaCollisionSystem.OBSTACLE_GRID_WIDTH:
+						var occupied := int(geometry.occupied_grid[y * ArenaCollisionSystem.OBSTACLE_GRID_WIDTH + x]) != 0
+						if occupied != geometry.occupied_cells.has(Vector2i(x, y)): mismatches += 1
+	context.expect_equal(mismatches, 0, "dense occupancy exactly matches sparse cover across radii, arena edges and cargo revisions")
 
 
 static func _lazy_threat_queries(context: TestContext) -> void:
