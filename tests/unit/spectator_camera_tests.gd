@@ -69,6 +69,28 @@ static func run(context: TestContext, parent: Node) -> void:
 	var initial_arena_position := view.hud_camera.camera.position
 	_snapshot(view, world, 139)
 	context.expect_equal(view.hud_camera.camera.position, initial_arena_position, "initial dead snapshot preserves the late spectator's arena camera")
+	view.set_network_active(true)
+	view.apply_match_state({"state_name": "ACTIVE_HEAT", "competitive_view": true, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "teams": {1: 1, 2: 2, 3: 1}})
+	var ally := world.add_peer(3)
+	_snapshot(view, world, 142)
+	context.expect_equal(view.hud_camera._living_spectator_targets(), [3], "competitive eliminated players may follow only teammates")
+	view.hud_camera._cycle_spectator(1)
+	context.expect_equal(view.hud_camera.spectator_target_id, 3, "cycling cannot select an opponent")
+	ally.alive = false
+	_snapshot(view, world, 145)
+	context.expect_equal(view.hud_camera.spectator_target_id, 0, "team elimination has no opponent fallback")
+	context.expect_true(view.hud_camera.spectator_curtain.visible, "team-out waiting screen covers the arena")
+	ally.alive = true
+	ally.cloak_remaining = 1.0
+	_snapshot(view, world, 148)
+	context.expect_empty(view.hud_camera._living_spectator_targets(), "cloaked allies cannot become spectator targets")
+	ally.cloak_remaining = 0.0
+	_snapshot(view, world, 151)
+	context.expect_false(view.hud_camera.spectator_curtain.visible, "visible teammate restores the spectator view")
+	view.apply_match_state({"state_name": "ACTIVE_HEAT", "competitive_view": false, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "teams": {1: 1, 2: 2, 3: 1}})
+	context.expect_equal(view.hud_camera._living_spectator_targets(), [2, 3], "casual team spectators retain every living target")
+	view.apply_match_state({"state_name": "ACTIVE_HEAT", "competitive_view": true, "game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "teams": {1: 0, 2: 2, 3: 1}})
+	context.expect_equal(view.hud_camera._living_spectator_targets(), [2, 3], "neutral spectators retain the declared unrestricted policy")
 	parent.remove_child(view)
 	view.free()
 	parent.remove_child(bridge)

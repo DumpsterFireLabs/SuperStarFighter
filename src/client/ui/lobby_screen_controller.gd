@@ -400,7 +400,7 @@ func _create_lobby_options_popup() -> void:
 	competitive_view_control.theme_type_variation = &"SettingToggle"
 	competitive_view_control.custom_minimum_size.y = 48.0
 	competitive_view_control.text = "Use equal 16:9 combat space"
-	competitive_view_control.tooltip_text = "Applies to every player and spectator. Wider or taller screens show bars during the match; normal menus retain their full layout."
+	competitive_view_control.tooltip_text = "Equal 16:9 combat space for everyone. Eliminated team players can follow visible teammates only; no teammate means a waiting screen. Neutral spectators remain unrestricted."
 	competitive_view_control.toggled.connect(_on_competitive_view_changed)
 	rules_content.add_child(competitive_view_control)
 	_setup_note(rules_content, "Applies to all pilots and spectators. Wider or taller screens show bars during combat.")

@@ -23,6 +23,7 @@ var match_status_label: Label
 var resources_label: Label
 var combat_status_label: Label
 var spectator_label: Label
+var spectator_curtain: ColorRect
 var combat_feedback_panel: CombatFeedbackPanel
 var kill_feed: Control
 var health_bar: ProgressBar
@@ -94,7 +95,7 @@ func _update_camera(local_ship: CombatShipView, delta: float) -> void:
 		if spectator_target_id != 0 and visuals.ships.has(spectator_target_id):
 			target_position = (visuals.ships[spectator_target_id] as CombatShipView).global_position
 		else:
-			target_position = ArenaLayout.center(visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
+			target_position = local_ship.global_position if _restricted_team_spectating() else ArenaLayout.center(visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
 	camera.position = camera.position.lerp(target_position, 1.0 - exp(-8.0 * delta))
 
 
@@ -103,6 +104,16 @@ func _create_camera_and_hud() -> void:
 	camera.position = ArenaLayout.center(visuals.arena.map_id if visuals.arena != null else ArenaLayout.DEFAULT_MAP_ID)
 	camera.enabled = true
 	context.surface.add_child(camera)
+	var spectator_canvas := CanvasLayer.new()
+	spectator_canvas.name = "SpectatorPrivacy"
+	spectator_canvas.layer = 9 # Covers world/indicators, leaving the HUD readable.
+	context.surface.add_child(spectator_canvas)
+	spectator_curtain = ColorRect.new()
+	spectator_curtain.color = Color("080e1a")
+	spectator_curtain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spectator_canvas.add_child(spectator_curtain)
+	spectator_curtain.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	spectator_curtain.hide()
 	var canvas := CanvasLayer.new()
 	canvas.name = "CombatHUD"
 	canvas.layer = 10
@@ -274,6 +285,8 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			var previous_hint: String = context.input_profiles.binding_text(&"spectator_previous") if context.input_profiles != null else "A"
 			var next_hint: String = context.input_profiles.binding_text(&"spectator_next") if context.input_profiles != null else "D"
 			spectator_label.text = "SPECTATING %s   ◀ %s     %s ▶" % [visuals._display_name(spectator_target_id), previous_hint, next_hint] if spectator_target_id != 0 else "NO SURVIVING TARGET · ARENA VIEW"
+			if spectator_target_id == 0 and _restricted_team_spectating():
+				spectator_label.text = "NO VISIBLE TEAMMATE · WAITING TO REJOIN"
 			spectator_label.visible = true
 		else:
 			spectator_label.visible = false
@@ -319,11 +332,17 @@ func _local_is_eliminated() -> bool:
 	return visuals.ships.has(context.local_peer_id) and not (visuals.ships[context.local_peer_id] as CombatShipView).combatant.alive
 
 
+func _restricted_team_spectating() -> bool:
+	return bool(context.match_payload.get("competitive_view", false)) and GameModeRules.is_team_mode(int(context.match_payload.get("game_mode", 0))) and visuals.team_for_peer(context.local_peer_id) > 0
+
+
 func _living_spectator_targets() -> Array[int]:
 	var result: Array[int] = []
 	for peer_value in visuals.ships.keys():
 		var peer_id := int(peer_value)
 		var ship := visuals.ships[peer_id] as CombatShipView
+		if _restricted_team_spectating() and not visuals.is_friendly_peer(peer_id):
+			continue
 		if peer_id != context.local_peer_id and ship.combatant.alive and not ship.combatant.is_cloaked():
 			result.append(peer_id)
 	result.sort()
@@ -331,6 +350,8 @@ func _living_spectator_targets() -> Array[int]:
 
 
 func _update_spectator_target() -> void:
+	if spectator_curtain != null:
+		spectator_curtain.hide()
 	if not _local_is_eliminated():
 		spectator_target_id = 0
 		return
@@ -339,6 +360,8 @@ func _update_spectator_target() -> void:
 		spectator_target_id = 0
 	elif spectator_target_id not in targets:
 		spectator_target_id = targets[0]
+	if spectator_curtain != null:
+		spectator_curtain.visible = context._network_active and _restricted_team_spectating() and spectator_target_id == 0 and String(context.match_payload.get("state_name", "")) in ["ACTIVE_HEAT", "OVERTIME"]
 
 
 func _cycle_spectator(direction: int) -> void:
@@ -491,6 +514,8 @@ func step_incoming_refresh(delta: float) -> void:
 
 func reset_session() -> void:
 	competitive_view_policy.restore()
+	if spectator_curtain != null:
+		spectator_curtain.hide()
 	if combat_feedback_panel != null:
 		combat_feedback_panel.clear_feedback(true)
 	spectator_target_id = 0

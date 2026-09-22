@@ -238,6 +238,8 @@ The leader cannot eject players during an active match and cannot eject themselv
 
 For competitive sessions, enable **Competitive view · equal 16:9 combat space** in **Match Setup** before players ready up. Everyone, including spectators, gets the same combat view. Ultrawide and taller screens use bars during the match; normal menu layout returns when you leave. Casual sessions retain the existing expanded view by default.
 
+In competitive team modes, eliminated players can follow living, visible teammates only. If none are available, a waiting screen covers the arena until a teammate becomes available or the player respawns. Neutral spectators and casual sessions retain unrestricted target selection. This is a presentation policy; it does not prevent a modified client from inspecting replicated opponent data. Use trusted neutral spectators in organized matches.
+
 Only the host can change this before launch. Changing it clears readiness, and fresh rematches keep the same choice. Dedicated hosts can use `tools/start-server.ps1 -CompetitiveView` or `--competitive-view` with the game executable.
 
 ### Launch conditions
