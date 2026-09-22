@@ -105,7 +105,7 @@ func _process(_delta: float) -> bool:
 			cue_index += 1
 		if elapsed >= 12.0:
 			_finish_recording("crowded_mix.wav")
-			result["mix"] = {"peak_voices": audio.peak_active_voices, "dropped_voices": audio.dropped_voices, "stolen_voices": audio.stolen_voices, "weapon_cache_entries": audio.weapon_stream_cache.size(), "final_duck_db": audio.music_duck_db}
+			result["mix"] = {"peak_voices": audio.peak_active_voices, "dropped_voices": audio.dropped_voices, "stolen_voices": audio.stolen_voices, "weapon_cache_entries": audio.weapon_preparation.stats().cached, "final_duck_db": audio.music_duck_db}
 			_write_json("memory.json", result)
 			print("SSF_AUDIO_VERIFY_OK=" + JSON.stringify(result.mix))
 			phase = 0

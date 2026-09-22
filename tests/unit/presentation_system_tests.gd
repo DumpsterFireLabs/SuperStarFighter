@@ -80,8 +80,8 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	var heavy_stream := audio._weapon_stream(heavy_profile, 0)
 	context.expect_equal(automatic_stream, heavy_stream, "cold weapon families use the prepared fallback immediately")
 	var prepare_deadline := Time.get_ticks_msec() + 5000
-	while (not audio._weapon_requests.is_empty() or audio._weapon_thread.is_started()) and Time.get_ticks_msec() < prepare_deadline:
-		audio._poll_weapon_requests()
+	while audio.weapon_preparation.is_pending() and Time.get_ticks_msec() < prepare_deadline:
+		audio.weapon_preparation.poll()
 		OS.delay_msec(1)
 	automatic_stream = audio._weapon_stream(automatic_profile, 0)
 	heavy_stream = audio._weapon_stream(heavy_profile, 0)

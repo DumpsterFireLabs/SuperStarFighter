@@ -49,21 +49,21 @@ static func run(context: TestContext, parent: Node) -> void:
 	var profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(CombatStats.create_base())
 	var cached := audio._weapon_stream(profile, 0)
 	context.expect_equal(cached, audio.sfx_streams[&"fire"], "cold weapon uses an already prepared audible fallback")
-	context.expect_true(audio.weapon_stream_cache.is_empty(), "shot callback does not synthesize cold weapons")
+	context.expect_true(audio.weapon_preparation._cache.is_empty(), "shot callback does not synthesize cold weapons")
 	for repeat in 20:
 		audio._weapon_stream(profile, 0)
-	context.expect_equal(audio._weapon_requests.size(), 1, "cold requests are deduplicated")
+	context.expect_equal(audio.weapon_preparation.stats().queued, 1, "cold requests are deduplicated")
 	_finish_weapon_requests(audio)
 	cached = audio._weapon_stream(profile, 0)
 	context.expect_true(cached != audio.sfx_streams[&"fire"], "worker installs the generated weapon voice")
 	for index in range(Policy.WEAPON_CACHE_LIMIT - 1):
-		audio.weapon_stream_cache["fixture:%d" % index] = cached
+		audio.weapon_preparation._cache["fixture:%d" % index] = cached
 	audio._weapon_stream(profile, 0)
 	audio._weapon_stream(profile, 1)
 	_finish_weapon_requests(audio)
-	context.expect_equal(audio.weapon_stream_cache.size(), Policy.WEAPON_CACHE_LIMIT, "generated weapon cache remains bounded")
-	context.expect_true(audio.weapon_stream_cache.has(profile.cache_key() + ":v0"), "recently used weapon survives cache eviction")
-	context.expect_true(not audio.weapon_stream_cache.has("fixture:0"), "least-recently used weapon is evicted first")
+	context.expect_equal(audio.weapon_preparation.stats().cached, Policy.WEAPON_CACHE_LIMIT, "generated weapon cache remains bounded")
+	context.expect_true(audio.weapon_preparation._cache.has(profile.cache_key() + ":v0"), "recently used weapon survives cache eviction")
+	context.expect_true(not audio.weapon_preparation._cache.has("fixture:0"), "least-recently used weapon is evicted first")
 	for index in Policy.REMOTE_WEAPON_VOICES:
 		var voice := audio._acquire_sfx_player(1, &"remote_weapon")
 		context.expect_true(voice != null, "remote weapon budget admits its configured voices")
@@ -80,10 +80,29 @@ static func run(context: TestContext, parent: Node) -> void:
 	for player in audio.sfx_players:
 		player.stop()
 	audio.free()
+	_test_preparation_shutdown(context)
 
 
 static func _finish_weapon_requests(audio: AudioDirector) -> void:
 	var deadline := Time.get_ticks_msec() + 5000
-	while (not audio._weapon_requests.is_empty() or audio._weapon_thread.is_started()) and Time.get_ticks_msec() < deadline:
-		audio._poll_weapon_requests()
+	while audio.weapon_preparation.is_pending() and Time.get_ticks_msec() < deadline:
+		audio.weapon_preparation.poll()
 		OS.delay_msec(1)
+
+
+static func _test_preparation_shutdown(context: TestContext) -> void:
+	var preparation := preload("res://src/client/presentation/weapon_audio_preparation.gd").new()
+	var profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(CombatStats.create_base())
+	var fallback := AudioStreamWAV.new()
+	var key: String = profile.cache_key() + ":v0"
+	preparation.request(profile, 0, fallback, false)
+	var copied = preparation._requests[key][0]
+	context.expect_true(copied != profile, "preparation owns an independent profile")
+	var original_tier: int = copied.power_tier
+	profile.power_tier = 3
+	context.expect_equal(copied.power_tier, original_tier, "queued synthesis is insulated from build changes")
+	preparation.poll()
+	preparation.close()
+	context.expect_true(not preparation.is_pending(), "shutdown joins active worker and clears pending work")
+	context.expect_equal(preparation.stats().cached, 0, "shutdown releases generated streams")
+	preparation.close()
