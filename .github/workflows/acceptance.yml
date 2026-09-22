@@ -57,6 +57,8 @@ jobs:
         run: ./tools/bootstrap.ps1
       - name: Impairment and retransmission matrix
         run: python tools/verify-network-impairment.py --profile all
+      - name: Dense fan-out under loss, jitter and per-client congestion
+        run: python tools/verify-dense-replication.py --profile all
       - name: Long memory and match lifecycle soak
         shell: pwsh
         run: ./tools/verify-soak.ps1 -ClientCount 32 -DurationSeconds 1800
@@ -67,4 +69,5 @@ jobs:
           include-hidden-files: true
           path: |
             .tools/network-impairment/
+            .tools/dense-replication/
             .tools/soak-verification/
