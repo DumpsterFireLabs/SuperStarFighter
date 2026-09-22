@@ -243,6 +243,9 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 		if crowded_decoded.ok:
 			reconstructed_count += (crowded_decoded.spawned as Array).size()
 			var assembled := assembler.accept(crowded_decoded)
+			context.expect_true(not assembled.is_empty(), "each recovery chunk publishes records without waiting for other chunks")
+			if int(crowded_decoded.chunk_index) == 0:
+				context.expect_false(bool(assembled.complete_snapshot), "incomplete recovery cannot prune absent projectiles")
 			if not assembled.is_empty():
 				assembled_correction = assembled
 	context.expect_equal(reconstructed_count, crowded.size(), "chunked correction preserves every projectile record")

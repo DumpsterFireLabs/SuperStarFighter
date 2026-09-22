@@ -77,6 +77,7 @@ func _init() -> void:
 	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: world_snapshot.rpc_id(peer_id, packet))
 	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
 	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet]))
+	replication.projectile_recovery_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_recovery", [packet]))
 	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
 	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
 
@@ -918,6 +919,15 @@ func projectile_correction(packet: PackedByteArray) -> void:
 		return
 	var decoded := ProjectilePacketCodec.decode_correction(packet)
 	if decoded.ok:
+		_accept_projectile_correction_chunk(decoded)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_PROJECTILE_CORRECTION)
+func projectile_recovery(packet: PackedByteArray) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	var decoded := ProjectilePacketCodec.decode_correction(packet)
+	if decoded.ok and bool(decoded.get("complete_snapshot", false)):
 		_accept_projectile_correction_chunk(decoded)
 
 

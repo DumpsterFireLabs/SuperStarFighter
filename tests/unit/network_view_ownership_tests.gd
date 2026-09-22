@@ -227,6 +227,17 @@ static func _replication_ordering(context: TestContext, parent: Node) -> void:
 		bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[index]))
 	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), 51, "assembled recovery preserves a delta received between its chunks")
 	context.expect_true(view.replicated_visuals.authoritative_projectiles.get_projectile(400) != null, "interleaved new entity survives old recovery assembly")
+	# Lose the initial delta and withhold one recovery chunk: received records
+	# must already exist, while a ghost is pruned only after reliable repair.
+	view.reset_session()
+	_deliver_delta(bridge, 230, 25, [fresh], [])
+	bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[0]))
+	context.expect_true(view.replicated_visuals.authoritative_projectiles.get_projectile(300) != null, "lost spawn is repaired by the first received recovery chunk")
+	context.expect_true(view.replicated_visuals.authoritative_projectiles.get_projectile(103) != null, "partial recovery cannot prematurely prune a missing entity")
+	for index in range(1, chunks.size()):
+		bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[index]))
+	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), many.size(), "retransmitted recovery chunk completes the live set")
+	context.expect_equal(view.replicated_visuals.authoritative_projectiles.get_projectile(103), null, "completed reliable recovery removes ghost ordnance")
 	view.apply_match_state({"state_name": "COUNTDOWN", "entered_tick": 300}, 300)
 	_deliver_delta(bridge, 299, 28, [mine], [])
 	context.expect_empty(view.replicated_visuals.authoritative_projectiles.all_projectiles(), "heat boundary rejects delayed prior-heat projectiles")

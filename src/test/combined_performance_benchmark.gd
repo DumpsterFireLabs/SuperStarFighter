@@ -46,6 +46,10 @@ func _run() -> void:
 		combatant.stats = CombatStats.create_base()
 	var fixture := LoadFixture.new()
 	var scheduler := NetworkReplicationScheduler.new()
+	scheduler.projectile_recovery_ready.connect(func(packet: PackedByteArray) -> void:
+		recovery_this_tick = true
+		bytes_this_tick += packet.size() * ids.size()
+	)
 	scheduler.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void:
 		recovery_this_tick = recovery_this_tick or packet[5] == ProjectilePacketCodec.KIND_FULL_CORRECTION
 		bytes_this_tick += packet.size() * ids.size()

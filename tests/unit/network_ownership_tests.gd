@@ -58,7 +58,7 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(first.replication._next_projectile_message_sequence(), 0, "owner preserves uint16 projectile sequence rollover")
 	first.replication._projectile_correction_cursor = 41
 	first.replication._projectile_correction_send_count = 9
-	first._accept_projectile_correction_chunk({"complete_snapshot": true, "batch_sequence": 7, "chunk_count": 2, "chunk_index": 0, "spawned": []})
+	first._accept_projectile_correction_chunk({"server_tick": 10, "complete_snapshot": true, "batch_sequence": 7, "chunk_count": 2, "chunk_index": 0, "spawned": []})
 	context.expect_equal(first.local_peer_id, 17, "bridge identity observes session-owned state")
 	context.expect_equal(first.replication._projectile_correction_cursor, 41, "correction cursor belongs only to the replication owner")
 	context.expect_empty(second.session._pending_disconnects, "parallel bridge sessions cannot share disconnect timers")

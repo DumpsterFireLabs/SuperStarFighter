@@ -7,6 +7,7 @@ const PARTIAL_PROJECTILE_CORRECTION_COUNT: int = 40
 signal player_snapshot_ready(peer_id: int, packet: PackedByteArray)
 signal projectile_batch_ready(packet: PackedByteArray)
 signal projectile_correction_ready(packet: PackedByteArray)
+signal projectile_recovery_ready(packet: PackedByteArray)
 signal combat_feedback_ready(peer_id: int, tick: int, payload: Dictionary)
 signal mine_detonations_ready(tick: int, events: Array)
 
@@ -115,7 +116,12 @@ func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) 
 		complete_snapshot
 	)
 	for packet in packets:
-		projectile_correction_ready.emit(packet)
+		# One bounded full recovery per second is retransmitted by ENet. Frequent
+		# motion corrections remain lossy so they cannot queue stale movement.
+		if complete_snapshot:
+			projectile_recovery_ready.emit(packet)
+		else:
+			projectile_correction_ready.emit(packet)
 		_outbound_bytes += packet.size() * lobby.human_count()
 
 
