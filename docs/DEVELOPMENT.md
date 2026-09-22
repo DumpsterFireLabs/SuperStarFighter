@@ -32,7 +32,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.12 |
-| Protocol version | 39 (binary packets 16) |
+| Protocol version | 40 (binary packets 17) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 

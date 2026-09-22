@@ -176,6 +176,15 @@ static func _validate_snapshot_codec(context: TestContext) -> void:
 	for field in ["mine_charges", "cloak_charges", "missile_charges"]:
 		context.expect_equal(packed.states[0][field], 1000, "packed charge count retains the legal cap: " + field)
 	context.expect_true(packet.size() <= 1200, "remote life epochs keep the maximum snapshot within its transport budget")
+	for speed in [6000.0, 9600.0, 19200.0, 76800.0, PlayerSnapshotCodec.MAX_VELOCITY]:
+		for direction in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2(1, -1).normalized()]:
+			states[0].velocity = direction * speed
+			var fast := PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(902, 46, states))
+			var error := (fast.states[0].velocity as Vector2).distance_to(states[0].velocity)
+			context.expect_true(error <= 6.0, "boost/knockback velocity survives wide-range encoding: %s error=%f" % [states[0].velocity, error])
+			if speed <= 9600.0:
+				context.expect_true(error <= 0.36, "legal high-speed combat retains sub-unit velocity accuracy")
+			context.expect_equal(fast.states[0].mine_charges, 1000, "velocity exponent cannot corrupt packed charges")
 	var oversized := PackedByteArray()
 	oversized.resize(PlayerSnapshotCodec.HEADER_SIZE)
 	oversized[0] = NetworkProtocol.PACKET_VERSION

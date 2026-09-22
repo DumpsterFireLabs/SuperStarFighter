@@ -5,6 +5,10 @@ const HEADER_SIZE: int = 10
 const PLAYER_RECORD_SIZE: int = 35
 const POSITION_SCALE: float = 16.0
 const VELOCITY_SCALE: float = 8.0
+# A shared two-bit exponent uses the spare bits above the three charge counts.
+# Ordinary motion retains 1/8-unit precision; boosts/knockback use a wider range
+# rather than silently clipping at 4095. Highest range is +/-262136 units/s.
+const MAX_VELOCITY: float = 32767.0 * 64.0 / VELOCITY_SCALE
 const RESOURCE_SCALE: float = 100.0
 const LOCAL_FIELDS: Array[StringName] = [
 	&"afterburner_remaining", &"afterburner_cooldown_remaining",
@@ -172,8 +176,14 @@ static func _append_values(
 	ByteCodec.append_u32(bytes, peer_id)
 	ByteCodec.append_u16(bytes, roundi(clampf(position.x, 0.0, GameConstants.ARENA_SIZE.x) * POSITION_SCALE))
 	ByteCodec.append_u16(bytes, roundi(clampf(position.y, 0.0, GameConstants.ARENA_SIZE.y) * POSITION_SCALE))
-	ByteCodec.append_i16(bytes, roundi(clampf(velocity.x, -4095.0, 4095.0) * VELOCITY_SCALE))
-	ByteCodec.append_i16(bytes, roundi(clampf(velocity.y, -4095.0, 4095.0) * VELOCITY_SCALE))
+	var velocity_exponent := 0
+	var velocity_scale := VELOCITY_SCALE
+	var component_max := maxf(absf(velocity.x), absf(velocity.y))
+	while component_max * velocity_scale > 32767.0 and velocity_exponent < 3:
+		velocity_exponent += 1
+		velocity_scale /= 4.0
+	ByteCodec.append_i16(bytes, clampi(roundi(velocity.x * velocity_scale), -32767, 32767))
+	ByteCodec.append_i16(bytes, clampi(roundi(velocity.y * velocity_scale), -32767, 32767))
 	ByteCodec.append_u16(bytes, roundi(MovementSystem.normalize_aim_angle(aim_angle) / TAU * 65535.0))
 	ByteCodec.append_u16(bytes, roundi(clampf(health, 0.0, 655.35) * RESOURCE_SCALE))
 	ByteCodec.append_u16(bytes, roundi(clampf(shield, 0.0, 655.35) * RESOURCE_SCALE))
@@ -196,7 +206,7 @@ static func _append_values(
 	ByteCodec.append_u8(bytes, flags)
 	# Three legal charge counts (each capped at 1000) fit in 30 bits.
 	# The saved two bytes carry the remote life epoch, keeping 32 pilots at 1193 bytes.
-	ByteCodec.append_u32(bytes, clampi(mine_charges, 0, 1023) | (clampi(cloak_charges, 0, 1023) << 10) | (clampi(missile_charges, 0, 1023) << 20))
+	ByteCodec.append_u32(bytes, clampi(mine_charges, 0, 1023) | (clampi(cloak_charges, 0, 1023) << 10) | (clampi(missile_charges, 0, 1023) << 20) | (velocity_exponent << 30))
 	ByteCodec.append_u16(bytes, roundi(clampf(mine_cooldown, 0.0, 65.535) * 1000.0))
 	ByteCodec.append_u16(bytes, roundi(clampf(cloak_cooldown, 0.0, 65.535) * 1000.0))
 	ByteCodec.append_u8(bytes, roundi(clampf(kinetic_vent_charge, 0.0, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE)))
@@ -220,12 +230,13 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	var offset := HEADER_SIZE
 	for index in count:
 		var flags := ByteCodec.read_u8(bytes, offset + 19)
+		var velocity_scale := VELOCITY_SCALE / float(1 << ((ByteCodec.read_u32(bytes, offset + 20) >> 30) * 2))
 		if flags & ~127:
 			return _error("Player snapshot contains unsupported state flags.")
 		states.append({
 			"peer_id": ByteCodec.read_u32(bytes, offset),
 			"position": Vector2(ByteCodec.read_u16(bytes, offset + 4) / POSITION_SCALE, ByteCodec.read_u16(bytes, offset + 6) / POSITION_SCALE),
-			"velocity": Vector2(ByteCodec.read_i16(bytes, offset + 8) / VELOCITY_SCALE, ByteCodec.read_i16(bytes, offset + 10) / VELOCITY_SCALE),
+			"velocity": Vector2(ByteCodec.read_i16(bytes, offset + 8) / velocity_scale, ByteCodec.read_i16(bytes, offset + 10) / velocity_scale),
 			"aim_angle": float(ByteCodec.read_u16(bytes, offset + 12)) / 65535.0 * TAU,
 			"health": ByteCodec.read_u16(bytes, offset + 14) / RESOURCE_SCALE,
 			"shield": ByteCodec.read_u16(bytes, offset + 16) / RESOURCE_SCALE,
