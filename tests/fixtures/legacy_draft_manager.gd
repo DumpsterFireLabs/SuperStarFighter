@@ -1,4 +1,4 @@
-class_name DraftManager
+## Frozen pre-R08 reference: guards offers, RNG consumption and timeout choices.
 extends RefCounted
 
 enum SelectionResult {
@@ -16,8 +16,6 @@ var _match_seed: int
 var _token_serial: int = 0
 var _offers: Dictionary = {}
 var _automatic_choices: Dictionary = {}
-var _baseline_stats: Dictionary = {}
-var _candidate_stats: Dictionary = {}
 var _active: bool = false
 
 
@@ -30,8 +28,6 @@ func _init(catalog: CardCatalog, match_seed: int) -> void:
 func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array[int] = []) -> Dictionary:
 	_offers.clear()
 	_automatic_choices.clear()
-	_baseline_stats.clear()
-	_candidate_stats.clear()
 	_active = true
 	var peer_ids := players.keys()
 	peer_ids.sort()
@@ -59,17 +55,9 @@ func start_draft(players: Dictionary, round_number: int, skipped_peer_ids: Array
 		var offer_count := mini(GameConstants.CARD_OFFER_SIZE, eligible.size())
 		offer.card_ids = _weighted_cards_without_replacement(eligible, offer_count)
 		var useful: Array[StringName] = []
-		var before := StatSystem.derive(player.card_stacks, _catalog)
-		_baseline_stats[peer_id] = before
-		var candidates: Dictionary = {}
 		for card_id in offer.card_ids:
-			var next_build := player.card_stacks.duplicate()
-			next_build[card_id] = int(next_build.get(card_id, 0)) + 1
-			var after := StatSystem.derive(next_build, _catalog)
-			candidates[card_id] = after
-			if StatSystem.has_derived_benefit(before, after):
+			if StatSystem.has_effective_benefit(player.card_stacks, _catalog.get_card(card_id), _catalog):
 				useful.append(card_id)
-		_candidate_stats[peer_id] = candidates
 		_automatic_choices[peer_id] = useful if not useful.is_empty() else offer.card_ids.duplicate()
 		if offer.card_ids.is_empty():
 			offer.build_complete = true
@@ -86,11 +74,6 @@ func automatic_card_ids(peer_id: int) -> Array[StringName]:
 	var result: Array[StringName] = []
 	result.assign(_automatic_choices.get(peer_id, []))
 	return result
-
-
-func choose_npc_card(player: PlayerMatchState, mode: int, players: Dictionary) -> StringName:
-	# Cache ownership is scoped to this draft (at most 32 x 6 stat records).
-	return NpcDraftPolicy.choose_card(player, automatic_card_ids(player.peer_id), _catalog, mode, players, _baseline_stats.get(player.peer_id), _candidate_stats.get(player.peer_id, {}))
 
 
 func select_card(peer_id: int, token: String, card_id: StringName) -> SelectionResult:
@@ -149,8 +132,6 @@ func apply_locked_selections(players: Dictionary) -> Dictionary:
 		if player != null and card != null and player.add_card(card):
 			applied[peer_id] = offer.selected_card_id
 	_active = false
-	_baseline_stats.clear()
-	_candidate_stats.clear()
 	return applied
 
 
@@ -176,27 +157,21 @@ func _shuffle(values: Array[StringName]) -> void:
 
 
 func _weighted_cards_without_replacement(eligible: Array[StringName], count: int) -> Array[StringName]:
+	var available := eligible.duplicate()
 	var selected: Array[StringName] = []
-	var available_rarities: Dictionary = {}
-	var positions: Dictionary = {}
-	for index in eligible.size():
-		var card_id := eligible[index]
-		positions[card_id] = index
-		var rarity := _catalog.get_card(card_id).rarity
-		if not available_rarities.has(rarity):
-			available_rarities[rarity] = []
-		(available_rarities[rarity] as Array).append(card_id)
-	while selected.size() < count and not available_rarities.is_empty():
-		# Match the old first-remaining-card order, even after the first card of
-		# a rarity is removed. RNG draws and cumulative weight order stay exact.
-		var rarities := available_rarities.keys()
-		rarities.sort_custom(func(left: int, right: int) -> bool: return int(positions[available_rarities[left][0]]) < int(positions[available_rarities[right][0]]))
+	while selected.size() < count and not available.is_empty():
+		var available_rarities: Dictionary = {}
 		var total_weight := 0.0
-		for rarity_value in rarities:
+		for card_id in available:
+			var rarity := _catalog.get_card(card_id).rarity
+			if not available_rarities.has(rarity):
+				available_rarities[rarity] = []
+			(available_rarities[rarity] as Array).append(card_id)
+		for rarity_value in available_rarities:
 			total_weight += float(CardDefinition.RARITY_DROP_CHANCES.get(rarity_value, 0.0))
 		var roll := _rng.randf() * total_weight
-		var chosen_rarity: int = int(rarities[0])
-		for rarity_value in rarities:
+		var chosen_rarity: int = int(available_rarities.keys()[0])
+		for rarity_value in available_rarities:
 			roll -= float(CardDefinition.RARITY_DROP_CHANCES.get(rarity_value, 0.0))
 			if roll <= 0.0:
 				chosen_rarity = int(rarity_value)
@@ -204,7 +179,5 @@ func _weighted_cards_without_replacement(eligible: Array[StringName], count: int
 		var rarity_cards := available_rarities[chosen_rarity] as Array
 		var chosen_id := StringName(rarity_cards[_rng.randi_range(0, rarity_cards.size() - 1)])
 		selected.append(chosen_id)
-		rarity_cards.erase(chosen_id)
-		if rarity_cards.is_empty():
-			available_rarities.erase(chosen_rarity)
+		available.erase(chosen_id)
 	return selected

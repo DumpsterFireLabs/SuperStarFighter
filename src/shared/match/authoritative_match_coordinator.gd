@@ -381,8 +381,7 @@ func _start_draft() -> void:
 			continue
 		if player.is_npc:
 			if not offer.locked and not offer.card_ids.is_empty():
-				var choices := draft.automatic_card_ids(peer_id)
-				var chosen_id := NpcDraftPolicy.choose_card(player, choices, catalog, lobby.config.game_mode, machine.players)
+				var chosen_id := draft.choose_npc_card(player, lobby.config.game_mode, machine.players)
 				draft.select_card(peer_id, offer.token, chosen_id)
 			continue
 		_private_offers.append({

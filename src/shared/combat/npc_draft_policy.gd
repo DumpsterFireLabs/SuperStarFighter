@@ -27,16 +27,18 @@ static func draft_role(player: PlayerMatchState, mode: int, players: Dictionary)
 	return team_role(player.peer_id, members)
 
 
-static func choose_card(player: PlayerMatchState, choices: Array[StringName], catalog: CardCatalog, mode: int, players: Dictionary) -> StringName:
+static func choose_card(player: PlayerMatchState, choices: Array[StringName], catalog: CardCatalog, mode: int, players: Dictionary, prepared_before: CombatStats = null, prepared_candidates: Dictionary = {}) -> StringName:
 	var role := draft_role(player, mode, players)
-	var before := StatSystem.derive(player.card_stacks, catalog)
+	var before := prepared_before if prepared_before != null else StatSystem.derive(player.card_stacks, catalog)
 	var before_utility := utility(before, role)
 	var best_id: StringName = &""
 	var best_score := -INF
 	for card_id in choices:
-		var build := player.card_stacks.duplicate()
-		build[card_id] = int(build.get(card_id, 0)) + 1
-		var after := StatSystem.derive(build, catalog)
+		var after := prepared_candidates.get(card_id) as CombatStats
+		if after == null:
+			var build := player.card_stacks.duplicate()
+			build[card_id] = int(build.get(card_id, 0)) + 1
+			after = StatSystem.derive(build, catalog)
 		var score := utility(after, role) - before_utility
 		# New active tools receive credit once; repeated unlocks are evaluated only
 		# through their effective stats. Role tradeoffs remain in the utility delta.

@@ -13,6 +13,10 @@ static func has_effective_benefit(build: Dictionary, card: CardDefinition, catal
 	next_build[card.card_id] = int(next_build.get(card.card_id, 0)) + 1
 	var before := derive(build, catalog)
 	var after := derive(next_build, catalog)
+	return has_derived_benefit(before, after)
+
+
+static func has_derived_benefit(before: CombatStats, after: CombatStats) -> bool:
 	for property_name in SPECIAL_FLAGS:
 		if bool(after.get(property_name)) and not bool(before.get(property_name)):
 			return true

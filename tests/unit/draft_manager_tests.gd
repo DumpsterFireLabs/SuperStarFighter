@@ -8,6 +8,32 @@ static func run(context: TestContext) -> void:
 	_validate_selection_and_timeout(context, catalog)
 	_validate_unlimited_stack_offers(context, catalog)
 	_validate_skipped_winner(context, catalog)
+	_validate_cached_draft_parity(context, catalog)
+
+
+static func _validate_cached_draft_parity(context: TestContext, catalog: CardCatalog) -> void:
+	var legacy = preload("res://tests/fixtures/legacy_draft_manager.gd")
+	for seed_value in 16:
+		var players := _create_players(3)
+		players[2].card_stacks = {&"impossible_engine": 12}
+		for card_id in catalog.all_ids().slice(0, 12):
+			players[3].card_stacks[card_id] = 2
+		var current := DraftManager.new(catalog, seed_value)
+		var reference = legacy.new(catalog, seed_value)
+		for round_number in range(1, 3):
+			current.start_draft(players, round_number)
+			reference.start_draft(players, round_number)
+			for peer_id in players:
+				context.expect_equal(current.get_offer(peer_id).card_ids, reference.get_offer(peer_id).card_ids, "optimized draft preserves seeded offer order")
+				context.expect_equal(current.automatic_card_ids(peer_id), reference.automatic_card_ids(peer_id), "cached derivation preserves effective-benefit filtering")
+				for mode in [GameModeRules.Mode.DEATH_MATCH, GameModeRules.Mode.KING_OF_THE_HILL, GameModeRules.Mode.CAPTURE_THE_FLAG]:
+					context.expect_equal(current.choose_npc_card(players[peer_id], mode, players), NpcDraftPolicy.choose_card(players[peer_id], reference.automatic_card_ids(peer_id), catalog, mode, players), "cached NPC utility preserves role-based choices")
+			current.resolve_timeout()
+			reference.resolve_timeout()
+			for peer_id in players:
+				context.expect_equal(current.get_offer(peer_id).selected_card_id, reference.get_offer(peer_id).selected_card_id, "rarity optimization preserves subsequent timeout RNG")
+			current.apply_locked_selections(players)
+			context.expect_true(current._candidate_stats.is_empty() and current._baseline_stats.is_empty(), "completed draft releases prepared stats")
 
 
 static func _validate_seeded_offers(context: TestContext, catalog: CardCatalog) -> void:
