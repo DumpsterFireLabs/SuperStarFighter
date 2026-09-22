@@ -55,6 +55,23 @@ var _spawn_assignments_cache: Dictionary = {}
 var _respawn_deadlines: Dictionary = {}
 var _respawn_retry_ticks: Dictionary = {}
 var _heat_time_limit_reached: bool = false
+var incremental_drafts: bool = false
+const DRAFT_SLICE_BUDGET_USEC: int = 2000
+const DRAFT_PLAYERS_PER_SLICE: int = 2
+var _draft_preparation_started_usec: int = 0
+var _phase_work: Dictionary = {}
+
+
+func record_phase_work(phase: StringName, elapsed_usec: int) -> void:
+	var row: Dictionary = _phase_work.get(phase, {"count": 0, "total_usec": 0, "max_usec": 0})
+	row.count += 1
+	row.total_usec += elapsed_usec
+	row.max_usec = maxi(row.max_usec, elapsed_usec)
+	_phase_work[phase] = row
+
+
+func phase_work_snapshot() -> Dictionary:
+	return _phase_work.duplicate(true)
 
 
 func _init(
@@ -113,6 +130,9 @@ func step(delta: float) -> void:
 	var tick := world.server_tick
 	match machine.state:
 		MatchStateMachine.State.DRAFT:
+			if draft.is_preparing():
+				_step_draft_preparation()
+				return
 			if draft.all_locked() or machine.is_draft_timed_out(tick):
 				if not draft.all_locked():
 					draft.resolve_timeout()
@@ -310,6 +330,7 @@ func current_state_payload() -> Dictionary:
 
 func _capture_transitions() -> void:
 	while _emitted_history_count < machine.event_history.size():
+		var started_usec := Time.get_ticks_usec()
 		var transition := machine.event_history[_emitted_history_count] as Dictionary
 		if int(transition.state) in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]:
 			world.simulation_paused = false
@@ -324,6 +345,7 @@ func _capture_transitions() -> void:
 			_prepare_countdown()
 		_events.append(MatchEvent.new(&"STATE_CHANGED", int(transition.entered_tick), _state_payload()))
 		_handle_state_entry(int(transition.state))
+		record_phase_work(StringName("enter_" + MatchStateMachine.State.keys()[int(transition.state)]), Time.get_ticks_usec() - started_usec)
 
 
 func _handle_state_entry(new_state: int) -> void:
@@ -369,12 +391,41 @@ func _start_draft() -> void:
 		for peer_id in _next_draft_bye_peer_ids:
 			if peer_id != 0:
 				skipped_peer_ids.append(peer_id)
-	var offers := draft.start_draft(machine.players, machine.round_number, skipped_peer_ids)
-	var peer_ids := offers.keys()
+	if incremental_drafts:
+		_draft_preparation_started_usec = Time.get_ticks_usec()
+		draft.begin_draft(machine.players, machine.round_number, skipped_peer_ids)
+		return
+	draft.start_draft(machine.players, machine.round_number, skipped_peer_ids)
+	_publish_draft_offers()
+
+
+func _step_draft_preparation() -> void:
+	var started_usec := Time.get_ticks_usec()
+	for index in DRAFT_PLAYERS_PER_SLICE:
+		var peer_id := draft.prepare_next_player()
+		var player := machine.players.get(peer_id) as PlayerMatchState
+		var offer := draft.get_offer(peer_id)
+		if player != null and player.connected and player.is_npc and offer != null and not offer.locked:
+			draft.select_card(peer_id, offer.token, draft.choose_npc_card(player, lobby.config.game_mode, machine.players))
+		if not draft.is_preparing() or Time.get_ticks_usec() - started_usec >= DRAFT_SLICE_BUDGET_USEC:
+			break
+	record_phase_work(&"draft_slice", Time.get_ticks_usec() - started_usec)
+	if not draft.is_preparing():
+		# Everybody receives the full decision interval, beginning at publication.
+		machine.state_deadline_tick = world.server_tick + lobby.config.duration_to_ticks(lobby.config.draft_duration_seconds)
+		_events.append(MatchEvent.new(&"STATE_CHANGED", world.server_tick, _state_payload()))
+		_publish_draft_offers()
+		record_phase_work(&"draft_prepare_wall", Time.get_ticks_usec() - _draft_preparation_started_usec)
+
+
+func _publish_draft_offers() -> void:
+	var peer_ids := machine.players.keys()
 	peer_ids.sort()
 	for peer_value in peer_ids:
 		var peer_id := int(peer_value)
-		var offer := offers[peer_id] as DraftOffer
+		var offer := draft.get_offer(peer_id)
+		if offer == null:
+			continue
 		var player := machine.players[peer_id] as PlayerMatchState
 		if offer.skipped:
 			observations.record_bye(peer_id)

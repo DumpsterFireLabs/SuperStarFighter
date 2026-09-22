@@ -703,6 +703,7 @@ func _prepare_fresh_rematch(sender_id: int) -> Dictionary:
 	var configured_seed := int(session.configuration_value("test_match_seed", 0))
 	var seed_value := configured_seed if configured_seed > 0 else _secure_match_seed()
 	var replacement := AuthoritativeMatchCoordinator.new(lobby, world, seed_value, match_coordinator.overtime_start_seconds)
+	replacement.incremental_drafts = true
 	if not replacement.start(world.server_tick):
 		return {"ok": false, "error": "The current rules cannot start a rematch. Return to the lobby to adjust them."}
 	for player_value in lobby.players.values():
@@ -1144,11 +1145,13 @@ func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void
 
 
 func _start_match_coordinator(leader_id: int) -> void:
+	var started_usec := Time.get_ticks_usec()
 	var configured_seed := int(session.configuration_value("test_match_seed", 0))
 	var seed_value := configured_seed if configured_seed > 0 else _secure_match_seed()
 	var overtime_start := 2.0 if bool(session.configuration_value("test_fast_match", false)) else lobby.config.overtime_start_seconds
 	world.reset_match_inventories()
 	match_coordinator = AuthoritativeMatchCoordinator.new(lobby, world, seed_value, overtime_start)
+	match_coordinator.incremental_drafts = true
 	_logged_overtime_key = ""
 	if not match_coordinator.start(world.server_tick):
 		match_coordinator = null
@@ -1162,6 +1165,7 @@ func _start_match_coordinator(leader_id: int) -> void:
 	})
 	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": leader_id})
 	_drain_match_coordinator()
+	match_coordinator.record_phase_work(&"match_start_rpc", Time.get_ticks_usec() - started_usec)
 
 
 static func _secure_match_seed() -> int:
@@ -1253,6 +1257,7 @@ func _log_metrics() -> void:
 	_metrics_window += 1
 	_latest_metrics = {
 		"window": _metrics_window,
+		"phase_work": match_coordinator.phase_work_snapshot() if match_coordinator != null else {},
 		"window_seconds": elapsed_seconds,
 		"physics_samples": _simulation_samples,
 		"physics_ticks_per_second": float(_simulation_samples) / elapsed_seconds,

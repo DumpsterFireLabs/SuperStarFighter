@@ -9,6 +9,19 @@ static func run(context: TestContext) -> void:
 	_validate_unlimited_stack_offers(context, catalog)
 	_validate_skipped_winner(context, catalog)
 	_validate_cached_draft_parity(context, catalog)
+	var queued := DraftManager.new(catalog, 424242)
+	var immediate := DraftManager.new(catalog, 424242)
+	var pilots := _create_players(32)
+	immediate.start_draft(pilots, 1)
+	queued.begin_draft(pilots, 1)
+	context.expect_true(queued.is_preparing() and not queued.all_locked(), "pending preparation cannot resolve a draft")
+	while queued.is_preparing():
+		var peer_id := queued.prepare_next_player()
+		context.expect_equal(queued.get_offer(peer_id).card_ids, immediate.get_offer(peer_id).card_ids, "incremental preparation preserves RNG and player order")
+	queued.resolve_timeout()
+	immediate.resolve_timeout()
+	for peer_id in pilots:
+		context.expect_equal(queued.get_offer(peer_id).selected_card_id, immediate.get_offer(peer_id).selected_card_id, "incremental preparation preserves timeout RNG")
 
 
 static func _validate_cached_draft_parity(context: TestContext, catalog: CardCatalog) -> void:

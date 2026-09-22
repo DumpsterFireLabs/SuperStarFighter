@@ -5,6 +5,7 @@ const CardPowerupSystemScript = preload("res://src/shared/combat/card_powerup_sy
 
 
 static func run(context: TestContext) -> void:
+	_validate_incremental_draft(context)
 	_validate_global_pause(context)
 	_validate_complete_match_and_rematch(context)
 	_validate_elimination_attribution_payload(context)
@@ -691,3 +692,22 @@ static func _finish_heat(
 			combatant.health = 0.0
 			combatant.alive = false
 	_advance(world, coordinator, 1)
+
+
+static func _validate_incremental_draft(context: TestContext) -> void:
+	var lobby := ServerLobby.new()
+	var world := AuthoritativeWorld.new()
+	for peer in range(1, 33):
+		lobby.admit(peer, "Pilot%d" % peer)
+		world.add_peer(peer)
+	var match_owner := AuthoritativeMatchCoordinator.new(lobby, world, 84)
+	match_owner.incremental_drafts = true
+	match_owner.start(0)
+	context.expect_empty(match_owner.drain_private_offers(), "preparation publishes no partial offers")
+	for tick in range(1, 65):
+		world.server_tick = tick
+		match_owner.step(1.0 / 60.0)
+		if not match_owner.draft.is_preparing(): break
+	var offers := match_owner.drain_private_offers()
+	context.expect_equal(offers.size(), 32, "prepared offers publish together")
+	context.expect_true(match_owner.machine.state_deadline_tick > lobby.config.duration_to_ticks(lobby.config.draft_duration_seconds), "decision deadline excludes preparation")
