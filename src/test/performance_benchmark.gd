@@ -145,7 +145,7 @@ func _run_mixed_mine_benchmark() -> Dictionary:
 	var samples: Array[int] = []
 	for tick in SAMPLE_TICKS + WARMUP_TICKS:
 		var started_usec := Time.get_ticks_usec()
-		world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND, true, false)
+		world.step(1.0 / GameConstants.PHYSICS_TICKS_PER_SECOND, true)
 		var elapsed_usec := Time.get_ticks_usec() - started_usec
 		world.drain_projectile_batch()
 		_fill_mixed_mines_and_projectiles(world, owner_ids)

@@ -23,6 +23,7 @@ func _run() -> void:
 	config.arena_effects = {"mode": ArenaEffectRules.SIGNATURE, "mask": 7, "frequency": 2, "strength": 2}
 	var lobby := ServerLobby.new(config)
 	var world := AuthoritativeWorld.new()
+	world.performance_profiling_enabled = "--profile" in OS.get_cmdline_user_args()
 	for peer in range(1, 17): lobby.admit(peer, "Pilot%d" % peer)
 	lobby.request_npcs_enabled(1, true)
 	var ids: Array[int] = []
@@ -57,6 +58,8 @@ func _run() -> void:
 	var npc_ids := lobby.npc_peer_ids_view()
 	var difficulties := lobby.npc_difficulties_view()
 	var times: Array[int] = []
+	var phase_samples := {"input": [], "npc": [], "world": [], "coordinator": [], "replication": []}
+	var collision_totals: Dictionary = {}
 	var max_pending := 0
 	var effect_activity := 0
 	var active_ticks := 0
@@ -66,19 +69,37 @@ func _run() -> void:
 		var start := Time.get_ticks_usec()
 		for peer in range(1, 17):
 			world.submit_input(peer, PlayerInputFrame.new(tick + 1, tick + 1, Vector2.from_angle(peer + tick * 0.025), peer + tick * 0.07, tick % 3 != 0, tick % 11 == 0))
+		var input_end := Time.get_ticks_usec()
 		npc.submit_inputs(world, npc_ids, difficulties, coordinator.npc_overtime_elapsed(), coordinator.npc_objective_state())
+		var npc_end := Time.get_ticks_usec()
 		if coordinator.controls_enabled(): active_ticks += 1
-		world.step(1.0 / 60.0, coordinator.controls_enabled(), true)
+		world.step(1.0 / 60.0, coordinator.controls_enabled())
+		var world_end := Time.get_ticks_usec()
 		coordinator.step(1.0 / 60.0)
 		coordinator.drain_events()
+		var coordinator_end := Time.get_ticks_usec()
 		scheduler.replicate_tick(world.server_tick, lobby, world)
 		var elapsed := Time.get_ticks_usec() - start
-		if tick >= 60: times.append(elapsed)
+		if tick >= 60:
+			times.append(elapsed)
+			phase_samples.input.append(input_end - start)
+			phase_samples.npc.append(npc_end - input_end)
+			phase_samples.world.append(world_end - npc_end)
+			phase_samples.coordinator.append(coordinator_end - world_end)
+			phase_samples.replication.append(start + elapsed - coordinator_end)
+			for phase in world.last_projectile_profile_usec:
+				collision_totals[phase] = int(collision_totals.get(phase, 0)) + int(world.last_projectile_profile_usec[phase])
 		max_pending = maxi(max_pending, scheduler.payload_metrics().recovery_pending_chunks)
 		if world.arena_effects.hidden_cover != 0 or world.arena_effects.warning or world.arena_effects.pulse_radius >= 0: effect_activity += 1
 		valid = valid and not coordinator.is_finished() and world.projectile_registry.size() <= 1024
 		for ship: CombatantState in world.combatants.values(): valid = valid and ship.position.is_finite() and ship.velocity.is_finite()
 	var summary := Summary.summarize(times)
+	var phases: Dictionary = {}
+	for phase in phase_samples:
+		var samples: Array[int] = []
+		samples.assign(phase_samples[phase])
+		phases[phase] = Summary.summarize(samples)
+	print("SSF_MATRIX_PHASES=" + JSON.stringify({"phases": phases, "collision_totals": collision_totals, "profiled": world.performance_profiling_enabled}))
 	valid = valid and active_ticks >= 120 and times.size() == 480 and max_pending <= 27 and scheduler.outbound_bytes() > 0
 	if world.arena_effects.enabled != 0: valid = valid and effect_activity > 0
 	if "--strict-physics-budget" in OS.get_cmdline_user_args(): valid = valid and summary.over_physics_budget == 0

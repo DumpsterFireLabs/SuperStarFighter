@@ -315,7 +315,7 @@ func _physics_process(delta: float) -> void:
 			match_coordinator.npc_overtime_elapsed(),
 			match_coordinator.npc_objective_state()
 		)
-	world.step(delta, controls_enabled, not npc_peer_ids.is_empty())
+	world.step(delta, controls_enabled)
 	var simulation_done_usec := Time.get_ticks_usec()
 	if match_coordinator != null:
 		match_coordinator.step(delta)

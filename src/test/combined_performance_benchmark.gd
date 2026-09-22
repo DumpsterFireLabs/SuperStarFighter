@@ -68,7 +68,7 @@ func _run() -> void:
 		recovery_this_tick = false
 		bytes_this_tick = 0
 		var started := Time.get_ticks_usec()
-		world.step(1.0 / 60.0, true, false)
+		world.step(1.0 / 60.0, true)
 		coordinator.step(1.0 / 60.0)
 		var published := coordinator.drain_events()
 		scheduler.replicate_tick(world.server_tick, lobby, world)

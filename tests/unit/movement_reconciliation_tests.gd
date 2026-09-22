@@ -51,7 +51,7 @@ static func _held_input_replay(context: TestContext, delay: int) -> void:
 		# Delivery resumes with a stop at tick 45; later held neutral frames
 		# likewise keep one acknowledgement while server time advances.
 		if tick in [1, 45]: world.submit_input(1, frame)
-		world.step(DT, true, false)
+		world.step(DT, true)
 		scheduler._send_player_snapshots(lobby, world)
 		prediction.predict(frame, stats, DT, world.map_id)
 		if tick > delay:

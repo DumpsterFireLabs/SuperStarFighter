@@ -113,8 +113,7 @@ func submit_input(peer_id: int, frame: PlayerInputFrame) -> bool:
 
 func step(
 	delta: float,
-	controls_enabled: bool = true,
-	track_projectile_threats: bool = true
+	controls_enabled: bool = true
 ) -> void:
 	if simulation_paused:
 		return
@@ -163,10 +162,10 @@ func step(
 	var projectiles_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for projectile_id in projectile_registry.step_cleanup(delta):
 		_record_removed(projectile_id)
-	if track_projectile_threats:
-		spatial_index.rebuild_projectile_threats(projectile_registry)
-	else:
-		spatial_index.invalidate_projectile_threats()
+	# Motion changes cells even without a registry membership revision. Rebuild
+	# on the first threat query, after next-tick spawns/removals, rather than
+	# eagerly building an index that can be invalidated before any NPC uses it.
+	spatial_index.invalidate_projectile_threats()
 	if performance_profiling_enabled:
 		var completed := Time.get_ticks_usec()
 		last_step_profile_usec = {

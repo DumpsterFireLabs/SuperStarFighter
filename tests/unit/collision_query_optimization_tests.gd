@@ -26,6 +26,28 @@ static func run(context: TestContext) -> void:
 	_ship_grid_reset(context)
 	_retained_geometry(context)
 	_cargo_opens_mid_tick(context)
+	_lazy_threat_queries(context)
+
+
+static func _lazy_threat_queries(context: TestContext) -> void:
+	var world := AuthoritativeWorld.new()
+	var projectile := ProjectileState.create(1, 1, 1, Vector2(700, 100), 0.0, CombatStats.create_base())
+	projectile.velocity = Vector2(600, 0)
+	world.projectile_registry.add(projectile)
+	context.expect_true(1 in world.projectile_threat_ids(Vector2(700, 100), 0, 48), "initial threat query sees new ordnance")
+	var revision := world.projectile_registry.revision
+	world.step(0.25)
+	context.expect_equal(world.projectile_registry.revision, revision, "motion-only fixture preserves registry membership")
+	context.expect_false(1 in world.projectile_threat_ids(Vector2(700, 100), 0, 48), "motion invalidates the old threat cell without a membership change")
+	context.expect_true(1 in world.projectile_threat_ids(projectile.position, 0, 48), "lazy query sees the moved projectile")
+	context.expect_equal(world.maximum_projectile_speed(), 600.0, "speed and cell queries share the current index")
+	var faster := ProjectileState.create(2, 2, 1, projectile.position, 0.0, CombatStats.create_base())
+	faster.velocity = Vector2(900, 0)
+	world.projectile_registry.add(faster)
+	context.expect_equal(world.maximum_projectile_speed(), 900.0, "spawn between queries refreshes maximum speed")
+	world.projectile_registry.remove(2)
+	context.expect_false(2 in world.projectile_threat_ids(projectile.position, 0, 48), "removal between queries cannot leave a stale threat")
+	context.expect_equal(world.maximum_projectile_speed(), 600.0, "removal refreshes the speed bound")
 
 
 static func _exhaustive_sweep(start: Vector2, finish: Vector2, radius: float, map_id: StringName) -> Variant:
@@ -121,7 +143,7 @@ static func _cargo_opens_mid_tick(context: TestContext) -> void:
 	var start := Vector2(rectangle.position.x - 12.0, rectangle.get_center().y)
 	for id in [1, 2]:
 		world.projectile_registry.add(ProjectileState.create(id, 90, id, start, 0.0, stats))
-	world.step(1.0 / 60.0, true, false)
+	world.step(1.0 / 60.0, true)
 	context.expect_true((world.arena_effects.hidden_cover & 1) != 0, "first projectile destroys cargo within the tick")
 	context.expect_true(world.projectile_registry.get_projectile(1) == null, "destroying projectile resolves its impact")
 	var second := world.projectile_registry.get_projectile(2)
