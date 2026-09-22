@@ -5,42 +5,18 @@ const DEFAULT_BEAM_COLOR: Color = Color("42e8ff")
 const REBOUNDED_BEAM_COLOR: Color = Color("ff4fd8")
 const SIMPLIFY_PROJECTILE_THRESHOLD: int = 160
 
-# Shared masks replace per-frame circle/ring tessellation. Tinting and scaling
-# preserve the danger radius and owner colour without allocating new geometry.
-static var _disc_texture: ImageTexture
-static var _mine_ring_texture: ImageTexture
-
+const RadialCache = preload("res://src/client/presentation/radial_draw_cache.gd")
+static var _mine_spokes :=  PackedVector2Array([Vector2(4.949747, 4.949747), Vector2(14.142136, 14.142136), Vector2(-4.949747, 4.949747), Vector2(-14.142136, 14.142136), Vector2(-4.949747, -4.949747), Vector2(-14.142136, -14.142136), Vector2(4.949747, -4.949747), Vector2(14.142136, -14.142136)])
 
 func _ready() -> void:
-	_prepare_masks()
+	RadialCache.prepare()
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-
-
-func _prepare_masks() -> void:
-	if _disc_texture != null:
-		return
-	_disc_texture = _radial_mask(128, 0.0)
-	_mine_ring_texture = _radial_mask(144, GameConstants.MINE_TRIGGER_RADIUS - 1.0)
-
-
-static func _radial_mask(size: int, inner_radius: float) -> ImageTexture:
-	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	var center := Vector2.ONE * size * 0.5
-	var outer_radius := size * 0.5 - 1.0
-	for y in size:
-		for x in size:
-			var distance := (Vector2(x + 0.5, y + 0.5) - center).length()
-			var alpha := clampf(outer_radius - distance + 0.5, 0.0, 1.0)
-			if inner_radius > 0.0:
-				alpha *= clampf(distance - inner_radius + 0.5, 0.0, 1.0)
-			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
-	return ImageTexture.create_from_image(image)
 
 
 func _draw_disc(point: Vector2, radius: float, color: Color) -> void:
 	# The mask has a one-pixel transparent border, outside the requested radius.
 	var extent := radius * 64.0 / 63.0
-	draw_texture_rect(_disc_texture, Rect2(point - Vector2.ONE * extent, Vector2.ONE * extent * 2.0), false, color)
+	draw_texture_rect(RadialCache.disc, Rect2(point - Vector2.ONE * extent, Vector2.ONE * extent * 2.0), false, color)
 
 var registry: ProjectileRegistry
 var visible_world_rect: Rect2 = Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
@@ -122,7 +98,7 @@ func _draw() -> void:
 	last_drawn_projectiles = 0
 	if registry == null:
 		return
-	_prepare_masks()
+	RadialCache.prepare()
 	var animation_msec := _animation_time_msec()
 	var simplified := registry.size() >= SIMPLIFY_PROJECTILE_THRESHOLD
 	var cull_rect := visible_world_rect.grow(260.0)
@@ -144,14 +120,14 @@ func _draw() -> void:
 			if armed:
 				if not simplified:
 					_draw_disc(projectile.position, GameConstants.MINE_TRIGGER_RADIUS, Color(mine_color, 0.035 + pulse * 0.025))
-				draw_texture_rect(_mine_ring_texture, Rect2(projectile.position - Vector2(72, 72), Vector2(144, 144)), false, Color(mine_color, 0.18 + pulse * 0.12))
+				draw_texture_rect(RadialCache.mine_ring, Rect2(projectile.position - Vector2(72, 72), Vector2(144, 144)), false, Color(mine_color, 0.18 + pulse * 0.12))
 			if not simplified:
 				_draw_disc(projectile.position, projectile.radius + 7.0, Color(1.0, 0.95, 0.42, 0.12 + pulse * 0.08))
 			_draw_disc(projectile.position, projectile.radius, mine_color if armed else Color("7b8496"))
 			_draw_disc(projectile.position, 5.0, Color("fff36a"))
-			for spoke in 4:
-				var direction := Vector2.from_angle(TAU * spoke / 4.0 + PI * 0.25)
-				draw_line(projectile.position + direction * 7.0, projectile.position + direction * 20.0, Color("ff9f43"), 4.0)
+			draw_set_transform(projectile.position)
+			draw_multiline(_mine_spokes, Color("ff9f43"), 4.0)
+			draw_set_transform(Vector2.ZERO)
 			_draw_team_marker(projectile)
 			continue
 		var direction := projectile.velocity.normalized()

@@ -1,6 +1,8 @@
 class_name CombatEffectsLayer
 extends Node2D
 
+const RadialCache = preload("res://src/client/presentation/radial_draw_cache.gd")
+
 const MINE_EFFECT_DELAY: float = 0.1
 const MINE_EFFECT_DURATION: float = 0.9
 const MINE_SPARK_COUNT: int = 16
@@ -136,6 +138,7 @@ func clear_effects() -> void:
 
 
 func _draw() -> void:
+	RadialCache.prepare()
 	for effect in effects:
 		var progress := 1.0 - float(effect.remaining) / float(effect.duration)
 		var alpha := 1.0 - progress
@@ -151,12 +154,12 @@ func _draw() -> void:
 			continue
 		match StringName(effect.kind):
 			&"impact":
-				draw_circle(position, lerpf(5.0, 24.0, progress), Color(color, alpha * 0.24))
+				_draw_disc(position, lerpf(5.0, 24.0, progress), Color(color, alpha * 0.24))
 				for ray in 6:
 					var direction := Vector2.from_angle(TAU * ray / 6.0)
 					draw_line(position + direction * 5.0, position + direction * lerpf(8.0, 34.0, progress), Color(color, alpha), 3.0)
 			&"elimination":
-				draw_circle(position, lerpf(18.0, 86.0, progress), Color(color, alpha * 0.12))
+				_draw_disc(position, lerpf(18.0, 86.0, progress), Color(color, alpha * 0.12))
 				draw_arc(position, lerpf(20.0, 96.0, progress), 0.0, TAU, 40, Color(color, alpha), 5.0)
 				for ray in 10:
 					var direction := Vector2.from_angle(TAU * ray / 10.0 + 0.2)
@@ -169,14 +172,14 @@ func _draw() -> void:
 			&"mine":
 				_draw_mine_explosion(effect, position)
 			&"rebound":
-				draw_circle(position, lerpf(12.0, 46.0, progress), Color(color, alpha * 0.2))
+				_draw_disc(position, lerpf(12.0, 46.0, progress), Color(color, alpha * 0.2))
 				draw_arc(position, lerpf(16.0, 52.0, progress), -PI * 0.7, PI * 0.7, 24, Color(color, alpha), 5.0)
 				for ray in 5:
 					var direction := Vector2.from_angle(PI + lerpf(-0.65, 0.65, ray / 4.0))
 					draw_line(position, position + direction * lerpf(14.0, 54.0, progress), Color(color, alpha), 3.0)
 			&"kinetic_vent":
 				var radius := lerpf(28.0, GameConstants.KINETIC_VENT_RADIUS, _smooth_unit(progress))
-				draw_circle(position, radius, Color(color, alpha * 0.055))
+				_draw_disc(position, radius, Color(color, alpha * 0.055))
 				draw_arc(position, radius, 0.0, TAU, 64, Color(color, alpha * 0.9), lerpf(7.0, 2.0, progress), true)
 
 
@@ -185,7 +188,7 @@ func _draw_mine_explosion(effect: Dictionary, position: Vector2) -> void:
 	if elapsed < MINE_EFFECT_DELAY:
 		var charge_progress := clampf(elapsed / MINE_EFFECT_DELAY, 0.0, 1.0)
 		var charge_radius := lerpf(24.0, 5.0, _smooth_unit(charge_progress))
-		draw_circle(position, charge_radius, Color("fff7c2", 0.12 + charge_progress * 0.34))
+		_draw_disc(position, charge_radius, Color("fff7c2", 0.12 + charge_progress * 0.34))
 		draw_arc(position, charge_radius + 5.0, -PI * 0.85, PI * 0.85, 24, Color("ff9f43", 0.72), 2.5)
 		return
 
@@ -202,12 +205,12 @@ func _draw_mine_explosion(effect: Dictionary, position: Vector2) -> void:
 		var direction := puff.direction as Vector2
 		var center := position + direction * float(puff.distance) * smoke_progress + Vector2.UP * 13.0 * smoke_progress
 		var radius := float(puff.radius) * lerpf(0.42, 1.35, smoke_progress)
-		draw_circle(center, radius, Color("211827", (1.0 - smoke_progress) * 0.28))
-		draw_circle(center - direction * radius * 0.18, radius * 0.62, Color("60323a", (1.0 - smoke_progress) * 0.14))
+		_draw_disc(center, radius, Color("211827", (1.0 - smoke_progress) * 0.28))
+		_draw_disc(center - direction * radius * 0.18, radius * 0.62, Color("60323a", (1.0 - smoke_progress) * 0.14))
 
 	var shock_progress := _smooth_unit(clampf(age / 0.52, 0.0, 1.0))
 	var shock_radius := lerpf(16.0, GameConstants.MINE_BLAST_RADIUS, shock_progress)
-	draw_circle(position, shock_radius, Color("ff6d43", fade * 0.075))
+	_draw_disc(position, shock_radius, Color("ff6d43", fade * 0.075))
 	draw_arc(position, shock_radius, 0.0, TAU, 64, Color("fff36a", fade * 0.92), lerpf(7.0, 1.5, shock_progress), true)
 	if age > 0.055:
 		var echo_progress := _smooth_unit(clampf((age - 0.055) / 0.58, 0.0, 1.0))
@@ -237,8 +240,8 @@ func _draw_mine_explosion(effect: Dictionary, position: Vector2) -> void:
 
 	var flash_progress := clampf(age / 0.14, 0.0, 1.0)
 	var flash_fade := (1.0 - flash_progress) * (1.0 - flash_progress)
-	draw_circle(position, lerpf(10.0, 58.0, _smooth_unit(flash_progress)), Color("ff7a3d", flash_fade * 0.68))
-	draw_circle(position, lerpf(8.0, 29.0, flash_progress), Color("fffbd6", flash_fade * 0.96))
+	_draw_disc(position, lerpf(10.0, 58.0, _smooth_unit(flash_progress)), Color("ff7a3d", flash_fade * 0.68))
+	_draw_disc(position, lerpf(8.0, 29.0, flash_progress), Color("fffbd6", flash_fade * 0.96))
 	if flash_progress < 0.72:
 		for ray in 8:
 			var direction := Vector2.from_angle(TAU * float(ray) / 8.0 + 0.19)
@@ -248,3 +251,13 @@ func _draw_mine_explosion(effect: Dictionary, position: Vector2) -> void:
 func _smooth_unit(value: float) -> float:
 	var clamped := clampf(value, 0.0, 1.0)
 	return clamped * clamped * (3.0 - 2.0 * clamped)
+
+
+func _ready() -> void:
+	RadialCache.prepare()
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+
+
+func _draw_disc(point: Vector2, radius: float, color: Color) -> void:
+	var extent := radius * 64.0 / 63.0
+	draw_texture_rect(RadialCache.disc, Rect2(point - Vector2.ONE * extent, Vector2.ONE * extent * 2.0), false, color)
