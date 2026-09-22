@@ -48,10 +48,19 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(audio.previous_objective.is_empty(), "rematch clears objective audio baseline")
 	var profile: WeaponSoundProfile = WeaponSoundProfile.from_stats(CombatStats.create_base())
 	var cached := audio._weapon_stream(profile, 0)
+	context.expect_equal(cached, audio.sfx_streams[&"fire"], "cold weapon uses an already prepared audible fallback")
+	context.expect_true(audio.weapon_stream_cache.is_empty(), "shot callback does not synthesize cold weapons")
+	for repeat in 20:
+		audio._weapon_stream(profile, 0)
+	context.expect_equal(audio._weapon_requests.size(), 1, "cold requests are deduplicated")
+	_finish_weapon_requests(audio)
+	cached = audio._weapon_stream(profile, 0)
+	context.expect_true(cached != audio.sfx_streams[&"fire"], "worker installs the generated weapon voice")
 	for index in range(Policy.WEAPON_CACHE_LIMIT - 1):
 		audio.weapon_stream_cache["fixture:%d" % index] = cached
 	audio._weapon_stream(profile, 0)
 	audio._weapon_stream(profile, 1)
+	_finish_weapon_requests(audio)
 	context.expect_equal(audio.weapon_stream_cache.size(), Policy.WEAPON_CACHE_LIMIT, "generated weapon cache remains bounded")
 	context.expect_true(audio.weapon_stream_cache.has(profile.cache_key() + ":v0"), "recently used weapon survives cache eviction")
 	context.expect_true(not audio.weapon_stream_cache.has("fixture:0"), "least-recently used weapon is evicted first")
@@ -71,3 +80,10 @@ static func run(context: TestContext, parent: Node) -> void:
 	for player in audio.sfx_players:
 		player.stop()
 	audio.free()
+
+
+static func _finish_weapon_requests(audio: AudioDirector) -> void:
+	var deadline := Time.get_ticks_msec() + 5000
+	while (not audio._weapon_requests.is_empty() or audio._weapon_thread.is_started()) and Time.get_ticks_msec() < deadline:
+		audio._poll_weapon_requests()
+		OS.delay_msec(1)

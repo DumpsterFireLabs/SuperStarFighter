@@ -31,6 +31,9 @@ var sfx_players: Array[AudioStreamPlayer] = []
 var sfx_streams: Dictionary = {}
 var sfx_generated: Dictionary = {}
 var weapon_stream_cache: Dictionary = {}
+var _weapon_requests: Dictionary = {}
+var _weapon_thread := Thread.new()
+var _weapon_job_key: String = ""
 var gameplay_tracks: Array[AudioStream] = []
 var gameplay_track_paths: Array[String] = []
 var loaded_music_paths: Dictionary = {}
@@ -79,6 +82,12 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	# A worker owns only its profile copy and newly loaded/generated resource.
+	# Join before this director is released; never leave a callable on a freed node.
+	if _weapon_thread.is_started():
+		_weapon_thread.wait_to_finish()
+	_weapon_requests.clear()
+	_weapon_job_key = ""
 	_stop_menu_music()
 	for player in [menu_player, menu_crossfade_player, gameplay_player, win_player]:
 		if player != null:
@@ -127,6 +136,7 @@ func set_context(context: StringName) -> void:
 
 
 func _process(delta: float) -> void:
+	_poll_weapon_requests()
 	_poll_music_requests()
 	music_duck_hold = maxf(music_duck_hold - maxf(delta, 0.0), 0.0)
 	var target := MixPolicy.MUSIC_DUCK_DB if music_duck_hold > 0.0 else 0.0
@@ -401,23 +411,44 @@ func _weapon_stream(profile, variant: int) -> AudioStream:
 		weapon_stream_cache.erase(key)
 		weapon_stream_cache[key] = cached
 		return cached
-	while weapon_stream_cache.size() >= MixPolicy.WEAPON_CACHE_LIMIT:
-		weapon_stream_cache.erase(weapon_stream_cache.keys()[0])
+	var legacy_event := &"beam_fire" if profile.beam_weapon else &"fire"
+	if key != _weapon_job_key and not _weapon_requests.has(key) and _weapon_requests.size() < MixPolicy.WEAPON_CACHE_LIMIT:
+		var owned_profile := WeaponSoundProfileScript.new()
+		for property in profile.get_property_list():
+			if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+				owned_profile.set(property.name, profile.get(property.name))
+		_weapon_requests[key] = [owned_profile, variant, sfx_streams.get(legacy_event) if not bool(sfx_generated.get(legacy_event, true)) else null]
+	# Cold builds and pickups remain audible immediately. No filesystem access or
+	# synthesis runs in the shot callback, including during cache churn.
+	return sfx_streams.get(legacy_event) as AudioStream
+
+
+func _poll_weapon_requests() -> void:
+	if _weapon_thread.is_started():
+		if _weapon_thread.is_alive():
+			return
+		var prepared := _weapon_thread.wait_to_finish() as AudioStream
+		while weapon_stream_cache.size() >= MixPolicy.WEAPON_CACHE_LIMIT:
+			weapon_stream_cache.erase(weapon_stream_cache.keys()[0])
+		weapon_stream_cache[_weapon_job_key] = prepared
+		_weapon_job_key = ""
+	if _weapon_requests.is_empty():
+		return
+	_weapon_job_key = String(_weapon_requests.keys()[0])
+	var request: Array = _weapon_requests[_weapon_job_key]
+	_weapon_requests.erase(_weapon_job_key)
+	if _weapon_thread.start(_prepare_weapon_stream.bind(request[0], request[1], request[2])) != OK:
+		_weapon_job_key = ""
+
+
+static func _prepare_weapon_stream(profile, variant: int, legacy: AudioStream) -> AudioStream:
 	var override := _load_weapon_override(profile, variant)
 	if override != null:
-		weapon_stream_cache[key] = override
 		return override
-	var legacy_event := &"beam_fire" if profile.beam_weapon else &"fire"
-	if not bool(sfx_generated.get(legacy_event, true)):
-		var legacy_stream := sfx_streams.get(legacy_event) as AudioStream
-		weapon_stream_cache[key] = legacy_stream
-		return legacy_stream
-	var generated := _synthesize_weapon(profile, variant)
-	weapon_stream_cache[key] = generated
-	return generated
+	return legacy if legacy != null else _synthesize_weapon(profile, variant)
 
 
-func _load_weapon_override(profile, variant: int) -> AudioStream:
+static func _load_weapon_override(profile, variant: int) -> AudioStream:
 	var tier_names: Array[String] = ["base", "modified", "powerful", "extreme"]
 	var stems: Array[String] = [
 		"weapon_%s_%s_%02d" % [profile.family, tier_names[profile.power_tier], variant + 1],
@@ -465,7 +496,7 @@ func _load_sfx() -> void:
 		sfx_generated[event_name] = true
 
 
-func _load_audio_override(base_name: String) -> AudioStream:
+static func _load_audio_override(base_name: String) -> AudioStream:
 	for extension in ["wav", "ogg", "mp3"]:
 		var path := "%s/%s.%s" % [SFX_DIRECTORY, base_name, extension]
 		if ResourceLoader.exists(path):
@@ -686,7 +717,7 @@ func _save_settings() -> Error:
 
 
 
-func _synthesize_weapon(profile, variant: int) -> AudioStreamWAV:
+static func _synthesize_weapon(profile, variant: int) -> AudioStreamWAV:
 	var mix_rate := 22050
 	var tier: int = profile.power_tier
 	var duration: float = 0.10 + tier * 0.012

@@ -78,6 +78,13 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	context.expect_equal(extreme_profile.power_tier, 3, "Reality Shredder reaches the extreme substantive sound tier")
 	var automatic_stream := audio._weapon_stream(automatic_profile, 0)
 	var heavy_stream := audio._weapon_stream(heavy_profile, 0)
+	context.expect_equal(automatic_stream, heavy_stream, "cold weapon families use the prepared fallback immediately")
+	var prepare_deadline := Time.get_ticks_msec() + 5000
+	while (not audio._weapon_requests.is_empty() or audio._weapon_thread.is_started()) and Time.get_ticks_msec() < prepare_deadline:
+		audio._poll_weapon_requests()
+		OS.delay_msec(1)
+	automatic_stream = audio._weapon_stream(automatic_profile, 0)
+	heavy_stream = audio._weapon_stream(heavy_profile, 0)
 	context.expect_true(automatic_stream != heavy_stream, "weapon families cache distinct generated sound streams")
 	context.expect_true(heavy_stream.get_length() > automatic_stream.get_length(), "heavy cannon body lasts longer than an automatic transient")
 	var played_before_weapons := audio._played_keys.size()
