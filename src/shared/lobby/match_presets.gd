@@ -2,6 +2,7 @@ extends RefCounted
 
 ## Deliberate starting points; advanced settings remain independently editable.
 const PRESETS: Array[Dictionary] = [
+	{"id": "competitive", "name": "Semi-competitive Â· 4 pilots", "description": "Two human teams, equal view and ally-only death cameras. No NPCs, pickups or arena effects. Host-controlled pause; first to three round wins.", "players": 4, "mode": GameModeRules.Mode.TEAM_DEATH_MATCH, "rounds": 3, "powerups": false, "npcs": false},
 	{"id": "duel", "name": "Duel · 2 pilots", "description": "A focused one-on-one death match. One NPC fills the opponent seat when playing solo.", "players": 2, "mode": GameModeRules.Mode.DEATH_MATCH, "rounds": 3, "powerups": false},
 	{"id": "skirmish", "name": "Skirmish · 4 pilots", "description": "A small free-for-all with room to learn. NPCs fill empty seats; first to three round wins.", "players": 4, "mode": GameModeRules.Mode.DEATH_MATCH, "rounds": 3, "powerups": false},
 	{"id": "team_objective", "name": "Team objective · 8 pilots", "description": "Two teams race a neutral flag back to their base. NPCs fill empty seats; temporary pickups add variety.", "players": 8, "mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "rounds": 3, "powerups": true},
@@ -29,8 +30,11 @@ static func apply(lobby: ServerLobby, sender_id: int, preset_id: String) -> Dict
 	# Validate before changing anything. Switching mode first removes an old TDM
 	# team-count constraint before a smaller preset trims only server-owned NPCs.
 	lobby.request_game_mode(sender_id, int(preset.mode))
+	if preset_id == "competitive":
+		lobby.request_team_count(sender_id, 2)
+		lobby.request_competitive_view(sender_id, true)
 	var resized := lobby.request_player_limit(sender_id, seats)
-	var filled := lobby.request_npcs_enabled(sender_id, true)
+	var filled := lobby.request_npcs_enabled(sender_id, bool(preset.get("npcs", true)))
 	lobby.request_rounds_to_win(sender_id, int(preset.rounds))
 	lobby.request_all_npc_difficulty(sender_id, NpcPilotController.Difficulty.NEUTRAL)
 	var effects := ArenaEffectRules.DEFAULT.duplicate()
@@ -49,4 +53,8 @@ static func apply(lobby: ServerLobby, sender_id: int, preset_id: String) -> Dict
 	lobby._revision_changed()
 	var added: Array = resized.get("added_npcs", [])
 	added.append_array(filled.get("added_npcs", []))
-	return {"ok": true, "added_npcs": added, "removed_npc_ids": resized.get("removed_npc_ids", [])}
+	var removed: Array = resized.get("removed_npc_ids", [])
+	removed.append_array(filled.get("removed_npc_ids", []))
+	# Resizing may have briefly filled seats before this preset disabled NPCs.
+	added = added.filter(func(player: PlayerMatchState) -> bool: return lobby.players.has(player.peer_id))
+	return {"ok": true, "added_npcs": added, "removed_npc_ids": removed}
