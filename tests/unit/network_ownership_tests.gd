@@ -102,7 +102,22 @@ static func run(context: TestContext) -> void:
 	_ban_persistence(context)
 	_replication_contract(context)
 	_recovery_budget(context)
+	_admission_broadcast_lifetime(context)
 	_session_observations(context)
+
+
+static func _admission_broadcast_lifetime(context: TestContext) -> void:
+	var bridge := CommandBridge.new()
+	bridge.session.role = NetworkBridge.Role.SERVER
+	bridge._admission_lobby_broadcast_pending = true
+	bridge._flush_admission_lobby_state()
+	bridge._flush_admission_lobby_state()
+	context.expect_equal(bridge.broadcasts, 1, "one scheduled admission broadcast consumes all pending roster changes")
+	bridge._admission_lobby_broadcast_pending = true
+	bridge.stop()
+	bridge._flush_admission_lobby_state()
+	context.expect_equal(bridge.broadcasts, 1, "deferred admission callback cannot publish after shutdown")
+	bridge.free()
 
 
 static func _server_log_worker(context: TestContext) -> void:
@@ -333,19 +348,48 @@ static func _recovery_budget(context: TestContext) -> void:
 	for index in 1024:
 		world.projectile_registry.add(ProjectileState.create(index + 1, index / 32 + 1, index, Vector2(700, 700), 0, stats))
 	var received: Array[PackedByteArray] = []
-	scheduler.projectile_recovery_ready.connect(func(packet: PackedByteArray) -> void: received.append(packet))
+	var stalled: Array[PackedByteArray] = []
+	var listener := func(peer: int, packet: PackedByteArray) -> void:
+		received.append(packet)
+		if peer == 1:
+			stalled.append(packet)
+		else:
+			var decoded := ProjectilePacketCodec.decode_correction(packet)
+			scheduler.acknowledge_recovery(peer, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
+	scheduler.projectile_recovery_ready.connect(listener)
 	scheduler._send_projectile_correction(lobby, world)
 	context.expect_equal(received.size(), 0, "full recovery is queued without a synchronous fan-out burst")
-	var total := 0
-	for tick in 8:
+	for tick in 180:
 		var previous := received.size()
 		scheduler._flush_recovery(lobby)
-		context.expect_true(received.size() - previous <= 4, "each tick obeys the recovery chunk budget")
+		context.expect_true(received.size() - previous <= 32, "each peer sends at most one recovery chunk in a tick")
+	context.expect_equal(stalled.size(), 2, "non-acknowledging peer cannot fill ENet with recovery traffic")
+	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 1, "healthy peers finish independently of stalled peer")
+	var first := ProjectilePacketCodec.decode_correction(stalled[0])
+	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 26)
+	scheduler.acknowledge_recovery(1, int(first.server_tick) + 1, int(first.batch_sequence), 0)
+	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence) + 1, 0)
+	scheduler._flush_recovery(lobby)
+	context.expect_equal(stalled.size(), 2, "unsent and stale acknowledgements do not release capacity")
+	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 0)
+	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 0)
+	for tick in 18: scheduler._flush_recovery(lobby)
+	context.expect_equal(stalled.size(), 3, "one acknowledged chunk releases exactly one slot")
+	for tick in 12: scheduler._flush_recovery(lobby)
+	context.expect_equal(stalled.size(), 3, "duplicate acknowledgement cannot inflate window")
+	var total := 0
 	for packet in received: total += packet.size()
-	context.expect_equal(scheduler.payload_metrics().recovery_pending_chunks, 0, "maximum population drains before next correction")
-	context.expect_equal(scheduler.outbound_bytes(), total * 32, "accounting includes every recovery recipient")
-	context.expect_true(received.size() > 20, "dense fixture exercises chunking")
-	scheduler._projectile_correction_send_count = 0
-	scheduler._send_projectile_correction(lobby, world)
+	context.expect_equal(scheduler.outbound_bytes(), total, "accounting includes actual per-peer recovery sends")
+	var snapshot_counts: Dictionary = {}
+	scheduler.player_snapshot_ready.connect(func(peer: int, _packet: PackedByteArray) -> void: snapshot_counts[peer] = int(snapshot_counts.get(peer, 0)) + 1)
+	for index in 4: scheduler._send_player_snapshots(lobby, world)
+	context.expect_equal(snapshot_counts[1], 2, "stalled peer temporarily receives ten player snapshots per second")
+	context.expect_equal(snapshot_counts[2], 4, "healthy peer retains full snapshot rate")
+	lobby.remove(1)
+	scheduler._flush_recovery(lobby)
+	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 0, "disconnect releases queued recovery and inflight records")
 	scheduler.clear()
 	context.expect_equal(scheduler.payload_metrics().recovery_pending_chunks, 0, "rematch discards old recovery queue")
+	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 0, "rematch releases every peer window")
+
+	scheduler.projectile_recovery_ready.disconnect(listener)

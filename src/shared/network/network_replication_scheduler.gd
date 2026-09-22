@@ -4,15 +4,20 @@ extends RefCounted
 # Owns packet scheduling and correction assembly, never the RPC authority boundary.
 const ProjectileCorrectionAssemblerScript = preload("res://src/shared/network/projectile_correction_assembler.gd")
 const PARTIAL_PROJECTILE_CORRECTION_COUNT: int = 40
-# 1024-record recovery drains in at most seven ticks; no overlapping full batches.
-const RECOVERY_CHUNKS_PER_TICK: int = 4
-var _recovery_queue: Array[PackedByteArray] = []
+# Two unacknowledged chunks per peer bound reliable recovery in the transport.
+# One new chunk per six physics ticks leaves room for live snapshots and deltas.
+const RECOVERY_WINDOW: int = 2
+const RECOVERY_INTERVAL_TICKS: int = 6
+var _recoveries: Dictionary = {}
+var _recovery_clock: int = 0
+var _congested_until: Dictionary = {}
+var _snapshot_round: int = 0
 var _payload_bytes: Dictionary = {}
 var _peak_recovery_queue: int = 0
 signal player_snapshot_ready(peer_id: int, packet: PackedByteArray)
 signal projectile_batch_ready(packet: PackedByteArray)
 signal projectile_correction_ready(packet: PackedByteArray)
-signal projectile_recovery_ready(packet: PackedByteArray)
+signal projectile_recovery_ready(peer_id: int, packet: PackedByteArray)
 signal combat_feedback_ready(peer_id: int, tick: int, payload: Dictionary)
 signal mine_detonations_ready(tick: int, events: Array)
 
@@ -30,7 +35,10 @@ func clear() -> void:
 	_projectile_correction_cursor = 0
 	_projectile_correction_send_count = 0
 	_projectile_correction_assembler.clear()
-	_recovery_queue.clear()
+	_recoveries.clear()
+	_congested_until.clear()
+	_recovery_clock = 0
+	_snapshot_round = 0
 
 
 func replicate_tick(tick: int, lobby: ServerLobby, world: AuthoritativeWorld) -> void:
@@ -55,7 +63,12 @@ func _send_player_snapshots(lobby: ServerLobby, world: AuthoritativeWorld) -> vo
 	if lobby == null or lobby.players.is_empty():
 		return
 	var public_body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 0)
+	_snapshot_round += 1
 	for peer_id in lobby.human_peer_ids_view():
+		# Backlogged recovery ACKs signal a constrained path. Temporarily halve
+		# snapshot traffic for that peer; keep inputs and gameplay deltas intact.
+		if _recovery_clock < int(_congested_until.get(peer_id, 0)) and _snapshot_round % 2 == 0:
+			continue
 		var combatant := world.combatants.get(peer_id) as CombatantState
 		var body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), peer_id) if combatant != null and combatant.is_cloaked() else public_body
 		var correction := combatant.prediction_state() if combatant != null else {}
@@ -123,11 +136,11 @@ func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) 
 		complete_snapshot
 	)
 	if complete_snapshot:
-		# Never replace a partially sent reliable snapshot. Bound the queue to one
-		# full batch even if a caller invokes correction scheduling unusually fast.
-		if _recovery_queue.is_empty():
-			_recovery_queue.assign(packets)
-			_peak_recovery_queue = maxi(_peak_recovery_queue, packets.size())
+		for peer_id in lobby.human_peer_ids_view():
+			if not _recoveries.has(peer_id):
+				_recoveries[peer_id] = {"packets": packets, "next": 0, "inflight": {},
+					"sequence": sequence, "tick": world.server_tick, "next_send": _recovery_clock}
+		_peak_recovery_queue = maxi(_peak_recovery_queue, packets.size())
 	else:
 		for packet in packets:
 			projectile_correction_ready.emit(packet)
@@ -136,17 +149,57 @@ func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) 
 
 func _flush_recovery(lobby: ServerLobby) -> void:
 	if lobby == null or not lobby.match_active or lobby.human_count() == 0:
-		_recovery_queue.clear()
+		_recoveries.clear()
+		_congested_until.clear()
 		return
-	for index in mini(RECOVERY_CHUNKS_PER_TICK, _recovery_queue.size()):
-		var packet: PackedByteArray = _recovery_queue.pop_front()
-		projectile_recovery_ready.emit(packet)
-		record_payload("projectile_recovery", packet.size() * lobby.human_count())
+	_recovery_clock += 1
+	for peer_id in _congested_until.keys():
+		if _recovery_clock >= int(_congested_until[peer_id]) or not lobby.human_peer_ids_view().has(peer_id):
+			_congested_until.erase(peer_id)
+	for peer_id in _recoveries.keys():
+		if not lobby.human_peer_ids_view().has(peer_id):
+			_recoveries.erase(peer_id)
+			continue
+		var state: Dictionary = _recoveries[peer_id]
+		var packets: Array = state.packets
+		var inflight: Dictionary = state.inflight
+		for sent_at: int in inflight.values():
+			if _recovery_clock - sent_at >= 12:
+				_congested_until[peer_id] = _recovery_clock + 120
+		if inflight.size() >= RECOVERY_WINDOW or int(state.next) >= packets.size() or _recovery_clock < int(state.next_send):
+			continue
+		var index := int(state.next)
+		state.next = index + 1
+		var packet: PackedByteArray = packets[index]
+		inflight[index] = _recovery_clock
+		state.next_send = _recovery_clock + RECOVERY_INTERVAL_TICKS
+		projectile_recovery_ready.emit(peer_id, packet)
+		record_payload("projectile_recovery", packet.size())
+
+
+func acknowledge_recovery(peer_id: int, tick: int, sequence: int, chunk: int) -> void:
+	var state: Dictionary = _recoveries.get(peer_id, {})
+	if state.is_empty() or int(state.tick) != tick or int(state.sequence) != sequence:
+		return
+	var inflight: Dictionary = state.inflight
+	# Only an actually sent chunk can release capacity. Duplicate/forged ACKs
+	# cannot enlarge the window; the bridge derives peer_id from the RPC sender.
+	if not inflight.erase(chunk):
+		return
+	if int(state.next) == state.packets.size() and inflight.is_empty():
+		_recoveries.erase(peer_id)
 
 
 func payload_metrics() -> Dictionary:
+	var pending := 0
+	var inflight := 0
+	for state: Dictionary in _recoveries.values():
+		pending = maxi(pending, state.packets.size() - int(state.next))
+		inflight = maxi(inflight, state.inflight.size())
 	return {"scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission",
-		"bytes_by_category": _payload_bytes.duplicate(), "recovery_pending_chunks": _recovery_queue.size(),
+		"bytes_by_category": _payload_bytes.duplicate(), "recovery_pending_chunks": pending,
+		"recovery_inflight_chunks_per_peer": inflight, "recovery_active_peers": _recoveries.size(),
+		"congested_peers": _congested_until.size(),
 		"peak_recovery_chunks": _peak_recovery_queue}
 
 
@@ -197,4 +250,4 @@ func outbound_bytes() -> int:
 func reset_outbound_bytes() -> void:
 	_outbound_bytes = 0
 	_payload_bytes.clear()
-	_peak_recovery_queue = _recovery_queue.size()
+	_peak_recovery_queue = int(payload_metrics().recovery_pending_chunks)

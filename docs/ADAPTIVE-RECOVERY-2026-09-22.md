@@ -1,0 +1,15 @@
+# Adaptive recovery — 2026-09-22
+
+The scheduler now holds one complete recovery snapshot per recipient and permits at most two unacknowledged chunks per recipient in ENet. A client acknowledges the decoded chunk's tick, sequence and index; only the RPC sender's own window can advance. Duplicate, stale and unsent acknowledgements do not release capacity. ENet retains responsibility for reliable retransmission.
+
+New recovery chunks are paced at one per six physics ticks per client (at most about 12 KB/s of application recovery payload). A slow recipient cannot prevent others from finishing. The next full snapshot starts only after the current one is acknowledged; complete membership is still authoritative only after all chunks arrive. Disconnect, inactive match and session teardown release the retained windows.
+
+An acknowledgement outstanding for 200 ms temporarily reduces that recipient's player snapshots from 20 to 10 Hz, with a two-second hold after the last stall observation. Input processing, projectile deltas, missile motion corrections and combat events retain their existing schedules. The congestion hold and recovery counts are exposed in payload metrics. This favors connection continuity over snapshot frequency on constrained or high-latency links; it is not an estimate of the client's actual bandwidth.
+
+Admission roster notifications are coalesced over 100 ms. Previously a simultaneous group join queued many obsolete reliable full rosters, creating pressure before combat recovery even started. Welcomes and explicit lobby actions remain immediate.
+
+The new acknowledgement RPC requires **protocol 41** on both ends; binary packet layout remains **17**. CPU-only fixtures acknowledge synchronously to model healthy recipients; real delay, loss and congestion are exercised separately with ENet.
+
+Validation evidence is in `adaptive-recovery-evidence-2026-09-22.json`. The acceptance set now includes all five profiles, including the previously failing 96 KiB/s shallow queue and 64 KiB/s links. Each extended case uses 32 independently admitted clients, 1,024 projectiles, initial recovery by 12 seconds, a deliberately omitted spawn/removal delta, another 12 seconds under faults, and six final healthy seconds. The fixture also enforces the two-chunk in-flight bound. This is a static dense recovery qualification, not a certification of every combat traffic mix or WAN path.
+
+All **10 runs passed**, using seeds 230926 and 230927. Every client completed initial recovery within 5.42 fixture seconds, completed recovery after the omitted delta, and stayed connected. The measured in-flight maximum was two chunks per client. Six Python harness tests passed. Full working-tree validation after all three follow-ups passed 14,856 assertions, including unchanged projectile traces. Unit coverage includes stalled-peer isolation, stale/duplicate/unsent ACK rejection, pacing, recipient-specific snapshot reduction, disconnect/rematch cleanup and deferred roster teardown.

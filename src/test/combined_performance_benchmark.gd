@@ -46,9 +46,13 @@ func _run() -> void:
 		combatant.stats = CombatStats.create_base()
 	var fixture := LoadFixture.new()
 	var scheduler := NetworkReplicationScheduler.new()
-	scheduler.projectile_recovery_ready.connect(func(packet: PackedByteArray) -> void:
+	# Model healthy recipients; transport latency is measured by the ENet fixture.
+	var scheduler_ref: WeakRef = weakref(scheduler)
+	scheduler.projectile_recovery_ready.connect(func(peer: int, packet: PackedByteArray) -> void:
+		(scheduler_ref.get_ref() as NetworkReplicationScheduler).acknowledge_recovery(peer, packet.decode_u32(1), packet.decode_u16(6), packet.decode_u16(8)))
+	scheduler.projectile_recovery_ready.connect(func(_peer: int, packet: PackedByteArray) -> void:
 		recovery_this_tick = true
-		bytes_this_tick += packet.size() * ids.size()
+		bytes_this_tick += packet.size()
 	)
 	scheduler.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void:
 		recovery_this_tick = recovery_this_tick or packet[5] == ProjectilePacketCodec.KIND_FULL_CORRECTION

@@ -64,6 +64,7 @@ var log_status: Callable
 var _active_sample_usec: Array[int] = []
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
+var _admission_lobby_broadcast_pending: bool = false
 
 
 func _init() -> void:
@@ -80,7 +81,7 @@ func _init() -> void:
 	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: world_snapshot.rpc_id(peer_id, packet))
 	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
 	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet]))
-	replication.projectile_recovery_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_recovery", [packet]))
+	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: projectile_recovery.rpc_id(peer_id, packet))
 	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
 	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
 
@@ -807,6 +808,17 @@ func projectile_recovery(packet: PackedByteArray) -> void:
 	if decoded.ok and bool(decoded.get("complete_snapshot", false)):
 		_accept_projectile_correction_chunk(decoded)
 
+		projectile_recovery_ack.rpc_id(NetworkProtocol.SERVER_PEER_ID, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_PROJECTILE_CORRECTION)
+func projectile_recovery_ack(tick: int, sequence: int, chunk: int) -> void:
+	if role != Role.SERVER or lobby == null:
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if lobby.human_peer_ids_view().has(sender):
+		replication.acknowledge_recovery(sender, tick, sequence, chunk)
+
 
 func operator_status() -> Dictionary:
 	var lobby_summary := lobby.serialize() if lobby != null else {}
@@ -1013,7 +1025,27 @@ func _broadcast_to_admitted(method: StringName, arguments: Array) -> void:
 		for peer_id in recipients: callv(&"rpc_id", [peer_id, method] + arguments)
 
 
+func _schedule_admission_lobby_state() -> void:
+	# Joining a crowded lobby previously queued a complete reliable roster for
+	# every admission, including obsolete intermediate rosters. Coalesce only
+	# these notifications; each welcome and all explicit lobby actions stay immediate.
+	if not is_inside_tree():
+		_broadcast_lobby_state()
+		return
+	if _admission_lobby_broadcast_pending:
+		return
+	_admission_lobby_broadcast_pending = true
+	get_tree().create_timer(0.1).timeout.connect(_flush_admission_lobby_state, CONNECT_ONE_SHOT)
+
+
+func _flush_admission_lobby_state() -> void:
+	if _admission_lobby_broadcast_pending and role == Role.SERVER:
+		_admission_lobby_broadcast_pending = false
+		_broadcast_lobby_state()
+
+
 func _broadcast_lobby_state() -> void:
+	_admission_lobby_broadcast_pending = false
 	if lobby == null:
 		return
 	var state := lobby.serialize()
@@ -1310,7 +1342,7 @@ func complete_admission(sender_id: int, display_name: String) -> void:
 		_send_control_to_peer(sender_id, &"match_event", [
 			&"STATE_CHANGED", world.server_tick, match_coordinator.current_state_payload()
 		])
-	_broadcast_lobby_state()
+	_schedule_admission_lobby_state()
 	server_peer_admitted.emit(sender_id, player)
 	_log("info", "peer_joined", {"peer_id": sender_id, "display_name": player.display_name, "spectator": player.spectator})
 	if bool(session.configuration_value("auto_start", false)) and lobby.participant_count() >= GameConstants.MIN_PLAYERS and not lobby.match_active:
@@ -1334,6 +1366,7 @@ func _session_status() -> Dictionary:
 
 
 func _on_session_stopped() -> void:
+	_admission_lobby_broadcast_pending = false
 	if replication != null:
 		replication.clear()
 	match_coordinator = null

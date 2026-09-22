@@ -141,9 +141,7 @@ def main():
     args = parser.parse_args()
     if not 1024 <= args.port <= 65534: parser.error('invalid port')
     output = ROOT / '.tools/dense-replication' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')
-    # The undersupplied link is an explicit capacity diagnostic, not a passing
-    # acceptance target. Keep failures visible when it is requested directly.
-    names = ['baseline', 'loss_jitter', 'congested'] if args.profile == 'all' else [args.profile]
+    names = list(PROFILES) if args.profile == 'all' else [args.profile]
     results = [run_profile(args.godot.resolve(), name, args.port, args.seed, output / name,
                           args.exercise_recovery or args.profile != 'baseline') for name in names]
     (output / 'summary.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf-8')
