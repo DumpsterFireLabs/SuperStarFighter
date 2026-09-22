@@ -1,0 +1,80 @@
+{
+  "before": {
+    "cpu": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+    "draw_callback_sum": {
+      "max_usec": 19903,
+      "mean_usec": 12943.125,
+      "p50_usec": 12877,
+      "p95_usec": 14093
+    },
+    "effects": {
+      "max_usec": 2962,
+      "mean_usec": 1595.57666666667,
+      "p50_usec": 1696,
+      "p95_usec": 1969
+    },
+    "final_state_sha256": "a0d148c29c2bc069806415ef4cb50755b8eef7eafc1a04b85ce6caa127a33094",
+    "fixture_updates": {
+      "max_usec": 1843,
+      "mean_usec": 947.368333333333,
+      "p50_usec": 913,
+      "p95_usec": 1132
+    },
+    "frames": 600,
+    "logical_processors": 16,
+    "minimum_drawn": 1024,
+    "projectiles": {
+      "max_usec": 12952,
+      "mean_usec": 8150.55666666667,
+      "p50_usec": 8021,
+      "p95_usec": 9031
+    },
+    "scope": "Instrumented CPU draw-command callback time, 600 fixed workload frames after 60 warmup; same ordnance replay as dense fixture. Excludes engine render traversal, GPU execution, presentation wait, simulation and networking. Does not measure achievable FPS.",
+    "ships": {
+      "max_usec": 4980,
+      "mean_usec": 3196.99166666667,
+      "p50_usec": 3135,
+      "p95_usec": 3634
+    },
+    "valid": true
+  },
+  "after": {
+    "cpu": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+    "draw_callback_sum": {
+      "max_usec": 16565,
+      "mean_usec": 10121.3866666667,
+      "p50_usec": 9985,
+      "p95_usec": 11597
+    },
+    "effects": {
+      "max_usec": 3606,
+      "mean_usec": 1602.395,
+      "p50_usec": 1701,
+      "p95_usec": 2000
+    },
+    "final_state_sha256": "a0d148c29c2bc069806415ef4cb50755b8eef7eafc1a04b85ce6caa127a33094",
+    "fixture_updates": {
+      "max_usec": 1842,
+      "mean_usec": 950.371666666667,
+      "p50_usec": 911,
+      "p95_usec": 1152
+    },
+    "frames": 600,
+    "logical_processors": 16,
+    "minimum_drawn": 1024,
+    "projectiles": {
+      "max_usec": 10412,
+      "mean_usec": 5368.69166666667,
+      "p50_usec": 5188,
+      "p95_usec": 6270
+    },
+    "scope": "Instrumented CPU draw-command callback time, 600 fixed workload frames after 60 warmup; same ordnance replay as dense fixture. Excludes engine render traversal, GPU execution, presentation wait, simulation and networking. Does not measure achievable FPS.",
+    "ships": {
+      "max_usec": 5701,
+      "mean_usec": 3150.3,
+      "p50_usec": 3054,
+      "p95_usec": 3637
+    },
+    "valid": true
+  }
+}

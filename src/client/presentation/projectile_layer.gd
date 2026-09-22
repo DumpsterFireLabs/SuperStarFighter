@@ -26,6 +26,10 @@ var teams: Dictionary = {}
 var local_team_id: int = 0
 var team_mode: bool = false
 var last_drawn_projectiles: int = 0
+# Diagnostic switch used by the identical-workload rendering fixture.
+var dense_meshes_enabled: bool = true
+var _dense_meshes: Dictionary = {}
+const MAX_DENSE_MESHES: int = 128
 
 
 func set_team_identity(assignments: Dictionary, local_team: int, enabled: bool) -> void:
@@ -111,6 +115,10 @@ func _draw() -> void:
 		last_drawn_projectiles += 1
 		if uses_compact_friendly_style(projectile.owner_id):
 			_draw_compact_friendly(projectile)
+			continue
+		if simplified and dense_meshes_enabled and (projectile.is_mine or not projectile.velocity.is_zero_approx()):
+			_draw_dense_mesh(projectile, animation_msec)
+			_draw_team_marker(projectile)
 			continue
 		var friendly_alpha := 0.5 if simplified and is_friendly_owner(projectile.owner_id) else 1.0
 		if projectile.is_mine:
@@ -208,3 +216,98 @@ func _draw_compact_friendly(projectile: ProjectileState) -> void:
 func _animation_time_msec() -> float:
 	# One clock sample per draw also lets deterministic replays supply their tick.
 	return Time.get_ticks_msec()
+
+
+func _draw_dense_mesh(projectile: ProjectileState, animation_msec: float) -> void:
+	var color := projectile_color_for_owner(projectile.owner_id)
+	var kind := 0
+	var direction := projectile.velocity.normalized()
+	if projectile.is_mine:
+		kind = 2 if projectile.is_mine_armed() else 3
+		color = color if has_team_marker(projectile.owner_id) else Color("ff4f78")
+		direction = Vector2.RIGHT
+		if kind == 2:
+			var pulse := 0.5 + sin(animation_msec * 0.008 + projectile.projectile_id) * 0.5
+			draw_texture_rect(RadialCache.mine_ring, Rect2(projectile.position - Vector2(72, 72), Vector2(144, 144)), false, Color(color, 0.18 + pulse * 0.12))
+	elif projectile.is_missile:
+		kind = 4
+		color = color if has_team_marker(projectile.owner_id) else Color("ff9f43")
+	elif projectile.is_beam:
+		kind = 1
+		color = _beam_color(projectile)
+	elif projectile.has_rebounded and not has_team_marker(projectile.owner_id):
+		color = REBOUNDED_BEAM_COLOR
+	var mesh := _dense_mesh(kind, color, projectile.radius)
+	# Batch the primitives within one projectile, retaining registry draw order.
+	# The disc mask's opaque centre also textures every solid triangle/line.
+	draw_mesh(mesh, RadialCache.disc, Transform2D(direction, Vector2(-direction.y, direction.x), projectile.position))
+
+
+func _dense_mesh(kind: int, color: Color, radius: float) -> ArrayMesh:
+	var key := [kind, color, radius]
+	if _dense_meshes.has(key):
+		return _dense_meshes[key] as ArrayMesh
+	if _dense_meshes.size() >= MAX_DENSE_MESHES:
+		_dense_meshes.clear()
+	var builder := ProjectileMeshBuilder.new()
+	match kind:
+		0:
+			builder.disc(radius, Color(color.lightened(0.72), 1.0))
+			builder.line(Vector2.ZERO, Vector2(-14, 0), 3.0, Color(color, 0.82))
+		1:
+			builder.line(Vector2.ZERO, Vector2(-150, 0), 6.0, Color(color, 0.68))
+			builder.line(Vector2.ZERO, Vector2(-150, 0), 2.0, Color(color.lightened(0.82), 0.98))
+		2, 3:
+			builder.disc(radius, color if kind == 2 else Color("7b8496"))
+			builder.disc(5.0, Color("fff36a"))
+			for index in range(0, _mine_spokes.size(), 2):
+				builder.line(_mine_spokes[index], _mine_spokes[index + 1], 4.0, Color("ff9f43"))
+		4:
+			builder.line(Vector2(-9, 0), Vector2(-36, 0), 7.0, color)
+			builder.line(Vector2(-7, 0), Vector2(-24, 0), 3.0, Color("fff36a"))
+			var nose := Vector2(13, 0)
+			var upper := Vector2(-11, -7)
+			var lower := Vector2(-11, 7)
+			builder.triangle(nose, upper, lower, Color("e8f2ff"))
+			builder.line(nose, upper, 2.0, Color("42e8ff"))
+			builder.line(upper, lower, 2.0, Color("42e8ff"))
+			builder.line(lower, nose, 2.0, Color("42e8ff"))
+	var mesh := builder.finish()
+	_dense_meshes[key] = mesh
+	return mesh
+
+
+class ProjectileMeshBuilder:
+	extends RefCounted
+	var vertices := PackedVector3Array()
+	var colors := PackedColorArray()
+	var uvs := PackedVector2Array()
+
+	func triangle(a: Vector2, b: Vector2, c: Vector2, color: Color) -> void:
+		for point in [a, b, c]:
+			vertices.append(Vector3(point.x, point.y, 0))
+			colors.append(color)
+			uvs.append(Vector2(0.5, 0.5))
+
+	func line(a: Vector2, b: Vector2, width: float, color: Color) -> void:
+		var side := (b - a).normalized().orthogonal() * width * 0.5
+		triangle(a + side, b + side, b - side, color)
+		triangle(a + side, b - side, a - side, color)
+
+	func disc(radius: float, color: Color) -> void:
+		var extent := radius * 64.0 / 63.0
+		var start := vertices.size()
+		triangle(Vector2(-extent, -extent), Vector2(extent, -extent), Vector2(extent, extent), color)
+		triangle(Vector2(-extent, -extent), Vector2(extent, extent), Vector2(-extent, extent), color)
+		for index in range(start, vertices.size()):
+			uvs[index] = Vector2(vertices[index].x, vertices[index].y) / (2.0 * extent) + Vector2(0.5, 0.5)
+
+	func finish() -> ArrayMesh:
+		var arrays: Array = []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_COLOR] = colors
+		arrays[Mesh.ARRAY_TEX_UV] = uvs
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		return mesh

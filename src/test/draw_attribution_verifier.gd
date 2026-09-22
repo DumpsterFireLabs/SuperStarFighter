@@ -47,6 +47,8 @@ func _run() -> void:
 		ships.append(ship)
 	var registry := ProjectileRegistry.presentation_store()
 	var layer := MeasuredProjectiles.new()
+	layer.dense_meshes_enabled = not "--legacy-projectiles" in OS.get_cmdline_user_args()
+	print("SSF_DRAW_VARIANT=" + ("cached_meshes" if layer.dense_meshes_enabled else "legacy"))
 	layer.registry = registry
 	arena.add_child(layer)
 	var effects := MeasuredEffects.new()

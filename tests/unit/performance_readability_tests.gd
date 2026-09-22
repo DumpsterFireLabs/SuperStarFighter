@@ -7,6 +7,28 @@ static func run(context: TestContext, parent: Node) -> void:
 	_shot_profile_reuse(context)
 	_sweep_parity(context)
 	_effect_pressure(context, parent)
+	_dense_projectile_meshes(context)
+
+
+static func _dense_projectile_meshes(context: TestContext) -> void:
+	var layer := ProjectileLayer.new()
+	var cyan := Color("42e8ff")
+	var bullet := layer._dense_mesh(0, cyan, 4.0)
+	context.expect_equal(layer._dense_mesh(0, cyan, 4.0), bullet, "moving identical projectiles reuse immutable geometry")
+	context.expect_true(layer._dense_mesh(0, Color.RED, 4.0) != bullet, "team and rebound colors cannot reuse a stale mesh")
+	context.expect_true(layer._dense_mesh(0, cyan, 7.0) != bullet, "projectile radius is part of the cached geometry identity")
+	var arrays := bullet.surface_get_arrays(0)
+	context.expect_equal((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), 12, "ordinary mesh retains a disc and a directional trail")
+	var beam := layer._dense_mesh(1, cyan, 7.0)
+	context.expect_approx(beam.get_aabb().position.x, -150.0, "dense beam keeps its existing readable trail length")
+	context.expect_approx(beam.get_aabb().size.y, 6.0, "dense beam keeps its existing outer width")
+	var mine := layer._dense_mesh(2, Color.RED, 14.0)
+	var dormant := layer._dense_mesh(3, Color.RED, 14.0)
+	context.expect_true(mine != dormant, "arming changes mine body appearance immediately")
+	context.expect_equal((mine.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), 36, "mine mesh keeps both discs and four spokes")
+	for index in 256: layer._dense_mesh(0, Color(float(index) / 256.0, 0, 0), 4.0)
+	context.expect_true(layer._dense_meshes.size() <= layer.MAX_DENSE_MESHES, "changing builds and colors cannot grow mesh storage without bound")
+	layer.free()
 
 
 static func _frame_cadence(context: TestContext) -> void:
