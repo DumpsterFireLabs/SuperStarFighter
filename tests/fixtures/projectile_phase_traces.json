@@ -1,0 +1,32 @@
+[
+	{
+		"map": "core_arena",
+		"seed": 17,
+		"sha256": "54b4cce6f3176677506c13e13f566dea34e1145edeedce746341ad4f362f14be"
+	},
+	{
+		"map": "core_arena",
+		"seed": 9041,
+		"sha256": "adbc8a8ce69c2ef14053d3937199ce4dc7c06abb20d2f82ee49559250324e496"
+	},
+	{
+		"map": "riftline",
+		"seed": 17,
+		"sha256": "070a1195fa9849e78627470717965b9e4a1137da2418c129d8b1a2d7eb554b35"
+	},
+	{
+		"map": "riftline",
+		"seed": 9041,
+		"sha256": "fba0a0b3c39861b1ed3f88cb586e9b220b7182a628eee2d55547085a2c408a80"
+	},
+	{
+		"map": "prism_array",
+		"seed": 17,
+		"sha256": "2f6719053244a55803e129bc6a549c49debf958c2f2358a722d5eb11c6cbe38f"
+	},
+	{
+		"map": "prism_array",
+		"seed": 9041,
+		"sha256": "ba7b999e944b437586a79243fed24b75ae6ddc65bb0bd7a82e9d50e35820d40c"
+	}
+]

@@ -58,6 +58,7 @@ func _ready() -> void:
 	DraftManagerTests.run(_context)
 	MatchStateMachineTests.run(_context)
 	CombatSystemTests.run(_context)
+	preload("res://tests/unit/projectile_trace_tests.gd").run(_context)
 	CombatCorrectnessTestsScript.run(_context)
 	NetworkProtocolTests.run(_context)
 	MatchCoordinatorTests.run(_context)
