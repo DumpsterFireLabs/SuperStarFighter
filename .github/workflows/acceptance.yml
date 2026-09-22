@@ -1,0 +1,70 @@
+name: Game acceptance
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      extended:
+        description: Run impairment profiles and a 30-minute 32-client Windows soak
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: acceptance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  functional:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native import, unit, negative gates, dense transport, mixed matrix and memory
+        run: python tools/ci-acceptance.py
+      - name: Keep evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.os }}
+          include-hidden-files: true
+          path: |
+            .tools/ci-acceptance/
+            .tools/dense-replication/
+            .tools/architecture-matrix/
+  extended:
+    if: github.event_name == 'workflow_dispatch' && inputs.extended
+    runs-on: windows-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify engine and export templates
+        shell: pwsh
+        run: ./tools/bootstrap.ps1
+      - name: Impairment and retransmission matrix
+        run: python tools/verify-network-impairment.py --profile all
+      - name: Long memory and match lifecycle soak
+        shell: pwsh
+        run: ./tools/verify-soak.ps1 -ClientCount 32 -DurationSeconds 1800
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extended-acceptance
+          include-hidden-files: true
+          path: |
+            .tools/network-impairment/
+            .tools/soak-verification/
