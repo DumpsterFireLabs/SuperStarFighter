@@ -59,9 +59,17 @@ jobs:
         run: python tools/verify-network-impairment.py --profile all
       - name: Dense fan-out under loss, jitter and per-client congestion
         run: python tools/verify-dense-replication.py --profile all
-      - name: Long memory and match lifecycle soak
+      - name: Repeated match teardown and audio preparation
         shell: pwsh
-        run: ./tools/verify-soak.ps1 -ClientCount 32 -DurationSeconds 1800
+        run: |
+          . ./tools/common.ps1
+          $godot = Get-SsfGodotExecutable
+          $text = (& $godot --headless --path . --log-file .tools/lifecycle.engine.log --script res://src/test/architecture_memory_verifier.gd -- --cycles=1000 2>&1 | Out-String)
+          $text | Set-Content .tools/lifecycle.log
+          Assert-SsfGodotResult -Output $text -ExitCode $LASTEXITCODE -Name 'Extended lifecycle' -ExpectedPattern 'SSF_ARCHITECTURE_MEMORY=.*"valid":true'
+      - name: Fresh Windows packages, interoperability and long server soak
+        shell: pwsh
+        run: ./tools/verify-windows-packages.ps1 -SoakSeconds 1800
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -71,3 +79,6 @@ jobs:
             .tools/network-impairment/
             .tools/dense-replication/
             .tools/soak-verification/
+            .tools/package-acceptance/
+            .tools/package-interop/
+            .tools/lifecycle*

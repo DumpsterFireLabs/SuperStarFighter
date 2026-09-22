@@ -46,3 +46,11 @@ Machine-readable results: [architecture-evidence-2026-09-22.json](architecture-e
 Native Linux/macOS jobs and the new 30-minute CI soak have been configured, not executed from this machine. Minimum-spec GPU/driver acceptance, long-session OS-RSS behavior, WAN congestion and latency under dense traffic remain hardware/environment qualification work. The mixed worst-case fixture still exposes CPU overruns, and countdown/heat-result work remains synchronous and measured. Further optimization should target those observed tails rather than infer a bottleneck from capped FPS.
 
 The semi-competitive preset is editable and uses host-controlled pauses. Normal clients enforce the camera restrictions; the server does not filter all observer snapshots against modified clients. This work does not claim tournament anti-cheat or spectator confidentiality.
+
+## Subsequent automated follow-ups
+
+The following reports update the A08 qualification checkpoint above:
+
+- [Mixed-workload CPU follow-up](CPU-FOLLOWUP-2026-09-22.md): lazy threat-index construction reduces measured p95 across the five-mode matrix; peaks still exceed the tick budget.
+- [Dense impaired transport](DENSE-NETWORK-FOLLOWUP-2026-09-22.md): 32-client/1,024-projectile recovery passes loss/jitter and the documented shaped-link envelope. Lower bandwidth and shallow queues expose retained, reproducible failures.
+- [Extended automated acceptance](AUTOMATED-ACCEPTANCE-2026-09-22.md): clean-checkout tests, 1,000 lifecycle cycles, fresh Windows package audits, native headless startup, packaged interoperability and the local long-soak evidence. This does not claim the remote Linux/macOS CI jobs have run.
