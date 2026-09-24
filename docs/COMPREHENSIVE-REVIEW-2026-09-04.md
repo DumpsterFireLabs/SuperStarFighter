@@ -2,7 +2,7 @@
 
 **Date:** 4 September 2026  
 **Build:** `0.1.0-beta.10`, Godot `4.7.2.stable.official.ed1daf0bf`  
-**Baseline:** working tree over `9f47832699768f5413a79f4a39c247360748b1aa`, including staged and unstaged changes present during this review.
+**Baseline:** working tree over `c90f1f3cf53de8552e70b404408667be1b939441`, including staged and unstaged changes present during this review.
 
 This is an independent assessment of the current implementation. Evidence comes from source inspection, fresh automated runs, rendered captures, and new focused reproductions. Production code was not changed.
 

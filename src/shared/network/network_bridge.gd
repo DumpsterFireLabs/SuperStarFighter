@@ -158,7 +158,10 @@ func send_admin_command(request: Dictionary, sequence: int = 0, signature: Strin
 
 
 func send_admin_revoke() -> void:
-	if role == Role.CLIENT and local_peer_id > 0:
+	# Best effort during teardown: the transport may already be gone.
+	var peer := multiplayer.multiplayer_peer
+	var connected := peer != null and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
+	if role == Role.CLIENT and local_peer_id > 0 and connected and multiplayer.get_unique_id() != NetworkProtocol.SERVER_PEER_ID:
 		request_admin_revoke.rpc_id(NetworkProtocol.SERVER_PEER_ID)
 
 

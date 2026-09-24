@@ -1,6 +1,6 @@
 # Audio startup, residency, and crowded-combat evidence
 
-Review items R12/R13, September 4, 2026. Baseline: `0fb9c11`; after: this working tree. The final wrapper also checked `6efe87f`, whose audio director source is identical to `0fb9c11`. R13 is complete as a measured implementation decision. R12 has technical mixing changes and repeatable recordings, but human listening acceptance remains open. No card balance or gameplay timing changed.
+Review items R12/R13, September 4, 2026. Baseline: `e88565f`; after: this working tree. The final wrapper also checked `08fffb9`, whose audio director source is identical to `e88565f`. R13 is complete as a measured implementation decision. R12 has technical mixing changes and repeatable recordings, but human listening acceptance remains open. No card balance or gameplay timing changed.
 
 ## Resource and process measurements
 
@@ -37,7 +37,7 @@ The final wrapper completed without script or resource-leak errors. A brief mixe
 Run from the repository root with Godot bootstrapped:
 
 ```powershell
-./tools/verify-audio.ps1 -Samples 3 -BaselineRevision 0fb9c11
+./tools/verify-audio.ps1 -Samples 3 -BaselineRevision e88565f
 python ./tools/analyze-audio.py reports/audio-verification --package builds/beta-10/SuperStarFighter-Beta10.exe
 ```
 

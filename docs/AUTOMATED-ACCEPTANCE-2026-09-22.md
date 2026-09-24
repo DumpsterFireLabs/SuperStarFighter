@@ -21,7 +21,7 @@ runtime logs, soak memory samples, lifecycle results and dense-network evidence.
 
 ## Local qualification
 
-Game artifacts were exported from an isolated archive of `c847beb`, including
+Game artifacts were exported from an isolated archive of `50b0c96`, including
 all production changes in these three follow-ups. Later commits change tests,
 tools, CI and documentation only. The archive excluded unrelated working-tree
 edits and staged audio deletions. The long soak used the existing working-tree

@@ -1,5 +1,5 @@
 {
-  "source_revision": "c847beb06eaa0724a22b8bd5c3931948a35a4acd",
+  "source_revision": "50b0c96a044d79fc12e08d4187ccf09b74a4316e",
   "clean_checkout_unit_assertions": 14522,
   "working_tree_unit_assertions": 14661,
   "unit_failures": 0,
@@ -8156,7 +8156,7 @@
   },
   "package_wrapper_passed": true,
   "scope_notes": [
-    "Packages from isolated c847beb archive; later commits change no production files.",
+    "Packages from isolated 50b0c96 archive; later commits change no production files.",
     "Soak uses existing working-tree bots and harness against the clean exported server.",
     "Private qualification, not release attribution approval; archived crosshair hash mismatch was observed.",
     "Early soak overlaps other validation processes on this host."

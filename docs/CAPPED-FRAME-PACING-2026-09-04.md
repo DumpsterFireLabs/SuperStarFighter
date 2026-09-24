@@ -12,7 +12,7 @@ The cap, driver configuration, renderer, shield rules, input sampling and 60 Hz 
 
 ## Fixed workload comparison
 
-The same committed benchmark script exercised baseline production files from `cc0d164` and changed production files in **baseline / changed / changed / baseline** order. Each run measured 300 identical 32-pilot snapshot batches and 32-shot profile batches after 40 warmups. Every run retained 32 ships and emitted all 10,880 shot events. This isolates CPU costs from different live battle trajectories and the frame limiter.
+The same committed benchmark script exercised baseline production files from `89313bd` and changed production files in **baseline / changed / changed / baseline** order. Each run measured 300 identical 32-pilot snapshot batches and 32-shot profile batches after 40 warmups. Every run retained 32 ships and emitted all 10,880 shot events. This isolates CPU costs from different live battle trajectories and the frame limiter.
 
 | CPU measurement | Baseline runs | Changed runs |
 | --- | ---: | ---: |

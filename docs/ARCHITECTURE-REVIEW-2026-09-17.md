@@ -1,6 +1,6 @@
 Architectural review — Super Star Fighter — 17 September 2026
 
-Finding status, updated 17 September 2026. **Fixed** means the reported defect has been repaired and regression coverage added; any broader design follow-up is listed separately. **Open** means no implementation was made for that finding in this review. Findings 1–5 were repaired in commit `fd66da8` (`Fix projectile replication and client state ownership`). Findings 6–9, settings/release cleanup, and presentation budget policy were addressed in the subsequent implementation follow-up.
+Finding status, updated 17 September 2026. **Fixed** means the reported defect has been repaired and regression coverage added; any broader design follow-up is listed separately. **Open** means no implementation was made for that finding in this review. Findings 1–5 were repaired in commit `effd37e` (`Fix projectile replication and client state ownership`). Findings 6–9, settings/release cleanup, and presentation budget policy were addressed in the subsequent implementation follow-up.
 
 | Finding | Status | Resolution or remaining work |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ The findings below preserve the original evidence and recommendations from befor
 
 1. **High — Reflected projectile updates corrupt the client registry's ownership indexes. Reproduced.**
 
-   **Status: Fixed in `fd66da8`.** Client synchronization now calls `ProjectileRegistry.transfer_owner()` so membership, counts, and queues remain consistent. Regression coverage checks reflection and removal. The subsequent implementation follow-up also adds `ProjectileRegistry.presentation_store()`, which maintains indexes while leaving membership eviction to authority; predicted/reordered entities no longer compete for server budgets.
+   **Status: Fixed in `effd37e`.** Client synchronization now calls `ProjectileRegistry.transfer_owner()` so membership, counts, and queues remain consistent. Regression coverage checks reflection and removal. The subsequent implementation follow-up also adds `ProjectileRegistry.presentation_store()`, which maintains indexes while leaving membership eviction to authority; predicted/reordered entities no longer compete for server budgets.
 
    [network_replicated_visuals.gd:337](C:/Users/Graphite/Documents/code/SuperStarFighter/src/client/network/network_replicated_visuals.gd:337) assigns `existing.owner_id` directly. [projectile_registry.gd:89](C:/Users/Graphite/Documents/code/SuperStarFighter/src/shared/combat/projectile_registry.gd:89) has a `transfer_owner()` operation specifically because owner counts and ordered queues must change together. The server uses that operation; the client bypasses it.
 
@@ -73,7 +73,7 @@ The findings below preserve the original evidence and recommendations from befor
 
 2. **High — Powerup build updates do not update the canonical data used to recreate ships. Reproduced.**
 
-   **Status: Fixed in `fd66da8`.** `apply_builds()` saves a detached build dictionary before refreshing ships and prediction. Regression coverage checks reconstruction after respawn and cloak reappearance, and clearing upgrades. The subsequent implementation follow-up under finding 8 consolidates screen/world state ownership.
+   **Status: Fixed in `effd37e`.** `apply_builds()` saves a detached build dictionary before refreshing ships and prediction. Regression coverage checks reconstruction after respawn and cloak reappearance, and clearing upgrades. The subsequent implementation follow-up under finding 8 consolidates screen/world state ownership.
 
    [client_main.gd:971](C:/Users/Graphite/Documents/code/SuperStarFighter/src/client/client_main.gd:971) updates `latest_match_payload` and calls `network_world.apply_builds()`. [network_world_view.gd:420](C:/Users/Graphite/Documents/code/SuperStarFighter/src/client/network/network_world_view.gd:420) updates current visual and prediction stats but leaves its own `match_payload.builds` unchanged. [network_replicated_visuals.gd:630](C:/Users/Graphite/Documents/code/SuperStarFighter/src/client/network/network_replicated_visuals.gd:630) subsequently reads that stale dictionary when reconstructing stats.
 
@@ -83,7 +83,7 @@ The findings below preserve the original evidence and recommendations from befor
 
 3. **High — Replication channels lack a shared policy for rejecting older state. Reproduced for projectiles; objective path confirmed by inspection.**
 
-   **Status: Fixed in `fd66da8`.** Projectile reception uses bounded per-entity versions, removal history, a recovery floor, and heat-boundary rejection. Objective reception compares ticks and same-tick stream priority. Regression coverage includes reordered updates, chunk interleaving, wrap, bounded history, and heat changes; real ENet impairment profiles also passed. The existing wire format is unchanged.
+   **Status: Fixed in `effd37e`.** Projectile reception uses bounded per-entity versions, removal history, a recovery floor, and heat-boundary rejection. Objective reception compares ticks and same-tick stream priority. Regression coverage includes reordered updates, chunk interleaving, wrap, bounded history, and heat changes; real ENet impairment profiles also passed. The existing wire format is unchanged.
 
    Projectile deltas and corrections use separate channels. [network_replicated_visuals.gd:75](C:/Users/Graphite/Documents/code/SuperStarFighter/src/client/network/network_replicated_visuals.gd:75) applies complete corrections and removes every projectile absent from them without comparing their tick or sequence against newer deltas. The packets already carry this information.
 
@@ -95,7 +95,7 @@ The findings below preserve the original evidence and recommendations from befor
 
 4. **Medium — Predicted projectile IDs conflict with the shared registry's deleted-entry marker. Reproduced.**
 
-   **Status: Fixed in `fd66da8`.** The registry reserves zero as its tombstone and compares eviction candidates against that exact sentinel. Registry insertion and packet decoding reject ID zero. Regression coverage confirms negative prediction IDs remain visible and eligible for eviction.
+   **Status: Fixed in `effd37e`.** The registry reserves zero as its tombstone and compares eviction candidates against that exact sentinel. Registry insertion and packet decoding reject ID zero. Regression coverage confirms negative prediction IDs remain visible and eligible for eviction.
 
    [network_local_prediction.gd:26](C:/Users/Graphite/Documents/code/SuperStarFighter/src/client/network/network_local_prediction.gd:26) starts predicted IDs at `-1` and resets to that value. [projectile_registry.gd:21](C:/Users/Graphite/Documents/code/SuperStarFighter/src/shared/combat/projectile_registry.gd:21) uses `-1` as its tombstone. The projectile renderer and visual stepping loop explicitly skip that value.
 
@@ -105,7 +105,7 @@ The findings below preserve the original evidence and recommendations from befor
 
 5. **Medium — Match records grow with spectator churn rather than concurrent player count. Reproduced.**
 
-   **Status: Fixed in `fd66da8`.** Disconnect removes nonparticipant spectators and their score records during a match while retaining competitor results. Regression coverage checks spectator churn with a fixed active roster and retained participant scores. A separate historical-results model was not needed for this repair.
+   **Status: Fixed in `effd37e`.** Disconnect removes nonparticipant spectators and their score records during a match while retaining competitor results. Regression coverage checks spectator churn with a fixed active roster and retained participant scores. A separate historical-results model was not needed for this repair.
 
    [match_state_machine.gd:50](C:/Users/Graphite/Documents/code/SuperStarFighter/src/shared/match/match_state_machine.gd:50) registers a player and score for every late spectator. [match_state_machine.gd:237](C:/Users/Graphite/Documents/code/SuperStarFighter/src/shared/match/match_state_machine.gd:237) removes those records only when disconnecting in the lobby. During a match, even a spectator who never participated remains in both dictionaries.
 

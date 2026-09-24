@@ -4,13 +4,13 @@ Eight independently committed follow-ups to the performance/architecture review.
 
 | Item | Implementation | Commit |
 | --- | --- | --- |
-| A01 | Incremental draft preparation, atomic offer publication, full decision deadlines, bounded transition timing counters | `f8669ce` |
-| A02 | Typed lobby/match command service after RPC authorization and payload validation; weak owner reference | `d72e884` |
-| A03 | Projectile integration, targeting, mines and hit resolution extracted from the world; world retains authoritative state and damage queues | `dfd653f` |
-| A04 | Dedicated audio preparation/cache/worker owner and pure procedural synthesis service; director retains playback, mixing and music control | `f13e461` |
-| A05 | Full recovery paced at four chunks per tick, one bounded pending batch, categorized payload estimates, real 32-client UDP measurement | `e5d408c` |
-| A06 | Shared radial masks for ordnance and effects, batched mine spokes, permanent CPU draw-attribution fixture | `ce5f689` |
-| A07 | Four-seat human-only semi-competitive team preset and explicit camera, pause, NPC, pickup and effect policies | `1a6a5db` |
+| A01 | Incremental draft preparation, atomic offer publication, full decision deadlines, bounded transition timing counters | `7c92dc5` |
+| A02 | Typed lobby/match command service after RPC authorization and payload validation; weak owner reference | `7d68408` |
+| A03 | Projectile integration, targeting, mines and hit resolution extracted from the world; world retains authoritative state and damage queues | `18fed0a` |
+| A04 | Dedicated audio preparation/cache/worker owner and pure procedural synthesis service; director retains playback, mixing and music control | `ef48255` |
+| A05 | Full recovery paced at four chunks per tick, one bounded pending batch, categorized payload estimates, real 32-client UDP measurement | `094c226` |
+| A06 | Shared radial masks for ordnance and effects, batched mine spokes, permanent CPU draw-attribution fixture | `7099120` |
+| A07 | Four-seat human-only semi-competitive team preset and explicit camera, pause, NPC, pickup and effect policies | `7f61691` |
 | A08 | Windows/Linux/macOS CI definition, negative gates, mixed mode/map/build fixtures, repeated lifecycle memory checks, optional long soak | This document's commit |
 
 ## Validation and measurements

@@ -1164,7 +1164,7 @@
     }
   ],
   "isolated_queries": {
-    "baseline_commit": "2ca9eadb4c89a8047e089a826e5c2ec3bb7fffa8",
+    "baseline_commit": "cc0ff32ee64cf6a6b4457eb3e1548995be5cec45",
     "seed": 629914,
     "measurements": {
       "after_obstacles": [
