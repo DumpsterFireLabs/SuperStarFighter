@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://6eduan3em4bn"
+path="res://.godot/imported/Neon Battle.ogg-b99f910aa98ec9abc8fc6870700f8b7b.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/audio/music/gameplay/Neon Battle.ogg"
+dest_files=["res://.godot/imported/Neon Battle.ogg-b99f910aa98ec9abc8fc6870700f8b7b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -82,7 +82,6 @@ func _init(
 ) -> void:
 	lobby = server_lobby
 	world = authoritative_world
-	world.set_silly_mode(lobby.config.silly_mode)
 	catalog = CardCatalog.create_default()
 	powerups = CardPowerupSystemScript.new(catalog, seed_value)
 	match_seed = seed_value
@@ -172,7 +171,6 @@ func step(delta: float) -> void:
 				var payload := (powerup_event.payload as Dictionary).duplicate(true)
 				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
 					observations.record_pickup(int(payload.peer_id), lobby.config.random_powerups_permanent)
-					world.observe_silly_pickup(int(payload.peer_id), payload.position as Vector2)
 					payload["builds"] = _public_builds()
 				_events.append(MatchEvent.new(powerup_event.event_type, tick, payload))
 			_sync_combat_and_resolve(tick)
@@ -579,13 +577,8 @@ func _sync_combat_and_resolve(tick: int) -> void:
 
 func _elimination_records(peer_ids: Array[int], kill_events: Array[Dictionary]) -> Array[Dictionary]:
 	var killers_by_victim: Dictionary = {}
-	var silly_by_victim: Dictionary = {}
 	for event in kill_events:
 		killers_by_victim[int(event.get("target_id", 0))] = int(event.get("killer_id", 0))
-		if machine.config.silly_mode and event.has("silly_cue"):
-			silly_by_victim[int(event.target_id)] = String(event.silly_cue)
-		if machine.config.silly_mode and _flag_carrier_id > 0 and int(event.get("target_id", 0)) == _flag_carrier_id and String(event.get("mechanic", "")) == "ram_contact":
-			silly_by_victim[_flag_carrier_id] = "you_shall_not_pass"
 	var records: Array[Dictionary] = []
 	for victim_id in peer_ids:
 		var killer_id := int(killers_by_victim.get(victim_id, 0))
@@ -594,8 +587,6 @@ func _elimination_records(peer_ids: Array[int], kill_events: Array[Dictionary]) 
 			"victim_id": victim_id,
 			"reason": "combat" if killer_id != 0 else "environment",
 		})
-		if silly_by_victim.has(victim_id):
-			records.back()["silly_cue"] = silly_by_victim[victim_id]
 	return records
 
 
@@ -755,7 +746,6 @@ func _state_payload() -> Dictionary:
 		"draft_bye_peer_id": _next_draft_bye_peer_id if machine.state == MatchStateMachine.State.DRAFT and machine.round_number > 1 and not GameModeRules.is_team_mode(lobby.config.game_mode) else 0,
 		"draft_bye_peer_ids": _next_draft_bye_peer_ids.duplicate(),
 		"match_winner": machine.match_winner,
-		"heat_damaged_peer_ids": world.heat_damaged_peers.keys() if machine.state in [MatchStateMachine.State.HEAT_RESULT, MatchStateMachine.State.ROUND_RESULT, MatchStateMachine.State.MATCH_RESULT] else [],
 		"rounds_to_win": machine.config.rounds_to_win,
 		"extension_end_round_number": machine.extension_end_round_number,
 		"can_extend_match": machine.can_extend_match(),
@@ -773,7 +763,6 @@ func _state_payload() -> Dictionary:
 		"random_powerup_interval_seconds": lobby.config.random_powerup_interval_seconds,
 		"random_powerups_permanent": lobby.config.random_powerups_permanent,
 		"competitive_view": machine.config.competitive_view,
-		"silly_mode": machine.config.silly_mode,
 		"objective": _objective_snapshot(),
 		"overtime_center": _overtime_center(),
 		"overtime_minimum_radius": _overtime_minimum_radius(),

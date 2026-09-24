@@ -24,7 +24,37 @@ static func run(context: TestContext) -> void:
 	_validate_new_card_mechanics(context)
 	_validate_card_powerups(context)
 	_validate_connection_admission(context)
+	_validate_in_game_admin(context)
 	_validate_reconnect_reset(context)
+
+
+static func _validate_in_game_admin(context: TestContext) -> void:
+	var authority := InGameAdminAuthority.new()
+	context.expect_false(authority.begin(4, "192.0.2.4", 0.0).ok, "in-game admin is disabled without a separate secret")
+	authority.configure("strong-admin-secret-2026")
+	var first := authority.begin(4, "192.0.2.4", 1.0)
+	context.expect_true(first.ok and NetworkProtocol.is_valid_auth_challenge(first.challenge), "admitted player receives a one-use admin challenge")
+	context.expect_false(authority.authenticate(4, "192.0.2.4", "0".repeat(64), 2.0).ok, "wrong admin proof is rejected")
+	context.expect_false(authority.is_authorized(4), "failed proof grants no admin rights")
+	context.expect_false(authority.authenticate(4, "192.0.2.4", NetworkProtocol.admin_password_proof(first.challenge, "strong-admin-secret-2026"), 2.0).ok, "failed challenge cannot be replayed")
+	var second := authority.begin(4, "192.0.2.4", 3.0)
+	var proof := NetworkProtocol.admin_password_proof(second.challenge, "strong-admin-secret-2026")
+	context.expect_true(authority.authenticate(4, "192.0.2.4", proof, 4.0).ok, "correct admin proof unlocks only that connected peer")
+	context.expect_true(authority.is_authorized(4), "operator peer has session authority")
+	var request := {"command": "set", "setting": "rounds_to_win", "value": 4}
+	var signature := NetworkProtocol.admin_command_signature(second.challenge, "strong-admin-secret-2026", 1, request)
+	context.expect_true(NetworkProtocol.is_valid_auth_proof(signature), "admin command signature is a bounded SHA-256 proof")
+	context.expect_equal(signature, NetworkProtocol.admin_command_signature(second.challenge, "strong-admin-secret-2026", 1, {"value": 4, "setting": "rounds_to_win", "command": "set"}), "admin signature is independent of dictionary insertion order")
+	context.expect_false(authority.verify_command(4, 1, {"command": "set", "setting": "rounds_to_win", "value": 5}, signature), "tampered admin command is rejected")
+	context.expect_true(authority.verify_command(4, 1, request, signature), "valid authenticated admin command is accepted")
+	context.expect_false(authority.verify_command(4, 1, request, signature), "admin command replay is rejected")
+	context.expect_false(authority.is_authorized(5), "another peer does not inherit admin rights")
+	authority.revoke(4)
+	context.expect_false(authority.is_authorized(4), "leaving or locking admin revokes authority")
+	var expired := authority.begin(4, "192.0.2.4", 5.0)
+	context.expect_false(authority.authenticate(4, "192.0.2.4", NetworkProtocol.admin_password_proof(expired.challenge, "strong-admin-secret-2026"), 16.0).ok, "expired admin proof is rejected")
+	authority.clear()
+	context.expect_false(authority.enabled(), "server teardown clears the admin secret")
 
 
 static func _validate_sequence_wrap(context: TestContext) -> void:

@@ -97,9 +97,9 @@ static func _validate_audio_pipeline(context: TestContext, tree_parent: Node) ->
 	audio.set_context(&"gameplay")
 	context.expect_equal(audio.current_context, &"gameplay", "gameplay playlist context works when optional tracks are absent")
 	audio.gameplay_track_paths.clear()
-	audio.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
+	audio.gameplay_track_paths.append("res://assets/audio/music/gameplay/Zenith Run.ogg")
 	audio.current_gameplay_track = 0
-	context.expect_equal(audio.current_gameplay_track_name(), "Edge", "active gameplay track exposes the renamed song title")
+	context.expect_equal(audio.current_gameplay_track_name(), "Zenith Run", "active gameplay track exposes the renamed song title")
 	audio.current_context = &"win"
 	context.expect_equal(audio.current_gameplay_track_name(), "", "victory context never reports a gameplay song")
 	tree_parent.remove_child(audio)
@@ -820,7 +820,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	tab_event.physical_keycode = KEY_TAB
 	tab_event.pressed = true
 	client.audio_director.gameplay_track_paths.clear()
-	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Zenith Run.ogg")
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
 	client._input(tab_event)
@@ -833,7 +833,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_equal(client.get_viewport().gui_get_focus_owner(), scoreboard_focus, "held Tab repeats never navigate between player cards")
 	tab_event.echo = false
 	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("MAP  ·  RIFTLINE"), "scoreboard explicitly identifies the active map")
-	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("NOW PLAYING  ·  EDGE"), "scoreboard identifies the active gameplay song")
+	context.expect_true(client.standings_controller.scoreboard_media_label.text.contains("NOW PLAYING  ·  ZENITH RUN"), "scoreboard identifies the active gameplay song")
 	var live_kills := client.standings_controller.scoreboard_rows_container.get_child(0).find_child("MatchKills", true, false) as Label
 	context.expect_equal(live_kills.text, "4", "live scoreboard displays the pilot's match-total kills")
 	client._on_match_event(&"PLAYER_ELIMINATED", 302, {"peer_ids": [3], "eliminations": [{"killer_id": 2, "victim_id": 3, "reason": "combat"}], "reason": "combat", "scores": {2: {"heat_wins": 1, "round_wins": 1, "kills": 5}, 3: {"heat_wins": 0, "round_wins": 0, "kills": 2}}})

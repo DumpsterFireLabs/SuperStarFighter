@@ -1,0 +1,15 @@
+{
+  "passed": false,
+  "reason": "One full window exceeded the new 1% over-budget callback gate.",
+  "client_count": 32,
+  "requested_duration_seconds": 600,
+  "metric_windows": 65,
+  "minimum_physics_ticks_per_second": 58.5875236720544,
+  "maximum_p95_simulation_usec": 7932,
+  "maximum_p99_simulation_usec": 18704,
+  "maximum_simulation_usec": 384505,
+  "maximum_over_budget_percent": 1.16666666666667,
+  "total_over_budget_ticks": 63,
+  "total_physics_samples": 38699,
+  "server_shutdown_events": 1
+}

@@ -1,0 +1,11 @@
+{
+  "head": "3070442150c2766d59a9ebed90cfe2d6a211c408",
+  "local_date": "2026-09-17",
+  "user_reported_external_cap_fps": 58,
+  "engine_cap_fps": 0,
+  "resolution": "1920x1080",
+  "renderer": "OpenGL compatibility",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "driver": "596.21",
+  "scope": "Current working tree, including pre-existing audio/UI/server changes. Review experiments leave production source unchanged."
+}

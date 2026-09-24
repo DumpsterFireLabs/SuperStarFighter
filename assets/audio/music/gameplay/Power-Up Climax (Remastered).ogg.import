@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://b6cxuxyxa85om"
+path="res://.godot/imported/Power-Up Climax (Remastered).ogg-e13333c129b1637cea2307f6a19116c7.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/audio/music/gameplay/Power-Up Climax (Remastered).ogg"
+dest_files=["res://.godot/imported/Power-Up Climax (Remastered).ogg-e13333c129b1637cea2307f6a19116c7.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

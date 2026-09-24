@@ -504,9 +504,6 @@ static func _resolve_projectile_ship_hit(world: AuthoritativeWorld,
 		impact_vector = -projectile.velocity.normalized()
 	var perfect_guard := target.shield.is_perfect_guard_active()
 	if target.shield.try_block(target.aim_angle, impact_vector, target.stats):
-		if perfect_guard:
-			if world.silly_observer != null:
-				world.silly_observer.record_perfect_block(world, peer_id, projectile.owner_id)
 		target.shield.register_blocked_damage(projectile.damage, target.stats)
 		_apply_projectile_knockback(world, target, projectile, 0.2)
 		if target.stats.shield_damage_heal_fraction > 0.0:

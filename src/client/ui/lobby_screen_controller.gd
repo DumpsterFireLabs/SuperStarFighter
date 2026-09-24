@@ -11,6 +11,7 @@ const ShipPatternPreviewScript = preload("res://src/client/ui/ship_pattern_previ
 
 signal settings_requested
 signal disconnect_requested
+signal admin_requested
 var bridge: NetworkBridge
 var interface_theme: Theme
 var connection_canvas: CanvasLayer
@@ -206,6 +207,14 @@ func _create_lobby_panel() -> void:
 	lobby_settings_button.tooltip_text = "Configure your display, audio, and controls without leaving the lobby."
 	lobby_settings_button.pressed.connect(settings_requested.emit)
 	lobby_actions.add_child(lobby_settings_button)
+	var admin_button := Button.new()
+	admin_button.name = "LobbyAdminButton"
+	admin_button.text = "Admin"
+	admin_button.theme_type_variation = &"SecondaryButton"
+	admin_button.custom_minimum_size.y = 54.0
+	admin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	admin_button.pressed.connect(admin_requested.emit)
+	lobby_actions.add_child(admin_button)
 	lobby_disconnect_button = Button.new()
 	lobby_disconnect_button.name = "LobbyDisconnectButton"
 	lobby_disconnect_button.text = "Disconnect"
@@ -575,7 +584,7 @@ func render_lobby(state: Dictionary) -> void:
 	lobby_rules_label.text += "  ·  Competitive 16:9" if bool(state.get("competitive_view", false)) else "  ·  Expanded view"
 	lobby_readiness_label.text = readiness_summary(state)
 	lobby_options_button.text = "MATCH SETUP" if is_leader else "VIEW MATCH SETUP"
-	lobby_options_button.tooltip_text = "Choose a preset, configure pilots, and adjust arena rules." if is_leader else "View current rules. Only the host may edit match setup."
+	lobby_options_button.tooltip_text = "Choose a preset, configure pilots, and adjust arena rules." if is_leader else "View current rules. Only the lobby leader may edit match setup."
 	_rebuild_lobby_roster(state, is_leader)
 	var local_ready := false
 	for player_value in state.get("players", []):
@@ -618,7 +627,7 @@ func render_lobby(state: Dictionary) -> void:
 	_applying_lobby_state = false
 	ready_button.disabled = match_active
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
-	lobby_options_status.text = "Changes apply immediately. Pilots must ready up again after rule changes." if is_leader else "Only the host can change these rules. You can browse all three tabs."
+	lobby_options_status.text = "Changes apply immediately. Pilots must ready up again after rule changes." if is_leader else "Only the lobby leader can change these rules. You can browse all three tabs."
 	lobby_options_status.remove_theme_color_override("font_color")
 	var settings_editable: bool = is_leader and not match_active
 	lobby_preset_control.disabled = not settings_editable
@@ -704,7 +713,7 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		row.add_child(name_label)
 		var role_label := Label.new()
 		var team_id := int(player.get("team_id", 0))
-		var role_name := "HOST" if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
+		var role_name := ("ADMIN" if bool(state.get("leader_is_admin", false)) else "HOST") if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
 		role_label.text = role_name if team_mode else "%s · %s" % [role_name, GameModeRules.team_name(team_id)] if team_id > 0 else role_name
 		role_label.custom_minimum_size.x = 80.0 if team_mode else 170.0 if team_id > 0 else 90.0
 		role_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id) if team_id > 0 else Color("d39cff"))

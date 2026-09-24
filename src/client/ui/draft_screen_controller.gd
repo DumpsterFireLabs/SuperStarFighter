@@ -32,6 +32,7 @@ var pending_draft_index: int = -1
 var inspected_index: int = 0
 var inspect_button: Button
 var comparison_hint: Label
+var _draft_layout_pending: bool = false
 
 
 func configure(network: NetworkBridge, audio: AudioDirector, catalog: CardCatalog, theme: Theme, canvas: CanvasLayer, context: Callable) -> void:
@@ -54,8 +55,9 @@ func create_ui() -> void:
 	draft_panel.theme = interface_theme
 	draft_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	draft_panel.visible = false
-	draft_panel.resized.connect(_center_draft_panel)
-	get_viewport().size_changed.connect(_center_draft_panel)
+	draft_panel.resized.connect(_queue_draft_layout)
+	draft_panel.minimum_size_changed.connect(_queue_draft_layout)
+	get_viewport().size_changed.connect(_queue_draft_layout)
 	_canvas.add_child(draft_panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 14)
@@ -129,6 +131,8 @@ func create_ui() -> void:
 	draft_confirmation_label.add_theme_font_size_override("font_size", 18)
 	draft_confirmation_label.add_theme_color_override("font_color", Color("fff36a"))
 	draft_confirmation_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Give wrapping a valid width before the initially hidden row is laid out.
+	draft_confirmation_label.custom_minimum_size.x = 480.0
 	draft_confirmation_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	draft_confirmation_row.add_child(draft_confirmation_label)
 	draft_change_button = Button.new()
@@ -212,6 +216,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 func show_draft_offer(payload: Dictionary) -> void:
 	draft_panel.custom_minimum_size = Vector2(1200.0, 560.0)
 	draft_title.add_theme_font_size_override("font_size", 34)
+	draft_title.text = "CHOOSE YOUR UPGRADE"
 	draft_cards.show()
 	inspect_button.show()
 	comparison_hint.show()
@@ -270,7 +275,7 @@ func show_draft_offer(payload: Dictionary) -> void:
 				(button.get_node("CardContent/Details/Stack") as Label).text += "\nAT LIMIT"
 				button.text += "\nAT LIMIT · VIEW DETAILS"
 	draft_panel.visible = true
-	draft_panel.reset_size.call_deferred()
+	_queue_draft_layout()
 	for button in draft_buttons:
 		if button.visible and not button.disabled:
 			button.grab_focus()
@@ -374,11 +379,34 @@ func _show_draft_bye(deadline_tick: int) -> void:
 	draft_bye_label.visible = true
 	draft_panel.visible = true
 	# Let the containers drop the previous offer's minimum before shrinking.
-	draft_panel.reset_size.call_deferred()
+	_queue_draft_layout()
+
+
+func _queue_draft_layout() -> void:
+	if _draft_layout_pending:
+		return
+	_draft_layout_pending = true
+	_fit_draft_panel.call_deferred()
+
+
+func _fit_draft_panel() -> void:
+	_draft_layout_pending = false
+	if not is_instance_valid(draft_panel):
+		return
+	# Containers grow for transient wrapped-label minima but do not shrink again.
+	# Refit after each minimum change, including hiding/cancelling confirmation.
+	var minimum := draft_panel.get_combined_minimum_size()
+	if not draft_panel.size.is_equal_approx(minimum):
+		draft_panel.size = minimum
+	_center_draft_panel()
 
 
 func _center_draft_panel() -> void:
-	draft_panel.position = (get_viewport().get_visible_rect().size - draft_panel.size) * 0.5
+	var viewport_size := get_viewport().get_visible_rect().size
+	var available := (viewport_size - Vector2(64.0, 64.0)).max(Vector2.ONE)
+	var fit := minf(1.0, minf(available.x / maxf(draft_panel.size.x, 1.0), available.y / maxf(draft_panel.size.y, 1.0)))
+	draft_panel.scale = Vector2.ONE * fit
+	draft_panel.position = (viewport_size - draft_panel.size * fit) * 0.5
 
 
 func _draft_category_color(category: int) -> Color:

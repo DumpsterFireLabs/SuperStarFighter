@@ -93,6 +93,7 @@ function Get-SsfJsonEvents {
 
 try {
     $serverDuration = $DurationSeconds + 45
+    $wallDeadline = [DateTime]::UtcNow.AddSeconds($serverDuration + 120)
     Write-Host "Starting $ClientCount-client ENet soak for at least $DurationSeconds seconds."
     Write-Host "Evidence: $logRoot"
     $server = Start-SsfSoakProcess -Name 'server' -UserArguments @(
@@ -148,6 +149,7 @@ try {
     $memoryStarted = [DateTime]::UtcNow
     $nextMemorySample = $memoryStarted
     while (-not $server.HasExited) {
+        if ([DateTime]::UtcNow -ge $wallDeadline) { throw 'Server exceeded the soak wall-clock deadline; its simulation may be stalled.' }
         if ([DateTime]::UtcNow -ge $nextMemorySample) {
             $server.Refresh()
             if (-not $server.HasExited) {
@@ -178,6 +180,8 @@ try {
     $serverText = Get-SsfSoakOutput 'server'
     $events = Get-SsfJsonEvents $serverText
     $metrics = @($events | Where-Object { $_.event -eq 'simulation_metrics' })
+    if (@($events | Where-Object { $_.event -eq 'server_log_overflow' }).Count -gt 0) { throw 'Server output could not keep up with the bounded log queue.' }
+    if (@($metrics | Where-Object { $_.log_dropped_batches -gt 0 }).Count -gt 0) { throw 'Server health reported dropped log batches.' }
     $minimumMetricWindows = [Math]::Floor($DurationSeconds / 10)
     if ($metrics.Count -lt $minimumMetricWindows) { throw "Only $($metrics.Count) metric windows were captured; expected at least $minimumMetricWindows." }
     $maxP95 = ($metrics | Measure-Object -Property p95_simulation_usec -Maximum).Maximum
@@ -194,6 +198,12 @@ try {
         }
     }
     $maxActiveP95 = ($activeMetrics | Measure-Object -Property active_p95_usec -Maximum).Maximum
+    $fullWindows = @($metrics | Where-Object { $_.window_seconds -ge 9.9 })
+    if ($fullWindows.Count -eq 0) { throw 'No wall-clock health windows were captured.' }
+    $minimumTickRate = ($fullWindows | Measure-Object -Property physics_ticks_per_second -Minimum).Minimum
+    $maxOverBudgetPercent = ($fullWindows | Measure-Object -Property over_budget_percent -Maximum).Maximum
+    if ($minimumTickRate -lt 57) { throw "Server callback rate fell below 95% of 60 Hz: $minimumTickRate Hz." }
+    if ($maxOverBudgetPercent -gt 1) { throw "More than 1% of server callbacks exceeded their tick budget: $maxOverBudgetPercent%." }
     if ($maxActiveP95 -ge 16667) { throw "Active full-server p95 exceeded 16.67 ms: $maxActiveP95 microseconds." }
     if ($maxP95 -ge 16667) { throw "Simulation p95 exceeded the 16.67 ms budget: $maxP95 microseconds." }
     if (@($metrics | Where-Object { $_.connected_peers -eq $ClientCount }).Count -eq 0) { throw "No metric window observed all $ClientCount connected clients." }
@@ -257,12 +267,18 @@ try {
         maximum_p99_simulation_usec = ($metrics | Measure-Object -Property p99_simulation_usec -Maximum).Maximum
         maximum_active_p95_usec = $maxActiveP95
         maximum_active_p99_usec = ($activeMetrics | Measure-Object -Property active_p99_usec -Maximum).Maximum
-        maximum_over_budget_percent = ($metrics | Measure-Object -Property over_budget_percent -Maximum).Maximum
+        maximum_over_budget_percent = $maxOverBudgetPercent
         maximum_outbound_payload_bytes_per_window = ($metrics | Measure-Object -Property outbound_bytes -Maximum).Maximum
         mean_world_and_npc_usec = ($metrics | Measure-Object -Property mean_world_and_npc_usec -Average).Average
         mean_coordination_usec = ($metrics | Measure-Object -Property mean_coordination_usec -Average).Average
         mean_replication_usec = ($metrics | Measure-Object -Property mean_replication_usec -Average).Average
-        timing_scope = 'Server physics callback including coordination, encoding and ENet enqueue/fan-out; excludes engine transport polling, OS delivery and client rendering.'
+        mean_logging_usec = ($metrics | Measure-Object -Property mean_logging_usec -Average).Average
+        maximum_logging_usec = ($metrics | Measure-Object -Property max_logging_usec -Maximum).Maximum
+        dropped_log_batches = ($metrics | Measure-Object -Property log_dropped_batches -Maximum).Maximum
+        minimum_physics_ticks_per_second = $minimumTickRate
+        maximum_physics_gap_usec = ($fullWindows | Measure-Object -Property max_physics_gap_usec -Maximum).Maximum
+        maximum_outbound_bytes_per_second = ($fullWindows | Measure-Object -Property outbound_bytes_per_second -Maximum).Maximum
+        timing_scope = 'Callback work includes coordination, encoding, ENet enqueue/fan-out and log submission; background log I/O is separate and queue overflow fails acceptance. Wall-clock callback rate and maximum scheduling gap additionally expose stalls outside that work. Outbound bytes count replication payloads, excluding transport overhead and other control RPCs.'
         maximum_active_projectiles = ($metrics | Measure-Object -Property active_projectiles -Maximum).Maximum
         maximum_object_count = ($metrics | Measure-Object -Property object_count -Maximum).Maximum
         maximum_static_memory_bytes = ($metrics | Measure-Object -Property static_memory_bytes -Maximum).Maximum
@@ -274,6 +290,16 @@ try {
     }
     $summary | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $logRoot 'summary.json') -Encoding UTF8
     Write-Host "Soak verification passed: $ClientCount initial clients, $($metrics.Count) windows, max p95 $maxP95 us, overtime, combat disconnect, late spectator, bounded entities, and clean shutdown."
+}
+catch {
+    $failure = [ordered]@{
+        passed = $false
+        error = $_.Exception.Message
+        metrics = @(Get-SsfJsonEvents (Get-SsfSoakOutput 'server') | Where-Object { $_.event -eq 'simulation_metrics' })
+        memory_samples = @($memorySamples)
+    }
+    $failure | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $logRoot 'failure.json') -Encoding UTF8
+    throw
 }
 finally {
     foreach ($process in $processes) {

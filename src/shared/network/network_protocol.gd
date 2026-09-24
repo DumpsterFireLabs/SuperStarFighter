@@ -131,6 +131,23 @@ static func admin_password_proof(challenge: String, password: String) -> String:
 	return ("ssf-admin-auth-v1\u001f%s\u001f%s" % [challenge, password]).sha256_text()
 
 
+static func admin_command_signature(challenge: String, password: String, sequence: int, request: Dictionary) -> String:
+	if not is_valid_auth_challenge(challenge) or not is_valid_admin_password(password) or sequence < 1 or sequence > 2_147_483_647:
+		return ""
+	var keys := request.keys()
+	for key in keys:
+		if not key is String:
+			return ""
+	keys.sort()
+	var ordered: Dictionary = {}
+	for key in keys:
+		ordered[key] = request[key]
+	var crypto := Crypto.new()
+	var session_key := crypto.hmac_digest(HashingContext.HASH_SHA256, password.to_utf8_buffer(), ("ssf-admin-session-v1\u001f" + challenge).to_utf8_buffer())
+	var message := ("ssf-admin-command-v1\u001f%d\u001f%s" % [sequence, JSON.stringify(ordered)]).to_utf8_buffer()
+	return crypto.hmac_digest(HashingContext.HASH_SHA256, session_key, message).hex_encode()
+
+
 static func constant_time_string_equal(left: String, right: String) -> bool:
 	var left_bytes := left.to_utf8_buffer()
 	var right_bytes := right.to_utf8_buffer()

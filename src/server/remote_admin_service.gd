@@ -68,7 +68,7 @@ func _accept_client(peer: StreamPeerTCP) -> void:
 	var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
 	_clients[client_id] = {
 		"peer": peer,
-		"buffer": "",
+		"buffer": PackedByteArray(),
 		"challenge": challenge,
 		"authenticated": false,
 		"auth_failures": 0,
@@ -85,6 +85,7 @@ func _poll_client(client_id: int) -> void:
 		return
 	var state: Dictionary = _clients[client_id]
 	var peer := state.peer as StreamPeerTCP
+	peer.poll()
 	if peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 		_close_client(client_id)
 		return
@@ -106,15 +107,21 @@ func _poll_client(client_id: int) -> void:
 	if int(read_result[0]) != OK:
 		_close_client(client_id)
 		return
-	state.buffer = String(state.buffer) + (read_result[1] as PackedByteArray).get_string_from_utf8()
-	if String(state.buffer).to_utf8_buffer().size() > NetworkProtocol.ADMIN_MAX_MESSAGE_BYTES:
+	var buffer := state.buffer as PackedByteArray
+	buffer.append_array(read_result[1] as PackedByteArray)
+	if buffer.size() > NetworkProtocol.ADMIN_MAX_MESSAGE_BYTES:
 		_close_client(client_id)
 		return
-	var lines := String(state.buffer).split("\n")
-	state.buffer = lines[lines.size() - 1]
+	state.buffer = buffer
 	_clients[client_id] = state
-	for index in lines.size() - 1:
-		var line := lines[index].strip_edges()
+	while true:
+		var newline := buffer.find(10)
+		if newline < 0:
+			break
+		var line := buffer.slice(0, newline).get_string_from_utf8().strip_edges()
+		buffer = buffer.slice(newline + 1)
+		state.buffer = buffer
+		_clients[client_id] = state
 		if not line.is_empty():
 			_handle_line(client_id, line)
 			if not _clients.has(client_id):
@@ -173,7 +180,9 @@ func _authenticate(client_id: int, request: Dictionary) -> void:
 
 
 func _execute(request: Dictionary) -> Dictionary:
-	var command := String(request.get("command", ""))
+	if not request.get("command", null) is String:
+		return {"ok": false, "error": "A text command is required."}
+	var command := String(request.command)
 	var result: Dictionary
 	match command:
 		"status":
@@ -181,20 +190,22 @@ func _execute(request: Dictionary) -> Dictionary:
 		"players":
 			result = _bridge.operator_players()
 		"kick":
-			result = _bridge.operator_kick(int(request.get("peer_id", 0)), false)
+			result = _bridge.operator_kick(int(request.peer_id), false) if _valid_peer_id(request.get("peer_id")) else {"ok": false, "error": "peer_id requires a positive integer."}
 		"ban":
-			result = _bridge.operator_kick(int(request.get("peer_id", 0)), true)
+			result = _bridge.operator_kick(int(request.peer_id), true) if _valid_peer_id(request.get("peer_id")) else {"ok": false, "error": "peer_id requires a positive integer."}
 		"block":
-			result = _bridge.operator_block_source(String(request.get("source", "")))
+			result = _bridge.operator_block_source(String(request.source)) if request.get("source", null) is String else {"ok": false, "error": "source requires text."}
 		"unblock":
-			result = _bridge.operator_unblock_source(String(request.get("source", "")))
+			result = _bridge.operator_unblock_source(String(request.source)) if request.get("source", null) is String else {"ok": false, "error": "source requires text."}
 		"set":
-			result = _bridge.operator_set_setting(String(request.get("setting", "")), request.get("value"))
+			result = _bridge.operator_set_setting(String(request.setting), request.get("value")) if request.get("setting", null) is String else {"ok": false, "error": "setting requires text."}
 		"set_password":
 			if not request.get("password", null) is String:
 				result = {"ok": false, "error": "password requires text."}
 			else:
 				result = _bridge.operator_set_lobby_password(String(request.password))
+		"restart_match":
+			result = _bridge.operator_restart_match()
 		"shutdown":
 			result = {"ok": true, "shutdown": true}
 		_:
@@ -202,10 +213,14 @@ func _execute(request: Dictionary) -> Dictionary:
 	_admin_log("admin_command", {
 		"command": command,
 		"ok": bool(result.get("ok", false)),
-		"peer_id": int(request.get("peer_id", 0)),
-		"setting": String(request.get("setting", "")),
+		"peer_id": int(request.peer_id) if _valid_peer_id(request.get("peer_id")) else 0,
+		"setting": String(request.setting) if request.get("setting", null) is String else "",
 	})
 	return result
+
+
+static func _valid_peer_id(value: Variant) -> bool:
+	return (value is int and value > 1 and value <= 2_147_483_647) or (value is float and is_finite(value) and value > 1.0 and value <= 2_147_483_647.0 and value == floor(value))
 
 
 func _emit_shutdown() -> void:

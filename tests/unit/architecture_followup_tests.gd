@@ -26,46 +26,11 @@ class SlowWriter extends "res://src/server/server_log_writer.gd":
 
 
 static func run(context: TestContext) -> void:
-	_optional_observation(context)
 	_overtime_logging(context)
 	_shared_match_state(context)
 	_presentation_membership(context)
 	_slow_logging(context)
 	_settings_sections(context)
-
-
-static func _optional_observation(context: TestContext) -> void:
-	var worlds: Array[AuthoritativeWorld] = []
-	for enabled in [false, true]:
-		var world := AuthoritativeWorld.new()
-		world.set_silly_mode(enabled)
-		world.add_peer(1)
-		world.add_peer(2)
-		world._record_shield_feedback(1, 2, "perfect_guard")
-		world._resolve_damage_events([{"projectile_id": 1, "attacker_id": 1, "target_id": 2, "damage": 1000.0, "source": "missile"}])
-		worlds.append(world)
-	context.expect_equal(worlds[0].combatants[2].health, worlds[1].combatants[2].health, "optional cues never change authoritative damage")
-	var ordinary := worlds[0].drain_combat_feedback()
-	var enabled := worlds[1].drain_combat_feedback()
-	context.expect_equal(ordinary[1].hit_count, enabled[1].hit_count, "disabled cues preserve ordinary hit feedback")
-	context.expect_equal(ordinary[2].death, enabled[2].death, "disabled cues preserve death attribution")
-	context.expect_true(ordinary[2].guard_count > 0, "disabled cues preserve guard feedback")
-	context.expect_false(ordinary[2].has("silly_cue"), "disabled matches emit no hitless-death cue")
-	context.expect_true(enabled[2].has("silly_cue"), "enabled matches retain cue policy")
-	context.expect_true(worlds[0].silly_observer == null, "disabled worlds allocate no optional observation history")
-	worlds[1].set_silly_mode(false)
-	context.expect_true(worlds[1].silly_observer == null, "disabling releases cue history")
-	worlds[1].set_silly_mode(true)
-	context.expect_empty(worlds[1].silly_observer._silly_recent_damage, "reenabling cannot inherit old cue eligibility")
-	var lobby := ServerLobby.new()
-	lobby.config.silly_mode = true
-	var coordinator := AuthoritativeMatchCoordinator.new(lobby, worlds[0], 5)
-	context.expect_true(worlds[0].silly_observer != null, "match configuration enables the authority observer")
-	lobby.config.silly_mode = false
-	coordinator = AuthoritativeMatchCoordinator.new(lobby, worlds[0], 6)
-	context.expect_true(worlds[0].silly_observer == null, "a subsequent ordinary match disables the previous observer")
-	var records := coordinator._elimination_records([2], [{"killer_id": 1, "target_id": 2, "silly_cue": "nope"}])
-	context.expect_false(records[0].has("silly_cue"), "disabled coordination does not relay optional elimination cues")
 
 
 static func _overtime_logging(context: TestContext) -> void:

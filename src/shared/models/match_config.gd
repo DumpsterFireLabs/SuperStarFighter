@@ -11,7 +11,6 @@ var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SEC
 var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
 var arena_effects: Dictionary = ArenaEffectRules.DEFAULT.duplicate()
 var competitive_view: bool = false
-var silly_mode: bool = false
 var random_spawn_powerups: bool = false
 var random_powerup_interval_seconds: float = 20.0
 var random_powerups_permanent: bool = false
@@ -78,7 +77,6 @@ func duplicate_config() -> MatchConfig:
 	copy.round_result_duration_seconds = round_result_duration_seconds
 	copy.arena_effects = arena_effects.duplicate()
 	copy.competitive_view = competitive_view
-	copy.silly_mode = silly_mode
 	copy.random_spawn_powerups = random_spawn_powerups
 	copy.random_powerup_interval_seconds = random_powerup_interval_seconds
 	copy.random_powerups_permanent = random_powerups_permanent

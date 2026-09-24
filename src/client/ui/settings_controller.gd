@@ -261,10 +261,15 @@ func _on_settings_tab_changed(index: int) -> void:
 
 
 func _create_display_audio_settings_tab() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.name = "DISPLAY & AUDIO"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	settings_tabs.add_child(scroll)
 	var tab := VBoxContainer.new()
-	tab.name = "DISPLAY & AUDIO"
+	tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab.add_theme_constant_override("separation", 14)
-	settings_tabs.add_child(tab)
+	scroll.add_child(tab)
 	var display_title := Label.new()
 	display_title.text = "DISPLAY"
 	display_title.add_theme_font_size_override("font_size", 23)
@@ -320,6 +325,7 @@ func _create_display_audio_settings_tab() -> void:
 	mute_button.custom_minimum_size.y = 48.0
 	mute_button.toggled.connect(audio_director.set_muted)
 	tab.add_child(mute_button)
+
 
 
 func _create_controls_settings_tab() -> void:

@@ -5,12 +5,14 @@ const StandingsScreenControllerScript = preload("res://src/client/ui/standings_s
 
 const SettingsControllerScript = preload("res://src/client/ui/settings_controller.gd")
 const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
+const AdminPanelScript = preload("res://src/client/ui/admin_panel.gd")
 
 var draft_controller := DraftScreenControllerScript.new()
 var standings_controller := StandingsScreenControllerScript.new()
 
 var settings_controller := SettingsControllerScript.new()
 var connection_controller := ConnectionControllerScript.new()
+var admin_panel := AdminPanelScript.new()
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
@@ -105,6 +107,11 @@ func _init() -> void:
 	connection_controller.connection_requested.connect(_prepare_connection)
 	connection_controller.name = "ConnectionController"
 	add_child(connection_controller)
+	connection_controller.lobby.admin_requested.connect(_show_admin)
+	admin_panel.name = "AdminPanelController"
+	add_child(admin_panel)
+	admin_panel.access_changed.connect(func(_unlocked: bool) -> void: standings_controller.invalidate_context())
+	standings_controller.admin_requested.connect(_show_admin)
 
 
 func _ready() -> void:
@@ -123,6 +130,7 @@ func _ready() -> void:
 	bridge.client_match_event_received.connect(_on_match_event)
 	bridge.client_rejected.connect(_on_rejected)
 	bridge.client_connection_lost.connect(_on_connection_lost)
+	admin_panel.configure(bridge)
 	audio_director = AudioDirector.new()
 	audio_director.name = "AudioDirector"
 	add_child(audio_director)
@@ -144,10 +152,12 @@ func _ready() -> void:
 	network_world.presentation_event.connect(_on_world_presentation_event)
 	connection_controller.configure(bridge, interface_theme)
 	connection_controller.create_ui(configuration)
+	admin_panel.create_ui(connection_controller.connection_canvas, interface_theme)
 	settings_controller.register_interface_scope(connection_controller.connection_canvas)
 	settings_controller.register_interface_scope(network_world)
 	settings_controller.register_interface_scope(offline_sandbox)
 	standings_controller.configure(bridge, audio_director, card_catalog, interface_theme, connection_controller.connection_canvas, _standings_context, _scoreboard_available)
+	standings_controller.set_admin_access_provider(admin_panel.is_authenticated)
 	connection_controller.start_discovery()
 	_create_match_ui()
 	_create_pause_overlay()
@@ -189,6 +199,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if (event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"pause_overlay")) and not (event is InputEventKey and event.echo):
+		if admin_panel.is_visible():
+			admin_panel.hide_panel()
+			get_viewport().set_input_as_handled()
+			return
 		if credits_panel != null and credits_panel.visible:
 			_hide_credits()
 			get_viewport().set_input_as_handled()
@@ -361,6 +375,13 @@ func _create_pause_overlay() -> void:
 	settings_button.custom_minimum_size.y = 58.0
 	settings_button.pressed.connect(_show_settings.bind(true))
 	content.add_child(settings_button)
+	var admin_button := Button.new()
+	admin_button.name = "PauseAdminButton"
+	admin_button.text = "Server Admin"
+	admin_button.theme_type_variation = &"SecondaryButton"
+	admin_button.custom_minimum_size.y = 58.0
+	admin_button.pressed.connect(_show_admin)
+	content.add_child(admin_button)
 	pause_disconnect_button = Button.new()
 	pause_disconnect_button.name = "PauseDisconnectButton"
 	pause_disconnect_button.text = "Disconnect / Return to Menu"
@@ -746,6 +767,10 @@ func _toggle_pause_overlay() -> void:
 		offline_sandbox.set_physics_process(not pause_overlay.visible)
 
 
+func _show_admin() -> void:
+	admin_panel.show_panel()
+
+
 func _hide_pause_overlay() -> void:
 	pause_overlay.visible = false
 	network_world.input_blocked = false
@@ -811,6 +836,7 @@ func _play_tutorial() -> void:
 
 
 func _play_offline() -> void:
+	admin_panel.reset_session()
 	bridge.stop()
 	connection_controller.stop_hosting()
 	standings_controller.set_scoreboard_open(false)
@@ -837,6 +863,7 @@ func _disconnect_online(message: String = "Disconnected. Ready to reconnect.") -
 
 
 func _show_connection_screen(message: String, is_error: bool = false) -> void:
+	admin_panel.reset_session()
 	if card_inspector != null:
 		card_inspector.close(false)
 	if f2_return_confirmation != null and f2_return_confirmation.visible:
@@ -890,7 +917,6 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		_update_global_pause_ui()
 	elif event_type == &"COMBAT_FEEDBACK":
 		network_world.apply_combat_feedback(payload)
-
 	elif event_type == &"MINE_DETONATIONS":
 		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
 	elif event_type == &"REQUEST_REJECTED":
@@ -997,7 +1023,7 @@ func _update_pointer_visibility() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_controller.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
+	var interactive_overlay := connection_controller.is_visible() or admin_panel.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()

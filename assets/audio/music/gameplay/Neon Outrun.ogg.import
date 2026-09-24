@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cujqix8qkjlst"
+path="res://.godot/imported/Neon Outrun.ogg-9c22183aba85786f48c9025dd6026346.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/audio/music/gameplay/Neon Outrun.ogg"
+dest_files=["res://.godot/imported/Neon Outrun.ogg-9c22183aba85786f48c9025dd6026346.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

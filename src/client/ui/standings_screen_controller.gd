@@ -6,11 +6,12 @@ const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd"
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const CardDetailsText = preload("res://src/client/ui/card_details_text.gd")
 const StandingsModelScript = preload("res://src/client/presentation/standings_model.gd")
-const RESULTS_ACTION_EXPLANATION: String = "Fresh rematch resets cards, scores and objectives; keeps rules, teams and pilots.\nFive more rounds keeps all builds and scores. Lobby lets everyone change rules and ready up."
+const RESULTS_ACTION_EXPLANATION: String = "The lobby leader or an unlocked admin chooses the next step.\nFresh rematch resets cards, scores and objectives; five more rounds keeps builds and scores."
 
 signal inspection_requested(button: CardHoverButton)
 signal inspection_close_requested
 signal control_prompts_changed
+signal admin_requested
 var bridge: NetworkBridge
 var audio_director: AudioDirector
 var card_catalog: CardCatalog
@@ -20,6 +21,7 @@ var _lobby_state: Dictionary = {}
 var _canvas: CanvasLayer
 var _match_context: Callable
 var _can_open: Callable
+var _admin_access: Callable
 var _context_dirty: bool = true
 
 
@@ -37,6 +39,7 @@ var results_label: Label
 var results_winner_label: Label
 var results_standings_container: VBoxContainer
 var results_rematch_button: Button
+var results_admin_button: Button
 var results_action_note: Label
 var _rematch_requested: bool = false
 var results_extend_button: Button
@@ -55,6 +58,10 @@ func configure(network: NetworkBridge, audio: AudioDirector, catalog: CardCatalo
 	_canvas = canvas
 	_match_context = match_context
 	_can_open = can_open
+
+
+func set_admin_access_provider(provider: Callable) -> void:
+	_admin_access = provider
 
 
 func refresh_context() -> void:
@@ -223,7 +230,7 @@ func create_ui() -> void:
 	results_rematch_button.name = "FreshRematchButton"
 	results_rematch_button.text = "FRESH REMATCH · SAME RULES"
 	results_rematch_button.theme_type_variation = &"PrimaryButton"
-	results_rematch_button.custom_minimum_size = Vector2(330.0, 52.0)
+	results_rematch_button.custom_minimum_size = Vector2(290.0, 52.0)
 	results_rematch_button.add_theme_font_size_override("font_size", 17)
 	results_rematch_button.pressed.connect(_on_results_rematch_pressed)
 	results_actions.add_child(results_rematch_button)
@@ -231,17 +238,24 @@ func create_ui() -> void:
 	results_extend_button.text = "PLAY 5 MORE ROUNDS"
 	results_extend_button.theme_type_variation = &"SecondaryButton"
 	results_extend_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
-	results_extend_button.custom_minimum_size = Vector2(300.0, 52.0)
+	results_extend_button.custom_minimum_size = Vector2(270.0, 52.0)
 	results_extend_button.add_theme_font_size_override("font_size", 19)
 	results_extend_button.pressed.connect(_on_results_extend_pressed)
 	results_actions.add_child(results_extend_button)
 	results_return_button = Button.new()
 	results_return_button.text = "EXIT TO LOBBY"
 	results_return_button.theme_type_variation = &"QuietButton"
-	results_return_button.custom_minimum_size = Vector2(300.0, 52.0)
+	results_return_button.custom_minimum_size = Vector2(230.0, 52.0)
 	results_return_button.add_theme_font_size_override("font_size", 19)
 	results_return_button.pressed.connect(_on_results_return_pressed)
 	results_actions.add_child(results_return_button)
+	results_admin_button = Button.new()
+	results_admin_button.name = "ResultsAdminButton"
+	results_admin_button.text = "ADMIN"
+	results_admin_button.theme_type_variation = &"SecondaryButton"
+	results_admin_button.custom_minimum_size = Vector2(190.0, 52.0)
+	results_admin_button.pressed.connect(admin_requested.emit)
+	results_actions.add_child(results_admin_button)
 
 
 func update_scoreboard() -> void:
@@ -361,13 +375,16 @@ func update_results_screen() -> void:
 	var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 	results_winner_label.text = "★  %s  ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(winner_id).to_upper())
 	var is_leader := bridge.local_peer_id != 0 and bridge.local_peer_id == int(_lobby_state.get("leader_id", 0))
+	var is_admin := _admin_access.is_valid() and bool(_admin_access.call())
+	var can_control := is_leader or is_admin
 	var action_requested := _extend_match_requested or _return_to_lobby_requested or _rematch_requested
 	var can_extend := bool(latest_match_payload.get("can_extend_match", true))
-	results_rematch_button.disabled = not is_leader or not can_extend or action_requested
+	results_rematch_button.disabled = not can_control or not can_extend or action_requested
 	results_rematch_button.text = "STARTING FRESH REMATCH…" if _rematch_requested else "FRESH REMATCH · SAME RULES"
-	results_rematch_button.tooltip_text = "The host starts a new match with the same rules and teams. Every build, score and objective total resets."
-	results_extend_button.disabled = not is_leader or not can_extend or action_requested
-	results_return_button.disabled = not is_leader or action_requested
+	results_rematch_button.tooltip_text = "The lobby leader or an admin starts a new match with the same rules and teams. Every build, score and objective total resets."
+	results_extend_button.disabled = not can_control or not can_extend or action_requested
+	results_return_button.disabled = not can_control or action_requested
+	results_admin_button.text = "ADMIN UNLOCKED" if is_admin else "UNLOCK ADMIN"
 	if _extend_match_requested:
 		results_extend_button.text = "EXTENDING MATCH…"
 		results_extend_button.tooltip_text = "Waiting for server confirmation."
@@ -377,12 +394,12 @@ func update_results_screen() -> void:
 	if _return_to_lobby_requested:
 		results_return_button.text = "RETURNING EVERYONE TO LOBBY…"
 		results_return_button.tooltip_text = "Waiting for server confirmation."
-	elif is_leader:
+	elif can_control:
 		results_return_button.text = "EXIT TO LOBBY"
 		results_return_button.tooltip_text = "Close the final standings and return every connected player to the lobby."
 	else:
-		results_return_button.text = "WAITING FOR LOBBY LEADER"
-		results_return_button.tooltip_text = "The lobby leader controls when everyone leaves the final standings."
+		results_return_button.text = "WAITING FOR LEADER OR ADMIN"
+		results_return_button.tooltip_text = "The lobby leader or an admin controls when everyone leaves the final standings."
 	if not _results_rows_dirty:
 		return
 	_results_rows_dirty = false

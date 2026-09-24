@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$SkipFoundationGate
+)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -56,10 +58,12 @@ if (-not $projectVersionMatch.Success -or $projectVersionMatch.Groups[1].Value -
     throw "Project version must be $expectedGameVersion before producing $releaseLabel."
 }
 
-Write-Host 'Running the complete project gate before export...'
-& (Join-Path $PSScriptRoot 'verify-foundation.ps1')
-if ($LASTEXITCODE -ne 0) {
-    throw "Foundation verification failed with exit code $LASTEXITCODE."
+if (-not $SkipFoundationGate) {
+    Write-Host 'Running the complete project gate before export...'
+    & (Join-Path $PSScriptRoot 'verify-foundation.ps1')
+    if ($LASTEXITCODE -ne 0) {
+        throw "Foundation verification failed with exit code $LASTEXITCODE."
+    }
 }
 
 $godot = Get-SsfGodotExecutable
@@ -67,12 +71,16 @@ New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 Remove-Item -LiteralPath @($clientPath, $archivePath, $smokeLog, $friendReadme, $notices) -Force -ErrorAction SilentlyContinue
 
 Write-Host "Exporting $presetName..."
-$exportOutput = (& $godot --headless --path $SsfRepositoryRoot --export-release $presetName $clientPath 2>&1 | Out-String)
-$exportExitCode = $LASTEXITCODE
-Write-Host $exportOutput.TrimEnd()
-if ($exportExitCode -ne 0) {
-    throw "Windows export failed with exit code $exportExitCode."
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    $exportOutput = (& $godot --headless --path $SsfRepositoryRoot --export-release $presetName $clientPath 2>&1 | Out-String)
+    $exportExitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
 }
+Write-Host $exportOutput.TrimEnd()
+Assert-SsfGodotResult -Output $exportOutput -ExitCode $exportExitCode -Name 'Windows export'
 if (-not (Test-Path -LiteralPath $clientPath -PathType Leaf)) {
     throw "Windows export did not create $clientPath."
 }

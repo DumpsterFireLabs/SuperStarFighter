@@ -42,6 +42,16 @@ class RecordingReplication extends NetworkReplicationScheduler:
 		calls.append(&"feedback")
 
 
+class AdminBridge extends NetworkBridge:
+	var emitted: Array[StringName] = []
+
+	func _broadcast_match_event(event_type: StringName, _payload: Dictionary) -> void:
+		emitted.append(event_type)
+
+	func _drain_match_coordinator() -> void:
+		pass
+
+
 static func run(context: TestContext) -> void:
 	var command_bridge := CommandBridge.new()
 	command_bridge.lobby = ServerLobby.new()
@@ -57,6 +67,7 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(service._owner.get_ref(), null, "command service cannot retain its bridge")
 	_admission_queue(context)
 	_server_health(context)
+	_admin_restart(context)
 	_server_log_batching(context)
 	_server_log_worker(context)
 	var first := NetworkBridge.new()
@@ -104,6 +115,33 @@ static func run(context: TestContext) -> void:
 	_recovery_budget(context)
 	_admission_broadcast_lifetime(context)
 	_session_observations(context)
+
+
+static func _admin_restart(context: TestContext) -> void:
+	var bridge := AdminBridge.new()
+	bridge.session.role = NetworkBridge.Role.SERVER
+	bridge.lobby = ServerLobby.new()
+	bridge.world = AuthoritativeWorld.new()
+	context.expect_false(bridge.operator_restart_match().ok, "admin restart rejects an idle server")
+	bridge.lobby.admit(2, "First")
+	bridge.lobby.admit(3, "Second")
+	bridge.lobby.request_ready(2, true)
+	bridge.lobby.request_ready(3, true)
+	context.expect_true(bridge.lobby.request_start(2).ok, "admin restart fixture starts an active match")
+	for peer_id in [2, 3]:
+		bridge.world.add_peer(peer_id)
+	bridge.match_coordinator = AuthoritativeMatchCoordinator.new(bridge.lobby, bridge.world, 12345)
+	context.expect_true(bridge.match_coordinator.start(0), "admin restart fixture starts its coordinator")
+	var prior := bridge.match_coordinator
+	prior.machine.round_number = 3
+	bridge.world.simulation_paused = true
+	var result := bridge.operator_restart_match()
+	context.expect_true(result.ok, "authenticated operator can restart an active match")
+	context.expect_true(bridge.match_coordinator != prior, "restart replaces the old coordinator")
+	context.expect_equal(bridge.match_coordinator.machine.round_number, 1, "restart begins at round one")
+	context.expect_false(bridge.world.simulation_paused, "restart clears a server pause")
+	context.expect_true(bridge.emitted.has(&"MATCH_START_ACCEPTED"), "restart announces its new match to clients")
+	bridge.free()
 
 
 static func _admission_broadcast_lifetime(context: TestContext) -> void:

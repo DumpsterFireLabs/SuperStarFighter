@@ -146,14 +146,6 @@ func request_competitive_view(sender_id: int, enabled: bool) -> void:
 		_bridge._broadcast_lobby_state()
 
 
-func request_silly_mode(sender_id: int, enabled: bool) -> void:
-	var result := lobby.request_silly_mode(sender_id, enabled)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
 func request_overtime_start(sender_id: int, seconds: float) -> void:
 	var result := lobby.request_overtime_start(sender_id, seconds)
 	if not result.ok:
@@ -218,8 +210,8 @@ func request_rematch(sender_id: int) -> void:
 
 
 func request_return_to_lobby(sender_id: int) -> void:
-	if sender_id != lobby.leader_id:
-		_bridge._send_request_rejected(sender_id, "Only the lobby leader may return the match to the lobby.")
+	if not _bridge.can_control_results(sender_id):
+		_bridge._send_request_rejected(sender_id, "Only the lobby leader or an authenticated admin may return the match to the lobby.")
 		return
 	if match_coordinator == null or not match_coordinator.return_to_lobby():
 		_bridge._send_request_rejected(sender_id, "Return to lobby is only available from the final results screen.")
@@ -231,8 +223,8 @@ func request_return_to_lobby(sender_id: int) -> void:
 
 
 func request_extend_match(sender_id: int) -> void:
-	if sender_id != lobby.leader_id:
-		_bridge._send_request_rejected(sender_id, "Only the lobby leader may extend the match.")
+	if not _bridge.can_control_results(sender_id):
+		_bridge._send_request_rejected(sender_id, "Only the lobby leader or an authenticated admin may extend the match.")
 		return
 	if match_coordinator == null or not match_coordinator.extend_match():
 		_bridge._send_request_rejected(sender_id, "Match extension is only available from final results with at least two competing participants.")

@@ -6,32 +6,6 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var worlds: Array[AuthoritativeWorld] = []
-	for enabled in [false, true]:
-		var world := AuthoritativeWorld.new()
-		world.set_silly_mode(enabled)
-		for peer_id in range(1, 33):
-			var pilot := world.add_peer(peer_id)
-			pilot.health = 14.0
-		worlds.append(world)
-	var samples: Array = [[], []]
-	for tick in range(1, 721):
-		# Alternate execution order to reduce warm-cache bias.
-		for index in [tick % 2, (tick + 1) % 2]:
-			var world := worlds[index]
-			for peer_id in range(1, 33):
-				var direction := Vector2.from_angle(float(peer_id) * 0.73 + float(tick) * 0.005)
-				world.submit_input(peer_id, PlayerInputFrame.new(tick, tick, direction, direction.angle()))
-			var began := Time.get_ticks_usec()
-			world.step(1.0 / 60.0)
-			if tick > 120:
-				samples[index].append(Time.get_ticks_usec() - began)
-	var equivalent := worlds[0].snapshot_states() == worlds[1].snapshot_states()
-	print("SSF_OPTIONAL_OBSERVER_BENCHMARK=" + JSON.stringify({
-		"pilots": 32, "measured_ticks": 600, "gameplay_equivalent": equivalent,
-		"disabled": _summary(samples[0]), "enabled": _summary(samples[1]),
-		"scope": "paired moving ships at low health; no NPC decisions or network/render work",
-	}))
 	var lobby := ServerLobby.new()
 	var world := AuthoritativeWorld.new()
 	for peer_id in range(2, 34):
@@ -59,7 +33,7 @@ func _run() -> void:
 		"previous_full_payload": _summary(full_samples), "current_logger": _summary(small_samples),
 	}))
 	bridge.free()
-	quit(0 if equivalent else 1)
+	quit(0)
 
 
 func _summary(samples: Array) -> Dictionary:

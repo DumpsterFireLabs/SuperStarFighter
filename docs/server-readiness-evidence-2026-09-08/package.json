@@ -1,0 +1,8 @@
+{
+  "zip_sha256": "B7996DCD654E3F9910209730C25FC898F1F6841F9253D84E0E79A4DD235DD07E",
+  "executable_sha256": "56711BAF5BDA0E11FAB20B2E254D4860F1E3F888D97F1F5381CC2E857056A884",
+  "zip_bytes": 39652606,
+  "executable_bytes": 109723088,
+  "zip_executable_matches_tested_binary": true,
+  "zip_entries": 6
+}

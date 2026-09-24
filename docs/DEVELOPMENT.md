@@ -32,7 +32,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
 | Game version | 0.1.0-beta.12 |
-| Protocol version | 41 (binary packets 17) |
+| Protocol version | 43 (binary packets 17) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./REVIEW-2026-09-03.md) |
 
@@ -434,7 +434,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 10 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. Only the Windows x64 Beta 10 package has been built so far; Beta 9 remains the latest Linux and macOS package set. Beta 1 through Beta 9 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 12 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 12 client targets export to `builds/beta-12/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
@@ -481,7 +481,18 @@ Ability presses retain their original identity/slot until the server's private c
 
 `tools/audit-package.py` checks the actual PCK directory, per-entry MD5, allowed resource/remap targets and required content. It supports embedded Windows/Linux packs and a macOS ZIP containing one PCK. Build scripts validate allowlist freshness and attribution inventory, audit packs, and include both engine notice files. Native cross-platform acceptance remains separate. `build-server.ps1` also runs foundation and starts the executable outside the source directory without `--path` or `--server`. The export feature selects dedicated-server mode; stripped test/bot modes are unavailable in shipping builds.
 
-The Windows server uses the official engine template with about 532 KB of game resources; renderer code is not compiled out of the engine binary. `verify-soak.ps1 -ServerExecutable` uses the packaged authority with source-based load clients and records that distinction. Release templates report zero for Godot's debug static-memory monitor; treat this as unavailable, not a zero-memory claim. Representative OS memory measurement remains R25. See [the attribution inventory](./ATTRIBUTION.md) for asset-origin records and unresolved owner confirmations.
+The Windows server uses the official engine template; renderer code is not compiled out of the engine binary. `verify-soak.ps1 -ServerExecutable` uses the packaged authority with source-based load clients and records that distinction. Release templates report zero for Godot's debug static-memory monitor; treat this as unavailable, not a zero-memory claim. The soak also samples server OS private bytes and working set. Representative deployment-hardware acceptance remains separate. See [the attribution inventory](./ATTRIBUTION.md) for asset-origin records and unresolved owner confirmations.
+
+The server package includes `start-server.ps1` and `admin.ps1`. The launcher supports unattended secret files/environment variables, explicit log paths, and the exported process's actual lifetime and exit code. `build-server.ps1` runs `verify-server-operations.ps1` against the package before creating its ZIP. That gate launches outside the checkout with paths containing spaces, requires fresh idle health, authenticates an admin status query and verifies graceful shutdown. Dedicated exports flush logs immediately so release buffering cannot hide readiness or health. Tick records are batched and delivered through a bounded log worker, keeping slow console/file sinks off the simulation thread. Health and admin status expose dropped batches; the soak rejects any output overflow. Shutdown drains the queue.
+
+Health windows use ten seconds of wall time even while idle or paused. Admin `status` returns the latest window, its age and uptime. Alongside callback work, the soak requires at least 57 physics callbacks/second in full windows and no more than 1% of callbacks over 16.67 ms. Its wall-clock deadline prevents a stalled simulation from hanging verification indefinitely. Replication byte rates exclude transport overhead and other control RPCs. To validate a candidate package:
+
+```powershell
+.\tools\verify-server-operations.ps1 -ServerExecutable .\builds\server\SuperStarFighter-Server.exe
+.\tools\verify-soak.ps1 -ClientCount 32 -DurationSeconds 600 -ServerExecutable .\builds\server\SuperStarFighter-Server.exe
+```
+
+See [the dedicated-server runbook](SERVER_README.txt) for launch and administration commands.
 
 
 Ability presses use the same reliable `action_input` RPC as shield transitions (compatibility version 34). Each sampled edge sends immediately, including between ordinary 30 Hz sends. Simultaneous shield/ability edges share one packet. Ordinary input retains the selected ability and press identity until authority acknowledges consumption or the 1.25-second retry deadline. Identity deduplication prevents double spending; newer input supersedes late reliable samples. The retry deadline bounds redundant sampling, not reliable transport latency during an outage. See [network delivery follow-up](NETWORK-DELIVERY-FOLLOWUP-2026-09-04.md) for acceptance evidence.
@@ -499,7 +510,7 @@ The gameplay study accepts `-Section shield` for paired base/multishot, shield/m
 
 Architecture follow-up (17 September 2026): `ClientMain` and `NetworkWorldView` share a `ClientMatchState`; update through its commands rather than mutating a published dictionary. Published observations are recursively read-only and copied on network changes, not per render frame. Presentation owners consume `ClientViewContext` and explicit collaborators/signals. The old convenience properties and forwarding methods live in the test-only `NetworkWorldFixture`. Client projectile storage uses `ProjectileRegistry.presentation_store()` to preserve server membership independently of authority budgets; prediction expiry and complete recovery retire visuals.
 
-Both hosting entry points compose `ServerRuntime`, including the bounded asynchronous log writer and draining shutdown. `SillyCombatObserver` is optional and owns only enabled cue policy/history; normal damage attribution and shield/hit feedback do not depend on it. Overtime logging reads the coordinator's compact observation rather than reconstructing a full match payload.
+Both hosting entry points compose `ServerRuntime`, including the bounded asynchronous log writer and draining shutdown. Overtime logging reads the coordinator's compact observation rather than reconstructing a full match payload.
 
 `src/client/settings_store.gd` owns the shared settings path and guarded read/modify/save operation. Preferences must preserve unrelated sections and return/report persistence failures through that boundary.
 

@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The main screen displays **BETA 10 · VERSION 0.1.0-beta.10** so players can confirm they are using the same build before joining one another.
+The main screen displays **BETA 11 · VERSION 0.1.0-beta.11** so players can confirm they are using the same build before joining one another.
 
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 
@@ -164,8 +164,8 @@ Parameters:
 | `Port` | 1024–65535 | 7000 | ENet gameplay UDP port |
 | `ServerName` | 1–40 printable characters | Super Star Fighter Server | LAN browser name |
 | `PasswordFile` | Readable one-line file | Prompt | Lobby password source for unattended startup |
-| `AdminPort` | 0 or 1024–65535 | 0 | Loopback-only TCP admin listener; 0 disables it |
-| `AdminPasswordFile` | Readable one-line file | Prompt when admin is enabled | Distinct admin credential source |
+| `AdminPort` | 0 or 1024–65535 | 0 | Optional loopback-only TCP command listener; 0 disables only that listener |
+| `AdminPasswordFile` | Readable one-line file | Prompt when AdminPort is set | Distinct admin credential; enables in-game administration even with AdminPort 0 |
 | `BanFile` | Writable file path | Godot user-data `server-bans.json` | Persistent blocked-address list |
 | `MaxPlayers` | 2–32 | 32 | Maximum server/lobby participant capacity |
 | `RoundsToWin` | 1–5 | 3 | Initial lobby round target |
@@ -174,7 +174,9 @@ The dedicated process runs headlessly and prints bounded JSON-line events and me
 
 ### 4.5 Dedicated-server administration
 
-The admin listener accepts connections only on `127.0.0.1`. Do not expose it through a public TCP proxy. For a remote server, tunnel it with SSH (for example, local port `7001` to server loopback port `7001`) and run the commands locally:
+Players connected to a dedicated server can open **Admin** in the lobby or **Server Admin** in the pause menu, enter the separate admin password, and manage that server over the existing game connection. No SSH access, additional port, or server account is required. Supply `-AdminPasswordFile` when launching the server to enable this with the default `-AdminPort 0`.
+
+The optional command-line admin listener accepts connections only on `127.0.0.1`. Do not expose it through a public TCP proxy. To use the command-line tool remotely, tunnel it with SSH (for example, local port `7001` to server loopback port `7001`) and run:
 
 ```powershell
 .\tools\admin.ps1 -Port 7001 -Command status
@@ -183,10 +185,13 @@ The admin listener accepts connections only on `127.0.0.1`. Do not expose it thr
 .\tools\admin.ps1 -Port 7001 -Command unblock -Source 203.0.113.8
 .\tools\admin.ps1 -Port 7001 -Command set -Setting rounds_to_win -Value 5
 .\tools\admin.ps1 -Port 7001 -Command set-password
+.\tools\admin.ps1 -Port 7001 -Command restart-match
 .\tools\admin.ps1 -Port 7001 -Command shutdown
 ```
 
 The tool prompts securely for the admin password unless `-AdminPasswordFile` or the process-scoped `SSF_ADMIN_PASSWORD` variable is present. `status` returns a compact health and lobby summary; `players` includes peer IDs and source addresses for moderation. `ban` immediately removes the selected peer and atomically persists its current source address; `kick` removes it without blocking reconnection. The block list accepts valid IP addresses only and is capped at 4,096 entries. Address blocks are useful but are not account bans: shared NATs can affect multiple players and a player can change addresses. Admin authentication failures are throttled across reconnects, authenticated connections expire after five idle minutes, and inbound and outbound messages are bounded. Repeated authentication failures temporarily lock the loopback endpoint, so do not run automated password guessing against a live server.
+
+The in-game panel shows status and connected players, supports kicks and bans, manages blocked source addresses, changes live settings, restarts an active match, and can shut down the server. **Restart Match** begins at round one and resets scores and builds. After a match ends, the lobby leader or an unlocked admin can choose **Play 5 More Rounds**, **Fresh Rematch**, or **Exit to Lobby**. The final results screen has an **Unlock Admin** button. Closing the admin panel leaves access active for the current connection; **Lock Admin** or disconnecting revokes it. The password itself is not sent in the admin authentication exchange, and each command is signed against replay. ENet gameplay traffic is not encrypted, so a captured exchange can still allow offline password guessing. Use a long random admin password. Changing the lobby password remains available through the local command-line admin tool, not the in-game panel.
 
 The `set` command supports `rounds_to_win`, `player_limit`, `npcs_enabled`, `npc_difficulty` (0–4), `game_mode` (0–4), `team_count`, `random_spawn_powerups`, `random_powerup_interval`, `random_powerups_permanent`, `competitive_view`, `overtime_start`, `server_name`, and `auto_start`. Match-rule changes are rejected during an active match and clear ready states when accepted. Gameplay/admin ports and physical server capacity are restart-only because their sockets and allocation are created at startup. Admin activity is written to the server's JSON-line audit output without passwords or proofs.
 
@@ -206,7 +211,7 @@ UPnP, NAT punch-through, relay hosting, and a public server directory are not im
 
 ## 5. Lobby Manual
 
-The first admitted human is the lobby leader. If that player disconnects, leadership passes to the earliest remaining human. NPCs never become leader.
+The first admitted human is the lobby leader and may configure and start the match while no admin is unlocked. When a player enters the admin password, leadership transfers to the earliest joined unlocked admin; the previous leader's setup controls become read-only. If that admin locks access or disconnects, leadership passes to another unlocked admin, or to the earliest remaining human when none are unlocked. NPCs never become leader.
 
 ### Every human player
 

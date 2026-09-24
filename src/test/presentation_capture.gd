@@ -365,7 +365,7 @@ func _capture_sequence() -> void:
 		5: {&"inertial_dampers": 2, &"hollow_points": 9},
 	}})
 	client.audio_director.gameplay_track_paths.clear()
-	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Edge.ogg")
+	client.audio_director.gameplay_track_paths.append("res://assets/audio/music/gameplay/Zenith Run.ogg")
 	client.audio_director.current_gameplay_track = 0
 	client.audio_director.current_context = &"gameplay"
 	client.standings_controller.set_scoreboard_open(true)

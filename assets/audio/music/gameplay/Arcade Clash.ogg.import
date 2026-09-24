@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bo5k1kmq0f2is"
+path="res://.godot/imported/Arcade Clash.ogg-a58c83042561bdcbfc0647e872499b43.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/audio/music/gameplay/Arcade Clash.ogg"
+dest_files=["res://.godot/imported/Arcade Clash.ogg-a58c83042561bdcbfc0647e872499b43.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

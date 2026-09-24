@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bsp7bs3iso6d0"
+path="res://.godot/imported/Arcade Drive.ogg-4060bbb48710d391aaac69a3452719fe.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/audio/music/gameplay/Arcade Drive.ogg"
+dest_files=["res://.godot/imported/Arcade Drive.ogg-4060bbb48710d391aaac69a3452719fe.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

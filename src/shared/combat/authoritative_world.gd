@@ -5,7 +5,6 @@ const ProjectileSimulation = preload("res://src/shared/combat/projectile_simulat
 
 const CombatSpatialIndexScript = preload("res://src/shared/combat/combat_spatial_index.gd")
 const CombatFeedbackBufferScript = preload("res://src/shared/combat/combat_feedback_buffer.gd")
-const SillyCombatObserverScript = preload("res://src/shared/combat/silly_combat_observer.gd")
 
 var server_tick: int = 0
 var simulation_paused: bool = false
@@ -26,9 +25,6 @@ var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
-var heat_damaged_peers: Dictionary:
-	get: return silly_observer.heat_damaged_peers if silly_observer != null else {}
-var silly_observer: SillyCombatObserverScript
 var _kills_since_drain: Array[Dictionary] = []
 var combat_contact_serial: int = 0
 var combat_hull_damage: float = 0.0
@@ -68,8 +64,6 @@ func add_peer(peer_id: int, stats: CombatStats = null) -> CombatantState:
 
 func remove_peer(peer_id: int) -> void:
 	_combat_feedback.forget_peer(peer_id)
-	if silly_observer != null:
-		silly_observer.forget_peer(peer_id)
 	projectile_registry.forget_owner_metrics(peer_id)
 	combatants.erase(peer_id)
 	_ordered_peer_ids_dirty = true
@@ -133,17 +127,12 @@ func step(
 			if float(input_ages[peer_id]) > float(input_timeouts[peer_id]):
 				frame = PlayerInputFrame.new(frame.sequence, server_tick, Vector2.ZERO, frame.aim_angle)
 				latest_inputs[peer_id] = frame
-		var was_cloaked := silly_observer != null and combatant.is_cloaked()
 		var actions := ArenaMovementSystem.step_input_with_fields(combatant, frame, delta, movement_fields)
-		if was_cloaked and not combatant.is_cloaked():
-			silly_observer.record_uncloaked(peer_id, server_tick, combatant.life_generation)
 		if actions & CombatantState.ACTION_MINE:
 			_spawn_mine(combatant)
 		if actions & CombatantState.ACTION_MISSILE:
 			_spawn_missile(combatant)
 		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id, arena_effects.hidden_cover)
-		if silly_observer != null:
-			silly_observer.observe_silly_wall_collision(self, combatant, motion.velocity)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
 		if actions & CombatantState.ACTION_SHOT:
@@ -156,9 +145,6 @@ func step(
 	_resolve_kinetic_vents(peer_ids)
 	var overlaps_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	_step_projectiles(delta, peer_ids)
-	if silly_observer != null and server_tick % 6 == 0:
-		silly_observer.observe_silly_danger(self, peer_ids)
-		silly_observer.observe_silly_pursuit(self, peer_ids)
 	var projectiles_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for projectile_id in projectile_registry.step_cleanup(delta):
 		_record_removed(projectile_id)
@@ -182,8 +168,6 @@ func prepare_heat(
 ) -> void:
 	clear_projectiles()
 	_ram_contact_ticks.clear()
-	if silly_observer != null:
-		silly_observer.reset()
 	_kills_since_drain.clear()
 	_combat_feedback.clear()
 	_mine_detonations.clear()
@@ -211,8 +195,6 @@ func prepare_heat(
 
 
 func reset_match_inventories() -> void:
-	if silly_observer != null:
-		silly_observer.reset()
 	clear_projectiles()
 	for combatant_value in combatants.values():
 		(combatant_value as CombatantState).reset_match_inventory()
@@ -552,9 +534,6 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				overlap_found = true
 				var fallback_angle := float(posmod(left.peer_id * 31 + right.peer_id * 17, 360)) * PI / 180.0
 				var normal := difference / distance if distance > 0.001 else Vector2.from_angle(fallback_angle)
-				if silly_observer != null:
-					silly_observer.record_silly_contact(self, left, right, normal)
-					silly_observer.record_silly_contact(self, right, left, -normal)
 				_append_ram_damage(left, right, normal, ram_damage_events)
 				_append_ram_damage(right, left, -normal, ram_damage_events)
 				_separate_ship_pair(left, right, normal, minimum_distance)
@@ -824,13 +803,9 @@ func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileS
 func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 	var deaths: Array[int] = []
 	var impacts := DamageResolver.resolve_tick_with_feedback(combatants, damage_events)
-	if silly_observer != null:
-		silly_observer.observe_hits(self, impacts)
 	for impact in impacts:
 		var target_id := int(impact.target_id)
 		var killer_id := int(impact.attacker_id)
-		if silly_observer != null:
-			silly_observer.observe_impact(self, impact)
 		if killer_id != target_id and combatants.has(killer_id):
 			combat_contact_serial += 1
 			combat_hull_damage += float(impact.damage)
@@ -847,9 +822,6 @@ func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 			var kill := {"killer_id": killer_id, "target_id": target_id}
 			if String(impact.mechanic) == "ram_contact":
 				kill["mechanic"] = "ram_contact"
-			var cue := silly_observer.silly_kill_cue(self, killer_id, target_id, impact) if silly_observer != null else ""
-			if not cue.is_empty():
-				kill["silly_cue"] = cue
 			_kills_since_drain.append(kill)
 	return deaths
 
@@ -857,8 +829,6 @@ func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 func _record_shield_feedback(attacker_id: int, defender_id: int, reason: String) -> void:
 	if attacker_id != defender_id and combatants.has(attacker_id):
 		combat_contact_serial += 1
-	if silly_observer != null and reason == "perfect_guard" and attacker_id != defender_id and combatants.has(attacker_id):
-		silly_observer.record_perfect_block(self, defender_id, attacker_id)
 	_combat_feedback.record_block(attacker_id if combatants.has(attacker_id) else 0, defender_id, reason)
 
 
@@ -927,18 +897,6 @@ static func _segment_circle_hit_fraction(
 		return -1.0
 	var fraction := (-b - sqrt(discriminant)) / (2.0 * a)
 	return fraction if fraction >= 0.0 and fraction <= 1.0 else -1.0
-
-
-func set_silly_mode(enabled: bool) -> void:
-	if enabled and silly_observer == null:
-		silly_observer = preload("res://src/shared/combat/silly_combat_observer.gd").new()
-	elif not enabled:
-		silly_observer = null
-
-
-func observe_silly_pickup(peer_id: int, position: Vector2) -> void:
-	if silly_observer != null:
-		silly_observer.observe_silly_pickup(self, peer_id, position)
 
 
 func _refresh_effect_geometry() -> void:

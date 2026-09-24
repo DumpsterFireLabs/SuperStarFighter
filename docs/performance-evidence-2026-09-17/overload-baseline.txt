@@ -1,0 +1,10 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2582)
+SSF_COLLISION_PROFILE map=core_arena phases={"damage_resolution":15.9333333333333,"guidance":0.0,"hit_resolution":59.0583333333333,"mine_setup":6.775,"mine_sweep":0.0,"obstacle_sweep":3197.65833333333,"ship_candidates":414.341666666667,"ship_sweep":2862.99166666667,"sweep_count":1046.06666666667}
+SSF_PERFORMANCE_RESULT p50_usec=14402 p95_usec=15298 p99_usec=17580 max_usec=21863 projectiles=1024 npcs=32
+SSF_PERFORMANCE_PHASES npc=2232 movement=463 overlaps=360 projectiles=9699 cleanup_and_threats=1515
+SSF_PERFORMANCE_PHASE_TAILS {"cleanup_and_threats":{"max_usec":1765,"p95_usec":1630,"p99_usec":1735},"movement":{"max_usec":830,"p95_usec":533,"p99_usec":561},"npc":{"max_usec":5240,"p95_usec":2978,"p99_usec":3109},"overlaps":{"max_usec":629,"p95_usec":397,"p99_usec":570},"projectiles":{"max_usec":13495,"p95_usec":10240,"p99_usec":12336}}
+SSF_PERFORMANCE_SCOPE samples=120 warmup=20 includes=npc_and_authoritative_world excludes=refill_replication_client_render
+SSF_MINE_PERFORMANCE_RESULT p50_usec=8815 p95_usec=9570 p99_usec=10198 max_usec=11950 mines=512 projectiles=1024

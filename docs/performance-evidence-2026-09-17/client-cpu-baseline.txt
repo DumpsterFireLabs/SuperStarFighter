@@ -1,0 +1,5 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2582)
+SSF_CLIENT_PRESENTATION_BENCHMARK={"measured_batches":300,"scope":"300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering.","ships":32,"shot_batch_p50_usec":1035,"shot_batch_p95_usec":1105,"shot_events":10880,"snapshot_p50_usec":855,"snapshot_p95_usec":967}

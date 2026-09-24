@@ -20,6 +20,28 @@ static func run(context: TestContext, parent: Node) -> void:
 	var client = (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()
 	parent.add_child(client)
 	client._dismiss_splash(true)
+	context.expect_true(client.connection_controller.connection_primary_button != null, "admin UI preserves main menu controls")
+	context.expect_true(client.connection_controller.connection_canvas.find_child("LobbyAdminButton", true, false) != null, "online lobby exposes admin access")
+	context.expect_true(client.pause_overlay.find_child("PauseAdminButton", true, false) != null, "pilot menu exposes admin access")
+	client.bridge.session.role = NetworkBridge.Role.CLIENT
+	client.bridge.session.local_peer_id = 2
+	client.admin_panel.show_panel()
+	context.expect_true(client.admin_panel.is_visible() and client.admin_panel.blocker.visible, "admin panel blocks the underlying menu")
+	client.admin_panel.password_field.text = "temporary-admin-secret"
+	client.admin_panel.hide_panel()
+	context.expect_false(client.admin_panel.is_visible(), "closing admin panel hides it")
+	context.expect_equal(client.admin_panel.password_field.text, "", "closing admin panel clears its credential field")
+	context.expect_true(client.standings_controller.results_admin_button != null, "final results expose the admin unlock panel")
+	client.standings_controller.results_admin_button.pressed.emit()
+	context.expect_true(client.admin_panel.is_visible(), "final results admin button opens password entry")
+	client.admin_panel._authenticated = true
+	client.admin_panel.hide_panel()
+	context.expect_true(client.admin_panel.is_authenticated(), "closing the panel keeps admin access for results controls")
+	client.bridge.session.role = NetworkBridge.Role.NONE
+	client.admin_panel.reset_session()
+	context.expect_false(client.admin_panel.is_authenticated(), "disconnecting clears admin access")
+	client.bridge.session.role = NetworkBridge.Role.NONE
+	client.bridge.session.local_peer_id = 0
 	_global_pause_shortcut(context, client)
 	context.expect_equal(_heading_count(client.connection_controller.connection_canvas, "SCOREBOARD"), 1, "five draft cards construct only one scoreboard surface")
 	context.expect_equal(_heading_count(client.connection_controller.connection_canvas, "✦  MATCH COMPLETE  ✦"), 1, "five draft cards construct only one results overlay")
@@ -182,6 +204,8 @@ static func _independent_controllers(context: TestContext, parent: Node) -> void
 	standings.inspection_requested.connect(func(_button: CardHoverButton) -> void: events.inspected += 1)
 	standings.inspection_close_requested.connect(func() -> void: events.inspection_closed += 1)
 	standings.create_ui()
+	var admin_rights := {"unlocked": false}
+	standings.set_admin_access_provider(func() -> bool: return bool(admin_rights.unlocked))
 	standings.update_results_screen()
 	context.expect_equal(events.observations, 1, "standings takes one match observation for the whole refresh")
 	standings.update_results_screen()
@@ -199,6 +223,14 @@ static func _independent_controllers(context: TestContext, parent: Node) -> void
 	context.expect_true(standings.results_rematch_button.disabled, "standings refresh revokes actions after leadership changes")
 	standings._on_results_rematch_pressed()
 	context.expect_equal(bridge.rematches, 0, "guest cannot submit a disabled result action")
+	admin_rights.unlocked = true
+	standings.update_results_screen()
+	context.expect_false(standings.results_extend_button.disabled, "authenticated admin can add rounds after final results")
+	context.expect_false(standings.results_return_button.disabled, "authenticated admin can return players to lobby after final results")
+	context.expect_false(standings.results_rematch_button.disabled, "authenticated admin can start a fresh rematch")
+	admin_rights.unlocked = false
+	standings.update_results_screen()
+	context.expect_true(standings.results_extend_button.disabled and standings.results_return_button.disabled, "locking admin removes final-results controls from a guest")
 	bridge.session.latest_lobby_state = {"leader_id": 2, "players": []}
 	standings.invalidate_context()
 	standings.update_results_screen()

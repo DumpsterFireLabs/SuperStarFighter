@@ -19,18 +19,6 @@ func forget_peer(peer_id: int) -> void:
 	_pending.erase(peer_id)
 
 
-func record_silly_cue(peer_id: int, cue: String) -> void:
-	var feedback := _for_peer(peer_id)
-	if not feedback.is_empty() and _silly_cue_priority(cue) >= _silly_cue_priority(String(feedback.get("silly_cue", ""))):
-		feedback["silly_cue"] = cue
-
-
-static func _silly_cue_priority(cue: String) -> int:
-	return int({"it_was_at_this_moment": 30, "sad_trombone": 25, "yoink": 15,
-		"why_are_you_running": 15, "im_in_danger": 10, "record_scratch": 8,
-		"bonk": 2}.get(cue, 1 if not cue.is_empty() else 0))
-
-
 func record_hit(peer_id: int, damage: float, source: String) -> void:
 	var feedback := _for_peer(peer_id)
 	if feedback.is_empty():

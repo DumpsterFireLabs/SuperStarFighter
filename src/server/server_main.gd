@@ -11,6 +11,7 @@ var runtime := ServerRuntime.new()
 func _ready() -> void:
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	bridge = runtime.attach(self)
+	bridge.operator_shutdown_requested.connect(_on_admin_shutdown_requested)
 	var error := bridge.start_server(configuration)
 	if error != OK:
 		push_error(bridge.last_error)

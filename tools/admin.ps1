@@ -2,13 +2,16 @@ param(
     [ValidateRange(1024, 65535)]
     [int]$Port = 7001,
     [Parameter(Mandatory)]
-    [ValidateSet('status', 'players', 'kick', 'ban', 'block', 'unblock', 'set', 'set-password', 'shutdown')]
+    [ValidateSet('status', 'players', 'kick', 'ban', 'block', 'unblock', 'set', 'set-password', 'restart-match', 'shutdown')]
     [string]$Command,
     [int]$PeerId = 0,
     [string]$Source,
     [string]$Setting,
     [string]$Value,
-    [string]$AdminPasswordFile
+    [string]$AdminPasswordFile,
+    [ValidateRange(1, 60)]
+    [int]$TimeoutSeconds = 5,
+    [switch]$NonInteractive
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,6 +25,7 @@ function Read-SecretText {
     if (-not [string]::IsNullOrEmpty($environmentValue)) {
         return $environmentValue
     }
+    if ($NonInteractive) { throw "Unattended administration requires a secret file or $EnvironmentName." }
     $secureValue = Read-Host $Prompt -AsSecureString
     $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
     try {
@@ -49,8 +53,11 @@ $client = [Net.Sockets.TcpClient]::new()
 $reader = $null
 $writer = $null
 try {
-    $client.Connect('127.0.0.1', $Port)
+    $connection = $client.ConnectAsync('127.0.0.1', $Port)
+    if (-not $connection.Wait($TimeoutSeconds * 1000)) { throw 'Admin connection timed out.' }
     $stream = $client.GetStream()
+    $stream.ReadTimeout = $TimeoutSeconds * 1000
+    $stream.WriteTimeout = $TimeoutSeconds * 1000
     $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8, $false, 4096, $true)
     $writer = [IO.StreamWriter]::new($stream, [Text.UTF8Encoding]::new($false), 4096, $true)
     $writer.AutoFlush = $true
@@ -104,3 +111,4 @@ finally {
     if ($null -ne $writer) { $writer.Dispose() }
     $client.Dispose()
 }
+exit 0

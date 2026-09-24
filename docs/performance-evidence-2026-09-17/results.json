@@ -1,0 +1,606 @@
+{
+  "probe.txt": [
+    {
+      "marker": "PERF_REVIEW_MACHINE",
+      "data": {
+        "cpu": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+        "godot": "4.7.2-stable (official)",
+        "logical_cpus": 16
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_PROFILING",
+      "data": {
+        "disabled": {
+          "max_usec": 22930,
+          "mean_usec": 13324.8,
+          "p50_usec": 13568,
+          "p95_usec": 14593,
+          "samples": 360
+        },
+        "enabled": {
+          "max_usec": 20073,
+          "mean_usec": 14470.6083333333,
+          "p50_usec": 14664,
+          "p95_usec": 15946,
+          "samples": 360
+        },
+        "scope": "32 NPC/1024 projectile overload; alternating order; 40 warmup and 120 measured ticks per trial; excludes refill/replication/render",
+        "ship_snapshots_equal_every_tick": true,
+        "trials": 3
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_STATE",
+      "data": {
+        "cards_each": 16,
+        "full_copy": {
+          "max_usec": 797,
+          "mean_usec": 434.455,
+          "p50_usec": 402,
+          "p95_usec": 695,
+          "samples": 600
+        },
+        "payload_bytes": 26944,
+        "players": 32,
+        "scope": "one objective-field update; same values, detached incoming fields, immutable old observations; no UI signal consumers",
+        "structural_sharing_prototype": {
+          "max_usec": 48,
+          "mean_usec": 13.0466666666667,
+          "p50_usec": 12,
+          "p95_usec": 21,
+          "samples": 600
+        }
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_GEOMETRY",
+      "data": {
+        "hits_equal": true,
+        "lookup_per_sweep": {
+          "max_usec": 6656,
+          "mean_usec": 5776.11666666667,
+          "p50_usec": 5720,
+          "p95_usec": 6205,
+          "samples": 60
+        },
+        "reuse_geometry": {
+          "max_usec": 3772,
+          "mean_usec": 2844.98333333333,
+          "p50_usec": 2791,
+          "p95_usec": 3017,
+          "samples": 60
+        },
+        "scope": "1024 fixed 20px sweeps per sample, default map and radius7; warm geometry cache; alternating order; no rendering"
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_REPLICATION",
+      "data": {
+        "full_recovery_tick": {
+          "max_usec": 7270,
+          "mean_usec": 6003.1,
+          "p50_usec": 5491,
+          "p95_usec": 7270,
+          "samples": 10
+        },
+        "humans": 1,
+        "payload_bytes_per_second_total": 61124.0,
+        "per_tick": {
+          "max_usec": 7270,
+          "mean_usec": 253.311666666667,
+          "p50_usec": 4,
+          "p95_usec": 1003,
+          "samples": 600
+        },
+        "scope": "32 ships/1024 stable projectiles; codec and scheduler only, no RPC/socket/transport; 600 measured ticks after60 warmup"
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_REPLICATION",
+      "data": {
+        "full_recovery_tick": {
+          "max_usec": 7002,
+          "mean_usec": 6430.2,
+          "p50_usec": 6348,
+          "p95_usec": 7002,
+          "samples": 10
+        },
+        "humans": 16,
+        "payload_bytes_per_second_total": 977984.0,
+        "per_tick": {
+          "max_usec": 7002,
+          "mean_usec": 517.311666666667,
+          "p50_usec": 4,
+          "p95_usec": 1825,
+          "samples": 600
+        },
+        "scope": "32 ships/1024 stable projectiles; codec and scheduler only, no RPC/socket/transport; 600 measured ticks after60 warmup"
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_REPLICATION",
+      "data": {
+        "full_recovery_tick": {
+          "max_usec": 10458,
+          "mean_usec": 7752.1,
+          "p50_usec": 7319,
+          "p95_usec": 10458,
+          "samples": 10
+        },
+        "humans": 32,
+        "payload_bytes_per_second_total": 1955968.0,
+        "per_tick": {
+          "max_usec": 10458,
+          "mean_usec": 856.006666666667,
+          "p50_usec": 4,
+          "p95_usec": 2836,
+          "samples": 600
+        },
+        "scope": "32 ships/1024 stable projectiles; codec and scheduler only, no RPC/socket/transport; 600 measured ticks after60 warmup"
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_CODEC",
+      "data": {
+        "byte_identical": true,
+        "current": {
+          "max_usec": 5906,
+          "mean_usec": 4761.725,
+          "p50_usec": 4701,
+          "p95_usec": 5274,
+          "samples": 120
+        },
+        "presized_native_writes_prototype": {
+          "max_usec": 2467,
+          "mean_usec": 1822.35,
+          "p50_usec": 1802,
+          "p95_usec": 1931,
+          "samples": 120
+        },
+        "scope": "1024 projectile full recovery, 120 paired alternating samples; plus mixed flag/clamp/wrap vectors; no transport"
+      }
+    },
+    {
+      "marker": "PERF_REVIEW_COMBINED",
+      "data": {
+        "full_recovery_tick": {
+          "max_usec": 17839,
+          "mean_usec": 17370.5,
+          "p50_usec": 17502,
+          "p95_usec": 17839,
+          "samples": 6
+        },
+        "per_tick": {
+          "max_usec": 17839,
+          "mean_usec": 10721.175,
+          "p50_usec": 9905,
+          "p95_usec": 13003,
+          "samples": 360
+        },
+        "scope": "32 stationary humans/1024 moving projectiles; real world plus scheduler, profiling disabled; excludes refill, inputs, coordinator, RPC and client; first recovery at tick12 then every60",
+        "ticks_over_16_667_usec": 6
+      }
+    }
+  ],
+  "frame-pacing.txt": [
+    {
+      "marker": "SSF_FRAME_CONTROL",
+      "data": {
+        "draw_p95_usec": 17252,
+        "driver": "opengl3",
+        "frame_cap": 0,
+        "low_processor": false,
+        "p50_usec": 17241,
+        "p95_usec": 17318,
+        "pacing": {
+          "budget_usec": 17241.3793103448,
+          "expected_fps": 58.0,
+          "late_frames": 4,
+          "late_percent": 1.00250626566416,
+          "late_threshold_usec": 18241.3793103448,
+          "longest_late_streak": 1,
+          "max_usec": 19700,
+          "severe_frames": 0,
+          "severe_threshold_usec": 25862.0689655172
+        },
+        "refresh_hz": 59.9770011901855,
+        "samples": 399,
+        "scope": "Empty viewport, 7 measured seconds after 1s warmup; no gameplay, audio, physics actors or network. Draw includes presentation wait; not physical display latency.",
+        "viewport": "(1920, 1080)",
+        "vsync_mode": 0,
+        "window_mode": 0
+      }
+    },
+    {
+      "marker": "SSF_LIVE_RENDER_RESULT",
+      "data": {
+        "client_operations": {
+          "hud": {
+            "calls": 2101,
+            "max_usec": 458,
+            "p95_usec": 74,
+            "total_usec": 138821
+          },
+          "local_prediction": {
+            "calls": 2101,
+            "max_usec": 249,
+            "p95_usec": 111,
+            "total_usec": 129016
+          },
+          "local_reconciliation": {
+            "calls": 701,
+            "max_usec": 338,
+            "p95_usec": 103,
+            "total_usec": 54579
+          },
+          "projectile_motion": {
+            "calls": 2101,
+            "max_usec": 1450,
+            "p95_usec": 469,
+            "total_usec": 497156
+          },
+          "remote_motion": {
+            "calls": 2101,
+            "max_usec": 1244,
+            "p95_usec": 768,
+            "total_usec": 771304
+          },
+          "ship_identity": {
+            "calls": 22432,
+            "max_usec": 86,
+            "p95_usec": 11,
+            "total_usec": 157670
+          },
+          "ship_resources": {
+            "calls": 22432,
+            "max_usec": 388,
+            "p95_usec": 12,
+            "total_usec": 180986
+          }
+        },
+        "client_physics_p95_usec": 1427,
+        "client_snapshot_p95_usec": 1411,
+        "draw_calls_p95": 474,
+        "duration_seconds": 45.0,
+        "engine_physics_p95_usec": 13923,
+        "engine_process_p95_usec": 20390,
+        "frame_cap": 0,
+        "hide_world": false,
+        "over_16ms_percent": 98.6993496748374,
+        "p50_usec": 17242,
+        "p95_usec": 18884,
+        "p99_usec": 25695,
+        "pacing": {
+          "budget_usec": 17241.3793103448,
+          "expected_fps": 58.0,
+          "late_frames": 119,
+          "late_percent": 5.95297648824412,
+          "late_threshold_usec": 18241.3793103448,
+          "longest_late_streak": 3,
+          "max_usec": 33484,
+          "severe_frames": 18,
+          "severe_threshold_usec": 25862.0689655172
+        },
+        "peak_projectiles": 62,
+        "peak_ships": 32,
+        "pre_to_post_draw_p95_usec": 15388,
+        "samples": 1999,
+        "scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process ENet server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles.",
+        "snapshots": 898,
+        "viewport": "(1920, 1080)",
+        "vsync_mode": 0
+      }
+    }
+  ],
+  "live-hidden.txt": [
+    {
+      "marker": "SSF_LIVE_RENDER_RESULT",
+      "data": {
+        "client_operations": {
+          "hud": {
+            "calls": 2101,
+            "max_usec": 5957,
+            "p95_usec": 75,
+            "total_usec": 148506
+          },
+          "local_prediction": {
+            "calls": 2101,
+            "max_usec": 212,
+            "p95_usec": 106,
+            "total_usec": 125581
+          },
+          "local_reconciliation": {
+            "calls": 700,
+            "max_usec": 155,
+            "p95_usec": 100,
+            "total_usec": 52060
+          },
+          "projectile_motion": {
+            "calls": 2101,
+            "max_usec": 776,
+            "p95_usec": 467,
+            "total_usec": 444119
+          },
+          "remote_motion": {
+            "calls": 2101,
+            "max_usec": 1208,
+            "p95_usec": 745,
+            "total_usec": 660962
+          },
+          "ship_identity": {
+            "calls": 22400,
+            "max_usec": 206,
+            "p95_usec": 11,
+            "total_usec": 158880
+          },
+          "ship_resources": {
+            "calls": 22400,
+            "max_usec": 415,
+            "p95_usec": 13,
+            "total_usec": 178018
+          }
+        },
+        "client_physics_p95_usec": 1398,
+        "client_snapshot_p95_usec": 1448,
+        "draw_calls_p95": 13,
+        "duration_seconds": 45.0,
+        "engine_physics_p95_usec": 7276,
+        "engine_process_p95_usec": 22375,
+        "frame_cap": 0,
+        "hide_world": true,
+        "over_16ms_percent": 99.0645002461842,
+        "p50_usec": 17241,
+        "p95_usec": 17367,
+        "p99_usec": 17883,
+        "pacing": {
+          "budget_usec": 17241.3793103448,
+          "expected_fps": 58.0,
+          "late_frames": 6,
+          "late_percent": 0.295420974889217,
+          "late_threshold_usec": 18241.3793103448,
+          "longest_late_streak": 1,
+          "max_usec": 32174,
+          "severe_frames": 1,
+          "severe_threshold_usec": 25862.0689655172
+        },
+        "peak_projectiles": 68,
+        "peak_ships": 32,
+        "pre_to_post_draw_p95_usec": 16046,
+        "samples": 2031,
+        "scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process ENet server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles.",
+        "snapshots": 897,
+        "viewport": "(1920, 1080)",
+        "vsync_mode": 0
+      }
+    }
+  ],
+  "live-profile.txt": [
+    {
+      "marker": "SSF_LIVE_RENDER_RESULT",
+      "data": {
+        "client_operations": {
+          "hud": {
+            "calls": 2101,
+            "max_usec": 1000,
+            "p95_usec": 75,
+            "total_usec": 139890
+          },
+          "local_prediction": {
+            "calls": 2101,
+            "max_usec": 254,
+            "p95_usec": 116,
+            "total_usec": 130268
+          },
+          "local_reconciliation": {
+            "calls": 693,
+            "max_usec": 185,
+            "p95_usec": 108,
+            "total_usec": 55345
+          },
+          "projectile_motion": {
+            "calls": 2101,
+            "max_usec": 826,
+            "p95_usec": 475,
+            "total_usec": 500630
+          },
+          "remote_motion": {
+            "calls": 2101,
+            "max_usec": 1349,
+            "p95_usec": 773,
+            "total_usec": 776294
+          },
+          "ship_draw_cpu": {
+            "calls": 46152,
+            "max_usec": 1128,
+            "p95_usec": 169,
+            "total_usec": 4974492
+          },
+          "ship_nameplate_cpu": {
+            "calls": 46152,
+            "max_usec": 142,
+            "p95_usec": 12,
+            "total_usec": 119381
+          },
+          "ship_pattern_cpu": {
+            "calls": 42968,
+            "max_usec": 558,
+            "p95_usec": 61,
+            "total_usec": 2030835
+          },
+          "ship_process_cpu": {
+            "calls": 63584,
+            "max_usec": 365,
+            "p95_usec": 9,
+            "total_usec": 321053
+          },
+          "ship_resources": {
+            "calls": 22176,
+            "max_usec": 454,
+            "p95_usec": 12,
+            "total_usec": 179966
+          },
+          "ship_thruster_cpu": {
+            "calls": 63584,
+            "max_usec": 242,
+            "p95_usec": 5,
+            "total_usec": 152311
+          }
+        },
+        "client_physics_p95_usec": 1447,
+        "client_snapshot_p95_usec": 1413,
+        "draw_calls_p95": 472,
+        "duration_seconds": 45.0,
+        "engine_physics_p95_usec": 13828,
+        "engine_process_p95_usec": 24702,
+        "frame_cap": 0,
+        "hide_world": false,
+        "over_16ms_percent": 98.1388329979879,
+        "p50_usec": 17243,
+        "p95_usec": 19620,
+        "p99_usec": 27826,
+        "pacing": {
+          "budget_usec": 17241.3793103448,
+          "expected_fps": 58.0,
+          "late_frames": 156,
+          "late_percent": 7.84708249496982,
+          "late_threshold_usec": 18241.3793103448,
+          "longest_late_streak": 5,
+          "max_usec": 35210,
+          "severe_frames": 34,
+          "severe_threshold_usec": 25862.0689655172
+        },
+        "peak_projectiles": 64,
+        "peak_ships": 32,
+        "pre_to_post_draw_p95_usec": 15315,
+        "samples": 1988,
+        "scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process ENet server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles.",
+        "snapshots": 890,
+        "viewport": "(1920, 1080)",
+        "vsync_mode": 0
+      }
+    }
+  ],
+  "live-transform.txt": [
+    {
+      "marker": "SSF_LIVE_RENDER_RESULT",
+      "data": {
+        "client_operations": {
+          "hud": {
+            "calls": 2102,
+            "max_usec": 639,
+            "p95_usec": 75,
+            "total_usec": 143295
+          },
+          "local_prediction": {
+            "calls": 2102,
+            "max_usec": 397,
+            "p95_usec": 106,
+            "total_usec": 127417
+          },
+          "local_reconciliation": {
+            "calls": 689,
+            "max_usec": 181,
+            "p95_usec": 113,
+            "total_usec": 54862
+          },
+          "projectile_motion": {
+            "calls": 2102,
+            "max_usec": 1216,
+            "p95_usec": 390,
+            "total_usec": 414134
+          },
+          "remote_motion": {
+            "calls": 2102,
+            "max_usec": 1148,
+            "p95_usec": 738,
+            "total_usec": 699625
+          },
+          "ship_draw_cpu": {
+            "calls": 40360,
+            "max_usec": 1034,
+            "p95_usec": 170,
+            "total_usec": 3956397
+          },
+          "ship_nameplate_cpu": {
+            "calls": 40360,
+            "max_usec": 217,
+            "p95_usec": 14,
+            "total_usec": 111523
+          },
+          "ship_pattern_cpu": {
+            "calls": 37167,
+            "max_usec": 875,
+            "p95_usec": 53,
+            "total_usec": 1391457
+          },
+          "ship_process_cpu": {
+            "calls": 64352,
+            "max_usec": 307,
+            "p95_usec": 10,
+            "total_usec": 315486
+          },
+          "ship_resources": {
+            "calls": 22048,
+            "max_usec": 442,
+            "p95_usec": 13,
+            "total_usec": 179924
+          },
+          "ship_thruster_cpu": {
+            "calls": 64352,
+            "max_usec": 81,
+            "p95_usec": 5,
+            "total_usec": 143829
+          }
+        },
+        "client_physics_p95_usec": 1376,
+        "client_snapshot_p95_usec": 1457,
+        "draw_calls_p95": 499,
+        "duration_seconds": 45.0,
+        "engine_physics_p95_usec": 11697,
+        "engine_process_p95_usec": 27143,
+        "frame_cap": 0,
+        "hide_world": false,
+        "over_16ms_percent": 98.0616302186879,
+        "p50_usec": 17242,
+        "p95_usec": 17935,
+        "p99_usec": 23901,
+        "pacing": {
+          "budget_usec": 17241.3793103448,
+          "expected_fps": 58.0,
+          "late_frames": 86,
+          "late_percent": 4.27435387673956,
+          "late_threshold_usec": 18241.3793103448,
+          "longest_late_streak": 4,
+          "max_usec": 34077,
+          "severe_frames": 13,
+          "severe_threshold_usec": 25862.0689655172
+        },
+        "pattern_transform_prototype": true,
+        "peak_projectiles": 67,
+        "peak_ships": 32,
+        "pre_to_post_draw_p95_usec": 15029,
+        "samples": 2012,
+        "scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process ENet server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles.",
+        "snapshots": 886,
+        "viewport": "(1920, 1080)",
+        "vsync_mode": 0
+      }
+    }
+  ],
+  "client-cpu-baseline.txt": [
+    {
+      "marker": "SSF_CLIENT_PRESENTATION_BENCHMARK",
+      "data": {
+        "measured_batches": 300,
+        "scope": "300 fixed 32-player snapshot and 32-shot sound-profile batches after 40 warmup batches; headless CPU work only, no audio mixing or frame rendering.",
+        "ships": 32,
+        "shot_batch_p50_usec": 1035,
+        "shot_batch_p95_usec": 1105,
+        "shot_events": 10880,
+        "snapshot_p50_usec": 855,
+        "snapshot_p95_usec": 967
+      }
+    }
+  ]
+}

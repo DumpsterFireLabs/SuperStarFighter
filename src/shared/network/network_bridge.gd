@@ -15,6 +15,8 @@ signal client_projectile_batch_received(decoded: Dictionary)
 signal client_projectile_correction_received(decoded: Dictionary)
 signal client_rejected(reason: StringName, message: String)
 signal client_connection_lost(message: String)
+signal client_admin_response(response: Dictionary)
+signal operator_shutdown_requested
 
 enum Role {
 	NONE,
@@ -65,6 +67,7 @@ var _active_sample_usec: Array[int] = []
 var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
 var _admission_lobby_broadcast_pending: bool = false
+var in_game_admin := InGameAdminAuthority.new()
 
 
 func _init() -> void:
@@ -96,7 +99,6 @@ func start_server(configuration: Dictionary) -> Error:
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
 	match_config.competitive_view = bool(configuration.get("competitive_view", false))
-	match_config.silly_mode = bool(configuration.get("silly_mode", false))
 	if bool(configuration.get("test_fast_match", false)):
 		match_config.draft_duration_seconds = 0.75
 		match_config.countdown_duration_seconds = 0.25
@@ -118,7 +120,10 @@ func start_server(configuration: Dictionary) -> Error:
 	_latest_metrics.clear()
 	_metrics_window = 0
 	_logged_overtime_key = ""
-	return session.start_server(configuration, match_config)
+	var error := session.start_server(configuration, match_config)
+	if error == OK:
+		in_game_admin.configure(String(configuration.get("admin_password", "")))
+	return error
 
 
 func start_client(
@@ -134,6 +139,27 @@ func start_client(
 func stop() -> void:
 	_flush_tick_logs()
 	session.stop()
+	in_game_admin.clear()
+
+
+func send_admin_challenge_request() -> void:
+	if role == Role.CLIENT and local_peer_id > 0:
+		request_admin_challenge.rpc_id(NetworkProtocol.SERVER_PEER_ID)
+
+
+func send_admin_proof(proof: String) -> void:
+	if role == Role.CLIENT and local_peer_id > 0 and NetworkProtocol.is_valid_auth_proof(proof):
+		request_admin_authentication.rpc_id(NetworkProtocol.SERVER_PEER_ID, proof)
+
+
+func send_admin_command(request: Dictionary, sequence: int = 0, signature: String = "") -> void:
+	if role == Role.CLIENT and local_peer_id > 0 and var_to_bytes(request).size() <= NetworkProtocol.ADMIN_MAX_MESSAGE_BYTES:
+		request_admin_action.rpc_id(NetworkProtocol.SERVER_PEER_ID, request, sequence, signature)
+
+
+func send_admin_revoke() -> void:
+	if role == Role.CLIENT and local_peer_id > 0:
+		request_admin_revoke.rpc_id(NetworkProtocol.SERVER_PEER_ID)
 
 
 func flush_metrics() -> void:
@@ -235,11 +261,6 @@ func send_random_powerups_permanent(permanent: bool) -> void:
 func send_competitive_view(enabled: bool) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_competitive_view.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
-
-
-func send_silly_mode(enabled: bool) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_silly_mode.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
 
 
 func send_overtime_start(seconds: float) -> void:
@@ -360,6 +381,108 @@ func client_hello(protocol_version: int, display_name: String, password_proof: S
 	var sender_id := multiplayer.get_remote_sender_id()
 	if session.validate_hello(sender_id, protocol_version, display_name, password_proof, lobby.players.size() if lobby.match_active else lobby.human_count(), lobby.player_limit):
 		complete_admission(sender_id, display_name)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_admin_challenge() -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "admin_challenge"):
+		return
+	var response := in_game_admin.begin(sender_id, session.peer_source(sender_id), _now_seconds())
+	_send_control_to_peer(sender_id, &"admin_response", [response])
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_admin_authentication(proof: String) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "admin_authentication"):
+		return
+	var response := in_game_admin.authenticate(sender_id, session.peer_source(sender_id), proof, _now_seconds())
+	_log("info" if bool(response.ok) else "warning", "in_game_admin_authentication", {"peer_id": sender_id, "ok": bool(response.ok)})
+	_send_control_to_peer(sender_id, &"admin_response", [response])
+	if bool(response.ok):
+		_elect_lobby_leader()
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_admin_action(request: Dictionary, sequence: int, signature: String) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "admin_action"):
+		return
+	if not in_game_admin.is_authorized(sender_id):
+		_send_control_to_peer(sender_id, &"admin_response", [{"ok": false, "error": "Enter the admin password first."}])
+		return
+	if var_to_bytes(request).size() > NetworkProtocol.ADMIN_MAX_MESSAGE_BYTES:
+		session.reject_malformed_control(sender_id, "oversized_admin_action")
+		return
+	if not in_game_admin.verify_command(sender_id, sequence, request, signature):
+		_send_control_to_peer(sender_id, &"admin_response", [{"ok": false, "error": "Admin command signature or sequence was invalid."}])
+		_log("warning", "in_game_admin_command_rejected", {"peer_id": sender_id})
+		return
+	var response := _execute_in_game_admin(request)
+	_log("info", "in_game_admin_command", {"peer_id": sender_id, "command": String(request.get("command", "")), "ok": bool(response.get("ok", false))})
+	_send_control_to_peer(sender_id, &"admin_response", [response])
+	if bool(response.get("shutdown", false)):
+		call_deferred("_emit_operator_shutdown")
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_admin_revoke() -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if lobby != null and lobby.players.has(sender_id):
+		in_game_admin.revoke(sender_id)
+		_elect_lobby_leader()
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func admin_response(response: Dictionary) -> void:
+	if role == Role.CLIENT and multiplayer.get_remote_sender_id() == NetworkProtocol.SERVER_PEER_ID:
+		client_admin_response.emit(response)
+
+
+func _execute_in_game_admin(request: Dictionary) -> Dictionary:
+	if not request.get("command", null) is String:
+		return {"ok": false, "error": "A text command is required."}
+	match String(request.command):
+		"status":
+			return operator_status()
+		"players":
+			return operator_players()
+		"kick", "ban":
+			var peer_value: Variant = request.get("peer_id")
+			if not _valid_admin_peer_id(peer_value):
+				return {"ok": false, "error": "peer_id requires a positive integer."}
+			return operator_kick(int(peer_value), String(request.command) == "ban")
+		"block", "unblock":
+			if not request.get("source", null) is String:
+				return {"ok": false, "error": "source requires text."}
+			return operator_block_source(String(request.source)) if String(request.command) == "block" else operator_unblock_source(String(request.source))
+		"set":
+			if not request.get("setting", null) is String:
+				return {"ok": false, "error": "setting requires text."}
+			return operator_set_setting(String(request.setting), request.get("value"))
+		"restart_match":
+			return operator_restart_match()
+		"shutdown":
+			return {"ok": true, "shutdown": true}
+		_:
+			return {"ok": false, "error": "Unknown admin command."}
+
+
+func _emit_operator_shutdown() -> void:
+	operator_shutdown_requested.emit()
+
+
+static func _valid_admin_peer_id(value: Variant) -> bool:
+	return (value is int and value > 1 and value <= 2_147_483_647) or (value is float and is_finite(value) and value > 1.0 and value <= 2_147_483_647.0 and value == floor(value))
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -517,16 +640,6 @@ func request_competitive_view(enabled: bool) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_silly_mode(enabled: bool) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "silly_mode"):
-		return
-	commands.request_silly_mode(sender_id, enabled)
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
 func request_overtime_start(seconds: float) -> void:
 	if role != Role.SERVER:
 		return
@@ -590,8 +703,8 @@ func request_rematch() -> void:
 
 
 func _prepare_fresh_rematch(sender_id: int) -> Dictionary:
-	if lobby == null or sender_id != lobby.leader_id:
-		return {"ok": false, "error": "Only the lobby leader may start a fresh rematch."}
+	if not can_control_results(sender_id):
+		return {"ok": false, "error": "Only the lobby leader or an authenticated admin may start a fresh rematch."}
 	if match_coordinator == null or not match_coordinator.machine.can_extend_match():
 		return {"ok": false, "error": "A fresh rematch needs final results and at least two competing participants."}
 	# Build and validate the replacement before touching the finished match.
@@ -608,6 +721,21 @@ func _prepare_fresh_rematch(sender_id: int) -> Dictionary:
 	match_coordinator = replacement
 	_logged_overtime_key = ""
 	return {"ok": true}
+
+
+func can_control_results(peer_id: int) -> bool:
+	return lobby != null and peer_id > 0 and lobby.players.has(peer_id) and (peer_id == lobby.leader_id or in_game_admin.is_authorized(peer_id))
+
+
+func _elect_lobby_leader(broadcast: bool = true) -> void:
+	if lobby == null:
+		return
+	var administrators: Array[int] = []
+	for peer_id in lobby.human_peer_ids_view():
+		if in_game_admin.is_authorized(peer_id):
+			administrators.append(peer_id)
+	if lobby.elect_leader(administrators) and broadcast:
+		_broadcast_lobby_state()
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -877,6 +1005,31 @@ func operator_kick(peer_id: int, block_source: bool = false) -> Dictionary:
 	return session.operator_kick(peer_id, player.display_name, block_source)
 
 
+func operator_restart_match() -> Dictionary:
+	if role != Role.SERVER or lobby == null or match_coordinator == null or not lobby.match_active:
+		return {"ok": false, "error": "There is no active match to restart."}
+	if lobby.participant_count() < GameConstants.MIN_PLAYERS:
+		return {"ok": false, "error": "At least two participants are required."}
+	var configured_seed := int(session.configuration_value("test_match_seed", 0))
+	var seed_value := configured_seed if configured_seed > 0 else _secure_match_seed()
+	var replacement := AuthoritativeMatchCoordinator.new(lobby, world, seed_value, lobby.config.overtime_start_seconds)
+	replacement.incremental_drafts = true
+	if not replacement.start(world.server_tick):
+		return {"ok": false, "error": "The current rules cannot start a new match."}
+	for player_value in lobby.players.values():
+		(player_value as PlayerMatchState).reset_match()
+	world.clear_projectiles()
+	world.reset_match_inventories()
+	world.simulation_paused = false
+	npc_controller.clear()
+	match_coordinator = replacement
+	_logged_overtime_key = ""
+	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": ServerLobby.OPERATOR_AUTHORITY_ID, "fresh_rematch": true})
+	_drain_match_coordinator()
+	_log("warning", "operator_match_restarted", {"participants": lobby.participant_count()})
+	return {"ok": true, "message": "Match restarted from round one."}
+
+
 func operator_block_source(source: String) -> Dictionary:
 	return session.operator_block_source(source)
 
@@ -1048,8 +1201,14 @@ func _broadcast_lobby_state() -> void:
 	_admission_lobby_broadcast_pending = false
 	if lobby == null:
 		return
-	var state := lobby.serialize()
+	var state := _serialized_lobby_state()
 	_broadcast_to_admitted(&"lobby_state", [state])
+
+
+func _serialized_lobby_state() -> Dictionary:
+	var state := lobby.serialize()
+	state["leader_is_admin"] = in_game_admin.is_authorized(lobby.leader_id)
+	return state
 
 
 func _broadcast_match_event(event_type: StringName, payload: Dictionary) -> void:
@@ -1309,10 +1468,13 @@ static func _now_seconds() -> float:
 
 
 func _on_session_peer_departed(peer_id: int) -> void:
+	in_game_admin.revoke(peer_id)
 	if match_coordinator != null:
 		match_coordinator.disconnect_peer(peer_id)
 		_drain_match_coordinator()
 	var departed := lobby.remove(peer_id) if lobby != null else null
+	if departed != null:
+		_elect_lobby_leader(false)
 	var replacement_npcs: Array[PlayerMatchState] = []
 	if departed != null and match_coordinator == null:
 		replacement_npcs = lobby.restore_npc_fill()
@@ -1337,7 +1499,7 @@ func complete_admission(sender_id: int, display_name: String) -> void:
 	world.input_timeouts[sender_id] = GameConstants.INPUT_STALE_SECONDS
 	if match_coordinator != null:
 		match_coordinator.add_late_spectator(player)
-	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, lobby.serialize()])
+	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, _serialized_lobby_state()])
 	if match_coordinator != null:
 		_send_control_to_peer(sender_id, &"match_event", [
 			&"STATE_CHANGED", world.server_tick, match_coordinator.current_state_payload()
@@ -1366,6 +1528,7 @@ func _session_status() -> Dictionary:
 
 
 func _on_session_stopped() -> void:
+	in_game_admin.clear()
 	_admission_lobby_broadcast_pending = false
 	if replication != null:
 		replication.clear()
