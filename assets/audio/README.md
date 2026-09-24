@@ -10,7 +10,7 @@ Add music files at these paths:
 
 Music accepts `.mp3`, `.ogg`, and `.wav`. Discovery uses the final extension, so compound source names such as `main_menu.mp3.wav` also work.
 
-All committed music (`main_menu.ogg` and the `gameplay/` tracks) is project-owned Suno generations with redistribution rights. Only add music the project may publish: `assets/audio/music/` is tracked by Git, and anything placed here also ships in game exports. Earlier licensed Ovani Sound tracks were removed and scrubbed from Git history on 2026-09-24.
+All committed music (`main_menu.ogg`, `win.ogg` and the `gameplay/` tracks) is project-owned Suno generations with redistribution rights. Only add music the project may publish: `assets/audio/music/` is tracked by Git, and anything placed here also ships in game exports. Earlier licensed Ovani Sound tracks were removed and scrubbed from Git history on 2026-09-24.
 
 Optional authored SFX can replace the synthesized placeholders without code changes. Put `.wav`, `.ogg`, or `.mp3` files in `sfx/` using these names:
 
