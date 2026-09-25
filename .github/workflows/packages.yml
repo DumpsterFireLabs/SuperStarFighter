@@ -1,0 +1,97 @@
+name: Packages
+# Manual runs cross-build every package on Linux and macOS hosts to prove the
+# Python build tool there. Pushing a v* tag builds the release on Windows, where
+# the Windows client/server smoke and launcher checks can run, and attaches the
+# packages to a draft pre-release for review.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: packages-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cache official Godot downloads
+        uses: actions/cache@v4
+        with:
+          path: .tools/downloads
+          key: godot-downloads-4.7.2-${{ runner.os }}-${{ runner.arch }}
+      - name: Virtual display for the Linux client launch smoke
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Bootstrap Godot and export templates
+        run: python tools/build.py bootstrap
+      - name: Project gate and every package
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a ' || '' }}python tools/build.py build --output builds/ci
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.os }}
+          retention-days: 7
+          path: |
+            builds/ci/**/*.zip
+            builds/ci/**/*.tar.gz
+            builds/ci/SHA256SUMS.txt
+            .tools/verification-logs/
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tag must match release.json
+        shell: bash
+        run: |
+          version=$(python -c "import json; print(json.load(open('release.json'))['version'])")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match release.json version $version"; exit 1
+          fi
+      - name: Cache official Godot downloads
+        uses: actions/cache@v4
+        with:
+          path: .tools/downloads
+          key: godot-downloads-4.7.2-${{ runner.os }}-${{ runner.arch }}
+      - name: Bootstrap Godot and export templates
+        run: python tools/build.py bootstrap
+      - name: Project gate and every package
+        run: python tools/build.py build --output builds/release
+      - name: Draft pre-release with packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          label=$(python -c "import sys; sys.path.insert(0, 'tools'); from release_metadata import load_release; print(load_release()['label'])")
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --prerelease \
+            --title "Super Star Fighter $label" --generate-notes \
+            builds/release/*.zip builds/release/server/*.zip \
+            builds/release/server-linux-*/*.tar.gz builds/release/server-linux-*/*.zip \
+            builds/release/SHA256SUMS.txt
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-logs
+          path: .tools/verification-logs/
