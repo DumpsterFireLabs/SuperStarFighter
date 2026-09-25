@@ -1,12 +1,12 @@
-SUPER STAR FIGHTER — BETA 12
-Version 0.1.0-beta.12
+SUPER STAR FIGHTER — BETA 13
+Version 0.1.0-beta.13
 
 QUICK START
 
 1. Extract the entire ZIP to a writable folder.
-2. On Windows, run SuperStarFighter-Beta12.exe.
-   On Linux, run: chmod +x SuperStarFighter-Beta12.x86_64 && ./SuperStarFighter-Beta12.x86_64
-   On Linux ARM64/Raspberry Pi with a 64-bit OS, run: chmod +x SuperStarFighter-Beta12.arm64 && ./SuperStarFighter-Beta12.arm64
+2. On Windows, run SuperStarFighter-Beta13.exe.
+   On Linux, run: chmod +x SuperStarFighter-Beta13.x86_64 && ./SuperStarFighter-Beta13.x86_64
+   On Linux ARM64/Raspberry Pi with a 64-bit OS, run: chmod +x SuperStarFighter-Beta13.arm64 && ./SuperStarFighter-Beta13.arm64
    On macOS, Control-click Super Star Fighter.app, choose Open, then confirm Open.
    If macOS instead says the app is damaged, open Terminal in the extracted folder and run:
 
@@ -24,34 +24,34 @@ The normal Linux launch uses Godot's Compatibility renderer through desktop Open
 
 If a Linux machine has native OpenGL ES 3.0 through Mesa but does not expose desktop OpenGL 3.3, try:
 
-  ./SuperStarFighter-Beta12.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+  ./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
 
-For Linux x64, replace SuperStarFighter-Beta12.arm64 with SuperStarFighter-Beta12.x86_64.
+For Linux x64, replace SuperStarFighter-Beta13.arm64 with SuperStarFighter-Beta13.x86_64.
 
 If the machine has a working Vulkan driver, including Mesa V3DV on a suitably configured Raspberry Pi, the Mobile renderer is another possible fallback:
 
-  ./SuperStarFighter-Beta12.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+  ./SuperStarFighter-Beta13.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
 
 As a slow last resort on Mesa systems, software rendering may work:
 
-  LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta12.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+  LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
 
 These are compatibility suggestions, not native acceptance-tested configurations. Renderer overrides may change appearance or performance, and software rendering can be very slow. Godot 4 requires at least OpenGL ES 3.0 for its Compatibility renderer; GLES 2-only hardware is not supported. Use a current 64-bit OS and current Mesa/V3D drivers on Raspberry Pi.
 
 INTERNET HOSTING
 
-The host must allow the executable through the operating-system firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 12.
+The host must allow the executable through the operating-system firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 13.
 
-BETA 12 CHANGES
+BETA 13 CHANGES
 
 - Adds host-controlled DOINK mode with contextual audio, kill streak announcements, and victory music.
 - Includes draft layout, settings, and competitive-view fixes.
 - Includes server logging and network ownership improvements.
-- Windows x64, Linux x64, Linux ARM64, and universal macOS packages share version 0.1.0-beta.12.
+- Windows x64, Linux x64, Linux ARM64, and universal macOS packages share version 0.1.0-beta.13.
 
 DEDICATED SERVER OPERATION
 
-The Beta 12 friend ZIPs contain client builds, not a separate stripped server executable. Source-based hosting uses the repository's bootstrapped Godot tools. A separate Windows dedicated-server package can be built with tools/build-server.ps1.
+These ZIPs contain client builds. Standalone dedicated-server packages for Windows x64, Linux x64, and Linux ARM64 are published alongside them on the project's GitHub releases page. Source-based hosting uses the repository's bootstrapped Godot tools.
 
 From the repository root in PowerShell, start a headless server with:
 

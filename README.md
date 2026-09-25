@@ -57,7 +57,7 @@ Display settings support persistent Windowed, Borderless Fullscreen, and Exclusi
 
 ## Beta Builds
 
-The main menu identifies the current release as **Beta 12**, version `0.1.0-beta.12`. Build and verify the friend-ready Windows x64 client first:
+The main menu identifies the current release as **Beta 13**, version `0.1.0-beta.13`. Build and verify the friend-ready Windows x64 client first:
 
 ```powershell
 .\tools\build-beta.ps1
@@ -109,19 +109,19 @@ Packages, per-package audits, and a combined `SHA256SUMS.txt` are written to the
 Linux normally uses the project's Compatibility renderer through desktop OpenGL 3.3. On Mesa systems that expose native OpenGL ES 3.0 but not desktop OpenGL 3.3, try:
 
 ```bash
-./SuperStarFighter-Beta12.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
 ```
 
 On a Raspberry Pi or other ARM64 machine with a working Vulkan driver, the Mobile renderer is another possible fallback:
 
 ```bash
-./SuperStarFighter-Beta12.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+./SuperStarFighter-Beta13.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
 ```
 
 As a slow last resort with Mesa software rendering:
 
 ```bash
-LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta12.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
 ```
 
 Use the `.x86_64` filename for Linux x64. These overrides are compatibility suggestions rather than native acceptance-tested configurations. Godot 4 requires at least OpenGL ES 3.0 for Compatibility; GLES 2-only systems are unsupported. Keep `--verbose` during diagnosis to confirm the selected API, renderer, and GPU.
@@ -178,7 +178,7 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 
 ## Dedicated Server
 
-The Beta 12 friend ZIPs are client packages and do not yet include a standalone stripped server executable. The supported dedicated-server workflow currently requires a source checkout and its bootstrapped tools.
+[Releases](https://github.com/DumpsterFireLabs/SuperStarFighter/releases) include standalone dedicated-server packages for Windows x64, Linux x64, and Linux ARM64 alongside the client ZIPs; each includes its own launcher and [operations guide](docs/SERVER_README.txt). You can also run a server from a source checkout with its bootstrapped tools.
 
 Start a headless authoritative server with:
 
@@ -246,7 +246,7 @@ The test and foundation commands report their actual assertion and check counts.
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 136 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
 
-Beta 12 targets Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS, with outputs under `builds/beta-12/`. Beta 1 through Beta 11 remain archived separately. A stripped Windows dedicated-server build is available through `tools/build-server.ps1`, with resource auditing, standalone startup and a short packaged-server 32-client soak verified. Clean-machine testing, native distribution acceptance, longer representative-hardware performance testing, signing/notarization and final release acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
+Beta 13 targets Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS, with outputs under `builds/beta-13/`. Beta 1 through Beta 13 remain archived separately. A stripped Windows dedicated-server build is available through `tools/build-server.ps1`, with resource auditing, standalone startup and a short packaged-server 32-client soak verified. Clean-machine testing, native distribution acceptance, longer representative-hardware performance testing, signing/notarization and final release acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 
 ## License and Assets
 
@@ -256,4 +256,4 @@ The [attribution inventory](./docs/ATTRIBUTION.md) records source/dependency cov
 
 ### Linux dedicated server packages
 
-Build with `tools/build-linux-server.ps1 -Architecture x86_64` or `-Architecture arm64`. Beta 12 server archives are written under `builds/beta-12/server-linux-x86_64/` and `builds/beta-12/server-linux-arm64/`. Each includes a headless shell launcher, Python 3 administration tool, and the [dedicated server operations guide](docs/SERVER_README.txt), including Linux setup and a systemd example. Both tar.gz and ZIP archives are verified for architecture, embedded resources and contents; native Linux launch/load acceptance remains separate.
+Build with `tools/build-linux-server.ps1 -Architecture x86_64` or `-Architecture arm64`. Beta 13 server archives are written under `builds/beta-13/server-linux-x86_64/` and `builds/beta-13/server-linux-arm64/`. Each includes a headless shell launcher, Python 3 administration tool, and the [dedicated server operations guide](docs/SERVER_README.txt), including Linux setup and a systemd example. Both tar.gz and ZIP archives are verified for architecture, embedded resources and contents; native Linux launch/load acceptance remains separate.

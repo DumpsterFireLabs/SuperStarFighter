@@ -31,7 +31,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | ENet over UDP |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.12 |
+| Game version | 0.1.0-beta.13 |
 | Protocol version | 43 (binary packets 17) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
@@ -437,7 +437,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 12 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 12 client targets export to `builds/beta-12/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 13 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 13 client targets export to `builds/beta-13/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 

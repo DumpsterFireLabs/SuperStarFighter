@@ -1,4 +1,4 @@
-Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 12)
+Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 13)
 
 WINDOWS QUICK START
 
@@ -19,7 +19,7 @@ use Unblock-File on the included start-server.ps1 and admin.ps1 scripts.
 
 The package starts in server mode without graphics or audio. No Godot editor,
 source checkout, client assets or separate PCK file is required. Use the same
-game/protocol version on clients: 0.1.0-beta.12 (compatibility 36, binary packets 15).
+game/protocol version on clients: 0.1.0-beta.13 (compatibility 43, binary packets 17).
 
 Set the lobby password before starting. The example is not a public password.
 Use the --port value when connecting directly. Configure any network/firewall
@@ -209,7 +209,7 @@ acceptance still need to be performed on your deployment host.
 
 Extract the matching archive into a writable folder, then cd into that folder:
 
-  tar -xzf SuperStarFighter-Beta12-Server-Linux-x64.tar.gz
+  tar -xzf SuperStarFighter-Beta13-Server-Linux-x64.tar.gz
   chmod +x start-server.sh SuperStarFighter-Server.x86_64
 
 For ARM64 use the arm64 archive and SuperStarFighter-Server.arm64 instead.
@@ -276,7 +276,7 @@ by ssf for writable state. Adjust every path/account before installing this
 example as /etc/systemd/system/ssf.service:
 
   [Unit]
-  Description=Super Star Fighter Beta 12 dedicated server
+  Description=Super Star Fighter Beta 13 dedicated server
   After=network.target
 
   [Service]
@@ -309,11 +309,3 @@ ExecStop requests authenticated graceful shutdown; systemd may terminate the
 process if that fails or exceeds the timeout. Confirm the graceful marker in
 the journal. Configure journal retention on the host. This is an operator-
 installed service example, not an installer or a native-tested deployment.
-
-BETA 12 LINUX PACKAGE NOTE
-
-The Linux server build polls admin TCP connections so disconnected sessions
-release their slots promptly. This fix was verified with repeated authenticated
-commands against the source server on Windows. The earlier Windows Beta 12
-server ZIP is retained unchanged and does not include this follow-up fix.
-Linux native runtime verification remains outstanding.

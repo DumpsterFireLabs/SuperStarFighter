@@ -10,7 +10,7 @@ config_version=5
 [application]
 
 config/name="Super Star Fighter"
-config/version="0.1.0-beta.12"
+config/version="0.1.0-beta.13"
 run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
 run/flush_stdout_on_print.dedicated_server=true
 config/features=PackedStringArray("4.7")
