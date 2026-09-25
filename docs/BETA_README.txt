@@ -1,12 +1,12 @@
-SUPER STAR FIGHTER — BETA 13
-Version 0.1.0-beta.13
+SUPER STAR FIGHTER — BETA 14
+Version 0.1.0-beta.14
 
 QUICK START
 
 1. Extract the entire ZIP to a writable folder.
-2. On Windows, run SuperStarFighter-Beta13.exe.
-   On Linux, run: chmod +x SuperStarFighter-Beta13.x86_64 && ./SuperStarFighter-Beta13.x86_64
-   On Linux ARM64/Raspberry Pi with a 64-bit OS, run: chmod +x SuperStarFighter-Beta13.arm64 && ./SuperStarFighter-Beta13.arm64
+2. On Windows, run SuperStarFighter-Beta14.exe.
+   On Linux, run: chmod +x SuperStarFighter-Beta14.x86_64 && ./SuperStarFighter-Beta14.x86_64
+   On Linux ARM64/Raspberry Pi with a 64-bit OS, run: chmod +x SuperStarFighter-Beta14.arm64 && ./SuperStarFighter-Beta14.arm64
    On macOS, Control-click Super Star Fighter.app, choose Open, then confirm Open.
    If macOS instead says the app is damaged, open Terminal in the extracted folder and run:
 
@@ -14,7 +14,7 @@ QUICK START
 
    Then Control-click the app and choose Open again. Only clear the attributes after verifying
    the supplied SHA-256 checksum; this command is needed because the beta is not notarized.
-3. One player chooses Host Game, selects a gameplay UDP port, and chooses Host & Join.
+3. One player chooses Host Game, selects a gameplay TCP port, and chooses Host & Join.
 4. Friends on the same local network join from LAN Servers.
 5. Internet players use Direct Connect with the host's public IP address and gameplay port.
 
@@ -24,30 +24,32 @@ The normal Linux launch uses Godot's Compatibility renderer through desktop Open
 
 If a Linux machine has native OpenGL ES 3.0 through Mesa but does not expose desktop OpenGL 3.3, try:
 
-  ./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+  ./SuperStarFighter-Beta14.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
 
-For Linux x64, replace SuperStarFighter-Beta13.arm64 with SuperStarFighter-Beta13.x86_64.
+For Linux x64, replace SuperStarFighter-Beta14.arm64 with SuperStarFighter-Beta14.x86_64.
 
 If the machine has a working Vulkan driver, including Mesa V3DV on a suitably configured Raspberry Pi, the Mobile renderer is another possible fallback:
 
-  ./SuperStarFighter-Beta13.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+  ./SuperStarFighter-Beta14.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
 
 As a slow last resort on Mesa systems, software rendering may work:
 
-  LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+  LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta14.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
 
 These are compatibility suggestions, not native acceptance-tested configurations. Renderer overrides may change appearance or performance, and software rendering can be very slow. Godot 4 requires at least OpenGL ES 3.0 for its Compatibility renderer; GLES 2-only hardware is not supported. Use a current 64-bit OS and current Mesa/V3D drivers on Raspberry Pi.
 
 INTERNET HOSTING
 
-The host must allow the executable through the operating-system firewall and forward the selected UDP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 13.
+The host must allow the executable through the operating-system firewall and forward the selected TCP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 14.
 
-BETA 13 CHANGES
+BETA 14 CHANGES
 
-- Adds host-controlled DOINK mode with contextual audio, kill streak announcements, and victory music.
-- Includes draft layout, settings, and competitive-view fixes.
-- Includes server logging and network ownership improvements.
-- Windows x64, Linux x64, Linux ARM64, and universal macOS packages share version 0.1.0-beta.13.
+- Gameplay now runs over TCP (WebSocket) instead of UDP. Hosts forward the TCP gameplay port (7000 by default); no UDP forwarding is needed.
+- Beta 14 cannot connect to Beta 13 or earlier; every player and server must update together (protocol 44).
+- Direct Connect accepts wss:// addresses, so a Linux dedicated server can run behind a Cloudflare Tunnel on port 443 with --bind=127.0.0.1 --behind-proxy and no port forwarding.
+- Clients retry briefly when many players join at once, and both sides drop a connection that stays silent for 10 seconds.
+- The F3 diagnostics measure round-trip time with a once-per-second ping; UDP loss/throttle readouts are removed.
+- Windows x64, Linux x64, Linux ARM64, and universal macOS packages share version 0.1.0-beta.14.
 
 DEDICATED SERVER OPERATION
 
@@ -63,7 +65,7 @@ For unattended startup, store each password as one line in a separately access-c
 
   .\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -AdminPort 7001 -MaxPlayers 32 -RoundsToWin 3 -PasswordFile "C:\ServerSecrets\ssf-lobby.txt" -AdminPasswordFile "C:\ServerSecrets\ssf-admin.txt" -BanFile "C:\ServerData\ssf-bans.json"
 
-The selected gameplay port is ENet UDP and must be allowed through the firewall. Forward that UDP port at the router for direct internet hosting. UDP 7359 is LAN discovery only. The admin port is TCP but binds only to 127.0.0.1; never expose it directly through a public TCP proxy.
+The selected gameplay port is TCP (WebSocket) and must be allowed through the firewall. Forward that TCP port at the router for direct internet hosting. UDP 7359 is LAN discovery only. The admin port is TCP but binds only to 127.0.0.1; never expose it directly through a public TCP proxy.
 
 The server prints bounded JSON-line events and simulation metrics to standard output. Preserve the relevant log window when reporting problems. Stop an interactive server with Ctrl+C or use the authenticated shutdown command below.
 

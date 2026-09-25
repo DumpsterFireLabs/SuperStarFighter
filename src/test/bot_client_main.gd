@@ -84,7 +84,7 @@ func _physics_process(delta: float) -> void:
 		send_accumulator += delta
 		# This stream is unreliable ordered: a single same-frame burst is not
 		# proof of sustained malformed traffic. Retry a bounded number of times
-		# at 10 Hz to tolerate missing datagrams during connection startup.
+		# at 10 Hz to tolerate slow input delivery during connection startup.
 		if send_accumulator >= 0.1 and malformed_packets_sent < 60:
 			send_accumulator = 0.0
 			var malformed_packet := InputPacketCodec.encode(PlayerInputFrame.new(malformed_packets_sent + 1, malformed_packets_sent + 1, Vector2.UP, 0.37, true))

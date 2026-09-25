@@ -68,6 +68,7 @@ var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
 var _admission_lobby_broadcast_pending: bool = false
 var in_game_admin := InGameAdminAuthority.new()
+var _ping_accumulator: float = 0.0
 
 
 func _init() -> void:
@@ -94,7 +95,7 @@ func start_server(configuration: Dictionary) -> Error:
 	var match_config := MatchConfig.new()
 	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
 	if match_config.port == LanDiscoveryProtocol.DISCOVERY_PORT:
-		session.set_error("UDP port %d is reserved for LAN server discovery." % LanDiscoveryProtocol.DISCOVERY_PORT)
+		session.set_error("Port %d is reserved for LAN server discovery." % LanDiscoveryProtocol.DISCOVERY_PORT)
 		return ERR_INVALID_PARAMETER
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
@@ -322,6 +323,9 @@ func send_test_input_packet(packet: PackedByteArray) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if role == Role.CLIENT:
+		_process_client_ping(delta)
+		return
 	if role != Role.SERVER or world == null:
 		return
 	var start_usec := Time.get_ticks_usec()
@@ -796,6 +800,44 @@ func select_card(offer_token: String, card_id: String) -> void:
 	_drain_match_coordinator()
 
 
+func _process_client_ping(delta: float) -> void:
+	if local_peer_id == 0:
+		_ping_accumulator = 0.0
+		return
+	session.check_server_liveness()
+	_ping_accumulator += delta
+	if _ping_accumulator >= NetworkProtocol.TRANSPORT_PING_INTERVAL_SECONDS:
+		_ping_accumulator = 0.0
+		_send_ping()
+
+
+func _send_ping() -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		transport_ping.rpc_id(NetworkProtocol.SERVER_PEER_ID, Time.get_ticks_usec())
+
+
+# TCP exposes no round-trip statistic, so clients echo a local timestamp.
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_ping(client_usec: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "transport_ping"):
+		return
+	session.note_peer_alive(sender_id)
+	transport_pong.rpc_id(sender_id, client_usec)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_pong(client_usec: int) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	session.note_server_alive()
+	var elapsed_usec := Time.get_ticks_usec() - client_usec
+	if elapsed_usec >= 0 and elapsed_usec < 60_000_000:
+		session.record_round_trip(elapsed_usec / 1000.0)
+
+
 @rpc("any_peer", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_INPUT)
 func submit_input(packet: PackedByteArray) -> void:
 	_accept_input_packet(packet)
@@ -813,6 +855,7 @@ func _accept_input_packet(packet: PackedByteArray) -> void:
 	if not lobby.players.has(sender_id):
 		_reject_request(sender_id, "input_before_handshake")
 		return
+	session.note_peer_alive(sender_id)
 	var decoded := InputPacketCodec.decode(packet)
 	if session.accept_input(sender_id, decoded):
 		world.submit_input(sender_id, decoded.frame)
@@ -826,6 +869,7 @@ func server_welcome(peer_id: int, lobby_state_value: Dictionary) -> void:
 		_reject_malformed_server_payload()
 		return
 	session.accept_welcome(peer_id, lobby_state_value)
+	_send_ping()
 	client_connected.emit(peer_id)
 	client_lobby_updated.emit(lobby_state_value)
 

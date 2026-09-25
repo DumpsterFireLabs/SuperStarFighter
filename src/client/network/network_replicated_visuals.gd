@@ -152,7 +152,7 @@ func _ensure_ship_from_identity(peer_id: int, state: Dictionary, identity: Dicti
 	if ships.has(peer_id):
 		var existing := ships[peer_id] as CombatShipView
 		existing.display_name = pilot_name
-		# Lobby state and snapshots use independent ENet channels. A guest can
+		# Lobby state and snapshots are independent RPC streams. A guest can
 		# receive the first snapshot before the final reliable lobby update, so
 		# refresh identity data instead of freezing whatever was available when
 		# the presentation node happened to be created.

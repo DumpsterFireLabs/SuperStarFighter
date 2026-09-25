@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Deterministic combat fixture; networking, input sampling, world stepping,
 ## snapshot reconciliation and projectile presentation use production code.
-## A separate UDP proxy impairs actual ENet datagrams in both directions.
+## A separate TCP proxy impairs the actual game stream in both directions.
 class FixtureMatch extends AuthoritativeMatchCoordinator:
 	var probe_peer: int = 0
 	var probe_last_press: int = -1
@@ -154,7 +154,7 @@ func _run() -> void:
 	if shield_only:
 		await _until(func() -> bool: return false, 2.0)
 	# Stop sampling and create one neutral barrier. Retry that exact sequence at
-	# the normal send cadence until authority acknowledges it; a lost final UDP
+	# the normal send cadence until authority acknowledges it; a stalled final
 	# sample must not strand replay or be misreported as resource divergence.
 	view.set_physics_process(false)
 	final_input = PlayerInputFrame.new(SequenceMath.increment(view.local_prediction.input_sequence), SequenceMath.increment(view.local_prediction.client_tick), Vector2.ZERO, ship.aim_angle)

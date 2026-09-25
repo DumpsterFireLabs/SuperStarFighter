@@ -54,7 +54,7 @@ func _run() -> void:
 		ship.health = ship.stats.max_health
 	var fixture := LoadFixture.new()
 	var scheduler := NetworkReplicationScheduler.new()
-	# Model healthy recipients; transport latency is measured by the ENet fixture.
+	# Model healthy recipients; transport latency is measured by the TCP impairment fixture.
 	var scheduler_ref: WeakRef = weakref(scheduler)
 	scheduler.projectile_recovery_ready.connect(func(peer: int, packet: PackedByteArray) -> void:
 		(scheduler_ref.get_ref() as NetworkReplicationScheduler).acknowledge_recovery(peer, packet.decode_u32(1), packet.decode_u16(6), packet.decode_u16(8)))

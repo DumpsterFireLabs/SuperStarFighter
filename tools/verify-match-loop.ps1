@@ -119,7 +119,7 @@ try {
         $server.HasExited -and (Get-SsfMatchOutput -Name 'server').Contains('SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration')
     }
     if (-not (Get-SsfMatchOutput -Name 'server').Contains('"event":"server_shutdown"')) {
-        throw 'Clean ENet shutdown was not logged.'
+        throw 'Clean transport shutdown was not logged.'
     }
     Write-Host 'Match-loop verification passed: private picks, timeout auto-pick, two full matches, reset, rematch, and clean shutdown.'
 }

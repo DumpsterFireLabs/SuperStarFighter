@@ -87,7 +87,7 @@ The splash screen accepts a keyboard, mouse, or controller press immediately and
 The connection screen has three online paths:
 
 - **LAN Servers** discovers compatible sessions on the local subnet.
-- **Direct Connect** joins a known hostname or IP address and UDP port.
+- **Direct Connect** joins a known hostname or IP address and TCP port.
 - **Host Game** starts an authoritative server locally and joins it through the normal network protocol.
 
 The same screen also offers:
@@ -108,7 +108,7 @@ For most playtests, use **Host Game**:
 1. Enter your display name.
 2. Open the **Host Game** tab.
 3. Enter a server name. This is what nearby players see in the LAN list.
-4. Choose a gameplay UDP port from `1024` through `65535`. Port `7359` is reserved for discovery and cannot be used for gameplay.
+4. Choose a gameplay TCP port from `1024` through `65535`. Port `7359` is reserved for discovery and cannot be used for gameplay.
 5. Set the required lobby password (1–64 printable characters).
 6. Select **Host & Join**.
 
@@ -132,8 +132,8 @@ An incompatible protocol server remains visible but cannot be joined. All player
 
 Use **Direct Connect** when you know the server address:
 
-1. Enter a hostname or IPv4/IPv6 address in **Server host or IP**.
-2. Enter the server's gameplay UDP port.
+1. Enter a hostname or IPv4/IPv6 address in **Server host, IP or wss:// URL**, or a full address such as `wss://game.example.com` for a server behind Cloudflare.
+2. Enter the server's gameplay TCP port. A `ws://` or `wss://` address carries its own port (443 for `wss://`), so the port field is then ignored.
 3. Enter the lobby password.
 4. Optionally enable **Remember password for this server**. The password is saved only in this client's local settings after the server accepts it; a failed guess is never saved.
 5. Select **Connect to Server**.
@@ -161,7 +161,7 @@ Parameters:
 
 | Parameter | Range | Default | Meaning |
 | --- | ---: | ---: | --- |
-| `Port` | 1024–65535 | 7000 | ENet gameplay UDP port |
+| `Port` | 1024–65535 | 7000 | Gameplay TCP (WebSocket) port |
 | `ServerName` | 1–40 printable characters | Super Star Fighter Server | LAN browser name |
 | `PasswordFile` | Readable one-line file | Prompt | Lobby password source for unattended startup |
 | `AdminPort` | 0 or 1024–65535 | 0 | Optional loopback-only TCP command listener; 0 disables only that listener |
@@ -199,15 +199,52 @@ Runtime setting and password changes apply to the current server process only. T
 
 ### 4.6 Internet hosting and firewalls
 
-Super Star Fighter uses ENet over UDP, not TCP.
+Super Star Fighter carries all gameplay over one WebSocket (TCP) connection per player. Forward TCP, not UDP. Because TCP delivers everything in order, a lost packet briefly holds back later snapshots and input until it is retransmitted; on a lossy link this shows as short freezes followed by catch-up rather than skipped frames.
 
 For internet play, the host normally needs to:
 
-1. Allow the Godot/server executable through the host firewall for the chosen UDP gameplay port.
-2. Forward that UDP port from the router to the server computer when behind NAT.
+1. Allow the Godot/server executable through the host firewall for the chosen TCP gameplay port.
+2. Forward that TCP port from the router to the server computer when behind NAT.
 3. Give players the public hostname/IP and gameplay port.
 
 UPnP, NAT punch-through, relay hosting, and a public server directory are not implemented. UDP `7359` is only for local discovery and should not be exposed as a public matchmaking service.
+
+### 4.7 Hosting behind Cloudflare (wss:// on port 443)
+
+A Linux dedicated server can sit behind a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/). For a complete Ubuntu walkthrough, including a temporary tunnel, boot services and Cloudflare settings, see the [Cloudflare Tunnel How-To](./CLOUDFLARE_TUNNEL.md). Players connect to `wss://game.example.com` over HTTPS port 443; Cloudflare provides the certificate and `cloudflared` on the host forwards plain WebSocket traffic to the game server on loopback. No router port forwarding is needed, it works behind carrier-grade NAT, and the server cannot be reached around Cloudflare.
+
+1. Add your domain to Cloudflare and install `cloudflared` on the Linux host.
+2. Create a tunnel and a DNS route:
+
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create ssf
+   cloudflared tunnel route dns ssf game.example.com
+   ```
+
+3. Point the tunnel at the game server in `~/.cloudflared/config.yml`:
+
+   ```yaml
+   tunnel: ssf
+   credentials-file: /home/YOU/.cloudflared/<tunnel-id>.json
+   ingress:
+     - hostname: game.example.com
+       service: http://127.0.0.1:7000
+     - service: http_status:404
+   ```
+
+4. Start the server listening only on loopback, in proxy mode, then run the tunnel:
+
+   ```bash
+   ./start-server.sh --port=7000 --bind=127.0.0.1 --behind-proxy --password-file="$PWD/secrets/lobby.txt"
+   cloudflared tunnel run ssf
+   ```
+
+5. Players choose **Direct Connect**, enter `wss://game.example.com` and the lobby password.
+
+For a quick test without a domain, `cloudflared tunnel --url http://127.0.0.1:7000` prints a temporary `https://….trycloudflare.com` address; players enter it as `wss://….trycloudflare.com`.
+
+`--behind-proxy` is required behind any reverse proxy. The game cannot read Cloudflare's forwarded client address, so every player appears to come from the tunnel. Proxy mode tracks connection limits per connection instead of per address, and after repeated wrong passwords it slows new logins for everyone to one per second instead of locking the shared address out. Address bans are unavailable in proxy mode: kick players instead, and use Cloudflare rate limiting or Access for abuse. Cloudflare adds a relay hop, so expect slightly higher round-trip time than a direct connection; the client's once-per-second ping also keeps Cloudflare's WebSocket idle timeout from closing a quiet lobby.
 
 ## 5. Lobby Manual
 
@@ -532,7 +569,7 @@ For a break or intermission, the host can choose **Pause Match for Everyone** in
 
 The host can also press **F10** to toggle global pause, including while the pilot menu is open. Rebind **Pause / Resume Match (Host Only)** in Settings → Controls; the menu and intermission notice show the current binding. The controller profile leaves this shortcut unbound by default; assign a spare button or use the pilot menu. Holding the shortcut does not repeatedly toggle pause.
 
-The configured diagnostics action (`F3` or Y / Triangle by default) shows frame rate, round-trip time and variance, ENet loss/throttle, snapshot jitter and gaps, interpolation extrapolation, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment. It is primarily a playtest and troubleshooting tool.
+The configured diagnostics action (`F3` or Y / Triangle by default) shows frame rate, round-trip time and variance (measured by a once-per-second ping), snapshot jitter and gaps, interpolation extrapolation, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment. It is primarily a playtest and troubleshooting tool.
 
 ## 10. Settings, Controls, and Audio
 
@@ -666,10 +703,10 @@ If files are incomplete, use `-Force`.
 
 ### Direct connection fails
 
-- Confirm the address and UDP gameplay port.
+- Confirm the address and TCP gameplay port.
 - Confirm the dedicated server reports `server_started` rather than `server_bind_failed`.
-- Allow the selected UDP port through the server firewall.
-- For internet play, verify the router forwards UDP—not TCP—to the correct internal machine.
+- Allow the selected TCP port through the server firewall.
+- For internet play, verify the router forwards TCP to the correct internal machine.
 - Do not choose gameplay port `7359`.
 
 ### The lobby will not start
@@ -723,14 +760,14 @@ Press `F3` to inspect network and entity diagnostics. Card scaling is intentiona
 Before inviting players:
 
 - Run the same revision/build on server and clients.
-- Choose a gameplay UDP port other than `7359`.
-- Expose only the selected gameplay UDP port. Keep the admin TCP port on loopback and reach it through an authenticated SSH tunnel.
+- Choose a gameplay TCP port other than `7359`.
+- Expose only the selected gameplay TCP port. Keep the admin TCP port on loopback and reach it through an authenticated SSH tunnel.
 - Run the process as a dedicated unprivileged OS account, keep the OS/runtime patched, and restrict read access to password files and write access to the ban file.
 - Use unique, randomly generated lobby and admin passwords; the admin password must be at least 12 characters.
-- Confirm the gameplay port is allowed through the host firewall and apply provider/host UDP rate limiting when the server is Internet-facing.
+- Confirm the gameplay port is allowed through the host firewall and apply provider/host TCP connection rate limiting when the server is Internet-facing.
 - Test LAN discovery or direct connection from a second machine.
 - Decide the total seats, round target, and whether NPC fill is appropriate.
-- For an internet session, verify UDP forwarding and the public address.
+- For an internet session, verify TCP forwarding and the public address.
 - Ask every human to ready again after the final lobby change.
 - Run `status` and watch `simulation_metrics` for p95/max latency and `over_budget_ticks` before the competitive session begins.
 - Investigate repeated `AUTH_RATE_LIMITED` rejections: the server caps each source at 63 accepted connection attempts per 60-second window before a one-minute cooldown, in addition to the stricter failed-password limiter.

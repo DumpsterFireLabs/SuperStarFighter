@@ -14,6 +14,8 @@ param(
     [int]$RoundsToWin = 3,
     [switch]$CompetitiveView,
     [switch]$AutoStart,
+    [string]$Bind,
+    [switch]$BehindProxy,
     [switch]$NonInteractive,
     [string]$LogFile,
     [string]$ServerExecutable
@@ -41,6 +43,8 @@ if ($LogFile) {
 $userArguments = @('--server', "--port=$Port", "--server-name=$ServerName", "--max-players=$MaxPlayers", "--rounds-to-win=$RoundsToWin")
 if ($CompetitiveView) { $userArguments += "--competitive-view" }
 if ($AutoStart) { $userArguments += '--auto-start' }
+if (-not [string]::IsNullOrWhiteSpace($Bind)) { $userArguments += "--bind=$Bind" }
+if ($BehindProxy) { $userArguments += '--behind-proxy' }
 if (-not [string]::IsNullOrWhiteSpace($PasswordFile)) {
     $resolvedPasswordFile = (Resolve-Path -LiteralPath $PasswordFile -ErrorAction Stop).Path
     $userArguments += "--password-file=$resolvedPasswordFile"

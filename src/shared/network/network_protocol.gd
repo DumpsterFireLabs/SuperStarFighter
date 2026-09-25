@@ -11,6 +11,19 @@ const CHANNEL_PROJECTILE_DELTA: int = 3
 const CHANNEL_PROJECTILE_CORRECTION: int = 4
 const CHANNEL_OBJECTIVE: int = 5
 const CHANNEL_COUNT: int = 6
+# One WebSocket (TCP) stream per peer carries every channel in order.
+const TRANSPORT_HANDSHAKE_TIMEOUT_SECONDS: float = 5.0
+const TRANSPORT_BUFFER_BYTES: int = 1 << 20
+const TRANSPORT_MAX_QUEUED_PACKETS: int = 4096
+const TRANSPORT_PING_INTERVAL_SECONDS: float = 1.0
+const TRANSPORT_CONNECT_ATTEMPTS: int = 12
+const TRANSPORT_CONNECT_WINDOW_SECONDS: float = 10.0
+# TCP never times out a silent peer, so both ends require regular traffic.
+const TRANSPORT_IDLE_TIMEOUT_SECONDS: float = 10.0
+const MAX_SERVER_ADDRESS_LENGTH: int = 512
+# Behind a reverse proxy every player shares one source address, so repeated
+# wrong passwords slow new challenges globally instead of locking a source out.
+const PROXY_THROTTLED_CHALLENGE_INTERVAL_SECONDS: float = 1.0
 
 const ACTION_FIRE: int = 1
 const ACTION_SHIELD: int = 2
@@ -95,6 +108,19 @@ static func rejection_message(reason: StringName) -> String:
 			return "This connection is blocked by the server operator."
 		_:
 			return "The server rejected the connection."
+
+
+## Accepts a hostname or IP, or a ws:// / wss:// URL (for example a
+## Cloudflare-proxied wss://game.example.com) with a non-empty host.
+static func is_valid_server_address(address: String) -> bool:
+	if address.is_empty() or address.length() > MAX_SERVER_ADDRESS_LENGTH or address.contains(" "):
+		return false
+	var lowered := address.to_lower()
+	for scheme in ["wss://", "ws://"]:
+		if lowered.begins_with(scheme):
+			var authority := address.substr(scheme.length()).get_slice("/", 0)
+			return not authority.is_empty() and not authority.begins_with(":") and not authority.contains("@")
+	return address.length() <= 253 and not address.contains("/")
 
 
 static func is_valid_lobby_password(password: String) -> bool:

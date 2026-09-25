@@ -196,7 +196,7 @@ func payload_metrics() -> Dictionary:
 	for state: Dictionary in _recoveries.values():
 		pending = maxi(pending, state.packets.size() - int(state.next))
 		inflight = maxi(inflight, state.inflight.size())
-	return {"scope": "application payload estimate; excludes RPC/ENet/IP overhead and retransmission",
+	return {"scope": "application payload estimate; excludes RPC/WebSocket/TCP overhead and retransmission",
 		"bytes_by_category": _payload_bytes.duplicate(), "recovery_pending_chunks": pending,
 		"recovery_inflight_chunks_per_peer": inflight, "recovery_active_peers": _recoveries.size(),
 		"congested_peers": _congested_until.size(),

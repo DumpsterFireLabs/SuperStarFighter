@@ -75,8 +75,8 @@ static func _validate_sequence_wrap(context: TestContext) -> void:
 	var unique_channels: Dictionary = {}
 	for channel in channels:
 		unique_channels[channel] = true
-	context.expect_equal(unique_channels.size(), channels.size(), "latency-sensitive ENet streams use independent channels")
-	context.expect_equal(NetworkProtocol.CHANNEL_COUNT, channels.size(), "ENet allocation covers every declared transport channel")
+	context.expect_equal(unique_channels.size(), channels.size(), "latency-sensitive RPC streams declare independent channels")
+	context.expect_equal(NetworkProtocol.CHANNEL_COUNT, channels.size(), "channel count covers every declared RPC stream")
 
 
 static func _validate_lan_discovery_protocol(context: TestContext) -> void:

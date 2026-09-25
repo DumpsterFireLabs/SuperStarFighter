@@ -1,6 +1,6 @@
 extends SceneTree
 
-## 32 real, independently admitted ENet clients; Python counts proxy datagrams.
+## 32 real, independently admitted TCP clients; Python counts proxy stream bytes.
 var server: NetworkBridge
 var clients: Array[NetworkBridge] = []
 var recovered: Dictionary = {}

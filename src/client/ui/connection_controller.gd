@@ -203,8 +203,10 @@ func _create_direct_join_tab(configuration: Dictionary) -> void:
 	tab.name = "DIRECT CONNECT"
 	tab.add_theme_constant_override("separation", 10)
 	connection_tabs.add_child(tab)
-	host_field = _add_compact_labeled_field(tab, "Server host or IP", configuration.get("host", "127.0.0.1"))
-	port_field = _add_compact_labeled_field(tab, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	host_field = _add_compact_labeled_field(tab, "Server host, IP or wss:// URL", configuration.get("host", "127.0.0.1"))
+	host_field.max_length = NetworkProtocol.MAX_SERVER_ADDRESS_LENGTH
+	host_field.tooltip_text = "Enter an IP or hostname with the port below, or a full wss:// address such as wss://game.example.com (the port field is then ignored)."
+	port_field = _add_compact_labeled_field(tab, "Gameplay TCP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
 	direct_password_field = _add_compact_labeled_field(tab, "Lobby password", "")
 	direct_password_field.secret = true
 	direct_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
@@ -248,7 +250,7 @@ func _create_host_tab(configuration: Dictionary) -> void:
 	)
 	server_name_field = _add_compact_labeled_field(fields, "Server name", "Super Star Arena")
 	server_name_field.max_length = LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
-	host_port_field = _add_compact_labeled_field(fields, "Gameplay UDP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
+	host_port_field = _add_compact_labeled_field(fields, "Gameplay TCP port", str(configuration.get("port", GameConstants.DEFAULT_PORT)))
 	host_password_field = _add_compact_labeled_field(fields, "Required lobby password", "")
 	host_password_field.secret = true
 	host_password_field.max_length = NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
@@ -328,9 +330,14 @@ func _connect_online() -> void:
 		direct_password_field.grab_focus()
 		return
 	var address := host_field.text.strip_edges()
+	if not NetworkProtocol.is_valid_server_address(address):
+		connection_status.text = "Enter a server IP, hostname, or ws:// / wss:// address."
+		host_field.grab_focus()
+		return
 	connection_requested.emit()
 	preferences.begin_attempt(address, port, lobby_password, remember_password_button.button_pressed)
-	connection_status.text = "Authenticating with %s:%d…" % [address, port]
+	var endpoint := address if address.contains("://") else "%s:%d" % [address, port]
+	connection_status.text = "Authenticating with %s…" % endpoint
 	var error: Error = bridge.start_client(address, port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:
 		preferences.discard_attempt()
@@ -370,7 +377,7 @@ func _host_online() -> void:
 		hosted_session.stop()
 		return
 	connection_requested.emit()
-	connection_status.text = "Hosting %s on UDP %d and joining locally…" % [server_name, port]
+	connection_status.text = "Hosting %s on TCP %d and joining locally…" % [server_name, port]
 	preferences.discard_attempt()
 	error = bridge.start_client("127.0.0.1", port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:

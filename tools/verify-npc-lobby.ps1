@@ -107,7 +107,7 @@ try {
         $server.HasExited -and (Get-SsfNpcOutput -Name 'server').Contains('SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration')
     }
     if (-not (Get-SsfNpcOutput -Name 'server').Contains('"event":"server_shutdown"')) {
-        throw 'Clean ENet shutdown was not logged.'
+        throw 'Clean transport shutdown was not logged.'
     }
     Write-Host 'NPC lobby verification passed: leader limit, NPC fill, solo force-start, draft, snapshots, combat, and clean shutdown.'
 }

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Real ENet acceptance for preset authority and same-rules fresh rematches.
+## Real TCP acceptance for preset authority and same-rules fresh rematches.
 var server: NetworkBridge
 var host: NetworkBridge
 var guest: NetworkBridge
@@ -109,7 +109,7 @@ func _run() -> void:
 		_fail("late_join_not_spectator")
 		return
 	# Results are a deterministic fixture; requests and their replication use
-	# actual remote sender identities, RPC checksums and reliable ENet channels.
+	# actual remote sender identities, RPC checksums and the ordered TCP stream.
 	var prior := server.match_coordinator
 	prior.machine.state = MatchStateMachine.State.MATCH_RESULT
 	prior.machine.state_deadline_tick = -1

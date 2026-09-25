@@ -29,10 +29,10 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Primary platform | Windows x64 |
 | Renderer | OpenGL compatibility |
 | Physics | 60 Hz |
-| Network transport | ENet over UDP |
+| Network transport | WebSocket over TCP (`WebSocketMultiplayerPeer`) |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.13 |
-| Protocol version | 43 (binary packets 17) |
+| Game version | 0.1.0-beta.14 |
+| Protocol version | 44 (binary packets 17) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 
@@ -106,7 +106,7 @@ The central design constraint is server truth.
 ```text
 Keyboard/mouse or remappable controller/joystick profile
                          ↓
-Client input frame ──30 Hz UDP──→ AuthoritativeWorld at 60 Hz
+Client input frame ──30 Hz TCP──→ AuthoritativeWorld at 60 Hz
     ↓                                  │
 Local prediction                       ├─ movement/collision
                                        ├─ weapons/projectiles
@@ -328,7 +328,7 @@ During a match, ten-second metric windows include connected peers, participants,
 
 Do not log every input frame, unbounded collections, or client IP addresses. New logs must pass through the bridge's bounded logging helper.
 
-Client `F3` diagnostics expose local FPS, round-trip time and variance, ENet loss/throttle, snapshot arrival jitter and gaps, interpolation extrapolation rate, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment.
+Client `F3` diagnostics expose local FPS, round-trip time and variance from a 1 Hz application ping, snapshot arrival jitter and gaps, interpolation extrapolation rate, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment.
 
 ## 11. Verification Matrix
 
@@ -336,7 +336,7 @@ Shield block and break cues come from bounded authoritative impact and depletion
 
 Shield press and release samples send immediately through a reliable input RPC, sharing the normal admission, sequence and rate checks. A transition replaces the ordinary send when both fall on one sample, keeping traffic at no more than one input packet per physics sample. Late reliable samples cannot overwrite newer input. Shield input carries the most recent press identity for up to 15 sampled ticks (250 ms), including on subsequent released frames. A fresh identity re-arms through the ordinary release/activation rules and gives a recovered short tap one authoritative simulation tick; repeated packets cannot renew Perfect Guard or extend a released tap. Several coalesced taps recover the latest press, without queuing old actions for later playback. The recipient correction includes the consumed identity so replay cannot re-open a used window. Depletion locks, impact costs, arc coverage and regeneration remain unchanged. Local shield/guard-window rendering follows shared prediction immediately; block confirmation stays authoritative. The 250 ms guard deadline clears floating-point residue rather than granting an extra simulation tick.
 
-`shield_timing_tests.gd` exercises production sampling, codecs, authority and replay across seeded delay, jitter, dropped initial packets, duplication, reordering and expiry schedules, plus same-tick multishot and exact guard deadlines. The real ENet impairment fixture additionally delivers two short taps into three-shot volleys and records delivery latency and energy cost. `python tools/verify-network-impairment.py --shield-only --seeds 3` isolates shield acceptance from the general ability-delivery phases and marks the scope in its evidence. Final convergence now includes shield energy, lock, activation, guard window and consumed press identity. Failed/expired attempts remain visible in the retry count. These checks do not implement lag compensation or promise delivery through a blackout longer than the retention interval; competitive balance and human reaction tests remain separate.
+`shield_timing_tests.gd` exercises production sampling, codecs, authority and replay across seeded delay, jitter, dropped initial packets, duplication, reordering and expiry schedules, plus same-tick multishot and exact guard deadlines. The real TCP impairment fixture additionally delivers two short taps into three-shot volleys and records delivery latency and energy cost. `python tools/verify-network-impairment.py --shield-only --seeds 3` isolates shield acceptance from the general ability-delivery phases and marks the scope in its evidence. Final convergence now includes shield energy, lock, activation, guard window and consumed press identity. Failed/expired attempts remain visible in the retry count. These checks do not implement lag compensation or promise delivery through a blackout longer than the retention interval; competitive balance and human reaction tests remain separate.
 
 
 All commands run from the repository root after bootstrap.
@@ -345,7 +345,7 @@ All commands run from the repository root after bootstrap.
 | --- | --- | --- |
 | `.\tools\run-tests.ps1` | Complete deterministic suite; reports actual assertion count and rejects unexpected engine and script errors | After any gameplay/model/UI logic edit |
 | `.\tools\verify-foundation.ps1` | Import, parse all scripts, startup modes, tests, forced-failure path, and project checks | Before commit/handoff |
-| `.\tools\verify-network.ps1` | Real ENet admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
+| `.\tools\verify-network.ps1` | Real TCP admission, packets, authority, rejection, spectator, shutdown | Protocol/network changes |
 | `.\tools\verify-match-loop.ps1` | Two deterministic complete matches, card pick, timeout, reset, rematch | Match flow, draft, rematch changes |
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
 | `.\tools\run-performance-benchmark.ps1 -Map core_arena` | Selectable-map 32-Insane-NPC/1,024-projectile churn and 512-mine/512-projectile spatial-query cases, percentile timings and collision profiles | Combat, projectile, mine, NPC, or networking hot-path changes |
@@ -437,7 +437,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 13 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 13 client targets export to `builds/beta-13/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 14 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 13 client targets export to `builds/beta-13/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
@@ -450,7 +450,7 @@ The review-validation client and dedicated-server artifacts are local verificati
 
 `MatchObservations` keeps at most 128 completed heat rows per coordinator. It records actual first combat contact (shield blocks count; overtime does not), post-respawn eliminated time, actual draft time, turnaround, starting/ending builds, draft byes, and both temporary and permanent pickup cohorts. Missing contact or a next-round transition remains null. Production servers emit `heat_observation` summaries and `heat_player_observation` cohort rows at heat results; these study rows are not additional client RPCs. Existing logger bounds retain at most 16 card types per logged build and set `build_log_truncated` if larger; the 128-row in-memory history and JSON study outputs retain complete builds. Objective contributions are a separate public, cumulative match payload and reset with a fresh coordinator.
 
-Run the real preset/rematch RPC acceptance with Godot `--headless --path . --script res://src/test/lobby_flow_verifier.gd`. It verifies host and guest authority, atomic presets, replicated fresh results, and build/score resets over localhost ENet. Compatibility 30 is required because the RPC surface changed (presets/rematches in 29, competitive view in 30); binary input and snapshot formats remain version 12.
+Run the real preset/rematch RPC acceptance with Godot `--headless --path . --script res://src/test/lobby_flow_verifier.gd`. It verifies host and guest authority, atomic presets, replicated fresh results, and build/score resets over localhost TCP. Compatibility 30 is required because the RPC surface changed (presets/rematches in 29, competitive view in 30); binary input and snapshot formats remain version 12.
 
 The same lobby-flow fixture now verifies guest rejection, host replication, midmatch locking, and rematch retention for competitive view. Run `--headless --path . --script res://src/test/competitive_view_verifier.gd` for six-resolution resize, camera-world extent, aim-center, and expanded-layout restoration checks. The production presentation gate also records `competitive_combat` at all six resolutions.
 
@@ -474,7 +474,7 @@ python tools/verify-attribution.py
 ./tools/verify-soak.ps1 -ClientCount 32 -DurationSeconds 90 -ServerExecutable builds/server/SuperStarFighter-Server.exe
 ```
 
-The impairment harness needs Python 3.11+ and the bootstrapped engine. It binds only loopback UDP, starts a hidden Godot child and changes no firewall or operating-system network rules. Baseline, latency/jitter, loss, reorder/duplication, blackout and combined profiles affect real ENet traffic in both directions, including control traffic. A `tail_loss` profile drops traffic during settlement to exercise retry of the final neutral input. The fixture resends one stable neutral sequence at the normal input cadence until it is acknowledged, then separately checks replay drainage and durable resource equality. Coverage is established before cloak inhibits weapons. Logs include pending count and sequence bounds, server/snapshot acknowledgments, cooldown/shield state, neutral retry count, movement correction p95/p99/max and snap count.
+The impairment harness needs Python 3.11+ and the bootstrapped engine. It binds only loopback TCP, starts a hidden Godot child and changes no firewall or operating-system network rules. `tools/tcp_link_proxy.py` impairs the real byte stream in both directions, including control traffic, as TCP presents faults to the application: order-preserving delay/jitter, loss as a 200 ms retransmission stall that blocks later bytes, blackouts as held delivery and limited bandwidth as reader backpressure. Reordering and duplication are invisible above TCP and have no profile. A `tail_loss` profile stalls upstream traffic during settlement to exercise retry of the final neutral input. The fixture resends one stable neutral sequence at the normal input cadence until it is acknowledged, then separately checks replay drainage and durable resource equality. Coverage is established before cloak inhibits weapons. Logs include pending count and sequence bounds, server/snapshot acknowledgments, cooldown/shield state, neutral retry count, movement correction p95/p99/max and snap count.
 
 Every invocation writes a unique folder under `.tools/network-impairment/`, with per-seed logs, fault counters, and an incrementally written summary that retains failures. `--profile`, `--seed`, `--seeds` and `--port` select a bounded run; proxy randomness is seeded, but OS scheduling can still change datagram grouping. Full match transitions and population load have separate gates. Run the LAN discovery/local-host gate after other server fixtures have stopped because they share the discovery port. That gate now verifies teardown and reconnect on the same client.
 
@@ -502,9 +502,11 @@ Ability presses use the same reliable `action_input` RPC as shield transitions (
 
 Connection preferences now own appearance serialization, endpoint normalization and pending password persistence in `connection_preferences.gd`. The settings path is injectable; tests use isolated files. Admission commits a pending preference, while cancellation/reset discards it. Writes preserve unrelated settings sections and refuse to overwrite a file that could not be read. The connection controller owns modal dismissal and connection-screen reset; the root coordinates gameplay navigation through `dismiss_modal()`, `reset_connection()` and `is_hosting()`. Fifty connection field aliases and fifteen forwarding methods were removed from the root; capture and integration tools access the actual controller. Draft/settings compatibility surfaces remain separate follow-up opportunities.
 
-Shared-address admission keeps two active authentication challenges per source and queues additional peers in arrival order. The queue shares the original ten-second handshake deadline and the existing ENet capacity; it does not reset failure or connection-attempt throttles. Queued peers cannot authenticate before their challenge. The authoritative server disables unused peer-to-peer relay announcements and sends lobby/gameplay broadcasts only to admitted, connected transports. Normal play retains a single broadcast serialization; admission/disconnect windows use filtered recipients.
+Shared-address admission keeps two active authentication challenges per source and queues additional peers in arrival order. The queue shares the original ten-second handshake deadline and the transport capacity of admitted plus eight reserved peers; it does not reset failure or connection-attempt throttles. Queued peers cannot authenticate before their challenge. Godot's TCP listener accepts only a small backlog of simultaneous connection attempts, so clients retry a refused transport connect with jittered exponential backoff (up to 12 attempts within 10 seconds) before admission. The authoritative server disables unused peer-to-peer relay announcements and sends lobby/gameplay broadcasts only to admitted, connected transports. Normal play retains a single broadcast serialization; admission/disconnect windows use filtered recipients.
 
-Run `tools/verify-admission-burst.ps1` for three real-ENet 32-client bursts, match start, late spectator reconnection and mass disconnect cleanup. `-ChallengeDelayMs 0..300` controls a delay before challenge transmission, not full internet latency simulation. Every cycle must admit all 32 peers; unexpected engine errors fail the wrapper even if the fixture emits its success marker. See [admission fix evidence](archive/ADMISSION-FIX-2026-09-04.md).
+`python tools/verify-wss-proxy.py` checks the Cloudflare path: a real `wss://` client with a fixture-generated certificate connects through a loopback TLS-terminating proxy to a `--behind-proxy` server bound to `127.0.0.1`. It verifies admission, ping, wrong-password rejection, per-connection sources and refused address bans. `NetworkSessionOwner.tls_trusted_chain` is the test hook for the fixture certificate; production clients use system roots.
+
+Run `tools/verify-admission-burst.ps1` for three real-TCP 32-client bursts, match start, late spectator reconnection and mass disconnect cleanup. `-ChallengeDelayMs 0..300` controls a delay before challenge transmission, not full internet latency simulation. Every cycle must admit all 32 peers; unexpected engine errors fail the wrapper even if the fixture emits its success marker. See [admission fix evidence](archive/ADMISSION-FIX-2026-09-04.md).
 
 Connection refactor validation: 6,322 unit assertions; local hosting, LAN discovery, teardown and reconnect; 69 rendered 1280×720 presentation states, with host and full-lobby screens visually inspected; editor import and shipping allowlists. Preference tests cover reload, invalid stored appearance, successful versus cancelled admission, forgetting passwords, endpoint isolation and preservation of unrelated settings.
 
