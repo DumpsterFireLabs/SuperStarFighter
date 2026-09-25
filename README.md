@@ -151,10 +151,10 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 - [Player and Host Manual](./docs/MANUAL.md) — complete instructions, match rules, card strategy, hosting, settings, and troubleshooting.
 - [Development Guide](./docs/DEVELOPMENT.md) — repository architecture, setup, content authoring, testing, and contribution workflow.
 - [Documentation Index](./docs/README.md) — the best document for each audience and task.
-- [Authoritative Specification](./spec.md) — exact gameplay, networking, balance, and acceptance contract.
-- [Product Plan](./plan.md) — product intent and scope.
-- [Ten-Map Roster and Expansion Plan](./maps.md) — implemented static layouts and round rotation plus the advanced-mechanics roadmap.
-- [Implementation Milestones](./milestones.md) — delivered work and verification evidence.
+- [Authoritative Specification](./docs/design/spec.md) — exact gameplay, networking, balance, and acceptance contract.
+- [Product Plan](./docs/design/plan.md) — product intent and scope.
+- [Ten-Map Roster and Expansion Plan](./docs/design/maps.md) — implemented static layouts and round rotation plus the advanced-mechanics roadmap.
+- [Implementation Milestones](./docs/design/milestones.md) — delivered work and verification evidence.
 - [Audio Drop-in Contract](./assets/audio/README.md) — accepted music and sound-effect filenames.
 
 ## Dedicated Server
@@ -195,7 +195,7 @@ For remote command-line administration, forward a local port through SSH—`ssh 
 
 Once connected, open **Admin** in the online lobby or **Server Admin** in the pause menu and enter the separate admin password. The panel uses the existing game connection; players need no SSH access or admin port. It shows server status and players and supports moderation, live settings, match restart, and graceful shutdown. Restart begins a fresh match at round one and resets scores and builds. Because gameplay ENet traffic is not encrypted, use a long random admin password; the panel does not offer password rotation over that connection.
 
-The Windows dedicated package includes unattended launch and administration scripts. Health reports continue while idle or paused; admin status includes uptime, recent metrics and their age. See the [dedicated server runbook](./docs/SERVER_README.txt) and [readiness validation](./docs/SERVER-READINESS-2026-09-08.md) for launch commands, capacity gates and measured limits.
+The Windows dedicated package includes unattended launch and administration scripts. Health reports continue while idle or paused; admin status includes uptime, recent metrics and their age. See the [dedicated server runbook](./docs/SERVER_README.txt) and [readiness validation](./docs/archive/SERVER-READINESS-2026-09-08.md) for launch commands, capacity gates and measured limits.
 
 Super Star Fighter uses ENet over UDP. LAN discovery uses UDP `7359`; gameplay uses the selected UDP port, `7000` by default. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting currently requires direct IP/hostname access and manual router/firewall configuration; UPnP traversal is not implemented.
 
@@ -221,7 +221,7 @@ Run the complete foundation gate:
 .\tools\verify-foundation.ps1
 ```
 
-The test and foundation commands report their actual assertion and check counts. See the [dated review and implementation evidence](./docs/REVIEW-2026-09-03.md) for recorded results and their limits. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
+The test and foundation commands report their actual assertion and check counts. See the [dated review and implementation evidence](./docs/archive/REVIEW-2026-09-03.md) for recorded results and their limits. Network, match-loop, NPC, local-host, presentation, hardening, smoke, export, and 32-client soak harnesses are also included under `tools/`; the [development guide](./docs/DEVELOPMENT.md#11-verification-matrix) explains when to use each one.
 
 ## Current Scope
 
@@ -231,7 +231,7 @@ Beta 12 targets Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal 
 
 ## License and Assets
 
-No project license has been declared in this repository yet. Treat the source and bundled assets as all-rights-reserved until a license file is added. Any replacement music or sound effects must be original or properly licensed for the project.
+The source code, scenes, data, tests, tools, and documentation are released under the [MIT License](./LICENSE). The bundled music and the Dumpster Fire Labs logo are **not** covered by it; they remain all rights reserved, and forks should replace them and use a different name. See [asset licensing](./assets/LICENSE.md) for the full breakdown. Any replacement music or sound effects must be original or properly licensed for the project.
 
 The [attribution inventory](./docs/ATTRIBUTION.md) records source/dependency coverage and exact asset hashes, including unresolved provenance. Packages include Godot and bundled-component notices.
 

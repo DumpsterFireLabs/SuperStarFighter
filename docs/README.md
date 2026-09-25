@@ -1,6 +1,6 @@
 # Super Star Fighter Documentation
 
-This directory separates practical guidance from the authoritative implementation documents in the repository root.
+This directory holds practical guides at the top level, the authoritative design documents in [`design/`](./design/), and dated reviews and measurement evidence in [`archive/`](./archive/).
 
 ## Start Here
 
@@ -8,15 +8,16 @@ This directory separates practical guidance from the authoritative implementatio
 | --- | --- |
 | Play, host, join, configure a lobby, or understand the rules | [Player and Host Manual](./MANUAL.md) |
 | Set up the source project, understand its architecture, add cards/audio, or run validation | [Development Guide](./DEVELOPMENT.md) |
-| Check the exact implemented rule or network contract | [Authoritative Specification](../spec.md) |
-| Understand product intent and deliberate exclusions | [Product Plan](../plan.md) |
-| Review the planned ten-map roster and its full-capacity guarantees | [Ten-Map Expansion Plan](../maps.md) |
+| Check the exact implemented rule or network contract | [Authoritative Specification](design/spec.md) |
+| Understand product intent and deliberate exclusions | [Product Plan](design/plan.md) |
+| Review the planned ten-map roster and its full-capacity guarantees | [Ten-Map Expansion Plan](design/maps.md) |
 | Track movement fields, destructible cover, and teleporter relays | [Arena Mechanics Roadmap](./ARENA-MECHANICS-ROADMAP.md) |
-| Review completed work and acceptance evidence | [Implementation Milestones](../milestones.md) |
-| Review audio startup, memory, crowded-mix evidence, and remaining listening checks | [Audio Study](./AUDIO-STUDY-2026-09-04.md) |
+| Review completed work and acceptance evidence | [Implementation Milestones](design/milestones.md) |
+| Review audio startup, memory, crowded-mix evidence, and remaining listening checks | [Audio Study](./archive/AUDIO-STUDY-2026-09-04.md) |
 | Add music or replace placeholder sound effects | [Audio Drop-in Contract](../assets/audio/README.md) |
 | Check source/asset provenance and engine notices | [Attribution Inventory](./ATTRIBUTION.md) |
 | Run the stripped Windows server package | [Dedicated Server Instructions](./SERVER_README.txt) |
+| Read historical reviews, studies, and raw measurement evidence | [Archive](./archive/) |
 
 ## Document Authority
 

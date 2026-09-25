@@ -1,0 +1,15 @@
+PASS baseline: 258 snapshots, resources converged, faults={'up': {'received': 288, 'delivered': 288, 'dropped': 0, 'duplicated': 0, 'reordered': 0, 'delayed': 0}, 'down': {'received': 386, 'delivered': 386, 'dropped': 0, 'duplicated': 0, 'reordered': 0, 'delayed': 0}}
+PASS latency: 254 snapshots, resources converged, faults={'up': {'received': 183, 'delivered': 182, 'dropped': 0, 'duplicated': 0, 'reordered': 23, 'delayed': 183}, 'down': {'received': 385, 'delivered': 384, 'dropped': 0, 'duplicated': 0, 'reordered': 72, 'delayed': 385}}
+PASS loss: 230 snapshots, resources converged, faults={'up': {'received': 207, 'delivered': 183, 'dropped': 24, 'duplicated': 0, 'reordered': 0, 'delayed': 0}, 'down': {'received': 395, 'delivered': 352, 'dropped': 43, 'duplicated': 0, 'reordered': 0, 'delayed': 0}}
+PASS reorder: 180 snapshots, resources converged, faults={'up': {'received': 300, 'delivered': 336, 'dropped': 0, 'duplicated': 36, 'reordered': 99, 'delayed': 95}, 'down': {'received': 379, 'delivered': 411, 'dropped': 0, 'duplicated': 32, 'reordered': 137, 'delayed': 130}}
+PASS blackout: 244 snapshots, resources converged, faults={'up': {'received': 284, 'delivered': 278, 'dropped': 6, 'duplicated': 0, 'reordered': 0, 'delayed': 0}, 'down': {'received': 384, 'delivered': 360, 'dropped': 24, 'duplicated': 0, 'reordered': 0, 'delayed': 0}}
+Traceback (most recent call last):
+  File "<repo>\tools\verify-network-impairment.py", line 147, in <module>
+    main()
+    ~~~~^^
+  File "<repo>\tools\verify-network-impairment.py", line 142, in main
+    results = [run_profile(args.godot.resolve(), name, args.port, args.seed, output) for name in names]
+               ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\tools\verify-network-impairment.py", line 106, in run_profile
+    raise RuntimeError(f"{name}: Godot verification failed; see {log_path}")
+RuntimeError: combined: Godot verification failed; see <repo>\.tools\network-impairment\combined.log

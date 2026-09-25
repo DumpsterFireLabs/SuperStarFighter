@@ -4,7 +4,7 @@
 **Engine:** Godot 4.7.2  
 **Players:** 2–32 total human/NPC participants; one human may start when NPC fill is enabled
 
-This manual explains how to launch, host, join, play, troubleshoot, and run a good Super Star Fighter session. Exact implementation values live in the [authoritative specification](../spec.md).
+This manual explains how to launch, host, join, play, troubleshoot, and run a good Super Star Fighter session. Exact implementation values live in the [authoritative specification](design/spec.md).
 
 ## Contents
 
@@ -510,7 +510,7 @@ Cards do not always contain a downside. Higher rarity means scarcity, not a guar
 - Repair-rate cards do nothing until a card enables auto-repair, but their stacks remain ready for that future unlock.
 - Extreme speed needs acceleration and braking support if the ship is expected to remain controllable.
 
-The complete 136-card reference is in [section 7.3 of the specification](../spec.md#73-catalog).
+The complete 136-card reference is in [section 7.3 of the specification](design/spec.md#73-catalog).
 
 ## 9. HUD, Scoreboard, Spectating, and Menus
 

@@ -1,0 +1,2505 @@
+{
+  "review_date": "2026-09-22",
+  "head": "6476830ea062bea6ce8869b6b8fc3962342fc047",
+  "working_tree": " M .gitignore\n M README.md\n M assets/audio/README.md\nD  assets/audio/music/gameplay/.gitkeep\nD  assets/audio/music/gameplay/Distorted.ogg\nD  assets/audio/music/gameplay/Distorted.ogg.import\nD  assets/audio/music/gameplay/Edge.ogg\nD  assets/audio/music/gameplay/Edge.ogg.import\nD  assets/audio/music/gameplay/Infinity.ogg\nD  assets/audio/music/gameplay/Infinity.ogg.import\nD  \"assets/audio/music/gameplay/Mach 10.ogg\"\nD  \"assets/audio/music/gameplay/Mach 10.ogg.import\"\nD  \"assets/audio/music/gameplay/No Doubt.ogg\"\nD  \"assets/audio/music/gameplay/No Doubt.ogg.import\"\nD  assets/audio/music/gameplay/Numb.ogg\nD  assets/audio/music/gameplay/Numb.ogg.import\nD  \"assets/audio/music/gameplay/Pull Up.ogg\"\nD  \"assets/audio/music/gameplay/Pull Up.ogg.import\"\nD  assets/audio/music/gameplay/Stomped.ogg\nD  assets/audio/music/gameplay/Stomped.ogg.import\nD  assets/audio/music/gameplay/Woofer.ogg\nD  assets/audio/music/gameplay/Woofer.ogg.import\nD  assets/audio/music/main_menu.ogg\nD  assets/audio/music/main_menu.ogg.import\nD  assets/audio/music/win.ogg\nD  assets/audio/music/win.ogg.import\n M docs/ATTRIBUTION.md\n M docs/BETA_README.txt\n M docs/DEVELOPMENT.md\n M docs/MANUAL.md\n M docs/SERVER_README.txt\n M docs/asset-provenance.json\n M export_presets.cfg\n M src/client/client_main.gd\n M src/client/presentation/audio_director.gd\n M src/client/ui/draft_screen_controller.gd\n M src/client/ui/lobby_screen_controller.gd\n M src/client/ui/settings_controller.gd\n M src/server/remote_admin_service.gd\n M src/test/test_runner.gd\n M tests/unit/audio_mix_tests.gd\n M tests/unit/screen_controller_tests.gd\n M tools/admin.ps1\n M tools/build-beta.ps1\n M tools/build-linux-beta.ps1\n M tools/build-macos-beta.ps1\n M tools/build-server.ps1\n M tools/start-server.ps1\n M tools/verify-soak.ps1\n?? assets/audio/sfx/silly/\n?? docs/archive/PERFORMANCE-ARCHITECTURE-REVIEW-2026-09-22.md\n?? docs/archive/SERVER-READINESS-2026-09-08.md\n?? docs/archive/card-balance-evidence-2026-09-07.gd.uid\n?? docs/archive/card-balance-focused-2026-09-07.gd.uid\n?? docs/archive/card-balance-trials-2026-09-07.gd.uid\n?? docs/archive/card-balance-validation-2026-09-07.gd.uid\n?? docs/archive/connection-lobby-evidence-2026-09-04/1280x720_host_menu.png.import\n?? docs/archive/connection-lobby-evidence-2026-09-04/1280x720_lobby_32.png.import\n?? docs/archive/connection-lobby-evidence-2026-09-04/1280x720_lobby_color_picker.png.import\n?? docs/archive/connection-lobby-evidence-2026-09-04/5120x1440_lobby_options.png.import\n?? docs/archive/npc-draft-sampling-2026-09-07.gd.uid\n?? docs/archive/performance-evidence-2026-09-17/\n?? docs/archive/review-evidence-2026-09-04/crowded-combat.png.import\n?? docs/archive/review-evidence-2026-09-04/draft.png.import\n?? docs/archive/review-evidence-2026-09-04/pacing.gd.uid\n?? docs/archive/review-evidence-2026-09-04/reproduce.gd.uid\n?? docs/archive/review-evidence-2026-09-04/tutorial-scaled.png.import\n?? docs/archive/review-evidence-2026-09-22/\n?? docs/archive/server-readiness-evidence-2026-09-08/\n?? docs/archive/settings-standings-evidence-2026-09-04/scoreboard-ultrawide.png.import\n?? docs/archive/settings-standings-evidence-2026-09-04/settings-720p.png.import\n?? docs/archive/shield-colour-evidence-2026-09-04/after.png.import\n?? docs/archive/shield-colour-evidence-2026-09-04/before.png.import\n?? src/test/client_presentation_benchmark.gd.uid\n?? src/test/frame_pacing_control.gd.uid\n?? src/test/frame_timing_summary.gd.uid\n?? tests/unit/combat_request_tests.gd.uid\n?? tests/unit/draft_layout_tests.gd\n?? tests/unit/draft_layout_tests.gd.uid\n?? tests/unit/spectator_camera_tests.gd.uid\n?? tools/admin.py\n?? tools/build-linux-server.ps1\n?? tools/generate-silly-audio.ps1\n?? tools/package-linux-server.py\n?? tools/start-server.sh\n?? tools/verify-server-operations.ps1\n",
+  "source_sha256": {
+    "src/bootstrap.gd": "d849583b83ab0044c56804799a4ecd15f84f61b96374773402977f0d77fcdfa5",
+    "src/client/client_main.gd": "a561c9da271d2a86b82da42930f627a918dbfa7f5a06cb575ba5df6b2cc3e7ac",
+    "src/client/input/combat_action_latch.gd": "c610ebeb7dec18e34743515b7558ca6675269cf14f46eeaabed3941efa3ca114",
+    "src/client/input/input_profile_manager.gd": "20ee77b28826cd226e52b28e586e6bcfcbb10352af7ae433808d9bc662b9617c",
+    "src/client/network/client_match_state.gd": "4f40dc31efd95dcc7020de199ae6b42ac9a86fc3972d10a70fa2e85ba561c6fe",
+    "src/client/network/client_view_context.gd": "db2e1591ac919402bcf6a6290792a36e0b813425a606c94fa14fdb5aac7afc58",
+    "src/client/network/hosted_session.gd": "0d483773e468751b0512b30e980fe4c2f3d251f19eec1ad939da02898f493764",
+    "src/client/network/network_hud_camera.gd": "c12f32e5e413ce74e2ce97066e1b17476030ea6beb952f789c6ded132de974bd",
+    "src/client/network/network_local_prediction.gd": "237f375b6a99ba7089537cbfd61145dca38955387f52033edfe76d0e46492794",
+    "src/client/network/network_replicated_visuals.gd": "44d5774cac177891da331aaf8a06daa87126464e696c53cdb0de5541d8c903fc",
+    "src/client/network/network_world_view.gd": "e39fded85928a4843d07030e798c648e1831b156dc7c9908f5681d31dc22143a",
+    "src/client/network/projectile_replication_history.gd": "99f831d1df3055b1f8dbce2d9c23f7147c93c4498b7f682a6e759785f0ebd0b2",
+    "src/client/presentation/accessibility_preferences.gd": "a6ec5e40fbee288ff3ef5d84d8ab46cd8f28f8d7ef4e22c1a598c41a78e785b4",
+    "src/client/presentation/accessible_interface.gd": "239bc5fe0c414052c68702725b26d7a34e314e7a6945bb1d74e969a2db8f158e",
+    "src/client/presentation/arena_movement_field_layer.gd": "57390d2b1cfda8088af788e4d6429ff17195793258d94ae625bdb5583db81f1a",
+    "src/client/presentation/arena_static_layer.gd": "357328bea28547202cc0137a81e407fb5a40b0ab6bed508fedbe82c722c67716",
+    "src/client/presentation/arena_view.gd": "c905d1ad02b7e46b23f2b6fcdb2eb607a7ca61d5290c8feccd5939de8d985912",
+    "src/client/presentation/audio_director.gd": "9806860fac0e2957f7f3b834ef32c4cae10416a8f695ba21a0ff778bd6104d21",
+    "src/client/presentation/audio_mix_policy.gd": "38839021e531b3a00de7c450e3f2b024bd0807cf30b215e67057d6409c398285",
+    "src/client/presentation/combat_effects_layer.gd": "8f4ed6b81d4a26b4936af4c64c8ba18c7990c074eb38d296e85b3dc049bd33c3",
+    "src/client/presentation/combat_feedback_panel.gd": "5034fe24e12f24c2f9b145e58125e4c4b0e1ac5c22ec7e6f81060ad388cb6171",
+    "src/client/presentation/combat_feedback_presentation.gd": "8770c1acba01192859b79aa43849f677238585c15e5a684359db80edb69198f7",
+    "src/client/presentation/combat_ship_view.gd": "420258159facb7f9562ad89276c8ddea82a6c4ad83851282d0c029db699ef50f",
+    "src/client/presentation/competitive_view_policy.gd": "587b8ba751f65c184b9a5d53c02dbb9c645c029bf021cbe00ff627eeb81f620e",
+    "src/client/presentation/neon_backdrop.gd": "9813f6573c2cd44a8e035fa9cdbbc2ef2bdd9576dfd35be5e8983b8fdb67699a",
+    "src/client/presentation/offscreen_indicator_layer.gd": "951e90d3f85c599b4a093fa56ffb81dca9e2345829460be80765a03a3f0b379c",
+    "src/client/presentation/powerup_layer.gd": "7a3114c46c228a937c62a1fcd7d363306adbc027c3b0e9f7052110f67cd72dfd",
+    "src/client/presentation/projectile_layer.gd": "855579e7197c13f3b2868510be0b5224b607f1c5fcb46f0b354444bf9855db7a",
+    "src/client/presentation/ship_build_geometry.gd": "4164eaf44a2568e4bb446e1f4afe2a22af199838e4a5c2c308250289febc6c54",
+    "src/client/presentation/ship_pattern_geometry.gd": "e83b8d75c80723414320db6c3913fbbee0b427b48a01c9bd433a7fd4e3f46e9e",
+    "src/client/presentation/splash_logo.gd": "e167f1218de97237217beba9dc5e86f2644e41e50f8c375c519e624db43f71c5",
+    "src/client/presentation/standings_model.gd": "87fe2d130de45b2c61ca19d21d9485380dbc64da5b321b8f8d6a4925f38c0176",
+    "src/client/presentation/weapon_sound_profile.gd": "ede45ef0e52ed5de96f53b6ad7d298b1ae1e45107ee526228fb47b21d363efc8",
+    "src/client/sandbox/combat_tutorial.gd": "5bd6995deb874662fecb6435049df580d9fb6e30140af71f26bb82a2c6c578f6",
+    "src/client/sandbox/lab_panel.gd": "e44de28e41ceb44a0d19660b9956e0a729d569c12117cfd7c440e9a24036bbcd",
+    "src/client/sandbox/offline_sandbox.gd": "6113bc1b36ff94feb2de67ca97269181a012f06053e0422916bdd041d8b4df02",
+    "src/client/settings_store.gd": "cfe0e18a70cfd2dd91c348e7097345bae3b03fa037652af0db0f28099338cbe9",
+    "src/client/ui/arena_effect_controls.gd": "130d30dafab48f94b2520ea15c69d7f642bae3eb4703280e071efb75154dc6e9",
+    "src/client/ui/card_details_text.gd": "83b6f6a74d3f89130387bb9b49f3504cddc96db56a02127b6b3117e95f00465c",
+    "src/client/ui/card_hover_button.gd": "e8b48eba1d3217a5124b84d89d4f2dcd32d95ec9f00d4ac07f6ffe69dfd239ef",
+    "src/client/ui/card_identity.gd": "9085c83e5abfc3e946b3415a7b931ab0335ac5cc1061beb443fda40f8258bf5c",
+    "src/client/ui/card_inspector.gd": "355d176fdb2e2e0ded6e4e276eedfad24735f408f01d8474a147c2e25bf7d0e0",
+    "src/client/ui/card_mechanic_icon.gd": "f7a65f28b72d7e6ef928019f087663a5a2e9e53a899f3af0eceee64e4dd5e22f",
+    "src/client/ui/connection_controller.gd": "65d718ec8a0bbb934f26e403eb73ead357d66d199213051c9e3489fb273da4a6",
+    "src/client/ui/connection_preferences.gd": "3e9a4a294f9a2dc578cd488c47c5e8a3badf5a3e94c9989422b8781f3773a20d",
+    "src/client/ui/design_tokens.gd": "25ce14e8a44cc2876639043bdbaf2fc2ddb4bf43e570dc04e970d839b8fdebee",
+    "src/client/ui/draft_screen_controller.gd": "32187c1b104131cde4ee8c2e80d74b8926b8fdd07c8ec6cdfa48826a28a97618",
+    "src/client/ui/kill_feed.gd": "e09f3869312eaa4f0fc5659f42391858a43fff71312b48c9182948678b212c82",
+    "src/client/ui/lobby_screen_controller.gd": "2f750c37210ba8543432f71b49c88aece88fc2e8b31ca8e2ee37eb24daec19d5",
+    "src/client/ui/match_preset_controls.gd": "79f6808e2423adc69d11dc0c4ba5590180bc98abd5ef35da3b3e78333abe5b5a",
+    "src/client/ui/objective_contribution_text.gd": "521bdfe15e5741ce79e93bbbccf2f09b935ae664b4b7e69377721f6dbdb3de7b",
+    "src/client/ui/screen_navigation.gd": "c837bd5290d496665c9765e9961b18aab8a651bf70a0a49f8f1cbfa5c745e4e2",
+    "src/client/ui/settings_controller.gd": "741f4adc68a2e05d34cc2cc8cb9cfb866021160fda39c2f1adaae3edff7ef05b",
+    "src/client/ui/ship_pattern_preview.gd": "e5a9004b74dc96d788697960feb1587798e37b402c267e7e319060aad4f9e597",
+    "src/client/ui/standings_screen_controller.gd": "a1950e30bcb2d36383a48391b937701d501b08400e148663a6d438a1daae62be",
+    "src/server/remote_admin_service.gd": "a1350a6a1b2706ee1137879b1ad71868b97469554245d5b8a99fc02efc5ce9f7",
+    "src/server/server_log_writer.gd": "b6a1e39995c54602f1c5f37aeed18f547d671d67adb311513c7ba5c0fd9cb37c",
+    "src/server/server_main.gd": "259ea796e7fbcfce5c0edddfb422507e6651e2cab013ddd67e9b49c569f57675",
+    "src/server/server_runtime.gd": "d714055b870f00a717cb3f2e6e02735f34360f0b5694e02f93dc0f8189c2e75a",
+    "src/shared/arena/arena_collision_system.gd": "3f85e8205ebf5ecefaf9ba849cd419d4142c0834c0a8b086e456099b72027f15",
+    "src/shared/arena/arena_effect_rules.gd": "33a91e3a51f77bb43c2ded2ef5405ed6022fea0541a5febdfeea2d993acb5560",
+    "src/shared/arena/arena_effect_state.gd": "2686ff3f61b7fe48c39f0f4104b2612a239a1de5b8c81a45ef1dbea6d2ea6b0c",
+    "src/shared/arena/arena_layout.gd": "c4c526dbd2c8da3406b72afa2fc44a2c2e8ee0a96e10a9ef0e0ea9f1c4182617",
+    "src/shared/arena/arena_movement_field.gd": "e9a2333ffe8b3d13991c72b9296d7c4e3c4889471c99f7ee653fa809c65605fb",
+    "src/shared/arena/arena_movement_field_definition.gd": "1b97442e612cb71675c351db80a0054cb8f962427b53e8de0ba21546db4513ff",
+    "src/shared/arena/arena_movement_system.gd": "5f41778d9defeb500aac4fe1a00eacb8d722b29e76b6e33e02c671c3ff7137b6",
+    "src/shared/arena/map_definition.gd": "a8bc568974af08d49fcb06228141bea4b916d388cafde835c503081956b8615a",
+    "src/shared/arena/map_registry.gd": "6f02da9dce984abf96d146042e8ff3029920b6daa4d10e6106fa615465c1c6bd",
+    "src/shared/arena/projectile_geometry_references.gd": "f27e32e7270cc13f71ae94aa8d8c25bb1fb22fb0d860aa14dce91a38a802c9c2",
+    "src/shared/cards/card_catalog.gd": "d3c0d2bf67f54b1cea69ec73a9c402ec92c273cfd9277c1fe3f7183bb049b345",
+    "src/shared/cards/card_definition.gd": "f99431556d70b65129823b9c258b31f7194efbc44a0c97be5e4503a5f66f9662",
+    "src/shared/cards/stat_system.gd": "c540224a988071c2e55d2bc17f652c8a5a3f6e37268282a2e1e7e084a87403cd",
+    "src/shared/combat/authoritative_world.gd": "1b6fb5d55eb812ffa2fce6bf548a9b16416155a69d109891ad889660fbba48a1",
+    "src/shared/combat/card_powerup_system.gd": "f8ff95e3d08be7ed5d0abdb58aad0b9e4774098ca2c9e390f6b67a369af891be",
+    "src/shared/combat/combat_feedback_buffer.gd": "ca8ad5d9e876d4abba7ccf1f38af77e4a9b938a95263161ea6d043b7f1af8074",
+    "src/shared/combat/combat_spatial_index.gd": "b1cf8db56c5340d87d4c4dd5b3155ac995f7b36d0d36d14df180a136ec0cfeb1",
+    "src/shared/combat/combatant_state.gd": "9b5a98708522b883fc10c8a9661d917cba54dbdbea01f758d17c30dd3b0432b4",
+    "src/shared/combat/damage_resolver.gd": "999e9f48f8028dbd527ce4dcec1743529dcc975eb52783a98c26e78c4720b24a",
+    "src/shared/combat/movement_system.gd": "a3e73f79aeb8a92ef1925bd91c70e940496947a4ff7812195a93da4ecd40a969",
+    "src/shared/combat/npc_draft_policy.gd": "d0ed28c706d967024356f908a8c1a33d1a4a3566d52ceaf6bd8055472fc1a00d",
+    "src/shared/combat/npc_objective_navigation.gd": "833accca51ad48931e22687c15c6323af47709488004c4893d1abfe4ff3702d9",
+    "src/shared/combat/npc_pilot_controller.gd": "aff1f5f74f9c0fab0d5a4d70020066753f981bacac1c3bb91d444824097e70bf",
+    "src/shared/combat/overtime_system.gd": "48f8940a8fe6ebf22d524a378dcf046136d609161f477494569c82dca5169747",
+    "src/shared/combat/projectile_registry.gd": "c1a80082bf32eb0ab6a289d0c3f1f101f2374342642aae7a17cff90aa21a11ef",
+    "src/shared/combat/projectile_state.gd": "16c04089dc34611b067a9d49b47e5c7de22f79a1e4b1f33876d55fbe515572e3",
+    "src/shared/combat/respawn_placement.gd": "5ab3e5f488c5865c3d266895a7ffcbfcfe0a9bd23a7ccd2e163c1750ff476a78",
+    "src/shared/combat/shield_state.gd": "28178bde50db8c24a4bd285469588340ba3c883fcacf6c9d61a031f3615f371f",
+    "src/shared/combat/silly_combat_observer.gd": "b1e8b7525e5e75ab3e9691deb247eefba407262acbd85d270b65183e4b16b5b9",
+    "src/shared/combat/special_ability_selection.gd": "c58d081ab6966dedc7421d371670b4cc39a80dfd208742729f4fc2e7fb4986f4",
+    "src/shared/combat/weapon_state.gd": "6b973f2c717d47f4f9bcd34b8240a4213e1aeed354648a1fee4a91faae7aced0",
+    "src/shared/command_line_config.gd": "4c33544c2f74b2f43bd5a18a28e192291883524d2260dfa0bcb0501582d2f4b8",
+    "src/shared/draft/draft_manager.gd": "d8741eeda6cac10013968aafda0807787a8b5ed67d2b137ceaf0957a6de1f8e5",
+    "src/shared/draft/draft_offer.gd": "9b4d4fb7037c17060ee1dfca20b1bf1a2b73512543b3aeefca45a8de4403b01b",
+    "src/shared/game_constants.gd": "f2b196a7e1c8e1b7b5d97f445ab3268e10148f36cf296692e2c21f240e94a25e",
+    "src/shared/lobby/match_presets.gd": "d0517a5efafa7e07b23d2bedbd9c4da8b9bf5cf7117b2ee41d5ea52b7916b612",
+    "src/shared/lobby/server_lobby.gd": "931cf09580439c7ead4ce3ef3e7f21b14d1a483ac15f4be00956bfe8d32529d8",
+    "src/shared/match/authoritative_match_coordinator.gd": "29d13d3ad109d0bc3552d2cf35d7656b0331c3c348b962cab7b5b700e80af5b0",
+    "src/shared/match/flag_mode_handler.gd": "d4f850852c889337b55c1cf9ca70c6e503ec352fdfad85b208ebebac64123f5e",
+    "src/shared/match/game_mode_rules.gd": "03f66c01f2d723327d3280b28b8bb769ac63a8a7914419e2ba3ea25f033156a8",
+    "src/shared/match/hill_mode_handler.gd": "984844bbd1c2ed4ca6230dcbcf1d05b78bda8c3a4b236c6f56a058dc3de9a3ed",
+    "src/shared/match/match_event.gd": "2bc23182e5ee9d0cafe71af44953c661482fcaaaf1a01f1d2f026d9e9e04bcfe",
+    "src/shared/match/match_observations.gd": "3b05fd4004f91bd81a3e0202bcedcabca698ea34f1628af23e8c0895c5a167b7",
+    "src/shared/match/match_score_state.gd": "5a446afe1b017067f5fbfb68ea0abdf6d64ae3339289d61fb9c7e3c31b17c855",
+    "src/shared/match/match_state_machine.gd": "c6bd5a724beaf90b19633dbf41d42ec1bff6bedc0ae95ee9dec4658c067b890d",
+    "src/shared/match/objective_state.gd": "f7be3d0db954efbe97865ee576609d01ced440cb111a34f9f10d95077fdcd6c9",
+    "src/shared/match/objective_step_result.gd": "a9b60bd61680b8cb473f09e8e04c46bea101058cf8408ceb407f2c63735e1f16",
+    "src/shared/match/objective_transition.gd": "8fb8f25eb59145467b4269b8ff654a9b2e62f50ae7ab9688dabf4abc95e862bd",
+    "src/shared/models/combat_stat_descriptor.gd": "8f8dd485c6b492b137facdf24502a6d6db60d93b7dd65156a3f21b311de5fd55",
+    "src/shared/models/combat_stats.gd": "86487316788008bacd62d6c3bd346c69ab425210a447259869737343800b1dcc",
+    "src/shared/models/match_config.gd": "4fe4250e72ad1f0b068a5d40e045aed7a5ebc94d6b887508d09d167d70123799",
+    "src/shared/models/player_input_frame.gd": "51d2e049c975a9d76dc2be7df8d86d04a088aabde51c460dc9c9cfa09f337447",
+    "src/shared/models/player_match_state.gd": "be7c09fd902cd6c21b950c4dad118dce48dbf9f81c1a0ec30266a51dbbd8f7ea",
+    "src/shared/models/player_score_state.gd": "f380078666f0394a057b2d1e0fb1656b72b89345d42bd9e54d4a531dfd96db9d",
+    "src/shared/models/ship_appearance.gd": "90d8ce69e79ec3aecc14baf28775aa010d538ce8f9fbca404fdb7ec19001b57d",
+    "src/shared/models/stat_change.gd": "7cfcea5965b466df000816eb467749b742ef996397471babaa33b699069b457f",
+    "src/shared/models/stat_metadata.gd": "86b491b188cd5e9844e850594c6a6f55a9ac714582126b33a0f28dbf7768a28b",
+    "src/shared/network/authentication_attempt_limiter.gd": "b688a4bfe4152810713ea422886b732f2292ffc65d07cad5d0337dc27d5c80e7",
+    "src/shared/network/byte_codec.gd": "f8290246c4ae687fc585da95ff1ba81d60c386dd7a5f5b6607f8c9e737e13fc3",
+    "src/shared/network/client_prediction_buffer.gd": "4b93fce284bac6810623ff373be9a062c927693bf99299ddf3e6f80e2d8019b5",
+    "src/shared/network/connection_admission.gd": "166c6919639f0fd9b357a774a8f4c21b2a7548a9a2c0d9426b9729b46b6b68a5",
+    "src/shared/network/handshake_registry.gd": "c7ff16542521114937510496d809649d36ca253915f153bcc02cedf36d56658d",
+    "src/shared/network/input_packet_codec.gd": "1ded53bbb0f64cd055e4964d956443c2b0c7b008a8d1ae3bb597a27e15a6f142",
+    "src/shared/network/input_rate_limiter.gd": "dd0d1339c3c4189ff3938261095007315441e4ab99b9744686ff862585e8c7f9",
+    "src/shared/network/lan_discovery_protocol.gd": "c899c756c1e49d2f9b2a7c12195ec2f6fef1a2c340eb95c6cf3867f725669457",
+    "src/shared/network/lan_discovery_service.gd": "79c92c5e88db57300d30e14bd33289142c28bbac6f7bad480718669e70314cac",
+    "src/shared/network/network_bridge.gd": "f454acd2d63dfcd03563ea8cae7741d1b8d5c5688511bd335249d24af6093d94",
+    "src/shared/network/network_protocol.gd": "d1f9bccfca7260019e8ddd4b3af36c6014ac923cc6474ccbb32fb10cf995c2d0",
+    "src/shared/network/network_replication_scheduler.gd": "0233dc0eb5be68445232c7c6a0132ff21b33ddf92791e58c161f26eb39f2e3a7",
+    "src/shared/network/network_session_owner.gd": "4bda0c5bc79a748a5eab3583002232477d9845c6214b84311f814c2e01200573",
+    "src/shared/network/player_snapshot_codec.gd": "64b01245c3b5152338e9f01baddea023aa95fe5f1ac483e3adbbfcce6cd78c88",
+    "src/shared/network/predicted_projectile_tracker.gd": "7fc342117540e3a208ff2f9efef3fd686ea19fdc5d677bac3f8985eac208c283",
+    "src/shared/network/projectile_correction_assembler.gd": "8b6fd329170b70211b2efee02c63945df674c7e318fa13e28ee8787c37ec769b",
+    "src/shared/network/projectile_packet_codec.gd": "b4f05491f5448611c5177222eee0c6cafe158f7cc21d275e405bd17ed8f2ee00",
+    "src/shared/network/remote_interpolator.gd": "869f4f69e449f8dde1029fba122980a0501a5589c2f04d585a567f67d4ebe68d",
+    "src/shared/network/request_rate_limiter.gd": "4986b72e0805406e5fbbbeb78e0b6b07a628297cf10d6573c9d78bd0ecd3a6cc",
+    "src/shared/network/sequence_math.gd": "8f981a7ff53ad7c108f7202d817daa24009622526bc78649f085290ca8dea791",
+    "src/test/admission_burst_verifier.gd": "27118163741f3541646f5a74c75a915a9afb106e7e570d73f390efa12a5be617",
+    "src/test/architecture_benchmark.gd": "ea19d486e686e065753c0ea853dfb1a18f775bf2899d60f2305580255ec7924e",
+    "src/test/arena_effect_capture.gd": "02a620ec6339daf5f9e35805b7893d9aa67dbd7b7e7dcf212952d05daabca9c3",
+    "src/test/audio_memory_probe.gd": "e5a0a541cae7c5083ef3c5dce755880ef13d1f2fdd62a1e2fa12445340cb8d5d",
+    "src/test/audio_verifier.gd": "9db9c6b4bd02450e44aaa2a2909ed009f21609602411181e81e1d1f09016fb60",
+    "src/test/bot_client_main.gd": "7d8804dbaccb6ef0b380fc1544cbee0d3aa0e7fe4772a5c3368728be9c9cfcae",
+    "src/test/client_presentation_benchmark.gd": "a2352cfeaacb32a5437ab019b5d231b58608b542a074c321fd105d0334eec625",
+    "src/test/combined_performance_benchmark.gd": "8c7a9280108967a2674a2212f8eedf98ff1cfeb0bddd79379aeafc57461f6961",
+    "src/test/competitive_view_verifier.gd": "af8199a45a456367225c46d85dc3b609beba152e902fb298acdc2706d731d830",
+    "src/test/dense_render_replay.gd": "d7255532eeb367e89f6e1f8d2afad147966c2d4d0e16eeb309efd2883875d929",
+    "src/test/frame_pacing_control.gd": "adbe54cd9f679993fda384692e24023b08a4d8c0a04b24defa6cd8072649fc1f",
+    "src/test/frame_timing_summary.gd": "77a98265a03a681a46d7a4cf7886268c4820e0b67e650b09d2ee9b37c45a2401",
+    "src/test/gameplay_study.gd": "d9d08222649fc98c6a7fa88c7c651567e16cec515d1afed3b847eee96c1353af",
+    "src/test/hill_pacing_study.gd": "810e74e8dc1107a05327442344a42b24fc92bddfaacc6172e2b2d70a3b37c7ce",
+    "src/test/live_render_verifier.gd": "0186f1e55418d091908ea115762e1f437b277c4568f9ae321b4b4bb03f4f7305",
+    "src/test/lobby_flow_verifier.gd": "7d41a499862ff5c8e2595126b602f6c9b19204730553c300e3b522044e36fc11",
+    "src/test/local_host_verifier.gd": "af2427ee043a73e5e312bd56c94322620c2e8fd71ea86a83348d398e888bf3f8",
+    "src/test/network_impairment_verifier.gd": "2dfd81b65676daab11083a3d495f5bdfe176d2f21b976e5cc149a33636522785",
+    "src/test/pattern_render_verifier.gd": "3b583826e8787793521e823866223331b7a9351fbfa990ba2b151c18a04594c9",
+    "src/test/performance_benchmark.gd": "c02444416cdf1be19fcecf6872b291ed9f73253c19558d0c656acc4b4e66717e",
+    "src/test/presentation_capture.gd": "7712dd1dcd5376ae64d4c2b782e16bfd01fc373d70f85f46d854b36635846bfa",
+    "src/test/production_render_verifier.gd": "422f192877b31a212566dadf3f7d60c7b6f4c6c54c790074480b49aa9c7684f8",
+    "src/test/shield_color_verifier.gd": "54667529d57189b44a19c4619df5dcd396c0c943d46da3f69ad1dd829f21fa17",
+    "src/test/test_runner.gd": "3a694af343ac1c9edbf92fc37eabc75f1eeea85e80874f39d3a479ca91c67714",
+    "tests/fixtures/legacy_projectile_encoder.gd": "b00c8eadf9ff9ab762ecd0e15022e4cd69fb768246c50aa470fe13bc68370142",
+    "tests/support/network_world_fixture.gd": "66c4d0fdb5e9fa7bc9de0fb8f0c50ab49bfc04227fd9c5edb0f5058f7e928926",
+    "tests/support/test_context.gd": "5458a19a67b2cdc9b3bec09171019da330bed94c15a9d4feb2942d8f1ef792be",
+    "tests/unit/ability_budget_tests.gd": "37083d271d6ed4147abc6f799a4f96f6c58f12f442bbbc9fb41c0893371c1742",
+    "tests/unit/ability_delivery_tests.gd": "05010d2111e824e658e062b131dde0583f68957f919f3e053a1f4f90aec5d75e",
+    "tests/unit/accessibility_tests.gd": "91bbda0db0607a8c32312eca9d7b92706a76936c66d5d510fc4087c23955286c",
+    "tests/unit/architecture_followup_tests.gd": "15bda6eaa3c717b3a829f1d418fa2b9e34b0a929bc69e5c98690566344bd21b6",
+    "tests/unit/arena_effect_tests.gd": "190654bc97370faf8291014c5e5289fc18b0be59110cd8579cf72b7a9e7f0979",
+    "tests/unit/arena_movement_field_tests.gd": "92174c68a4bfa861ea4cc0e8d69012db5a6091d5b6e21e40024f4403f5515bce",
+    "tests/unit/audio_mix_tests.gd": "aec940c16ba474de7427eba445b0493a46c54dbcc431504c432c8db57b882fa6",
+    "tests/unit/build_lab_tests.gd": "2265fe0cbdc1d257b2c7a79f8b1bc8d0eea62b1692fd4180bb986f6f195ff4c9",
+    "tests/unit/card_identity_tests.gd": "2e1c1b214fedfaa98eaf64c306579ab6129145fe2b15c4b67c13457aa8b98676",
+    "tests/unit/card_stat_tests.gd": "6400512d9bcd4de8194890e5371bfd2dc06e63325a842308e3560b8a566eaf52",
+    "tests/unit/client_draft_presentation_tests.gd": "4c9151f267cd5d26d1117b3b911dfb07e5485408b1b4875b96221794cd97ee4e",
+    "tests/unit/collision_query_optimization_tests.gd": "fadc240e97678195c6564cc9040cf9046ada72790eaa2b330a31acb4d4ecc4a7",
+    "tests/unit/combat_correctness_tests.gd": "8d9c8e54d19b0cda73eb38e213ef7bb55c43fe45dc6c885af742f1e6d0567734",
+    "tests/unit/combat_feedback_tests.gd": "e6077f4c654374c1d8050b759c61f9eb94f765142c46413014ab9c6567ccc2a5",
+    "tests/unit/combat_request_tests.gd": "d76c9c35301db9e38d2ad1aa2bf0e91eb15d34516107eddc20145a3d57e338e3",
+    "tests/unit/combat_system_tests.gd": "fafa65f074acce5fe1b32845ef200e0f22b8b9e43da61e27d6c486fc715be698",
+    "tests/unit/combat_tutorial_tests.gd": "f18bbce8f520a3d1db99dd4479d9d6be98d8feb3463611f353f81c5e06d1eefb",
+    "tests/unit/competitive_view_tests.gd": "b096cc1a769dbd49e984609a419d01c57d093131cdacea7b0a8969422401530f",
+    "tests/unit/connection_preferences_tests.gd": "81901209ddeefd79cc862dc15be7bec4ecb8b261b19733b8ae14bea22da686d3",
+    "tests/unit/connection_screen_tests.gd": "e48c6b9bf06eda255387fe06ffd037e159201a5fcd46d095cd2ac3fa107dcff9",
+    "tests/unit/draft_layout_tests.gd": "1d4a698ccf0513f5ab6d30fed601d346b6c38c276f814d0f977c477cbd234067",
+    "tests/unit/draft_manager_tests.gd": "c27c31f9189377c50b1f55b580d4e0027e270e13810fb744d26dba694dda0acc",
+    "tests/unit/gameplay_gap_tests.gd": "1b67117e2a4f9bbcfb2e2b50a2e76282dd4827b14a78d44e1d235d6c2f7d5e68",
+    "tests/unit/graphical_language_tests.gd": "e7bc8a16309a3ae6028a9e03ab903c590888643bf8153a9bf45c9d04c5e0f675",
+    "tests/unit/input_profile_tests.gd": "eb8d1379df71bf54365e55de435f4889bddcbc0ade228b4f927014432e0ce16f",
+    "tests/unit/lobby_results_tests.gd": "23d66a693e7e2bb884dea6779935c5b82d7af103c6dce9bdede96c39ada3f2d7",
+    "tests/unit/map_resource_tests.gd": "d8d2e5167f51eb6918f8d6aba80fc41b4a9fcac238e9a5f904a5ac404dca19ce",
+    "tests/unit/match_coordinator_tests.gd": "e36bd8db48d6c85c22c68b99a12555166ac585a3e87c0fa9e68d9edd256c2ab8",
+    "tests/unit/match_observation_tests.gd": "5fe223e3b1479427ede227cf90bbb776573f6fc29dccae8daac8d99a09d0343c",
+    "tests/unit/match_state_machine_tests.gd": "39004c955c460677e8c2c1565fdb775043fdec4408dafaf69c85018993f948b6",
+    "tests/unit/movement_reconciliation_tests.gd": "8ff2afd4c65fbf24f25d171d31ad15d62048a4a5d466ef68cb2372c9577bab1f",
+    "tests/unit/network_ownership_tests.gd": "8f5f46bfb0249a2d58eb1ac192e0d93f2167cb6a2b0ebb5458a204206206037a",
+    "tests/unit/network_protocol_tests.gd": "0dd40d06b7e6abfa0462f7cf5243f31ade8ca0a34a4515b17ec2ed794cfbf59a",
+    "tests/unit/network_view_ownership_tests.gd": "79fcea12b1791f3ad95e83268442e173ad9dfcaa111e9ae47d5499d1b60e3f7b",
+    "tests/unit/npc_objective_tests.gd": "1a9abb6e4491509b50dc97b8452467ad9ff1fd69e0b630f29c1f55550e79cdb2",
+    "tests/unit/objective_contract_tests.gd": "6571d8243d680709d024b1dd2085e2c1208545541f6116f16c533f7353b3c5a1",
+    "tests/unit/performance_readability_tests.gd": "d5341d675a69766a6cc2905fa7a9638896b057b9441eabe4063c47bbf689e4b0",
+    "tests/unit/presentation_followup_tests.gd": "3635bfa298cf0a34ce7562b130cef015757a42b15631a9c67b2dec326ab928c6",
+    "tests/unit/presentation_system_tests.gd": "0a0654512053852027434a1437d9957c1e463ca7549e21c032edcdb902b125b9",
+    "tests/unit/review_followup_tests.gd": "d138a85fc61a4623c346c4e1aa59921a0c667b3884d35f85a1beebf217113401",
+    "tests/unit/screen_controller_tests.gd": "29a8050f78489f712fa5056ae2765dc49487989119d3f524a00248955fd2d3d5",
+    "tests/unit/shield_timing_tests.gd": "37545d80a20075b9f294d7c0796e00a49acf741ec16752a03f2dba54b0a204ec",
+    "tests/unit/spectator_camera_tests.gd": "78ad22ea531cae5863647f6f05722de5a32073465c5601c547bf78821f8c17c0",
+    "tests/unit/stat_metadata_tests.gd": "882d879b2230195a6faed4d461307bfd84a16b939e4e04d3be9104c65bf59c73",
+    "tests/unit/visual_accessibility_tests.gd": "1e961f8757eec68105f1ccfe7c7dd39c68d12b61edd0510d3f2d1e4b20d576c8",
+    "data/cards/ablative_shell.tres": "a5a881f54ce1a3cd41e7fd8b3e1db30c9b01f220aa7f97e64132c239aac85265",
+    "data/cards/absolute_barrier.tres": "9462f30f51bb28482f93ff96eec764b9c460e98410b37a5f6786a4c2c0817ff7",
+    "data/cards/accelerator_coil.tres": "45fd9354f0006ee0f3ee94813a8a9542262cbf58bc9adf8cac4270cff775f7fc",
+    "data/cards/adaptive_chassis.tres": "1499a8c78054c0c5ad6d377832119a8e61279da1accadb01ad3e51c2dc160b91",
+    "data/cards/aegis_matrix.tres": "c4df97906c25bcbb1d6bb5d046f53dbd33955aa686c445e522df22d5eac68bde",
+    "data/cards/afterburner.tres": "34cf030068668f6402430f483b9d33e76b3b4eb408ab4e0d70cc90c8c49961b1",
+    "data/cards/annihilator_shell.tres": "8c6ff6cdafdb03b56f54215177120e585c31ac8108762bbc99858e5f6db6056e",
+    "data/cards/auto_repair.tres": "fc03cf65092e41714f2755f7e43ac827810eeaedaeb109a16415466bc132e1cc",
+    "data/cards/bank_shot.tres": "b0f1af41c15450149a70cb453d141a1815b7e28c89c27cff6893c13540949612",
+    "data/cards/beam_emitter.tres": "65e78b83a79617c3404a21299964b4a9b13b20895a60bfb12d7a3809b98b2558",
+    "data/cards/blink_capacitor.tres": "108b4dbd09f8ada05f42967bfe91cec3ae56382a4a5191b1053ec5d100cba7d1",
+    "data/cards/braking_foils.tres": "02d46bee36ca226970a1996aebf0b7aaeb58e424615690a12b98e0c86c39ca6d",
+    "data/cards/breach_vector.tres": "45faae715560b60f1b661169c3154db841a0a39e39e043c9d0d4548e0c922545",
+    "data/cards/breakaway_thrusters.tres": "96637ae869ea85f945af67fa5dfe7174c290006ea7a168cbbac79070abcc2fcc",
+    "data/cards/broadside_field.tres": "04c6d58fba693593fd28940513e172101b25c29ea5945cb4a577e2b336891f5e",
+    "data/cards/capacitor_bank.tres": "3bd976cf0113d60d4f3456205035491a6244ee48f6baf5759e3391c1c5b1a129",
+    "data/cards/cascade_barrier.tres": "29569c91e976ff466a7e74875de988bd4a4e98ea52bec878dc8e37d1d760726a",
+    "data/cards/causality_cannon.tres": "b3da7ea96ac5a92798b6dcd882376a70dc7eb127ef8f2f871f64d15ec2c1c1f4",
+    "data/cards/chain_ricochet.tres": "ca5afb63a813c0b757c7c689c83d90021e9bcc6801089f27d5ebd74acfac9319",
+    "data/cards/chronal_shield.tres": "03b390d8abf613ed9622b6acbcf5b0bae4d9829288b69cceaac4eddd899357c1",
+    "data/cards/cloak.tres": "f865bbe9fa68f1eff96bb728e402e7c657a7a92fd2bd9ba289736e12f59cc275",
+    "data/cards/combat_gyros.tres": "fc2e416465808bedf27fff82e8c5104ba919c7da3d3a0d6e05b33af727277b4f",
+    "data/cards/comet_drive.tres": "0e1ba85331d66096a38e9d68973738220b7d443d7b8cdc988329fdbeb5e7e2b3",
+    "data/cards/compact_deflector.tres": "60f4ee1223df6972d1ca98c719de33190467a39c4a098cc52d0d794f8b2158e6",
+    "data/cards/concussion_rounds.tres": "b1602da100cbfd78abee7fb0811efd1b93e85fe633ce32c3b39ecb3db268b4e9",
+    "data/cards/cycling_servo.tres": "155a579c8949ee258999c925df25a671e0c0b94b7890c43bd5cb89a7d2650f66",
+    "data/cards/damage_control.tres": "3437d8c2ea68fc23158dfeb1cb93cd18589a2f626535ff6298a2dd2ca27c4ad8",
+    "data/cards/deadeye_calibration.tres": "3a64c4fe7a802183b7fa8cac9039cbf623c44e3f26f4ea030f56abe39dd92e7f",
+    "data/cards/deep_reserves.tres": "9a423406ee6aff00e12ade41035c45599287f37860a9a5577d926298dff8461c",
+    "data/cards/drum_spring.tres": "f3f3bbe6ff456107a56a7d1957c2c598fface4ebb959c821156a3ced64a81f7c",
+    "data/cards/duelist_aegis.tres": "da7b005361c55bc4ed9010d2b5d29e5e00fe91d580ac81acf663b800be68667a",
+    "data/cards/efficient_field.tres": "0ca56864d7a0f794f59f135e1262254a303c48a17eaed459970e53111686025c",
+    "data/cards/emergency_bulkheads.tres": "6ea0c500760fc779ea3833f38da775dbb00f8a09e9d829511f568c33f993f86c",
+    "data/cards/endless_belt.tres": "bc49760a44bbe25a5a57523921cdc057c7a1b26ea2b02bfc26169cde87b15fce",
+    "data/cards/event_horizon_drive.tres": "a182ffce0c78c6e5d35f54563d9b54a224bad922399abee6b01d25067957d842",
+    "data/cards/extended_magazine.tres": "42282613ffe4145ef77c44ef7e13a69fe9e1b90278b74fdf8051f3d0cd6b398a",
+    "data/cards/flash_recharger.tres": "f35fef04f8863c2659f7da22d7e177f1f6bb37dfc945afe6ae20bc19f0df42ab",
+    "data/cards/flechette_payload.tres": "e8d12fe4d8cb3d6bd8286557e7ecf47e0a7d1e68ccef41e5fd1336cc069f0483",
+    "data/cards/flux_reservoir.tres": "7b835f6c80d2cba29eeba4535925763faafdd57dd4d5150ea23f4d185e126e99",
+    "data/cards/focused_deflector.tres": "1fde3b371568b93741bd8993cf33601d52ce7aa3a5d253b4d080e241ea136e29",
+    "data/cards/fortress_emitter.tres": "e3c30b129dce66b43130a95b5ef7dd39bc8c5dc01474e5db34f298848521637a",
+    "data/cards/glass_reactor.tres": "c6cb0e15bdfbb7044eec45b1b350142a00a3080d8ef762bec08704cdccb24d7d",
+    "data/cards/gyroscopic_core.tres": "6df32687f4dac028c24d49144c16ab14ecb8501276a6d3e9a50706054998618a",
+    "data/cards/heavy_rounds.tres": "31c166561e8cd08d16be7a72eadd5bf856a6d69dd5f88dd4c0732439e96185ef",
+    "data/cards/hollow_points.tres": "78f3c54bf3b886913407934c46d741bdc134cb870dbba81fa77900667e92d06e",
+    "data/cards/horizon_round.tres": "69d2f1c06e67b1c748681b9d2593057ba6f613541c5e1c2397f5665084537e18",
+    "data/cards/hot_load.tres": "ce2b67995fa2f26020b25652b5b96dff9b5d0151d715c40d3ca12221d54bcc15",
+    "data/cards/hunter_missiles.tres": "6ef1d0b3a7bf05075fb85de51dee3fe90b5a277515f07471a963bff0a41425e7",
+    "data/cards/immortal_lattice.tres": "d0cfb87870669825bd53ef8503e6f18cf502bdff6fdcd47d4a2fc06f4b93c921",
+    "data/cards/impact_capacitor.tres": "0795c0d2fb7c0d873a644ec9c2bfa527352f5ff6fbaff0918e769d2c23289bf2",
+    "data/cards/impact_lens.tres": "8974f717083d0a6624cc751d67349b13e1ad4166eb8a602a4832b34d5ff3108d",
+    "data/cards/impossible_engine.tres": "150250392327680971d41abcd414e5c092d31982648a308df0a14c5d752da84b",
+    "data/cards/impossible_magazine.tres": "968a8b13547fb1e1b20b578a167db915ef9f4fd853b535dab4677804bd224c4c",
+    "data/cards/inertial_dampers.tres": "e6a6ea85226cf90d405006415a342864e19a46054f833bc7bdb340d395e2360c",
+    "data/cards/infinite_refraction.tres": "6dc79656a06711f3a60e633ff021490a78a2d427ec75af8386c2e74d88d3453b",
+    "data/cards/instant_recovery.tres": "2a40978dc2b3507fa200e84532c4b954f26cc69a4c99513b8ad4231a4c24901b",
+    "data/cards/inviolable_front.tres": "d682a2ce19fc18ee2ab926c2975612e58d9e8c8c095e3930257861f4d517c65d",
+    "data/cards/juggernaut_frame.tres": "42bc04ae31ea0d7620ecdbd654f134be62d9f38ec75cf8bedca1540c223ff034",
+    "data/cards/kinetic_converter.tres": "2b353d8ecb232680f997636f31c928f5073c89caae204848d71fecab4ea4dac6",
+    "data/cards/kinetic_plating.tres": "e6976980db489f6373a805712c9294a8c8882ad188651fcaca8069ab3ac89075",
+    "data/cards/kinetic_prow.tres": "fca11966d473ec81fe994641aa399d4c1f64f05bc8ca230bc9aa7fd13fd74703",
+    "data/cards/kinetic_vent.tres": "5cafac926072e61b973a188d46dc82d58e688b53e094ddbffc507f52b57fcfef",
+    "data/cards/laser_repeater.tres": "6bd0a023c48095a670a7bb93388bb572dd326e445cf4d47494a0a3605ed51b75",
+    "data/cards/lightspeed_frame.tres": "db1ef22db508296a792055ab70e05b3430f1a6b417ecb850457d4e6cedd180ca",
+    "data/cards/lightweight_frame.tres": "ec38e1eb5153f76dc4e14a96f0bd1f0c0c70d10103d913eea4feb11ce69f4af9",
+    "data/cards/long_fuse_rounds.tres": "38812a01dfccc934a850cc28af7e57f6af6580ac15c6e926bdbc3396ea6003cf",
+    "data/cards/low_loss_coils.tres": "9db92333ed18296640335d0b22555855f2e4dff6589f14142ce05966047913b4",
+    "data/cards/micro_barrage.tres": "cff5c912db48649406d2e3ddffe263465360961198b782706d47a3788238d376",
+    "data/cards/mine_layer.tres": "8af7c29d72fc7b7afd48c92c908f29f56766ada572fac4bf6be1a4cd8f74aebf",
+    "data/cards/mirror_field.tres": "0f4708a14a5e0764ddc1a1f32db1769f002228b80b31b16fe59b9e2d6d1ae779",
+    "data/cards/mobile_bulwark.tres": "ee60d7964645973cdf2c69ecffe3ac37866fb3f3612524d4a44cb41025aeca75",
+    "data/cards/nanite_reservoir.tres": "818a31d3bf8f567cd1264e3f0c1daa823dce1867c77ea10e5d3ebce56c341243",
+    "data/cards/needle_storm.tres": "c9f782c79965dd15bee6605d54c0193c223cb00e988c1db6135a1678dc013db4",
+    "data/cards/nosferatu_shield.tres": "b1566c995f77ab1d19755b3a881b3e02146674d78ca0960c931a19be86e1abe5",
+    "data/cards/omnidirectional_field.tres": "0b53ae5c556e8f1b62675ce3baf8b94b0e18fb6f298cf9c1fed71847d18d7bf5",
+    "data/cards/orbital_rounds.tres": "6194c5b484c884aa3928c05390a7657e3946b1a15a25ca96bcb91ea876a2d9a2",
+    "data/cards/ouroboros_hull.tres": "6cfe242b9fdec4df6fdff386cac8bbb8f6ed2393cf458f109b16d008a1e4f032",
+    "data/cards/overcharged_thrusters.tres": "a8e0001a1614a55cda9c410bbb467ca7c5bcdc052424aec0f52ddb4e13971700",
+    "data/cards/overpressure_chamber.tres": "7504c818c590045ed651b60da6327e3e52095e9da9dd6bad30e41a8d309ec79c",
+    "data/cards/perpetual_field.tres": "455121ca34dbe1387c58c4f38495f5d04b1c823be18ed55798b35979268dfd47",
+    "data/cards/phase_brakes.tres": "923ceb5c27dd5b7ca8bba1ffb81abbf25f5a933e0733e8d71f53f656a8227b90",
+    "data/cards/phase_thrusters.tres": "4d1cd9f9967ceccb90d5dbfc8608cd547e97ba14bd6fb4936bba2b064e858d25",
+    "data/cards/phoenix_chassis.tres": "debc9b780ca52dd928bcebae90af8af9b3cbdd94442e189828b39c32cacabd5e",
+    "data/cards/piercing_rounds.tres": "d08bb2a474986818093c937ac8ff268be3d89d0238a617ab86287c195bc98457",
+    "data/cards/plasma_thrusters.tres": "a933c7e53282f114c9c603bb9b5de67b1db815975d4d6798b98019660a7c6c8d",
+    "data/cards/prismatic_lance.tres": "65fd39871d871291260d0f5db59cbe0573b55dd44b1aa8fdbd82feb4a8becef4",
+    "data/cards/pulse_capacitor.tres": "b3a9a8358efcec516b9143ce381d6d25508034f73a5b420650765418f55029f3",
+    "data/cards/pursuit_engine.tres": "09b1f359d2deb2478433875a55c7df0e5e10ce9862919fa4b25bcb3dd1ed3bf0",
+    "data/cards/pursuit_screen.tres": "df14fda1cbc6d33d223f196c6c5179fe8f04da28b932517eafb87194f108dd58",
+    "data/cards/quantum_reconstruction.tres": "0c828f898d3ee0d13f959c2dae4cb042f4fb08b5d642545c7d78519d6ebfc271",
+    "data/cards/quick_charge.tres": "94efb05d8aba037a852e2b5a2065320b5356cf264588e3a5643c6faba337d276",
+    "data/cards/quick_loader.tres": "0c88703e299d8e44359e6abbcee6ac2fc7b6ca74967af07909ab7b07b41c4da0",
+    "data/cards/rail_accelerant.tres": "2cb35ce8c3e568d4a015caecf9cede7f17dfd676135810b5e1a778d1370b6e62",
+    "data/cards/ramming_shields.tres": "47c451c4aa25658634aa0681946536e403fd3fc9e7478720aff299312c537488",
+    "data/cards/rangefinder.tres": "00a3c90ddbcdf71c2cc9e7592ba998d84b02f9dc588f29de80e8f5ada115dd94",
+    "data/cards/rapid_cycling.tres": "d71c231e3615311f1dd8dae725d2f4a77411f4b0e9aa84e8364f214782e7d1b5",
+    "data/cards/reactive_barrier.tres": "0868c7d88777d6167408749df7d4be3ef14f625ce80d83571288b0370c1c8b53",
+    "data/cards/reality_shredder.tres": "5e28240495e40ff2652b211c3b520c087aec012b9704650ca3393f2848911a9d",
+    "data/cards/rebound_shields.tres": "0337409e4748c5beb68067b0016b02cbab76a11d2de8928783300e70dda88ca9",
+    "data/cards/recovery_switch.tres": "caa3d706870a10b555b5398e1bf696d15196e65b6d330065612120a6336e2d75",
+    "data/cards/recursive_nanites.tres": "3df2b5cb999a8329f449e6f6a8d54840a61b7d357706c83ed706683259dc1dc2",
+    "data/cards/regenerative_coils.tres": "c687dbc46cdf640f162671262ae5a79b61e3402eda0474526cb21e3bdf660af5",
+    "data/cards/reinforced_hull.tres": "ce42a3d2f743a6f06796f3bf57ee4980c401db3e2aa60c02d85edc20353145a3",
+    "data/cards/repair_gel.tres": "8a29e5c6bd876447bd389774e31b52ce71982d6775a00dc231b7cd38f85d0797",
+    "data/cards/repulsor_payload.tres": "d680dc64a1e7d09f3d8e7d5913b6473050630b4d037b8d83f12b537de5779bad",
+    "data/cards/reserve_cell.tres": "45279cf7f71bdd37237e1faf8fb38e09a2d27f394ad2d38ed0674abea3f4d69a",
+    "data/cards/resilient_grid.tres": "908c1e382acaff0e9f8a8a8e99be9ca2e9b55313f4599b6af0283aeedd3ea795",
+    "data/cards/ricochet_rounds.tres": "ba78e1ba6d4e6dfd49a391a3d066434d2286a5af656a5501acfd6abcf661f7d1",
+    "data/cards/scar_tissue.tres": "4a186e032f7da1299aac3da0f82295fb697eae8f0d8cb825212f887bada1bba7",
+    "data/cards/scatter_array.tres": "da3a8d8b7bb40925f7aaa7f5b15ffb11e632a0f5e6d7b3211dd2ad0bb7c0acf6",
+    "data/cards/second_wind.tres": "962fb067f5a66a632d758edb7785d87b3d44a2c3659720f142ef9dc089d6a63b",
+    "data/cards/shield_siphon.tres": "23e4fc59207b10cc9b0a5524cca671ff70951855eed3e462de19196e44d4a528",
+    "data/cards/shielded_drive.tres": "669f44fe16785534706c6a163732db1b719ea04cf961b80302195a7ea564de0a",
+    "data/cards/short_fuse_payload.tres": "99c891c212f453b49db7206df5d8cb7b8b4d45255511c241efa6fb63671fa330",
+    "data/cards/siege_cannon.tres": "79b9e0eeeb23bb3fb7384792423d1fa4997637c957d98ad523f47e37b014010d",
+    "data/cards/singularity_lance.tres": "88c01f11ba3353d24571251d5c63a4565aa14d4a902d46985d22ad0a6e708f53",
+    "data/cards/solar_barrier.tres": "1b42e50398c5893da6d6a8078fa6f5c7a2f23c380365654d02d5792aac4f6a8c",
+    "data/cards/sprint_reactor.tres": "156f476366f2ce409ad20941ab4ab599ce784ad25e1dc47ba4bc5533af314cc8",
+    "data/cards/starheart_reactor.tres": "06a80ac68a35b7d64be935dd7fa93772f78a9ebf1c695172c653dd0813971d34",
+    "data/cards/stellar_aegis.tres": "0db8997bb0186167f4547664380d26fcc82e020882c34287139f735cdbe12e00",
+    "data/cards/storm_of_one.tres": "e45d39ba7e8fb595e98d51dd2741566419355d00660c18deb33c2a8ff723e537",
+    "data/cards/sunbeam_core.tres": "b39af4aa1160e4056de3c876da955771d57b028d86842cefca1cffc84034c9f9",
+    "data/cards/sundering_aegis.tres": "f208cba547a003a00b863678c7764a6fde3b3f6a9e69f9a82d3b4037ace068ea",
+    "data/cards/supernova_array.tres": "4ad256b428a98ee716cbaabde27819393e4c3a3677de2786612c8110da1ab016",
+    "data/cards/sustained_barrage.tres": "8bef4a2f314833cc52b020fe11d53d107ffb269da7c49a586f899ae398a4ceb0",
+    "data/cards/tight_bore.tres": "3069524642472090772ab1c5a4ed5fe0106861592bf9ae06b07254705bdac9ea",
+    "data/cards/transcendent_chassis.tres": "a7e5b7cc2d1bb323c84a3ec5fb3288cfbdac5304d4dd6e3fb9f29ca65b7a90bf",
+    "data/cards/trident_array.tres": "ee08cd1f877bf24b994daa61fc9a6f6431319f3958c4e3f222108ab85785d8ce",
+    "data/cards/twin_shot.tres": "bce13ba250162a3a03a6720bfe3763b7f63c1f3f8e884bc0a817834896f1df72",
+    "data/cards/vacuum_insulation.tres": "2b8aa27af65da2cf93d2ddbb5bfc06689bc26aaa76d1d3b5d648358afbbfafa6",
+    "data/cards/vector_jets.tres": "999d0eecb6bcdfdae7ba341a97fe42e2a14c18b855699441e4f469336d8e281d",
+    "data/cards/vectored_nozzles.tres": "c4770ca4da36502416a9017c55b5ae5abe02c47e16c2cec8987a31781a1d30fc",
+    "data/cards/warpshell.tres": "96eced9fe79d20242fabd3c86a3c7cbbc497808b01f7cdfb0fbe4a948a3779d2",
+    "data/cards/wide_emitter.tres": "53655307cb2c5a9a37cc7c89db5c76cec6f6376f1d6b662622edda635438dc63",
+    "data/cards/worldbreaker_prow.tres": "bed0cfc732cb034f212a90511104e2dfdc133a8c6e07b2d8c9372978cd8fe206",
+    "data/cards/zero_point_loader.tres": "fe86a597053eedecdfc015dc6ccb912c0f6b22b3b359677accde898773c47ad7",
+    "resources/maps/broken_orbit.tres": "7a06efb1a6ee5a7056502370575f076c0a844ae499168dcb9d9b663dd258989c",
+    "resources/maps/core_arena.tres": "155aa55176199e8a20789550054be09b78b4417ab3ad9d2803c70eed7d7f5fa3",
+    "resources/maps/dead_freight.tres": "3e0ba958da6491976462690d2a1d121267fb25d3a05789b89085bffd64f4114b",
+    "resources/maps/longwave_array.tres": "5cf67fb8b6d764221602e93b16e1d26ed1dd876379cf382ed8da0d2c0ad1b1c6",
+    "resources/maps/prism_array.tres": "28784c5d74a87712d16fde39821b5a0fa8803fdad692a2fd866d0f8c9d596d83",
+    "resources/maps/relay_zero.tres": "d4203019f222b3afe48bae72716b1e16238491b4ecea4866ee63141a0abdf6e4",
+    "resources/maps/riftline.tres": "3c8eea94e5abf67aeb7bfa1e494294053a300ee8cb2aef96250d75fa3f4d3c0f",
+    "resources/maps/solar_tide.tres": "d1a77948c64897cdf56a423483ae0b0d617ca05f62e80986230c4853ae7d97bd",
+    "resources/maps/switchyard.tres": "e6f99240ca1e69bd54e6caeaebeeff50ea3b406a54e43be1dd0c752bbd7187eb",
+    "resources/maps/twin_suns.tres": "0799322d320d1d069d34f898bfb34241408b07618798db565e8b28f25bdcee7e",
+    "project.godot": "bef08680105223f98a1b42d1e6b2927aa94cf5a5af731b053d28965f148aa627",
+    "release.json": "79cdde1bdab7e0901c80043866527ee66e6b46a2f7cd6027863f085f5bb90f88",
+    "export_presets.cfg": "15b922445f6b8222736443e0b73655e6ac1f6122e348464c68488aa27ff9eff7",
+    "docs/archive/review-evidence-2026-09-22/review_probe.gd": "8726da6480abd27ed14ca231b714b05cb38a08fcc3eda9601911ac9d425a6af8",
+    "docs/archive/review-evidence-2026-09-22/draw_attribution.gd": "da84365a9e7c189e1ca1fd09e50ed06fd645999a5bf62a3394faae467b2e1e20",
+    "docs/archive/review-evidence-2026-09-22/collect_evidence.py": "7455e56675113548c092545accf9ead1e50b6ac53a816a4244e8a170bc3496a0"
+  },
+  "performance": {
+    "SSF_PERFORMANCE_RESULT": "SSF_PERFORMANCE_RESULT p50_usec=13354 p95_usec=14190 p99_usec=14655 max_usec=17386 projectiles=1024 npcs=32",
+    "SSF_PERFORMANCE_SCOPE": "SSF_PERFORMANCE_SCOPE samples=120 warmup=20 detailed_profiling=false includes=npc_and_authoritative_world excludes=refill_replication_client_render",
+    "SSF_MINE_PERFORMANCE_RESULT": "SSF_MINE_PERFORMANCE_RESULT p50_usec=8823 p95_usec=9196 p99_usec=9552 max_usec=10233 mines=512 projectiles=1024",
+    "SSF_COMBINED_PERFORMANCE": {
+      "coordinator_events": 24,
+      "full_recovery_tick": {
+        "max_usec": 15573,
+        "over_physics_budget": 0,
+        "p50_usec": 14019,
+        "p95_usec": 15573,
+        "p99_usec": 15573,
+        "samples": 6
+      },
+      "game_mode": "KING_OF_THE_HILL",
+      "map_id": "core_arena",
+      "minimum_projectiles_before_step": 1024,
+      "payload_bytes": 12023680,
+      "per_tick": {
+        "max_usec": 15573,
+        "over_physics_budget": 0,
+        "p50_usec": 10020,
+        "p95_usec": 13281,
+        "p99_usec": 14319,
+        "samples": 360
+      },
+      "physics_budget_usec": 16666.6666666667,
+      "players": 32,
+      "profiled": false,
+      "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+      "valid": true
+    }
+  },
+  "rendered": {
+    "SSF_FRAME_CONTROL": {
+      "draw_p95_usec": 17209,
+      "driver": "opengl3",
+      "frame_cap": 0,
+      "low_processor": false,
+      "p50_usec": 17241,
+      "p95_usec": 17286,
+      "pacing": {
+        "budget_usec": 16666.6666666667,
+        "expected_fps": 60.0,
+        "late_frames": 6,
+        "late_percent": 1.50375939849624,
+        "late_threshold_usec": 17666.6666666667,
+        "longest_late_streak": 2,
+        "max_usec": 25083,
+        "p50_usec": 17241,
+        "p95_usec": 17286,
+        "p99_usec": 18440,
+        "samples": 399,
+        "severe_frames": 1,
+        "severe_threshold_usec": 25000.0
+      },
+      "refresh_hz": 59.9770011901855,
+      "samples": 399,
+      "scope": "Empty viewport, 7 measured seconds after 1s warmup; no gameplay, audio, physics actors or network. Draw includes presentation wait; not physical display latency.",
+      "viewport": "(1920, 1080)",
+      "vsync_mode": 0,
+      "window_mode": 0
+    },
+    "SSF_DENSE_REPLAY": {
+      "draw_calls_p95": 3012,
+      "final_state_sha256": "a0d148c29c2bc069806415ef4cb50755b8eef7eafc1a04b85ce6caa127a33094",
+      "minimum_drawn_projectiles": 1024,
+      "pacing": {
+        "budget_usec": 16666.6666666667,
+        "expected_fps": 60.0,
+        "late_frames": 600,
+        "late_percent": 100.0,
+        "late_threshold_usec": 17666.6666666667,
+        "longest_late_streak": 600,
+        "max_usec": 60396,
+        "p50_usec": 44839,
+        "p95_usec": 49123,
+        "p99_usec": 53879,
+        "samples": 600,
+        "severe_frames": 600,
+        "severe_threshold_usec": 25000.0
+      },
+      "peak_effects": 24,
+      "scope": "600 rendered fixed-step frames after 60 warmup; 32 ships, 1024 mixed ordnance and bounded mine explosions; deterministic positions, angles, effect ages and cosmetic animation clock; no transport, simulation collision or audio",
+      "ships": 32,
+      "update_p95_usec": 1046,
+      "valid": true
+    },
+    "SSF_PRODUCTION_RENDER": {
+      "audio_driver": "WASAPI",
+      "audio_events": 3493,
+      "audio_muted": false,
+      "frame_cap": 0,
+      "pacing": {
+        "budget_usec": 16666.6666666667,
+        "expected_fps": 60.0,
+        "late_frames": 107,
+        "late_percent": 4.69298245614035,
+        "late_threshold_usec": 17666.6666666667,
+        "longest_late_streak": 3,
+        "max_usec": 29714,
+        "p50_usec": 17242,
+        "p95_usec": 17623,
+        "p99_usec": 21396,
+        "samples": 2280,
+        "severe_frames": 7,
+        "severe_threshold_usec": 25000.0
+      },
+      "peak_audio_voices": 16,
+      "peak_projectiles": 64,
+      "peak_ships": 32,
+      "samples": 2280,
+      "scope": "actual ClientMain with real audio driver, screen/event handlers and shared ServerRuntime; ENet loopback plus 31 NPCs; active heat frames after 5s warmup; cadence diagnostic, no pure GPU/audio execution timer",
+      "snapshots": 888,
+      "states": [
+        "DRAFT",
+        "COUNTDOWN",
+        "ACTIVE_HEAT",
+        "HEAT_RESULT"
+      ],
+      "valid": true,
+      "viewport": "(1920, 1080)",
+      "vsync_mode": 0
+    }
+  },
+  "draw_cpu_attribution": {
+    "SSF_DRAW_ATTRIBUTION": {
+      "cpu": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+      "draw_callback_sum": {
+        "max_usec": 34626,
+        "mean_usec": 23862.4666666667,
+        "p50_usec": 23845,
+        "p95_usec": 25470
+      },
+      "effects": {
+        "max_usec": 5505,
+        "mean_usec": 3777.87166666667,
+        "p50_usec": 4134,
+        "p95_usec": 4586
+      },
+      "final_state_sha256": "a0d148c29c2bc069806415ef4cb50755b8eef7eafc1a04b85ce6caa127a33094",
+      "fixture_updates": {
+        "max_usec": 2150,
+        "mean_usec": 938.16,
+        "p50_usec": 911,
+        "p95_usec": 1059
+      },
+      "frames": 600,
+      "logical_processors": 16,
+      "minimum_drawn": 1024,
+      "projectiles": {
+        "max_usec": 27205,
+        "mean_usec": 16946.8433333333,
+        "p50_usec": 16756,
+        "p95_usec": 17892
+      },
+      "scope": "Instrumented CPU draw-command callback time, 600 fixed workload frames after 60 warmup; same ordnance replay as dense fixture. Excludes engine render traversal, GPU execution, presentation wait, simulation and networking. Does not measure achievable FPS.",
+      "ships": {
+        "max_usec": 4170,
+        "mean_usec": 3137.75166666667,
+        "p50_usec": 3100,
+        "p95_usec": 3403
+      },
+      "valid": true
+    }
+  },
+  "probes": {
+    "SSF_REVIEW_PROBES": {
+      "competitive_spectator": {
+        "enemy_team": 2,
+        "local_team": 1,
+        "targets": [
+          2
+        ]
+      },
+      "draft_start": {
+        "max_usec": 71772,
+        "p50_usec": 67682,
+        "players": 32,
+        "samples": 8,
+        "scope": "coordinator.start only, empty human builds; constructor, transport, client UI excluded"
+      },
+      "full_recovery_loss": {
+        "chunks": 27,
+        "dropped_chunks": 1,
+        "independent_12_percent_chunk_loss_success_probability": 0.0316980209462042,
+        "independent_8_percent_chunk_loss_success_probability": 0.105261932349463,
+        "payload_bytes_per_recipient": 32176,
+        "projectiles": 1024,
+        "published_recoveries": 0
+      },
+      "remote_respawn": {
+        "alive": true,
+        "authoritative": "(2500.0, 1300.0)",
+        "displayed_immediately": "(500.0, 300.0)",
+        "error_pixels": 2236.06787109375
+      },
+      "velocity_round_trip": {
+        "authoritative_velocity": "(6000.0, 0.0)",
+        "decoded_velocity": "(4095.0, 0.0)",
+        "error_pixels_per_second": 1905.0,
+        "speed_stat": 2400.0
+      },
+      "weapon_audio_cache": {
+        "cache_entries": 24,
+        "cold_max_usec": 16657,
+        "cold_p50_usec": 7542,
+        "cold_p95_usec": 16532,
+        "samples": 24,
+        "warm_p95_usec": 15
+      }
+    }
+  },
+  "release_checks": {
+    "metadata": {
+      "exit_code": 1,
+      "output": "Release metadata is stale: src/shared/game_constants.gd. Run python tools/update-release-metadata.py --write\n"
+    },
+    "export_policy": {
+      "exit_code": 1,
+      "output": "Shipping resource lists are stale. Run python tools/update-export-policy.py\n"
+    },
+    "unit": {
+      "exit_code": 1,
+      "output": "F..\n======================================================================\nFAIL: test_current_metadata_is_consistent (test_release_metadata.ReleaseMetadataTests.test_current_metadata_is_consistent)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<repo>\\tools\\test_release_metadata.py\", line 17, in test_current_metadata_is_consistent\n    self.assertTrue(all(before == after for _, before, after in updater.updates()))\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n\n----------------------------------------------------------------------\nRan 3 tests in 0.037s\n\nFAILED (failures=1)\n"
+    },
+    "attribution": {
+      "exit_code": 0,
+      "output": "Attribution inventory verified: 78 assets; 64 need provenance resolution. Project licensing decision remains recorded separately.\n"
+    }
+  },
+  "export_differences": [
+    {
+      "name": "Windows Beta 12",
+      "missing": [
+        "res://src/client/ui/arena_effect_controls.gd",
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    },
+    {
+      "name": "Linux ARM64 Beta 12",
+      "missing": [
+        "res://src/client/ui/arena_effect_controls.gd",
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    },
+    {
+      "name": "Linux Beta 12",
+      "missing": [
+        "res://src/client/ui/arena_effect_controls.gd",
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    },
+    {
+      "name": "macOS Beta 12",
+      "missing": [
+        "res://src/client/ui/arena_effect_controls.gd",
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    },
+    {
+      "name": "Windows Dedicated Server",
+      "missing": [
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    },
+    {
+      "name": "Linux x86_64 Dedicated Server",
+      "missing": [
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    },
+    {
+      "name": "Linux arm64 Dedicated Server",
+      "missing": [
+        "res://src/shared/arena/arena_effect_rules.gd",
+        "res://src/shared/arena/arena_effect_state.gd",
+        "res://src/shared/arena/projectile_geometry_references.gd"
+      ],
+      "obsolete": []
+    }
+  ],
+  "network_log": "Evidence: <repo>\\.tools\\network-impairment\\20260922T181150-1a03cd34\nPASS baseline: 330 snapshots, resources converged, faults={'up': {'received': 359, 'delivered': 359, 'dropped': 0, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 11891, 'delivered_bytes': 11891, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 508, 'delivered': 508, 'dropped': 0, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 50749, 'delivered_bytes': 50749, 'bandwidth_wait_seconds': 0.0}}\nPASS latency: 266 snapshots, resources converged, faults={'up': {'received': 160, 'delivered': 159, 'dropped': 0, 'duplicated': 0, 'reordered': 14, 'delayed': 160, 'settlement_dropped': 0, 'received_bytes': 5049, 'delivered_bytes': 5039, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 430, 'delivered': 429, 'dropped': 0, 'duplicated': 0, 'reordered': 81, 'delayed': 430, 'settlement_dropped': 0, 'received_bytes': 43835, 'delivered_bytes': 43825, 'bandwidth_wait_seconds': 0.0}}\nPASS loss: 305 snapshots, resources converged, faults={'up': {'received': 274, 'delivered': 245, 'dropped': 29, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 8420, 'delivered_bytes': 7489, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 532, 'delivered': 475, 'dropped': 57, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 52361, 'delivered_bytes': 46696, 'bandwidth_wait_seconds': 0.0}}\nPASS reorder: 230 snapshots, resources converged, faults={'up': {'received': 345, 'delivered': 374, 'dropped': 0, 'duplicated': 29, 'reordered': 108, 'delayed': 112, 'settlement_dropped': 0, 'received_bytes': 11840, 'delivered_bytes': 12968, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 504, 'delivered': 557, 'dropped': 0, 'duplicated': 54, 'reordered': 188, 'delayed': 175, 'settlement_dropped': 0, 'received_bytes': 50681, 'delivered_bytes': 55273, 'bandwidth_wait_seconds': 0.0}}\nPASS blackout: 316 snapshots, resources converged, faults={'up': {'received': 280, 'delivered': 274, 'dropped': 6, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 8857, 'delivered_bytes': 8719, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 515, 'delivered': 491, 'dropped': 24, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 51044, 'delivered_bytes': 48977, 'bandwidth_wait_seconds': 0.0}}\nPASS combined: 246 snapshots, resources converged, faults={'up': {'received': 136, 'delivered': 133, 'dropped': 9, 'duplicated': 6, 'reordered': 19, 'delayed': 127, 'settlement_dropped': 0, 'received_bytes': 3923, 'delivered_bytes': 3813, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 521, 'delivered': 473, 'dropped': 74, 'duplicated': 27, 'reordered': 128, 'delayed': 447, 'settlement_dropped': 0, 'received_bytes': 55432, 'delivered_bytes': 48852, 'bandwidth_wait_seconds': 0.0}}\nPASS tail_loss: 330 snapshots, resources converged, faults={'up': {'received': 323, 'delivered': 311, 'dropped': 12, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 12, 'received_bytes': 10467, 'delivered_bytes': 10123, 'bandwidth_wait_seconds': 0.0}, 'down': {'received': 518, 'delivered': 518, 'dropped': 0, 'duplicated': 0, 'reordered': 0, 'delayed': 0, 'settlement_dropped': 0, 'received_bytes': 52428, 'delivered_bytes': 52428, 'bandwidth_wait_seconds': 0.0}}\nPASS limited_bandwidth: 326 snapshots, resources converged, faults={'up': {'received': 374, 'delivered': 374, 'dropped': 0, 'duplicated': 0, 'reordered': 25, 'delayed': 374, 'settlement_dropped': 0, 'received_bytes': 12577, 'delivered_bytes': 12577, 'bandwidth_wait_seconds': 3.146470487503393}, 'down': {'received': 506, 'delivered': 505, 'dropped': 0, 'duplicated': 0, 'reordered': 45, 'delayed': 506, 'settlement_dropped': 0, 'received_bytes': 54677, 'delivered_bytes': 54667, 'bandwidth_wait_seconds': 40.4802135155187}}\nImpairment verification: 8/8 passed; evidence=<repo>\\.tools\\network-impairment\\20260922T181150-1a03cd34\n",
+  "network": [
+    {
+      "profile": "baseline",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {},
+      "datagrams": {
+        "up": {
+          "received": 359,
+          "delivered": 359,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 11891,
+          "delivered_bytes": 11891,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 508,
+          "delivered": 508,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 50749,
+          "delivered_bytes": 50749,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 1,
+      "elapsed_seconds": 18.394023100001505,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            802,
+            802
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            15,
+            15
+          ],
+          "special_identity": [
+            451,
+            451
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 262,
+              "phase": 4,
+              "press": 262,
+              "retries": 0,
+              "server_ack": 320,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 325,
+              "phase": 5,
+              "press": 325,
+              "retries": 0,
+              "server_ack": 384,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 388,
+              "phase": 6,
+              "press": 388,
+              "retries": 0,
+              "server_ack": 446,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 451,
+              "phase": 7,
+              "press": 451,
+              "retries": 0,
+              "server_ack": 510,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 805,
+          "input_age": 3.01666666666666,
+          "neutral_send_attempts": 1,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 805,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 805,
+          "snapshots": 330,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 40,
+        "max_transient_ammo_difference": 7,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.0448485463857651,
+          "correction_p99_pixels": 0.0585030503571033,
+          "large_corrections": [],
+          "max_correction_pixels": 0.0730448290705681,
+          "samples": 329,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            20,
+            20
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 781,
+              "received_ms": 14791
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 802,
+              "received_ms": 15108
+            }
+          ]
+        },
+        "shots": 15,
+        "snapshots": 330
+      },
+      "passed": true
+    },
+    {
+      "profile": "latency",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "delay": 0.1,
+        "jitter": 0.035
+      },
+      "datagrams": {
+        "up": {
+          "received": 160,
+          "delivered": 159,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 14,
+          "delayed": 160,
+          "settlement_dropped": 0,
+          "received_bytes": 5049,
+          "delivered_bytes": 5039,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 430,
+          "delivered": 429,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 81,
+          "delayed": 430,
+          "settlement_dropped": 0,
+          "received_bytes": 43835,
+          "delivered_bytes": 43825,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 10,
+      "elapsed_seconds": 16.52586860000156,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            44.0,
+            44.0
+          ],
+          "shield_identity": [
+            808,
+            808
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            15,
+            15
+          ],
+          "special_identity": [
+            451,
+            451
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 262,
+              "phase": 4,
+              "press": 262,
+              "retries": 0,
+              "server_ack": 308,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 325,
+              "phase": 5,
+              "press": 325,
+              "retries": 0,
+              "server_ack": 372,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 388,
+              "phase": 6,
+              "press": 388,
+              "retries": 0,
+              "server_ack": 438,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 451,
+              "phase": 7,
+              "press": 451,
+              "retries": 0,
+              "server_ack": 504,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 816,
+          "input_age": 0.15,
+          "neutral_send_attempts": 9,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 816,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 816,
+          "snapshots": 266,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 45,
+        "max_transient_ammo_difference": 7,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.121341593563557,
+          "correction_p99_pixels": 5.24995756149292,
+          "large_corrections": [],
+          "max_correction_pixels": 8.69253444671631,
+          "samples": 265,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            125,
+            103
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 780,
+              "received_ms": 15586
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 808,
+              "received_ms": 15986
+            }
+          ]
+        },
+        "shots": 15,
+        "snapshots": 266
+      },
+      "passed": true
+    },
+    {
+      "profile": "loss",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "loss": 0.12
+      },
+      "datagrams": {
+        "up": {
+          "received": 274,
+          "delivered": 245,
+          "dropped": 29,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 8420,
+          "delivered_bytes": 7489,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 532,
+          "delivered": 475,
+          "dropped": 57,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 52361,
+          "delivered_bytes": 46696,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 1,
+      "elapsed_seconds": 18.45666219999839,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            802,
+            802
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            16,
+            16
+          ],
+          "special_identity": [
+            451,
+            451
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 262,
+              "phase": 4,
+              "press": 262,
+              "retries": 0,
+              "server_ack": 320,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 325,
+              "phase": 5,
+              "press": 325,
+              "retries": 0,
+              "server_ack": 382,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 388,
+              "phase": 6,
+              "press": 388,
+              "retries": 0,
+              "server_ack": 440,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 451,
+              "phase": 7,
+              "press": 451,
+              "retries": 0,
+              "server_ack": 506,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 805,
+          "input_age": 3.01666666666666,
+          "neutral_send_attempts": 3,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 805,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 805,
+          "snapshots": 305,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 45,
+        "max_transient_ammo_difference": 1,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.0373687222599983,
+          "correction_p99_pixels": 0.0639648735523224,
+          "large_corrections": [],
+          "max_correction_pixels": 0.135574042797089,
+          "samples": 304,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            28,
+            21
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 780,
+              "received_ms": 14889
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 802,
+              "received_ms": 15207
+            }
+          ]
+        },
+        "shots": 16,
+        "snapshots": 305
+      },
+      "passed": true
+    },
+    {
+      "profile": "reorder",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "reorder": 0.3,
+        "duplicate": 0.1
+      },
+      "datagrams": {
+        "up": {
+          "received": 345,
+          "delivered": 374,
+          "dropped": 0,
+          "duplicated": 29,
+          "reordered": 108,
+          "delayed": 112,
+          "settlement_dropped": 0,
+          "received_bytes": 11840,
+          "delivered_bytes": 12968,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 504,
+          "delivered": 557,
+          "dropped": 0,
+          "duplicated": 54,
+          "reordered": 188,
+          "delayed": 175,
+          "settlement_dropped": 0,
+          "received_bytes": 50681,
+          "delivered_bytes": 55273,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 9,
+      "elapsed_seconds": 18.746169699996244,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            802,
+            802
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            14,
+            14
+          ],
+          "special_identity": [
+            451,
+            451
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 262,
+              "phase": 4,
+              "press": 262,
+              "retries": 0,
+              "server_ack": 308,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 325,
+              "phase": 5,
+              "press": 325,
+              "retries": 0,
+              "server_ack": 384,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 388,
+              "phase": 6,
+              "press": 388,
+              "retries": 0,
+              "server_ack": 446,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 451,
+              "phase": 7,
+              "press": 451,
+              "retries": 0,
+              "server_ack": 510,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 805,
+          "input_age": 3.01666666666666,
+          "neutral_send_attempts": 1,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 805,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 805,
+          "snapshots": 230,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 44,
+        "max_transient_ammo_difference": 6,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.175606369972229,
+          "correction_p99_pixels": 2.9022331237793,
+          "large_corrections": [],
+          "max_correction_pixels": 31.9166526794434,
+          "samples": 229,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            20,
+            21
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 781,
+              "received_ms": 15164
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 802,
+              "received_ms": 15482
+            }
+          ]
+        },
+        "shots": 14,
+        "snapshots": 230
+      },
+      "passed": true
+    },
+    {
+      "profile": "blackout",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "blackout": true
+      },
+      "datagrams": {
+        "up": {
+          "received": 280,
+          "delivered": 274,
+          "dropped": 6,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 8857,
+          "delivered_bytes": 8719,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 515,
+          "delivered": 491,
+          "dropped": 24,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 51044,
+          "delivered_bytes": 48977,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 1,
+      "elapsed_seconds": 18.369090400003188,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            7,
+            7
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            802,
+            802
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            18,
+            18
+          ],
+          "special_identity": [
+            451,
+            451
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 262,
+              "phase": 4,
+              "press": 262,
+              "retries": 0,
+              "server_ack": 322,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 325,
+              "phase": 5,
+              "press": 325,
+              "retries": 0,
+              "server_ack": 384,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 388,
+              "phase": 6,
+              "press": 388,
+              "retries": 0,
+              "server_ack": 444,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 451,
+              "phase": 7,
+              "press": 451,
+              "retries": 0,
+              "server_ack": 508,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 805,
+          "input_age": 3.01666666666666,
+          "neutral_send_attempts": 1,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 805,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 805,
+          "snapshots": 316,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 62,
+        "max_transient_ammo_difference": 9,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.0450415052473545,
+          "correction_p99_pixels": 0.0585030503571033,
+          "large_corrections": [],
+          "max_correction_pixels": 0.0730448290705681,
+          "samples": 315,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            20,
+            20
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 781,
+              "received_ms": 14754
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 802,
+              "received_ms": 15071
+            }
+          ]
+        },
+        "shots": 18,
+        "snapshots": 316
+      },
+      "passed": true
+    },
+    {
+      "profile": "combined",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "delay": 0.06,
+        "jitter": 0.025,
+        "loss": 0.08,
+        "reorder": 0.2,
+        "duplicate": 0.05,
+        "blackout": true
+      },
+      "datagrams": {
+        "up": {
+          "received": 136,
+          "delivered": 133,
+          "dropped": 9,
+          "duplicated": 6,
+          "reordered": 19,
+          "delayed": 127,
+          "settlement_dropped": 0,
+          "received_bytes": 3923,
+          "delivered_bytes": 3813,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 521,
+          "delivered": 473,
+          "dropped": 74,
+          "duplicated": 27,
+          "reordered": 128,
+          "delayed": 447,
+          "settlement_dropped": 0,
+          "received_bytes": 55432,
+          "delivered_bytes": 48852,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 8,
+      "elapsed_seconds": 20.422986800003855,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            880,
+            880
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            15,
+            15
+          ],
+          "special_identity": [
+            517,
+            517
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 329,
+              "phase": 4,
+              "press": 329,
+              "retries": 0,
+              "server_ack": 372,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 392,
+              "phase": 5,
+              "press": 392,
+              "retries": 0,
+              "server_ack": 438,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 454,
+              "phase": 6,
+              "press": 454,
+              "retries": 0,
+              "server_ack": 504,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 517,
+              "phase": 7,
+              "press": 517,
+              "retries": 0,
+              "server_ack": 550,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 887,
+          "input_age": 2.93333333333333,
+          "neutral_send_attempts": 7,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 887,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 887,
+          "snapshots": 246,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 129,
+        "max_transient_ammo_difference": 7,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 9.083327293396,
+          "correction_p99_pixels": 23.7500534057617,
+          "large_corrections": [],
+          "max_correction_pixels": 49.4035606384277,
+          "samples": 245,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            220,
+            82
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 847,
+              "received_ms": 16746
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 880,
+              "received_ms": 17125
+            }
+          ]
+        },
+        "shots": 15,
+        "snapshots": 246
+      },
+      "passed": true
+    },
+    {
+      "profile": "tail_loss",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "settlement_blackout": 0.35
+      },
+      "datagrams": {
+        "up": {
+          "received": 323,
+          "delivered": 311,
+          "dropped": 12,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 12,
+          "received_bytes": 10467,
+          "delivered_bytes": 10123,
+          "bandwidth_wait_seconds": 0.0
+        },
+        "down": {
+          "received": 518,
+          "delivered": 518,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 0,
+          "delayed": 0,
+          "settlement_dropped": 0,
+          "received_bytes": 52428,
+          "delivered_bytes": 52428,
+          "bandwidth_wait_seconds": 0.0
+        }
+      },
+      "peak_queued_datagrams": 2,
+      "elapsed_seconds": 18.405460900001344,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            802,
+            802
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            14,
+            14
+          ],
+          "special_identity": [
+            451,
+            451
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 262,
+              "phase": 4,
+              "press": 262,
+              "retries": 0,
+              "server_ack": 320,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 325,
+              "phase": 5,
+              "press": 325,
+              "retries": 0,
+              "server_ack": 384,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 388,
+              "phase": 6,
+              "press": 388,
+              "retries": 0,
+              "server_ack": 442,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 451,
+              "phase": 7,
+              "press": 451,
+              "retries": 0,
+              "server_ack": 508,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 805,
+          "input_age": 2.73333333333333,
+          "neutral_send_attempts": 10,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 805,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 805,
+          "snapshots": 330,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 44,
+        "max_transient_ammo_difference": 1,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.0400976836681366,
+          "correction_p99_pixels": 0.0585030503571033,
+          "large_corrections": [],
+          "max_correction_pixels": 0.0730448290705681,
+          "samples": 329,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            28,
+            20
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 780,
+              "received_ms": 14757
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 802,
+              "received_ms": 15074
+            }
+          ]
+        },
+        "shots": 14,
+        "snapshots": 330
+      },
+      "passed": true
+    },
+    {
+      "profile": "limited_bandwidth",
+      "seed": 230926,
+      "shield_only": false,
+      "configuration": {
+        "delay": 0.05,
+        "jitter": 0.02,
+        "bytes_per_second": 4096
+      },
+      "datagrams": {
+        "up": {
+          "received": 374,
+          "delivered": 374,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 25,
+          "delayed": 374,
+          "settlement_dropped": 0,
+          "received_bytes": 12577,
+          "delivered_bytes": 12577,
+          "bandwidth_wait_seconds": 3.146470487503393
+        },
+        "down": {
+          "received": 506,
+          "delivered": 505,
+          "dropped": 0,
+          "duplicated": 0,
+          "reordered": 45,
+          "delayed": 506,
+          "settlement_dropped": 0,
+          "received_bytes": 54677,
+          "delivered_bytes": 54667,
+          "bandwidth_wait_seconds": 40.4802135155187
+        }
+      },
+      "peak_queued_datagrams": 25,
+      "elapsed_seconds": 20.316243599998415,
+      "fixture": {
+        "cloak_observed": true,
+        "cloak_spent": 0,
+        "comparison": {
+          "ammo": [
+            8,
+            8
+          ],
+          "cloak": [
+            3,
+            3
+          ],
+          "guard_window": [
+            0.0,
+            0.0
+          ],
+          "mines": [
+            2,
+            2
+          ],
+          "missiles": [
+            2,
+            2
+          ],
+          "reloading": [
+            false,
+            false
+          ],
+          "shield_active": [
+            false,
+            false
+          ],
+          "shield_energy": [
+            100.0,
+            100.0
+          ],
+          "shield_identity": [
+            809,
+            809
+          ],
+          "shield_locked": [
+            false,
+            false
+          ],
+          "shots": [
+            13,
+            13
+          ],
+          "special_identity": [
+            455,
+            455
+          ]
+        },
+        "delivery": {
+          "abilities": [
+            {
+              "authority_consumed": 267,
+              "phase": 4,
+              "press": 267,
+              "retries": 0,
+              "server_ack": 322,
+              "slot": 1
+            },
+            {
+              "authority_consumed": 330,
+              "phase": 5,
+              "press": 330,
+              "retries": 0,
+              "server_ack": 386,
+              "slot": 2
+            },
+            {
+              "authority_consumed": 392,
+              "phase": 6,
+              "press": 392,
+              "retries": 0,
+              "server_ack": 448,
+              "slot": 3
+            },
+            {
+              "authority_consumed": 455,
+              "phase": 7,
+              "press": 455,
+              "retries": 0,
+              "server_ack": 510,
+              "slot": 0
+            }
+          ],
+          "authority_reload_observed": true,
+          "authority_shield_observed": true,
+          "final_acknowledged": true,
+          "final_sequence": 817,
+          "input_age": 3.04999999999999,
+          "neutral_send_attempts": 7,
+          "newest_sequence": -1,
+          "oldest_sequence": -1,
+          "pending_count": 0,
+          "reload_observed": true,
+          "server_ack": 817,
+          "shield_active": false,
+          "shield_observed": true,
+          "snapshot_ack": 817,
+          "snapshots": 326,
+          "weapon_cooldown": 0.0
+        },
+        "max_buffered_inputs": 67,
+        "max_transient_ammo_difference": 5,
+        "mine_spent": 1,
+        "missile_spent": 1,
+        "movement": {
+          "correction_p95_pixels": 0.750092566013336,
+          "correction_p99_pixels": 16.0738639831543,
+          "large_corrections": [
+            {
+              "ack": 10,
+              "authority_position": "(757.4503, 1042.546)",
+              "before_prediction": "(701.0607, 1098.939)",
+              "boost": 0.0,
+              "client_tick": 40,
+              "current_server_input_age": 0.416666666666667,
+              "error": 122.53897857666,
+              "pending": 30,
+              "position": "(787.6736, 1012.256)",
+              "predicted_boost": 0.0,
+              "snapshot_input_age_ticks": 3,
+              "snapshot_position": "(701.0625, 1098.938)",
+              "tick": 138
+            }
+          ],
+          "max_correction_pixels": 122.53897857666,
+          "samples": 325,
+          "snap_count": 0
+        },
+        "reload_observed": true,
+        "shield_observed": true,
+        "shield_taps": {
+          "attempts": 2,
+          "delivery_ms": [
+            69,
+            103
+          ],
+          "volleys": [
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 785,
+              "received_ms": 16568
+            },
+            {
+              "energy_cost": 55.0,
+              "guarded": true,
+              "hull_hits": 0,
+              "press": 809,
+              "received_ms": 16968
+            }
+          ]
+        },
+        "shots": 13,
+        "snapshots": 326
+      },
+      "passed": true
+    }
+  ],
+  "map_sweep": [
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-broken_orbit.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 14810,
+          "over_physics_budget": 0,
+          "p50_usec": 14318,
+          "p95_usec": 14810,
+          "p99_usec": 14810,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "broken_orbit",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12042784,
+        "per_tick": {
+          "max_usec": 16767,
+          "over_physics_budget": 1,
+          "p50_usec": 9988,
+          "p95_usec": 13162,
+          "p99_usec": 14564,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": false
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-core_arena.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 14778,
+          "over_physics_budget": 0,
+          "p50_usec": 13928,
+          "p95_usec": 14778,
+          "p99_usec": 14778,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "core_arena",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12023680,
+        "per_tick": {
+          "max_usec": 19621,
+          "over_physics_budget": 3,
+          "p50_usec": 10158,
+          "p95_usec": 13540,
+          "p99_usec": 15635,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": false
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-dead_freight.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 16681,
+          "over_physics_budget": 1,
+          "p50_usec": 14875,
+          "p95_usec": 16681,
+          "p99_usec": 16681,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "dead_freight",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12095232,
+        "per_tick": {
+          "max_usec": 16681,
+          "over_physics_budget": 2,
+          "p50_usec": 10665,
+          "p95_usec": 14103,
+          "p99_usec": 15131,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": false
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-longwave_array.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 15260,
+          "over_physics_budget": 0,
+          "p50_usec": 14163,
+          "p95_usec": 15260,
+          "p99_usec": 15260,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "longwave_array",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12035200,
+        "per_tick": {
+          "max_usec": 15260,
+          "over_physics_budget": 0,
+          "p50_usec": 9962,
+          "p95_usec": 13011,
+          "p99_usec": 14487,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": true
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-prism_array.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 15202,
+          "over_physics_budget": 0,
+          "p50_usec": 14646,
+          "p95_usec": 15202,
+          "p99_usec": 15202,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "prism_array",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12051360,
+        "per_tick": {
+          "max_usec": 15202,
+          "over_physics_budget": 0,
+          "p50_usec": 9914,
+          "p95_usec": 12936,
+          "p99_usec": 14646,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": true
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-relay_zero.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 15793,
+          "over_physics_budget": 0,
+          "p50_usec": 15321,
+          "p95_usec": 15793,
+          "p99_usec": 15793,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "relay_zero",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12076768,
+        "per_tick": {
+          "max_usec": 20815,
+          "over_physics_budget": 2,
+          "p50_usec": 10890,
+          "p95_usec": 14536,
+          "p99_usec": 15950,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": false
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-riftline.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 14117,
+          "over_physics_budget": 0,
+          "p50_usec": 13566,
+          "p95_usec": 14117,
+          "p99_usec": 14117,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "riftline",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 11982592,
+        "per_tick": {
+          "max_usec": 14117,
+          "over_physics_budget": 0,
+          "p50_usec": 9382,
+          "p95_usec": 12457,
+          "p99_usec": 13775,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": true
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-solar_tide.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 14875,
+          "over_physics_budget": 0,
+          "p50_usec": 14362,
+          "p95_usec": 14875,
+          "p99_usec": 14875,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "solar_tide",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12036992,
+        "per_tick": {
+          "max_usec": 16561,
+          "over_physics_budget": 0,
+          "p50_usec": 10093,
+          "p95_usec": 13422,
+          "p99_usec": 14875,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": true
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-switchyard.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 16870,
+          "over_physics_budget": 1,
+          "p50_usec": 14255,
+          "p95_usec": 16870,
+          "p99_usec": 16870,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "switchyard",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 12038656,
+        "per_tick": {
+          "max_usec": 16870,
+          "over_physics_budget": 2,
+          "p50_usec": 9739,
+          "p95_usec": 13046,
+          "p99_usec": 15394,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": false
+      }
+    },
+    {
+      "log": "<repo>\\.tools\\review-2026-09-22-map-twin_suns.log",
+      "SSF_COMBINED_PERFORMANCE": {
+        "coordinator_events": 24,
+        "full_recovery_tick": {
+          "max_usec": 14687,
+          "over_physics_budget": 0,
+          "p50_usec": 13565,
+          "p95_usec": 14687,
+          "p99_usec": 14687,
+          "samples": 6
+        },
+        "game_mode": "KING_OF_THE_HILL",
+        "map_id": "twin_suns",
+        "minimum_projectiles_before_step": 1024,
+        "payload_bytes": 11986432,
+        "per_tick": {
+          "max_usec": 14687,
+          "over_physics_budget": 0,
+          "p50_usec": 9435,
+          "p95_usec": 12298,
+          "p99_usec": 13910,
+          "samples": 360
+        },
+        "physics_budget_usec": 16666.6666666667,
+        "players": 32,
+        "profiled": false,
+        "scope": "32 stationary humans/1024 moving projectiles; real world, coordinator, event drain and scheduler; includes packet publication; excludes refill, RPC/socket transport and rendering; 60 warmup/360 measured ticks; overload acceptance, not a zero-overrun 60 Hz certification",
+        "valid": true
+      }
+    }
+  ],
+  "unit_tests": {
+    "log": "<repo>\\.tools\\verification-logs\\unit-tests-e78e2af5a80d4379941b87e4d8128e4e.log",
+    "summary": [
+      "TEST_SUMMARY passed=13856 failed=0"
+    ]
+  },
+  "soak_log": "Starting 32-client ENet soak for at least 180 seconds.\nEvidence: <repo>\\.tools\\soak-verification\\20260922T181609-be878d2a\nAll 32 initial clients connected.\nLoad32 disconnected during combat and was removed authoritatively.\nLate spectator admitted without participant authority.\nSoak active: 5 metric windows captured.\nSoak active: 8 metric windows captured.\nSoak active: 11 metric windows captured.\nSoak active: 14 metric windows captured.\nSoak active: 17 metric windows captured.\nSoak active: 20 metric windows captured.\nSoak verification passed: 32 initial clients, 23 windows, max p95 7081 us, overtime, combat disconnect, late spectator, bounded entities, and clean shutdown.\n",
+  "soak": {
+    "server_executable": "source checkout",
+    "client_count": 32,
+    "duration_seconds": 180,
+    "metric_windows": 23,
+    "active_metric_windows": 23,
+    "active_simulation_seconds": 213.46666666666667,
+    "os_memory_samples": 41,
+    "maximum_private_bytes": 74924032.0,
+    "maximum_working_set_bytes": 122621952.0,
+    "post_warmup_private_growth_bytes": 1385813.3333333284,
+    "memory_scope": "Server OS private bytes and working set sampled every 5 seconds; growth compares six-sample means after 60-second warmup, with max(64 MiB, 25 percent) alarm.",
+    "maximum_p95_simulation_usec": 7081.0,
+    "maximum_p99_simulation_usec": 9751.0,
+    "maximum_active_p95_usec": 7147.0,
+    "maximum_active_p99_usec": 9401.0,
+    "maximum_over_budget_percent": 0.166666666666667,
+    "maximum_outbound_payload_bytes_per_window": 10353816.0,
+    "mean_world_and_npc_usec": 933.874987151609,
+    "mean_coordination_usec": 241.55361908995437,
+    "mean_replication_usec": 1097.5847793152443,
+    "mean_logging_usec": 1.863472578896576,
+    "maximum_logging_usec": 1654.0,
+    "dropped_log_batches": 0.0,
+    "minimum_physics_ticks_per_second": 59.9368924459437,
+    "maximum_physics_gap_usec": 211530.0,
+    "maximum_outbound_bytes_per_second": 1033418.00245354,
+    "timing_scope": "Callback work includes coordination, encoding, ENet enqueue/fan-out and log submission; background log I/O is separate and queue overflow fails acceptance. Wall-clock callback rate and maximum scheduling gap additionally expose stalls outside that work. Outbound bytes count replication payloads, excluding transport overhead and other control RPCs.",
+    "maximum_active_projectiles": 67.0,
+    "maximum_object_count": 2254.0,
+    "maximum_static_memory_bytes": 36206438.0,
+    "overtime_events": 9,
+    "heat_results": 8,
+    "combat_disconnect_peer_id": 859756951,
+    "late_spectator": true,
+    "clean_shutdown": true
+  }
+}

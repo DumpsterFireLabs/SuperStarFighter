@@ -31,7 +31,7 @@ def main():
     notices = (ROOT / "docs/GODOT_COPYRIGHT.txt").read_text(encoding="utf-8")
     if "COMPONENT:" not in notices or "LICENSE:" not in notices or "Godot 4.7.2" not in notices:
         raise SystemExit("Engine component notices are missing or stale.")
-    print(f"Attribution inventory verified: {len(recorded)} assets; {len(pending)} need provenance resolution. Project licensing decision remains recorded separately.")
+    print(f"Attribution inventory verified: {len(recorded)} assets; {len(pending)} need provenance resolution.")
     if args.require_resolved and pending:
         raise SystemExit("Unresolved provenance: " + ", ".join(pending))
 

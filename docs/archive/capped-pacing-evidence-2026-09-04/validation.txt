@@ -1,0 +1,2 @@
+TEST_SUMMARY passed=7301 failed=0
+Impairment verification: 3/3 passed; evidence=<repo>\.tools\network-impairment\20260905T023607-2ae70b40
