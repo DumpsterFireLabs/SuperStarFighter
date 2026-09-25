@@ -2,7 +2,20 @@
 
 Super Star Fighter is a Windows-first, server-authoritative, top-down multiplayer arena shooter built with Godot 4.7.2 and GDScript.
 
+**[Download the latest release](https://github.com/DumpsterFireLabs/SuperStarFighter/releases/latest)** for Windows, Linux (x64 and ARM64), or macOS, plus dedicated servers.
+
+![32 pilots in a Team Capture the Flag heat on Prism Array](docs/screenshots/01-crowded-combat.jpg)
+
 Up to 32 human and NPC pilots fight through solo or team heats. Before each round, eligible pilots choose one upgrade from a private five-card draw. Cards stack without limit, their effects compound, and a sensible little starter ship can become a screen-filling mechanical disaster. The first pilot or team to win two heats wins the round; the first to reach the configured round target wins the match.
+
+## The Loop
+
+| | |
+| :---: | :---: |
+| ![A full 32-pilot online lobby](docs/screenshots/02-lobby.jpg) | ![Choosing one of five upgrade cards](docs/screenshots/03-card-draft.jpg) |
+| **Fill the lobby** with up to 32 humans and NPCs over LAN, direct connect, or a dedicated server | **Draft a card** each round and watch your build compound |
+| ![A Team Death Match heat with shields, projectiles and mines](docs/screenshots/04-team-combat.jpg) | ![Victory screen with standings and final builds](docs/screenshots/05-victory.jpg) |
+| **Fight heats** with shields, abilities, mines and missiles | **Crown a champion**, then rematch or play five more rounds |
 
 ## Highlights
 

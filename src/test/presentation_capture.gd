@@ -237,8 +237,13 @@ func _capture_sequence() -> void:
 	client.match_state.update_fields({"overtime_start_tick": 150})
 	client.match_state.update_fields({"heat_end_tick": 2000})
 	client.match_state.update_fields({"alive_peer_ids": [2, 3, 4, 5]})
-	for player in client.latest_match_payload["players"]:
-		player["ship_color"] = "42e8ff"
+	# Published match state is read-only; publish recoloured copies instead.
+	var team_players: Array = []
+	for player: Dictionary in client.latest_match_payload["players"]:
+		var recoloured := player.duplicate()
+		recoloured["ship_color"] = "42e8ff"
+		team_players.append(recoloured)
+	client.match_state.update_fields({"players": team_players})
 	client.network_world.apply_match_state(client.latest_match_payload)
 	var team_states: Array[Dictionary] = []
 	var positions := {2: Vector2(420, 340), 3: Vector2(730, 350), 4: Vector2(560, 570), 5: Vector2(520, 1120)}
