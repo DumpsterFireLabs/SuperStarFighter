@@ -564,7 +564,9 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.connection_controller.connection_screen.visible = false
 	client.offline_sandbox.set_sandbox_active(true)
 	client._update_pointer_visibility()
-	context.expect_true(client.gameplay_cursor.visible, "keyboard and mouse gameplay displays the software crosshair")
+	# macOS draws the crosshair as the native OS cursor instead of the in-game sprite.
+	var software_crosshair: bool = not client._uses_native_gameplay_cursor()
+	context.expect_equal(client.gameplay_cursor.visible, software_crosshair, "keyboard and mouse gameplay displays the platform's crosshair")
 	client._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	context.expect_false(client._application_has_focus, "focus loss releases gameplay pointer ownership")
 	context.expect_false(client.gameplay_cursor.visible, "focus loss immediately hides the in-game crosshair")
@@ -572,7 +574,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_false(client.gameplay_cursor.visible, "unfocused frame updates cannot recapture the gameplay pointer")
 	client._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
 	client._update_pointer_visibility()
-	context.expect_true(client._application_has_focus and client.gameplay_cursor.visible, "focus return restores the active gameplay pointer mode")
+	context.expect_true(client._application_has_focus and client.gameplay_cursor.visible == software_crosshair, "focus return restores the active gameplay pointer mode")
 	client.pause_overlay.visible = true
 	client._update_pointer_visibility()
 	context.expect_false(client.gameplay_cursor.visible, "interactive menus replace the combat crosshair with the system pointer")
