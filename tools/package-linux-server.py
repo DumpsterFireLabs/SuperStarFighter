@@ -13,7 +13,7 @@ release = load_release()
 root = Path(__file__).resolve().parents[1]
 arch = sys.argv[1]
 assert arch in ("x86_64", "arm64")
-build = root / f"{release['directory']}/server-linux-{arch}"
+build = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root / f"{release['directory']}/server-linux-{arch}"
 binary = build / f"SuperStarFighter-Server.{arch}"
 data = binary.read_bytes()
 assert data[:6] == b"\x7fELF\x02\x01"

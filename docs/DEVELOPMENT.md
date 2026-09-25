@@ -50,6 +50,8 @@ The script downloads the official Godot 4.7.2 Windows archive, export templates,
 
 Nothing is installed system-wide. Generated engine files, imports, logs, reports, and builds are ignored by Git.
 
+Without PowerShell, including on Linux and macOS, `python3 tools/build.py bootstrap` prepares the same self-contained layout with this host's official editor. It verifies SHA-512 checksums but not the Windows Authenticode signature. `python3 tools/build.py verify` runs the project gate, and `python3 tools/build.py build [targets]` runs the gate and then exports, verifies, and packages clients and dedicated servers. See the README's *Building without PowerShell* section for targets.
+
 Useful launch commands:
 
 ```powershell
@@ -350,6 +352,7 @@ All commands run from the repository root after bootstrap.
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
 | `.\tools\verify-presentation.ps1` | Production captures at six resolutions, including training, card identities, the lab, accessibility settings and crowded combat | UI, map, text, theme, timing changes |
 | `.\tools\build-beta.ps1` | Full foundation gate, Windows x64 export, rendered startup and packaged-audio inventory smoke, and friend ZIP | Beta/release packaging |
+| `python3 tools/build.py build` | Cross-platform gate, then every client and dedicated-server package plus combined checksums; runs launch smoke tests where the host can execute the binary | Release packaging without PowerShell |
 | `.\tools\verify-hardening.ps1` | Malformed/excessive peers isolated while healthy clients continue | Validation/rate-limit changes |
 | `.\tools\verify-smoke.ps1` | Configurable 2–32 real-client short run | Capacity/performance smoke |
 | `.\tools\verify-soak.ps1` | Long load, disconnect, late spectator, overtime, metrics summary | Performance/release acceptance |

@@ -85,6 +85,25 @@ The Windows script runs the complete foundation gate, exports a single embedded-
 
 The macOS beta is not yet signed or notarized. If Gatekeeper reports that `Super Star Fighter.app` is damaged even after using Control-click → Open, verify the supplied ZIP SHA-256, open Terminal in the extracted folder, run `xattr -cr "Super Star Fighter.app"`, and then use Control-click → Open again. A signed and notarized release will not require this workaround.
 
+### Building without PowerShell
+
+`tools/build.py` performs the same bootstrap, project gate, exports, and package checks with only Python 3.11+ (standard library), on Windows, Linux x64/ARM64, or macOS. Every host cross-builds all seven packages:
+
+```bash
+python3 tools/build.py bootstrap   # Godot 4.7.2 + export templates for this OS, SHA-512 verified, into .tools/
+python3 tools/build.py build       # project gate, then every client and dedicated-server package
+```
+
+Pick targets to build only some packages. Targets: `windows`, `linux-x64`, `linux-arm64`, `macos`, `server-windows`, `server-linux-x64`, `server-linux-arm64`. Groups: `clients`, `servers`, and `all` (the default).
+
+```bash
+python3 tools/build.py build clients                    # all four clients
+python3 tools/build.py build linux-arm64 server-linux-arm64 --skip-gate
+python3 tools/build.py verify                           # project gate only
+```
+
+Packages, per-package audits, and a combined `SHA256SUMS.txt` are written to the release directory under `builds/`, or to `--output DIR`. Launch smoke tests run only for binaries the host can execute (Linux clients also need a display); other targets still receive their static header, version, archive, and resource-audit checks. On Windows, use `python` instead of `python3`.
+
 ### Linux graphics fallbacks
 
 Linux normally uses the project's Compatibility renderer through desktop OpenGL 3.3. On Mesa systems that expose native OpenGL ES 3.0 but not desktop OpenGL 3.3, try:
