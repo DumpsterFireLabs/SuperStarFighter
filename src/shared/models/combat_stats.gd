@@ -67,7 +67,7 @@ func cloak_duration_seconds() -> float:
 
 
 func cloak_cooldown_seconds() -> float:
-	return GameConstants.CLOAK_COOLDOWN_SECONDS * pow(GameConstants.CLOAK_COOLDOWN_PER_EXTRA_CARD, maxi(cloak_capacity - 1, 0))
+	return GameConstants.CLOAK_COOLDOWN_SECONDS * DeterministicMath.int_pow(GameConstants.CLOAK_COOLDOWN_PER_EXTRA_CARD, maxi(cloak_capacity - 1, 0))
 
 
 static func create_base() -> CombatStats:

@@ -10,6 +10,10 @@ static func run(context: TestContext) -> void:
 		for key in CombatStats.get_stat_property_names() + StatSystem.SPECIAL_FLAGS:
 			values[key] = stats.get(key)
 		context.expect_equal(JSON.stringify(values, "", true, true).sha256_text(), row.hash, "every card at 1/3/20 stacks preserves authoritative derived values: %s/%s" % [row.id, row.stacks])
+	context.expect_equal(DeterministicMath.int_pow(0.93, 3), 0.93 * 0.93 * 0.93, "stack compounding uses only IEEE multiplication")
+	context.expect_equal(DeterministicMath.int_pow(1.07, 20), DeterministicMath.int_pow(1.07, 16) * DeterministicMath.int_pow(1.07, 4), "stack compounding is exact by squaring")
+	context.expect_equal(DeterministicMath.int_pow(0.8, 0), 1.0, "zero stacks leave a modifier neutral")
+	context.expect_equal(DeterministicMath.int_pow(2.0, -2), 0.25, "negative exponents invert")
 	context.expect_equal(StatMetadata.numeric_descriptors().size(), 41, "all numeric stats have one descriptor")
 	for descriptor in StatMetadata.numeric_descriptors():
 		context.expect_true(not descriptor.label.is_empty() and not descriptor.short_label.is_empty(), "stat names are explicit")

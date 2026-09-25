@@ -50,7 +50,7 @@ static func derive(build: Dictionary, catalog: CardCatalog, apply_limits: bool =
 			additive_totals[normalized_name] = float(additive_totals.get(normalized_name, 0.0)) + float(card.additive_modifiers[property_name]) * stacks
 		for property_name in card.multiplicative_modifiers:
 			var normalized_name := StringName(property_name)
-			multiplier_totals[normalized_name] = float(multiplier_totals.get(normalized_name, 1.0)) * pow(float(card.multiplicative_modifiers[property_name]), stacks)
+			multiplier_totals[normalized_name] = float(multiplier_totals.get(normalized_name, 1.0)) * DeterministicMath.int_pow(float(card.multiplicative_modifiers[property_name]), stacks)
 		for property_name in card.integer_modifiers:
 			var normalized_name := StringName(property_name)
 			integer_totals[normalized_name] = int(integer_totals.get(normalized_name, 0)) + int(card.integer_modifiers[property_name]) * stacks
