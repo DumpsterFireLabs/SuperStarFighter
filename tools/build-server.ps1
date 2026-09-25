@@ -37,11 +37,12 @@ if ($process.ExitCode -ne 0 -or $errors -or -not $text.Contains('SSF_MODE_READY=
 foreach ($name in @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'SERVER_README.txt')) {
     Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot "docs/$name") -Destination $buildRoot
 }
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'LICENSE') -Destination (Join-Path $buildRoot 'LICENSE.txt')
 foreach ($name in @('start-server.ps1', 'admin.ps1')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $buildRoot
 }
 & (Join-Path $PSScriptRoot 'verify-server-operations.ps1') -ServerExecutable $serverPath
 if ($LASTEXITCODE -ne 0) { throw 'Dedicated server operations verification failed.' }
-$files = @($serverPath) + @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'SERVER_README.txt', 'start-server.ps1', 'admin.ps1' | ForEach-Object { Join-Path $buildRoot $_ })
+$files = @($serverPath) + @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'SERVER_README.txt', 'LICENSE.txt', 'start-server.ps1', 'admin.ps1' | ForEach-Object { Join-Path $buildRoot $_ })
 Compress-Archive -LiteralPath $files -DestinationPath (Join-Path $buildRoot "SuperStarFighter-$($SsfRelease.tag)-Server-Windows-x64.zip") -Force
 Write-Host "Dedicated server export, resource audit and isolated startup passed: $serverPath"

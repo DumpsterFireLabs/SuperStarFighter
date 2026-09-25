@@ -19,6 +19,8 @@ $archivePath = Join-Path $buildRoot $(if ($isArm64) { "SuperStarFighter-$($SsfRe
 $friendReadme = Join-Path $buildRoot 'README-BETA-LINUX.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES-LINUX.txt'
 $engineNotices = Join-Path $buildRoot 'GODOT_COPYRIGHT.txt'
+$projectLicense = Join-Path $buildRoot 'LICENSE.txt'
+$assetLicense = Join-Path $buildRoot 'ASSET-LICENSE.txt'
 $expectedMachineByte = if ($isArm64) { 0xb7 } else { 0x3e }
 $architectureDescription = if ($isArm64) { 'ARM64/AArch64' } else { 'x86_64' }
 
@@ -32,7 +34,7 @@ function Assert-BetaBuildPath {
     }
 }
 
-foreach ($path in @($buildRoot, $clientPath, $archivePath, $friendReadme, $notices)) {
+foreach ($path in @($buildRoot, $clientPath, $archivePath, $friendReadme, $notices, $projectLicense, $assetLicense)) {
     Assert-BetaBuildPath -Path $path
 }
 
@@ -96,7 +98,9 @@ if (-not $binaryText.Contains($expectedGameVersion)) {
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt') -Destination $engineNotices
-Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices, $engineNotices) -DestinationPath $archivePath -CompressionLevel Optimal -Force
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'LICENSE') -Destination $projectLicense
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'assets/LICENSE.md') -Destination $assetLicense
+Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices, $engineNotices, $projectLicense, $assetLicense) -DestinationPath $archivePath -CompressionLevel Optimal -Force
 
 $clientHash = (Get-FileHash -LiteralPath $clientPath -Algorithm SHA256).Hash
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash

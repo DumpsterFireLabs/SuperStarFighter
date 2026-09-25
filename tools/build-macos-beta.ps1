@@ -165,7 +165,7 @@ try {
         throw "macOS export does not contain the expected packaged version $expectedGameVersion."
     }
 
-    foreach ($name in @('README-BETA.txt', 'THIRD-PARTY-NOTICES.txt', 'GODOT_COPYRIGHT.txt')) {
+    foreach ($name in @('README-BETA.txt', 'THIRD-PARTY-NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'LICENSE.txt', 'ASSET-LICENSE.txt')) {
         $existing = $archive.GetEntry($name)
         if ($existing) {
             $existing.Delete()
@@ -187,6 +187,18 @@ try {
         $archive,
         (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt'),
         'GODOT_COPYRIGHT.txt',
+        [System.IO.Compression.CompressionLevel]::Optimal
+    ) | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive,
+        (Join-Path $SsfRepositoryRoot 'LICENSE'),
+        'LICENSE.txt',
+        [System.IO.Compression.CompressionLevel]::Optimal
+    ) | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive,
+        (Join-Path $SsfRepositoryRoot 'assets/LICENSE.md'),
+        'ASSET-LICENSE.txt',
         [System.IO.Compression.CompressionLevel]::Optimal
     ) | Out-Null
 } finally {

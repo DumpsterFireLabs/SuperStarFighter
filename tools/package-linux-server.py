@@ -22,6 +22,7 @@ assert release["version"].encode() in data
 files = {binary.name: binary}
 for name in ("SERVER_README.txt", "THIRD_PARTY_NOTICES.txt", "GODOT_COPYRIGHT.txt"):
     files[name] = root / "docs" / name
+files["LICENSE.txt"] = root / "LICENSE"
 for name in ("start-server.sh", "admin.py"):
     files[name] = root / "tools" / name
 label = "x64" if arch == "x86_64" else "arm64"

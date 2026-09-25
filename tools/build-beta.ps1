@@ -18,6 +18,8 @@ $smokeLog = Join-Path $buildRoot 'beta-smoke.log'
 $friendReadme = Join-Path $buildRoot 'README-BETA.txt'
 $notices = Join-Path $buildRoot 'THIRD-PARTY-NOTICES.txt'
 $engineNotices = Join-Path $buildRoot 'GODOT_COPYRIGHT.txt'
+$projectLicense = Join-Path $buildRoot 'LICENSE.txt'
+$assetLicense = Join-Path $buildRoot 'ASSET-LICENSE.txt'
 $musicRoot = Join-Path $SsfRepositoryRoot 'assets\audio\music'
 $gameplayMusicRoot = Join-Path $musicRoot 'gameplay'
 $supportedAudioExtensions = @('.wav', '.ogg', '.mp3')
@@ -48,7 +50,7 @@ function Assert-BetaBuildPath {
     }
 }
 
-foreach ($path in @($buildRoot, $clientPath, $archivePath, $smokeLog, $friendReadme, $notices)) {
+foreach ($path in @($buildRoot, $clientPath, $archivePath, $smokeLog, $friendReadme, $notices, $projectLicense, $assetLicense)) {
     Assert-BetaBuildPath -Path $path
 }
 
@@ -124,7 +126,9 @@ Write-Host "Exported music inventory verified: menu=$exportedMenuMusic gameplay=
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt') -Destination $engineNotices
-Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices, $engineNotices) -DestinationPath $archivePath -CompressionLevel Optimal -Force
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'LICENSE') -Destination $projectLicense
+Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'assets/LICENSE.md') -Destination $assetLicense
+Compress-Archive -LiteralPath @($clientPath, $friendReadme, $notices, $engineNotices, $projectLicense, $assetLicense) -DestinationPath $archivePath -CompressionLevel Optimal -Force
 
 $clientHash = (Get-FileHash -LiteralPath $clientPath -Algorithm SHA256).Hash
 $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
