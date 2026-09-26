@@ -77,6 +77,7 @@ The same project supplies client, server, tests, and protocol test-client entry 
 | `--ban-file=<path>` | Server | User-data file | Selects the persistent blocked-source JSON file. |
 | `--max-players=<2-32>` | Server | `32` | Limits admitted clients. |
 | `--rounds-to-win=<1-5>` | Server | `3` | Sets the lobby's initial round target; the lobby leader may change it. |
+| `--windowed` / `--fullscreen` | Client | Saved setting | Starts Windowed or Borderless Fullscreen for this launch without changing the saved display mode. |
 | `--auto-start` | Tests only | Off | Starts when at least two test clients are ready. |
 | `--bot-client=<name>` | Tests only | Off | Starts a headless scripted protocol client, not a gameplay AI feature. |
 | `--run-tests` | Tests only | Off | Runs automated tests and exits nonzero on failure. |

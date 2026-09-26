@@ -171,6 +171,11 @@ func _run_foundation_tests() -> void:
 	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, "lobby-secret")
 	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--admin-port=7124"])).ok, "admin and lobby credentials must differ")
 	OS.set_environment(CommandLineConfig.ADMIN_PASSWORD_ENVIRONMENT_VARIABLE, prior_admin_password)
+	_context.expect_equal(CommandLineConfig.parse(PackedStringArray([])).get("window_mode_override"), "", "client keeps the saved display mode without an override")
+	_context.expect_equal(CommandLineConfig.parse(PackedStringArray(["--windowed"])).get("window_mode_override"), "windowed", "--windowed overrides the client display mode")
+	_context.expect_equal(CommandLineConfig.parse(PackedStringArray(["--fullscreen"])).get("window_mode_override"), "fullscreen", "--fullscreen overrides the client display mode")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--windowed", "--fullscreen"])).ok, "conflicting window overrides are rejected")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=test-lobby", "--fullscreen"])).ok, "window overrides are client-only")
 	var match_test_config := CommandLineConfig.parse(PackedStringArray([
 		"--server",
 		"--test-fast-match",

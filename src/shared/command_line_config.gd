@@ -26,6 +26,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"bind_address": "*",
 		"behind_proxy": false,
 		"competitive_view": false,
+		"window_mode_override": "",
 		"bot_name": "",
 		"force_test_failure": false,
 		"test_protocol_version": GameConstants.PROTOCOL_VERSION,
@@ -43,6 +44,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"bot_excessive_input": false,
 	}
 	var explicit_modes: Array[String] = []
+	var window_overrides: Array[String] = []
 
 	for argument in arguments:
 		if argument == "--server":
@@ -124,6 +126,10 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			if not parsed_rounds.ok:
 				return parsed_rounds
 			result.rounds_to_win = parsed_rounds.value
+		elif argument == "--windowed":
+			window_overrides.append("windowed")
+		elif argument == "--fullscreen":
+			window_overrides.append("fullscreen")
 		elif argument == "--competitive-view":
 			result.competitive_view = true
 		elif argument == "--auto-start":
@@ -209,6 +215,12 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("Choose only one startup mode: --server, --run-tests, or --bot-client.")
 	if explicit_modes.size() == 1:
 		result.mode = explicit_modes[0]
+	if window_overrides.size() > 1:
+		return _error("Choose only one window override: --windowed or --fullscreen.")
+	if window_overrides.size() == 1:
+		if result.mode != "client":
+			return _error("--windowed and --fullscreen are only valid for the game client.")
+		result.window_mode_override = window_overrides[0]
 	if String(result.lobby_password).is_empty() and not String(result.lobby_password_file).is_empty():
 		var loaded_password := _read_password_file(String(result.lobby_password_file))
 		if not loaded_password.ok:

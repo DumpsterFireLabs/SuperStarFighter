@@ -240,6 +240,11 @@ func _input(event: InputEvent) -> void:
 	# Rebinding must capture the key without pausing or resuming the match.
 	if settings_controller.capture_input(event):
 		return
+	if event is InputEventKey and event.pressed and event.alt_pressed and event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+		if not event.echo:
+			settings_controller.toggle_fullscreen()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed(&"global_pause", true, true) and _can_toggle_global_pause():
 		if not event.is_echo():
 			_toggle_global_pause()
