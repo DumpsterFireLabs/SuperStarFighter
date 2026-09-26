@@ -6,6 +6,7 @@ const StandingsScreenControllerScript = preload("res://src/client/ui/standings_s
 const SettingsControllerScript = preload("res://src/client/ui/settings_controller.gd")
 const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
 const AdminPanelScript = preload("res://src/client/ui/admin_panel.gd")
+const UpdateCheckerScript = preload("res://src/client/network/update_checker.gd")
 
 var draft_controller := DraftScreenControllerScript.new()
 var standings_controller := StandingsScreenControllerScript.new()
@@ -74,6 +75,9 @@ var global_pause_notice: Label
 var pause_note: Label
 var pause_disconnect_button: Button
 var f2_return_confirmation: ConfirmationDialog
+var update_checker: Node
+var update_notice: ConfirmationDialog
+var _pending_update_url: String = ""
 var _application_has_focus: bool = true
 var _disconnect_in_progress: bool = false
 
@@ -166,6 +170,7 @@ func _ready() -> void:
 	_create_credits_overlay()
 	_create_gameplay_cursor()
 	_create_splash_screen()
+	_create_update_notice()
 	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=tcp" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
@@ -463,6 +468,51 @@ func _create_f2_return_confirmation() -> void:
 	f2_return_confirmation.get_ok_button().theme_type_variation = &"DangerButton"
 
 
+func _create_update_notice() -> void:
+	update_notice = ConfirmationDialog.new()
+	update_notice.name = "UpdateNotice"
+	update_notice.title = "UPDATE AVAILABLE"
+	update_notice.ok_button_text = "GET IT ON GITHUB"
+	update_notice.cancel_button_text = "LATER"
+	update_notice.theme = interface_theme
+	update_notice.confirmed.connect(_open_update_page)
+	update_notice.canceled.connect(func() -> void:
+		_pending_update_url = ""
+		_focus_connection_menu()
+	)
+	connection_controller.connection_canvas.add_child(update_notice)
+	update_notice.get_ok_button().theme_type_variation = &"PrimaryButton"
+	update_checker = UpdateCheckerScript.new()
+	update_checker.name = "UpdateChecker"
+	add_child(update_checker)
+	update_checker.update_available.connect(_on_update_available)
+	if DisplayServer.get_name() != "headless":
+		update_checker.check()
+
+
+func _on_update_available(version: String, url: String) -> void:
+	_pending_update_url = url
+	update_notice.dialog_text = "Super Star Fighter %s is out — you're on %s.\nGrab the new build so you can keep joining the latest servers." % [version, GameConstants.GAME_VERSION]
+	_show_pending_update_notice()
+
+
+## Waits for a calm moment on the main menu so the notice never interrupts the
+## splash, a match, or another overlay; returning to the menu retries it.
+func _show_pending_update_notice() -> void:
+	if _pending_update_url.is_empty() or update_notice == null or update_notice.visible:
+		return
+	if splash_screen.visible or not connection_controller.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible:
+		return
+	update_notice.popup_centered()
+	update_notice.get_ok_button().grab_focus()
+
+
+func _open_update_page() -> void:
+	OS.shell_open(_pending_update_url)
+	_pending_update_url = ""
+	_focus_connection_menu()
+
+
 func _apply_accessibility_settings() -> void:
 	settings_controller.apply_accessible_theme()
 	if network_world != null:
@@ -504,6 +554,7 @@ func _hide_settings() -> void:
 			connection_controller.focus_menu()
 	settings_return_to_pause = false
 	settings_return_to_lobby = false
+	_show_pending_update_notice()
 
 
 func _create_credits_overlay() -> void:
@@ -606,6 +657,7 @@ func _hide_credits() -> void:
 	credits_panel.visible = false
 	if connection_controller.is_visible():
 		connection_controller.focus_credits()
+	_show_pending_update_notice()
 
 
 func _create_gameplay_cursor() -> void:
@@ -773,6 +825,7 @@ func _finish_game_splash_intro() -> void:
 func _finish_splash_dismissal() -> void:
 	splash_screen.visible = false
 	_focus_connection_menu()
+	_show_pending_update_notice()
 
 
 func _focus_connection_menu() -> void:
@@ -916,6 +969,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	network_world.input_blocked = false
 	audio_director.set_context(&"menu")
 	_focus_connection_menu()
+	_show_pending_update_notice()
 
 
 func _prepare_connection() -> void:
