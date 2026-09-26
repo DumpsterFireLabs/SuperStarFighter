@@ -76,6 +76,7 @@ def main():
     else: raise RuntimeError('Gate accepted a real engine error')
     for script in ['verify-dense-replication.py', 'verify-architecture-matrix.py']:
         subprocess.run([sys.executable, str(ROOT / 'tools' / script), '--godot', str(godot)], cwd=ROOT, check=True, timeout=1000)
+    run_engine(godot, 'reconnect', ['--script', 'res://src/test/reconnect_verifier.gd'], r'SSF_RECONNECT_OK\b')
     run_engine(godot, 'memory', ['--script', 'res://src/test/architecture_memory_verifier.gd', '--', f'--cycles={args.memory_cycles}'], r'SSF_ARCHITECTURE_MEMORY=.*"valid":true', timeout=1200)
     print('CI_ACCEPTANCE_PASSED', flush=True)
 

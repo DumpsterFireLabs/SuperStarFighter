@@ -91,12 +91,13 @@ func _init() -> void:
 	session.stopped.connect(_on_session_stopped)
 	session.probe_requested.connect(func(peer_id: int, server_usec: int) -> void: transport_probe.rpc_id(peer_id, server_usec))
 	replication = NetworkReplicationScheduler.new()
-	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: world_snapshot.rpc_id(peer_id, packet))
+	# Per-peer sends skip a peer whose socket is already closing, as broadcasts do.
+	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: if session.can_send_to(peer_id): world_snapshot.rpc_id(peer_id, packet))
 	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
 	# Periodic corrections are replaceable; a backlogged TCP peer receives the next one instead of queueing this one.
 	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet], replication.transport_congested_peers()))
-	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: projectile_recovery.rpc_id(peer_id, packet))
-	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
+	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: if session.can_send_to(peer_id): projectile_recovery.rpc_id(peer_id, packet))
+	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: if session.can_send_to(peer_id): match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
 	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
 
 
