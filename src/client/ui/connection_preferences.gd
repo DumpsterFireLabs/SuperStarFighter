@@ -54,9 +54,10 @@ func load_display_name() -> String:
 func save_display_name(display_name: String) -> Error:
 	var sanitized := ServerLobby.sanitize_display_name(display_name)
 	if sanitized.is_empty(): return ERR_INVALID_PARAMETER
+	# Called on every focus change; only touch the file when the name changed.
+	if sanitized == load_display_name(): return OK
 	return SettingsStore.update(func(config: ConfigFile) -> void:
-		if String(config.get_value("profile", "display_name", "")) != sanitized:
-			config.set_value("profile", "display_name", sanitized)
+		config.set_value("profile", "display_name", sanitized)
 	, settings_path)
 
 

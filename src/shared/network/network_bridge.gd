@@ -74,6 +74,9 @@ var _reconnect_tokens: Dictionary = {}
 # Token -> {"peer_id", "player", "coordinator"} for held match seats. The
 # coordinator owns each seat's deadline.
 var _reconnect_reservations: Dictionary = {}
+# Stale peers whose departure _replace_stale_peer already handled; their socket
+# closing later must not run it again.
+var _replaced_peers: Dictionary = {}
 
 
 func _init() -> void:
@@ -153,6 +156,7 @@ func leave_server(wait_for_delivery: bool = false) -> void:
 		stop()
 		return
 	player_leaving.rpc_id(NetworkProtocol.SERVER_PEER_ID)
+	session.forget_reconnect_token()
 	_flush_tick_logs()
 	session.stop_after_delivery()
 	in_game_admin.clear()
@@ -476,6 +480,7 @@ func _admit_hello(sender_id: int, protocol_version: int, display_name: String, p
 func _replace_stale_peer(stale_peer_id: int) -> void:
 	_log("info", "stale_peer_replaced", {"peer_id": stale_peer_id})
 	_on_session_peer_departed(stale_peer_id, true)
+	_replaced_peers[stale_peer_id] = true
 	session.forget_admission(stale_peer_id)
 	session.schedule_disconnect(stale_peer_id)
 
@@ -1636,6 +1641,8 @@ static func _now_seconds() -> float:
 
 
 func _on_session_peer_departed(peer_id: int, keeps_seat: bool = true) -> void:
+	if _replaced_peers.erase(peer_id):
+		return
 	in_game_admin.revoke(peer_id)
 	var reconnect_token := String(_reconnect_tokens.get(peer_id, ""))
 	_reconnect_tokens.erase(peer_id)
@@ -1759,6 +1766,7 @@ func _on_session_stopped() -> void:
 	in_game_admin.clear()
 	_reconnect_tokens.clear()
 	_reconnect_reservations.clear()
+	_replaced_peers.clear()
 	_admission_lobby_broadcast_pending = false
 	if replication != null:
 		replication.clear()
