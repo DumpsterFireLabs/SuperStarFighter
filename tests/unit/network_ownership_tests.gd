@@ -499,7 +499,7 @@ static func _distant_peer_snapshot_rate(context: TestContext) -> void:
 	var round_trip_ticks := 15
 	scheduler.player_snapshot_ready.connect(func(_peer_id: int, _packet: PackedByteArray) -> void: snapshots[0] += 1)
 	scheduler.projectile_recovery_ready.connect(func(_peer_id: int, packet: PackedByteArray) -> void:
-		pending_acks.append({"due": world.server_tick + round_trip_ticks, "decoded": ProjectilePacketCodec.decode_correction(packet)}))
+		pending_acks.append({"due": world.server_tick + round_trip_ticks, "decoded": ProjectilePacketCodec.decode_correction(packet)})
 	var seconds := 3
 	for unused in seconds * GameConstants.PHYSICS_TICKS_PER_SECOND:
 		world.server_tick += 1
