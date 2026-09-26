@@ -6,7 +6,7 @@ import struct
 import sys
 import tarfile
 import zipfile
-from release_metadata import load_release, render_file, render_file
+from release_metadata import load_release, render_file
 
 release = load_release()
 
@@ -29,7 +29,8 @@ label = "x64" if arch == "x86_64" else "arm64"
 base = build / f"SuperStarFighter-{release['tag']}-Server-Linux-{label}"
 for name, source in files.items():
     if name == "SERVER_README.txt":
-        render_file(source, build / name, release)
+        # Verify the archives against the rendered copy, not the placeholder source.
+        files[name] = render_file(source, build / name, release)
     elif source != build / name:
         (build / name).write_bytes(source.read_bytes())
 def mode(name):
