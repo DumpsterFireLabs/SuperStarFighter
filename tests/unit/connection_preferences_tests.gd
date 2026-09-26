@@ -35,4 +35,6 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(initial.get_value("audio", "master"), 0.42, "preference updates preserve other settings sections")
 	context.expect_equal(Preferences.endpoint_key("[2001:db8::1]", 7000), Preferences.endpoint_key("2001:db8::1", 7000), "IPv6 bracket normalization preserves existing keys")
 	context.expect_equal(Preferences.endpoint_key("", 7000), "", "empty endpoint is not persisted")
+	context.expect_equal(Preferences.endpoint_key("wss://game.example.com", 0), Preferences.endpoint_key(" WSS://Game.Example.com ", 7000), "wss:// keys ignore the unused port field")
+	context.expect_false(Preferences.endpoint_key("wss://game.example.com", 0).is_empty(), "wss:// endpoints can be remembered without a port")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

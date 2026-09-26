@@ -6,12 +6,16 @@ and jitter that never reorder bytes, loss as a retransmission stall that also
 blocks every later byte (head-of-line), blackouts as held delivery, and limited
 bandwidth as serialization plus reader backpressure rather than tail drops.
 """
+import errno
 import heapq
 import random
 import select
 import socket
+import time
 
 RETRANSMIT_STALL_SECONDS = 0.200
+CONNECT_TIMEOUT_SECONDS = 5.0
+CONNECT_PENDING = {0, errno.EINPROGRESS, errno.EWOULDBLOCK, getattr(errno, 'WSAEWOULDBLOCK', errno.EWOULDBLOCK)}
 DEFAULT_BACKLOG_BYTES = 1 << 20
 READ_BYTES = 65536
 
@@ -92,15 +96,19 @@ class StreamProxy:
         self.peer = {}      # socket -> opposite socket
         self.route = {}     # socket -> (direction of bytes read from it, connection id)
         self.outbound = {}  # socket -> pending bytes
+        self.connecting = {}  # upstream socket -> (client socket, connect started)
+        self.draining = {}  # destination socket -> link key whose source reached EOF
         self.accepted = 0          # connections relayed to the target
         self.refused = 0           # target refusals passed back to the client
         self.peak_connections = 0  # concurrent relayed connections
         self.downstream_listeners = []
 
     def close(self):
-        for sock in list(self.peer) + [self.listener]:
+        pending = [sock for pair in self.connecting.items() for sock in (pair[0], pair[1][0])]
+        for sock in list(self.peer) + pending + [self.listener]:
             sock.close()
         self.peer.clear()
+        self.connecting.clear()
 
     def _accept(self):
         while True:
@@ -111,15 +119,27 @@ class StreamProxy:
             self._relay(client)
 
     def _relay(self, client):
-        if len(self.peer) // 2 >= self.max_connections:
+        if len(self.peer) // 2 + len(self.connecting) >= self.max_connections:
             client.close()
             raise RuntimeError('unexpected extra client')
-        try:
-            server = socket.create_connection(('127.0.0.1', self.target_port), timeout=5)
-        except OSError:
-            # Mirror the target's refusal so the client's own retry path runs.
-            self.refused += 1
-            client.close()
+        # Connect without blocking so a backlogged target never stalls other links.
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setblocking(False)
+        if server.connect_ex(('127.0.0.1', self.target_port)) not in CONNECT_PENDING:
+            self._refuse(client, server)
+            return
+        self.connecting[server] = (client, time.monotonic())
+
+    def _refuse(self, client, server):
+        # Mirror the target's refusal so the client's own retry path runs.
+        self.refused += 1
+        client.close()
+        server.close()
+
+    def _finish_connect(self, server, failed):
+        client, _ = self.connecting.pop(server)
+        if failed or server.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR):
+            self._refuse(client, server)
             return
         for sock in (client, server):
             sock.setblocking(False)
@@ -138,12 +158,27 @@ class StreamProxy:
         other = self.peer.pop(sock, None)
         self.route.pop(sock, None)
         self.outbound.pop(sock, None)
+        self.draining.pop(sock, None)
         sock.close()
         if other is not None:
             self.peer.pop(other, None)
             self.route.pop(other, None)
             self.outbound.pop(other, None)
+            self.draining.pop(other, None)
             other.close()
+
+    def _begin_drain(self, sock):
+        # A FIN arrives after every earlier byte, so deliver what the link still
+        # holds for the other side before closing the pair.
+        key = self.route.pop(sock)
+        self.draining[self.peer[sock]] = key
+
+    def _close_drained(self):
+        for destination, key in list(self.draining.items()):
+            if destination not in self.outbound:
+                self.draining.pop(destination, None)
+            elif self.link.backlog.get(key, 0) == 0 and not self.outbound[destination]:
+                self._close_pair(destination)
 
     def _send(self, direction, data, destination):
         if destination in self.outbound:
@@ -162,7 +197,15 @@ class StreamProxy:
             else:
                 self.link.counters[key[0]]['backpressure_pauses'] += 1
         writable_candidates = [sock for sock, pending in self.outbound.items() if pending]
-        readable, writable, _ = select.select(readable_candidates, writable_candidates, [], timeout)
+        connecting = list(self.connecting)
+        # Windows reports a refused non-blocking connect as exceptional, not writable.
+        readable, writable, exceptional = select.select(readable_candidates, writable_candidates + connecting, connecting, timeout)
+        for server in connecting:
+            if server in writable or server in exceptional:
+                self._finish_connect(server, server in exceptional)
+            elif time.monotonic() - self.connecting[server][1] > CONNECT_TIMEOUT_SECONDS:
+                client, _ = self.connecting.pop(server)
+                self._refuse(client, server)
         for sock in readable:
             if sock is self.listener:
                 self._accept()
@@ -173,15 +216,18 @@ class StreamProxy:
                 data = sock.recv(READ_BYTES)
             except (BlockingIOError, InterruptedError):
                 continue
-            except ConnectionResetError:
-                data = b''
-            if not data:
+            except ConnectionError:
                 self._close_pair(sock)
+                continue
+            if not data:
+                self._begin_drain(sock)
                 continue
             key = self.route[sock]
             self.link.receive(now, key, data, self.peer[sock], impaired, hold_until.get(key[0], 0.0))
         self.link.deliver(now, self._send)
         for sock in writable:
+            if sock in connecting:
+                continue
             pending = self.outbound.get(sock)
             if not pending:
                 continue
@@ -189,7 +235,8 @@ class StreamProxy:
                 sent = sock.send(pending)
             except (BlockingIOError, InterruptedError):
                 continue
-            except (BrokenPipeError, ConnectionResetError):
+            except ConnectionError:
                 self._close_pair(sock)
                 continue
             del pending[:sent]
+        self._close_drained()

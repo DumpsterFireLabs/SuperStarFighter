@@ -380,8 +380,17 @@ static func _transport_liveness(context: TestContext) -> void:
 	owner.process_pending_connections()
 	context.expect_equal(events, ["peer_timed_out"], "a silent admitted peer times out")
 	context.expect_equal(owner._last_heard.keys(), [6], "only the silent peer loses its liveness deadline")
+	var rejections: Array[int] = []
+	owner.rejection_requested.connect(func(peer_id: int, _reason: StringName, _message: String) -> void: rejections.append(peer_id))
+	context.expect_true(owner.accept_transport_message(6), "admitted peers' pings and probe acks are accepted")
+	for _request in NetworkProtocol.MAX_CONTROL_REQUESTS_PER_SECOND + 5:
+		owner.accept_control_request(6, "ready_state", true)
+	context.expect_true(owner.accept_transport_message(6), "a lobby-control burst cannot starve liveness traffic")
 	owner.forget_admission(6)
 	context.expect_true(owner._last_heard.is_empty(), "forgotten admissions drop their liveness deadline")
+	context.expect_false(owner.accept_transport_message(6), "an ejected peer's in-flight ping is ignored")
+	context.expect_false(owner.accept_transport_message(99), "pre-admission liveness traffic is ignored")
+	context.expect_equal(rejections, [], "late liveness traffic never replaces the original rejection reason")
 	runtime.free()
 
 
@@ -414,6 +423,24 @@ static func _transport_congestion(context: TestContext) -> void:
 	owner._probes[7].next_probe = 9_000_000
 	owner._process_probes(5_000_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 60_000)
 	context.expect_true(owner.congested_peers().has(7), "an unanswered probe counts as queueing before its ack arrives")
+	owner._probes[7].outstanding.clear()
+	owner._probes[7].next_probe = 0
+	owner._probes[7].outstanding[6_000_000] = true
+	owner.record_probe_ack(7, 6_000_000, 6_021_000)
+	context.expect_false(owner.congested_peers().has(7), "a healthy ack clears queueing before the dropped-ack case")
+	var expiry_usec := int(NetworkProtocol.TRANSPORT_PROBE_EXPIRY_SECONDS * 1_000_000.0)
+	var dropped_probe := 6_030_000
+	owner._process_probes(dropped_probe)
+	context.expect_true((owner._probes[7].outstanding as Dictionary).has(dropped_probe), "a new probe is outstanding")
+	owner._probes[7].next_probe = dropped_probe + expiry_usec * 10
+	owner._process_probes(dropped_probe + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.congested_peers().has(7), "a probe whose ack was dropped first reads as queueing")
+	owner._process_probes(dropped_probe + expiry_usec + 1)
+	context.expect_true((owner._probes[7].outstanding as Dictionary).is_empty(), "a probe whose ack never arrives expires")
+	var fresh_probe := dropped_probe + expiry_usec + 2
+	owner._probes[7].outstanding[fresh_probe] = true
+	owner.record_probe_ack(7, fresh_probe, fresh_probe + 21_000)
+	context.expect_false(owner.congested_peers().has(7), "a dropped ack cannot hold a healthy peer in congestion")
 	owner.forget_admission(7)
 	context.expect_true(owner.congested_peers().is_empty() and owner._probes.is_empty(), "departed peers leave the congestion set")
 	runtime.free()
@@ -439,9 +466,11 @@ static func _transport_congestion(context: TestContext) -> void:
 static func _proxy_mode(context: TestContext) -> void:
 	for address in ["192.0.2.4", "game.example.com", "::1", "wss://game.example.com", "WSS://game.example.com:8443/play", "ws://127.0.0.1:7000"]:
 		context.expect_true(NetworkProtocol.is_valid_server_address(address), "%s is a valid server address" % address)
-	for address in ["", "has space", "wss://", "wss://:443", "wss://user@game.example.com", "http://game.example.com", "game.example.com/path", "x".repeat(254)]:
+	for address in ["", "has space", "wss://", "wss://:443", "wss://user@game.example.com", "http://game.example.com", "game.example.com/path", "x".repeat(254), "game.example.com:7000", "203.0.113.5:7000", "[game.example.com]"]:
 		context.expect_false(NetworkProtocol.is_valid_server_address(address), "%s is rejected as a server address" % address)
 	context.expect_equal(NetworkSessionOwner.transport_url(" wss://game.example.com ", 7000), "wss://game.example.com", "wss:// URLs keep their own port instead of the port field")
+	context.expect_true(NetworkProtocol.is_valid_server_address("[2001:db8::1]"), "bracketed IPv6 literals are valid server addresses")
+	context.expect_equal(NetworkSessionOwner.transport_url("game.example.com:7000", 7000), "ws://game.example.com:7000:7000", "only IPv6 literals are bracketed")
 	var runtime := Node.new()
 	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
 	owner._behind_proxy = true

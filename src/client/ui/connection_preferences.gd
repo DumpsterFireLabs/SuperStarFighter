@@ -80,6 +80,9 @@ func confirm_connected() -> Error:
 
 static func endpoint_key(address: String, port: int) -> String:
 	var normalized := address.strip_edges().to_lower()
+	# A ws:// or wss:// address carries its own port; the port field is ignored.
+	if normalized.contains("://"):
+		return normalized.sha256_text()
 	if normalized.begins_with("[") and normalized.ends_with("]"):
 		normalized = normalized.substr(1, normalized.length() - 2)
 	if normalized.is_empty() or port < GameConstants.MIN_PORT or port > GameConstants.MAX_PORT:
