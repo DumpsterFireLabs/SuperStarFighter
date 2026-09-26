@@ -40,6 +40,13 @@ func record_pickup(peer_id: int, permanent: bool) -> void:
 		permanent_pickups[peer_id] = int(permanent_pickups.get(peer_id, 0)) + 1
 
 
+func rekey_peer(previous_peer_id: int, peer_id: int) -> void:
+	for totals: Dictionary in [contributions, draft_byes, permanent_pickups, all_pickups]:
+		if totals.has(previous_peer_id):
+			totals[peer_id] = totals[previous_peer_id]
+			totals.erase(previous_peer_id)
+
+
 func enter_state(state: int, tick: int, machine: MatchStateMachine, world: AuthoritativeWorld, map_id: StringName) -> void:
 	if state == MatchStateMachine.State.DRAFT:
 		_draft_started = tick

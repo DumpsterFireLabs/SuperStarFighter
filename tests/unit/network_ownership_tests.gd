@@ -65,6 +65,7 @@ static func run(context: TestContext) -> void:
 	var service: RefCounted = command_bridge.commands
 	command_bridge.free()
 	context.expect_equal(service._owner.get_ref(), null, "command service cannot retain its bridge")
+	_seat_keeping_departures(context)
 	_admission_queue(context)
 	_transport_liveness(context)
 	_proxy_mode(context)
@@ -118,6 +119,25 @@ static func run(context: TestContext) -> void:
 	_recovery_budget(context)
 	_admission_broadcast_lifetime(context)
 	_session_observations(context)
+
+
+static func _seat_keeping_departures(context: TestContext) -> void:
+	var runtime := Node.new()
+	var session := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	var departures: Dictionary = {}
+	session.peer_departed.connect(func(peer_id: int, keeps_seat: bool) -> void: departures[peer_id] = keeps_seat)
+	session.operator_kick(11, "Kicked")
+	session.reject_connection(12, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+	session.schedule_disconnect(13)
+	for peer_id in [10, 11, 12, 13]:
+		session._on_server_peer_disconnected(peer_id)
+	context.expect_true(departures[10], "a dropped connection keeps its match seat")
+	context.expect_false(departures[11], "a kicked player does not keep a match seat")
+	context.expect_false(departures[12], "a rejected peer does not keep a match seat")
+	context.expect_false(departures[13], "an ejected or leaving peer does not keep a match seat")
+	session._on_server_peer_disconnected(11)
+	context.expect_true(departures[11], "a removal applies only to that one departure")
+	runtime.free()
 
 
 static func _admin_restart(context: TestContext) -> void:

@@ -8,6 +8,7 @@ var selected_card_id: StringName
 var locked: bool = false
 var build_complete: bool = false
 var skipped: bool = false
+var withdrawn: bool = false
 
 
 func _init(peer_id_value: int = 0, token_value: String = "") -> void:

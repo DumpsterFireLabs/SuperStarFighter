@@ -420,7 +420,11 @@ func _create_pause_overlay() -> void:
 func _can_toggle_global_pause() -> bool:
 	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
 	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
-	return is_host and state_name not in ["LOBBY", "MATCH_RESULT"] and not latest_match_payload.is_empty()
+	return is_host and state_name not in ["LOBBY", "MATCH_RESULT"] and not latest_match_payload.is_empty() and _awaiting_reconnect_names().is_empty()
+
+
+func _awaiting_reconnect_names() -> Array:
+	return latest_match_payload.get("awaiting_reconnect", []) as Array
 
 
 func _toggle_global_pause() -> void:
@@ -441,6 +445,9 @@ func _update_global_pause_ui() -> void:
 	global_pause_notice.visible = paused
 	var resume_hint := "%s to resume for everyone." % binding if binding != "Unbound" else "Open the pilot menu to resume for everyone."
 	global_pause_notice.text = "INTERMISSION · MATCH PAUSED\n" + (resume_hint if is_host else "Waiting for the host to resume.")
+	var awaiting := _awaiting_reconnect_names()
+	if paused and not awaiting.is_empty():
+		global_pause_notice.text = "MATCH PAUSED · PILOT DISCONNECTED\nWaiting for %s to reconnect." % ", ".join(PackedStringArray(awaiting))
 
 
 func _create_f2_return_confirmation() -> void:
@@ -787,6 +794,8 @@ func _hide_pause_overlay() -> void:
 
 func _return_from_pause() -> void:
 	_hide_pause_overlay()
+	if bridge.role == NetworkBridge.Role.CLIENT:
+		bridge.leave_server()
 	_disconnect_online("Returned to the main menu.")
 
 
@@ -819,6 +828,8 @@ func _f2_would_leave_session() -> bool:
 
 
 func _confirm_f2_return_to_menu() -> void:
+	if bridge.role == NetworkBridge.Role.CLIENT:
+		bridge.leave_server()
 	_show_connection_screen("Returned to the main menu.")
 
 
@@ -916,7 +927,7 @@ func _on_lobby_state(state: Dictionary) -> void:
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
 	standings_controller.invalidate_context()
 	if event_type == &"MATCH_PAUSE_CHANGED":
-		match_state.update_fields({"paused": bool(payload.get("paused", false))})
+		match_state.update_fields({"paused": bool(payload.get("paused", false)), "awaiting_reconnect": payload.get("awaiting_reconnect", []) as Array})
 		network_world.latest_server_tick = server_tick
 		network_world.apply_match_pause(bool(payload.get("paused", false)))
 		_update_global_pause_ui()
@@ -1427,6 +1438,7 @@ func _exit_tree() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if is_instance_valid(connection_controller):
 		connection_controller.shutdown()
+	# The bridge already sent its leave notice from its own _exit_tree.
 	if bridge != null:
 		bridge.stop()
 

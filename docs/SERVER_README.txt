@@ -1,4 +1,4 @@
-Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 16)
+Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 17)
 
 WINDOWS QUICK START
 
@@ -19,7 +19,7 @@ use Unblock-File on the included start-server.ps1 and admin.ps1 scripts.
 
 The package starts in server mode without graphics or audio. No Godot editor,
 source checkout, client assets or separate PCK file is required. Use the same
-game/protocol version on clients: 0.1.0-beta.16 (compatibility 46, binary packets 17).
+game/protocol version on clients: 0.1.0-beta.17 (compatibility 47, binary packets 17).
 
 Set the lobby password before starting. The example is not a public password.
 Use the --port value when connecting directly. Configure any network/firewall
@@ -27,6 +27,13 @@ access appropriate to your host; this package does not change those settings.
 Gameplay uses TCP (WebSocket) on the selected port. LAN discovery uses UDP 7359.
 Console/server logs report startup, joins, match activity and health every ten
 wall-clock seconds, including while idle or paused.
+
+When a player's connection drops mid-match, their seat (cards, score, team) is
+held for 90 seconds and still counts toward the player limit. If their absence
+would end the match (a 1v1 or a team's last pilot), the match pauses until they
+return or the hold expires, then the remaining side wins by forfeit. Kicks, bans
+and players who leave on purpose never hold a seat. Logs show
+reconnect_seat_held, peer_rejoined and reconnect_seat_released.
 
 For unattended operation, use the included launcher with secret files containing
 one printable line (lobby: 1-64 characters, admin: 12-64, different passwords):
@@ -217,7 +224,7 @@ acceptance still need to be performed on your deployment host.
 
 Extract the matching archive into a writable folder, then cd into that folder:
 
-  tar -xzf SuperStarFighter-Beta16-Server-Linux-x64.tar.gz
+  tar -xzf SuperStarFighter-Beta17-Server-Linux-x64.tar.gz
   chmod +x start-server.sh SuperStarFighter-Server.x86_64
 
 For ARM64 use the arm64 archive and SuperStarFighter-Server.arm64 instead.
@@ -284,7 +291,7 @@ by ssf for writable state. Adjust every path/account before installing this
 example as /etc/systemd/system/ssf.service:
 
   [Unit]
-  Description=Super Star Fighter Beta 16 dedicated server
+  Description=Super Star Fighter Beta 17 dedicated server
   After=network.target
 
   [Service]

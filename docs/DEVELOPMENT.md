@@ -31,8 +31,8 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | WebSocket over TCP (`WebSocketMultiplayerPeer`) |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.16 |
-| Protocol version | 46 (binary packets 17) |
+| Game version | 0.1.0-beta.17 |
+| Protocol version | 47 (binary packets 17) |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 
@@ -191,6 +191,12 @@ The six logical channels are:
 | Objective | Unreliable ordered | Replaceable hill/flag state at 4 Hz; durable objective transitions remain on Control |
 
 LAN discovery is a separate bounded UDP query/response service on port `7359`. It advertises session metadata only and conveys no gameplay authority.
+
+### Reconnecting to a held seat
+
+Every admitted human receives a private 32-byte token in `server_welcome`. The client keeps it in `NetworkSessionOwner` per server URL, in memory only, and presents it through `rejoin_hello`. `client_hello` keeps its original three-argument signature so a client from another release still reaches the protocol-version check. When an admitted participant's connection drops mid-match, the bridge records a reservation (token → previous peer id, lobby record, coordinator). The coordinator owns the 90-second wall-clock deadline (`expire_reconnects`), so no hold can outlive it, and the lobby reserves held names so a newcomer cannot take one. Reservations are single-use, tied to the coordinator that created them, cleared when the session stops, and counted as occupied seats during admission.
+
+The session reports whether a departure keeps a seat. Server removals (`operator_kick`, `reject_connection`, `schedule_disconnect`) and deliberate leaves do not. A leaving client sends `player_leaving`; the server then closes the connection itself. The client keeps its socket open for up to two seconds (`stop_after_delivery`), because closing at once can discard the notice. On reconnect, `AuthoritativeMatchCoordinator.reconnect_peer` re-keys the player's match state to the new peer id: the machine record and score, team and spawn caches, hill progress, draft offer and bye, observations, and winners. The player spawns into a prepared countdown heat, respawns in objective modes, and otherwise waits for the next heat. If too few participants remain, `MatchStateMachine.disconnect_player(..., hold_departure_result)` settles only the interrupted heat. The coordinator pauses the match until `reconnect_peer` or `release_reconnect` applies the departure result. Run the real TCP acceptance with Godot `--headless --path . --script res://src/test/reconnect_verifier.gd`. It covers a drop, a full-server newcomer rejected while the seat is held, reclaiming the seat, a rejoin that takes over from a stale peer the server has not yet timed out, and closing the game (the bridge sends `player_leaving` from its own `_exit_tree`, because its owner's `_exit_tree` runs after it has left the tree).
 
 ## 6. Card Authoring
 
@@ -437,7 +443,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 16 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 16 client targets export to `builds/beta-16/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
+The source-playable vertical slice and hardening milestone are complete. Beta 17 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 17 client targets export to `builds/beta-17/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 

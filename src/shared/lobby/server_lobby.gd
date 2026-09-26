@@ -25,6 +25,9 @@ var _cached_roster_revision: int = -1
 var _cached_human_ids: Array[int] = []
 var _cached_npc_ids: Array[int] = []
 var _cached_npc_difficulties: Dictionary = {}
+# Names of held match seats. Newcomers cannot take them, so a returning pilot
+# keeps the same name in the lobby and on the scoreboard.
+var reserved_names: PackedStringArray = []
 
 const NPC_PEER_ID_BASE: int = 1_800_000_000
 const RANDOM_SHIP_COLORS: Array[String] = [
@@ -42,9 +45,13 @@ func _init(match_config: MatchConfig = null) -> void:
 	player_limit = config.max_players
 
 
-func admit(peer_id: int, raw_name: String) -> Dictionary:
+## A returning record (from a held seat) restores that player's name,
+## appearance, team choice and join order instead of creating a new pilot.
+func admit(peer_id: int, raw_name: String, returning: PlayerMatchState = null) -> Dictionary:
 	if players.has(peer_id):
 		return {"ok": false, "reason": NetworkProtocol.REJECT_MALFORMED_TRAFFIC}
+	if returning != null:
+		return _readmit(peer_id, returning)
 	var sanitized_name := sanitize_display_name(raw_name)
 	if sanitized_name.is_empty():
 		return {"ok": false, "reason": NetworkProtocol.REJECT_INVALID_NAME}
@@ -68,6 +75,24 @@ func admit(peer_id: int, raw_name: String) -> Dictionary:
 		leader_id = peer_id
 	_revision_changed()
 	return {"ok": true, "player": player, "removed_npc_ids": removed_npc_ids}
+
+
+func _readmit(peer_id: int, returning: PlayerMatchState) -> Dictionary:
+	if players.size() >= player_limit:
+		return {"ok": false, "reason": NetworkProtocol.REJECT_SERVER_FULL}
+	var player := PlayerMatchState.new(peer_id, _make_unique_name(returning.display_name), returning.join_sequence)
+	player.ship_color = returning.ship_color
+	player.ship_pattern = returning.ship_pattern
+	player.team_selection = returning.team_selection
+	player.team_id = returning.team_id
+	player.participant = true
+	player.spectator = false
+	player.lobby_ready = returning.lobby_ready
+	players[peer_id] = player
+	if leader_id == 0:
+		leader_id = peer_id
+	_revision_changed()
+	return {"ok": true, "player": player, "removed_npc_ids": []}
 
 
 func remove(peer_id: int) -> PlayerMatchState:
@@ -569,7 +594,7 @@ static func sanitize_display_name(raw_name: String) -> String:
 
 
 func _make_unique_name(base_name: String) -> String:
-	var used := PackedStringArray()
+	var used := reserved_names.duplicate()
 	for player_value in players.values():
 		used.append((player_value as PlayerMatchState).display_name)
 	if not _display_name_conflicts(base_name, used):

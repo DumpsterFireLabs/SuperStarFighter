@@ -8,6 +8,7 @@ static func run(context: TestContext) -> void:
 	_validate_selection_and_timeout(context, catalog)
 	_validate_unlimited_stack_offers(context, catalog)
 	_validate_skipped_winner(context, catalog)
+	_validate_rejoin_keeps_bye(context, catalog)
 	_validate_cached_draft_parity(context, catalog)
 	var queued := DraftManager.new(catalog, 424242)
 	var immediate := DraftManager.new(catalog, 424242)
@@ -154,6 +155,22 @@ static func _validate_skipped_winner(context: TestContext, catalog: CardCatalog)
 	context.expect_equal(applied[2], &"", "round-winner draft bye applies no card")
 	context.expect_empty((players[2] as PlayerMatchState).card_stacks, "round winner gains no stack")
 	context.expect_equal((players[1] as PlayerMatchState).card_stacks.size(), 1, "non-winner gains an upgrade")
+
+
+static func _validate_rejoin_keeps_bye(context: TestContext, catalog: CardCatalog) -> void:
+	var draft := DraftManager.new(catalog, 9001)
+	var players := _create_players(3)
+	draft.begin_draft(players, 2, [3] as Array[int])
+	draft.prepare_next_player()
+	var returning := players[3] as PlayerMatchState
+	players.erase(3)
+	returning.peer_id = 40
+	players[40] = returning
+	context.expect_equal(draft.restore_player(3, 40), null, "a pilot without an offer yet has nothing to reopen")
+	while draft.is_preparing():
+		draft.prepare_next_player()
+	context.expect_false(draft.get_offer(3) != null, "no offer is prepared for the previous peer id")
+	context.expect_true(draft.get_offer(40) != null and draft.get_offer(40).skipped, "a round winner keeps the draft bye after rejoining")
 
 
 static func _create_players(count: int) -> Dictionary:

@@ -69,6 +69,11 @@ var _logged_overtime_key: String = ""
 var _admission_lobby_broadcast_pending: bool = false
 var in_game_admin := InGameAdminAuthority.new()
 var _ping_accumulator: float = 0.0
+# Admitted human peer id -> private token that lets the player reclaim their seat.
+var _reconnect_tokens: Dictionary = {}
+# Token -> {"peer_id", "player", "coordinator"} for held match seats. The
+# coordinator owns each seat's deadline.
+var _reconnect_reservations: Dictionary = {}
 
 
 func _init() -> void:
@@ -137,6 +142,32 @@ func start_client(
 	lobby_password: String = ""
 ) -> Error:
 	return session.start_client(host, port, display_name, protocol_version, lobby_password)
+
+
+## Tells the server this player is leaving on purpose, so their match seat is
+## given up at once instead of being held for a reconnect, then disconnects.
+## The socket stays open in the background until the server closes it. With
+## wait_for_delivery (quitting the game) this blocks for at most a moment instead.
+func leave_server(wait_for_delivery: bool = false) -> void:
+	if role != Role.CLIENT or local_peer_id <= 0 or not is_inside_tree():
+		stop()
+		return
+	player_leaving.rpc_id(NetworkProtocol.SERVER_PEER_ID)
+	_flush_tick_logs()
+	session.stop_after_delivery()
+	in_game_admin.clear()
+	if wait_for_delivery:
+		var deadline := Time.get_ticks_msec() + NetworkProtocol.LEAVE_EXIT_WAIT_MSEC
+		while session.poll_lingering_transport() and Time.get_ticks_msec() < deadline:
+			OS.delay_msec(5)
+
+
+## Quitting or closing the window tears the tree down children first, so the
+## owner's _exit_tree runs after this node can no longer send RPCs. Leaving here
+## still reaches the server and gives the match seat up at once.
+func _exit_tree() -> void:
+	if role == Role.CLIENT:
+		leave_server(true)
 
 
 func stop() -> void:
@@ -325,6 +356,7 @@ func send_test_input_packet(packet: PackedByteArray) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	session.poll_lingering_transport()
 	if role == Role.CLIENT:
 		_process_client_ping(delta)
 		return
@@ -336,6 +368,7 @@ func _physics_process(delta: float) -> void:
 		_max_physics_gap_usec = maxi(_max_physics_gap_usec, start_usec - _last_physics_usec)
 	_last_physics_usec = start_usec
 	session.process_pending_connections()
+	_expire_reconnect_reservations()
 	var controls_enabled := match_coordinator != null and match_coordinator.controls_enabled()
 	var npc_peer_ids := lobby.npc_peer_ids_view()
 	if controls_enabled and not npc_peer_ids.is_empty():
@@ -388,9 +421,71 @@ func _physics_process(delta: float) -> void:
 func client_hello(protocol_version: int, display_name: String, password_proof: String) -> void:
 	if role != Role.SERVER:
 		return
+	_admit_hello(multiplayer.get_remote_sender_id(), protocol_version, display_name, password_proof, "")
+
+
+# A separate RPC keeps client_hello's signature stable, so a client from another
+# release still reaches the protocol-version check and sees why it was refused.
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func rejoin_hello(protocol_version: int, display_name: String, password_proof: String, reconnect_token: String) -> void:
+	if role != Role.SERVER:
+		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if session.validate_hello(sender_id, protocol_version, display_name, password_proof, lobby.players.size() if lobby.match_active else lobby.human_count(), lobby.player_limit):
-		complete_admission(sender_id, display_name)
+	if not NetworkProtocol.is_valid_reconnect_token(reconnect_token):
+		session.reject_connection(sender_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return
+	_admit_hello(sender_id, protocol_version, display_name, password_proof, reconnect_token)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func player_leaving() -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if lobby == null or not lobby.players.has(sender_id):
+		# Rejects pre-handshake traffic, which never holds a seat.
+		_accept_control_request(sender_id, "player_leaving")
+		return
+	# Not rate limited: a throttled notice would otherwise turn a deliberate
+	# leave into a held seat. The server closes the connection so the notice is
+	# never lost to the client's close.
+	session.schedule_disconnect(sender_id)
+
+
+func _admit_hello(sender_id: int, protocol_version: int, display_name: String, password_proof: String, reconnect_token: String) -> void:
+	var occupied := lobby.human_count()
+	if lobby.match_active:
+		# Held seats stay taken, so a newcomer cannot lock out a returning pilot.
+		occupied = lobby.players.size() + _held_seat_count()
+	# A returning pilot's own seat, held or still attached to their old
+	# connection, is theirs to take.
+	var stale_value: Variant = _reconnect_tokens.find_key(reconnect_token) if not reconnect_token.is_empty() else null
+	if _reconnect_reservations.has(reconnect_token) or stale_value != null:
+		occupied -= 1
+	if not session.validate_hello(sender_id, protocol_version, display_name, password_proof, occupied, lobby.player_limit):
+		return
+	# Only after the password and version are proven may a rejoin displace a live peer.
+	if stale_value != null:
+		_replace_stale_peer(int(stale_value))
+	complete_admission(sender_id, display_name, reconnect_token)
+
+
+## A player can rejoin before the server notices their old connection drop (it
+## waits out the idle timeout). The old peer then departs now, keeping its seat,
+## so the rejoin claims that seat instead of arriving as a spectator.
+func _replace_stale_peer(stale_peer_id: int) -> void:
+	_log("info", "stale_peer_replaced", {"peer_id": stale_peer_id})
+	_on_session_peer_departed(stale_peer_id, true)
+	session.forget_admission(stale_peer_id)
+	session.schedule_disconnect(stale_peer_id)
+
+
+func _held_seat_count() -> int:
+	var count := 0
+	for reservation: Dictionary in _reconnect_reservations.values():
+		if reservation.coordinator == match_coordinator:
+			count += 1
+	return count
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -885,13 +980,13 @@ func _accept_input_packet(packet: PackedByteArray) -> void:
 
 
 @rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func server_welcome(peer_id: int, lobby_state_value: Dictionary) -> void:
+func server_welcome(peer_id: int, lobby_state_value: Dictionary, reconnect_token: String) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return
-	if not _has_valid_authoritative_player_names(lobby_state_value, true):
+	if not _has_valid_authoritative_player_names(lobby_state_value, true) or not NetworkProtocol.is_valid_reconnect_token(reconnect_token):
 		_reject_malformed_server_payload()
 		return
-	session.accept_welcome(peer_id, lobby_state_value)
+	session.accept_welcome(peer_id, lobby_state_value, reconnect_token)
 	_send_ping()
 	client_connected.emit(peer_id)
 	client_lobby_updated.emit(lobby_state_value)
@@ -1211,7 +1306,10 @@ func authentication_challenge(challenge: String) -> void:
 		client_rejected.emit(NetworkProtocol.REJECT_MALFORMED_TRAFFIC, last_error)
 		return
 	var hello := session.take_client_hello(challenge)
-	client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, hello.protocol, hello.name, hello.proof)
+	if String(hello.reconnect_token).is_empty():
+		client_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, hello.protocol, hello.name, hello.proof)
+	else:
+		rejoin_hello.rpc_id(NetworkProtocol.SERVER_PEER_ID, hello.protocol, hello.name, hello.proof, hello.reconnect_token)
 
 
 func _reject_request(peer_id: int, detail: String) -> void:
@@ -1537,10 +1635,20 @@ static func _now_seconds() -> float:
 	return Time.get_ticks_msec() / 1000.0
 
 
-func _on_session_peer_departed(peer_id: int) -> void:
+func _on_session_peer_departed(peer_id: int, keeps_seat: bool = true) -> void:
 	in_game_admin.revoke(peer_id)
+	var reconnect_token := String(_reconnect_tokens.get(peer_id, ""))
+	_reconnect_tokens.erase(peer_id)
 	if match_coordinator != null:
-		match_coordinator.disconnect_peer(peer_id)
+		var departing := lobby.players.get(peer_id) as PlayerMatchState if lobby != null else null
+		if match_coordinator.disconnect_peer(peer_id, keeps_seat and not reconnect_token.is_empty()) and departing != null:
+			_reconnect_reservations[reconnect_token] = {
+				"peer_id": peer_id,
+				"player": departing,
+				"coordinator": match_coordinator,
+			}
+			_sync_reserved_names()
+			_log("info", "reconnect_seat_held", {"peer_id": peer_id, "display_name": departing.display_name, "grace_seconds": GameConstants.RECONNECT_GRACE_SECONDS})
 		_drain_match_coordinator()
 	var departed := lobby.remove(peer_id) if lobby != null else null
 	if departed != null:
@@ -1557,9 +1665,14 @@ func _on_session_peer_departed(peer_id: int) -> void:
 		_log("info", "peer_left", {"peer_id": peer_id})
 
 
-func complete_admission(sender_id: int, display_name: String) -> void:
-	var result := lobby.admit(sender_id, display_name)
+func complete_admission(sender_id: int, display_name: String, reconnect_token: String = "") -> void:
+	var reservation := _take_reconnect_reservation(reconnect_token)
+	var returning := reservation.get("player") as PlayerMatchState
+	var result := lobby.admit(sender_id, display_name, returning)
 	if not result.ok:
+		if returning != null:
+			_reconnect_reservations[reconnect_token] = reservation
+			_sync_reserved_names()
 		session.reject_connection(sender_id, result.reason)
 		return
 	session.complete_handshake(sender_id)
@@ -1567,9 +1680,16 @@ func complete_admission(sender_id: int, display_name: String) -> void:
 	var player := result.player as PlayerMatchState
 	world.add_peer(sender_id)
 	world.input_timeouts[sender_id] = GameConstants.INPUT_STALE_SECONDS
-	if match_coordinator != null:
+	if returning != null and match_coordinator.reconnect_peer(int(reservation.peer_id), sender_id):
+		_log("info", "peer_rejoined", {"peer_id": sender_id, "previous_peer_id": int(reservation.peer_id), "display_name": player.display_name})
+	elif match_coordinator != null:
+		# A seat that could not be restored leaves an ordinary late spectator.
+		player.participant = false
+		player.spectator = true
 		match_coordinator.add_late_spectator(player)
-	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, _serialized_lobby_state()])
+	var issued_token := Crypto.new().generate_random_bytes(NetworkProtocol.RECONNECT_TOKEN_BYTES).hex_encode()
+	_reconnect_tokens[sender_id] = issued_token
+	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, _serialized_lobby_state(), issued_token])
 	if match_coordinator != null:
 		_send_control_to_peer(sender_id, &"match_event", [
 			&"STATE_CHANGED", world.server_tick, match_coordinator.current_state_payload()
@@ -1587,6 +1707,44 @@ func complete_admission(sender_id: int, display_name: String) -> void:
 			_start_match_coordinator(lobby.leader_id)
 
 
+## Returns the held-seat reservation for a token, removing it, or {} when the
+## token is unknown, expired, or belongs to a match that has since ended.
+func _take_reconnect_reservation(reconnect_token: String) -> Dictionary:
+	if reconnect_token.is_empty() or not _reconnect_reservations.has(reconnect_token):
+		return {}
+	var reservation := _reconnect_reservations[reconnect_token] as Dictionary
+	_reconnect_reservations.erase(reconnect_token)
+	_sync_reserved_names()
+	if match_coordinator == null or reservation.coordinator != match_coordinator or not match_coordinator.can_reconnect(int(reservation.peer_id)):
+		return {}
+	return reservation
+
+
+func _expire_reconnect_reservations() -> void:
+	if match_coordinator != null:
+		var expired := match_coordinator.expire_reconnects()
+		if not expired.is_empty():
+			_drain_match_coordinator()
+			for peer_id in expired:
+				_log("info", "reconnect_seat_released", {"peer_id": peer_id})
+	if _reconnect_reservations.is_empty():
+		return
+	for reconnect_token in _reconnect_reservations.keys():
+		var reservation := _reconnect_reservations[reconnect_token] as Dictionary
+		if reservation.coordinator != match_coordinator or not match_coordinator.can_reconnect(int(reservation.peer_id)):
+			_reconnect_reservations.erase(reconnect_token)
+			_sync_reserved_names()
+
+
+func _sync_reserved_names() -> void:
+	if lobby == null:
+		return
+	var names := PackedStringArray()
+	for reservation: Dictionary in _reconnect_reservations.values():
+		names.append((reservation.player as PlayerMatchState).display_name)
+	lobby.reserved_names = names
+
+
 func _session_status() -> Dictionary:
 	return {"human_count": lobby.human_count() if lobby != null else 0,
 		"npc_count": lobby.npc_count() if lobby != null else 0,
@@ -1599,6 +1757,8 @@ func _session_status() -> Dictionary:
 
 func _on_session_stopped() -> void:
 	in_game_admin.clear()
+	_reconnect_tokens.clear()
+	_reconnect_reservations.clear()
 	_admission_lobby_broadcast_pending = false
 	if replication != null:
 		replication.clear()

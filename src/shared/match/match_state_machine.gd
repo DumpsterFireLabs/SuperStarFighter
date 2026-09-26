@@ -234,7 +234,10 @@ func respawn_player(peer_id: int) -> bool:
 	return true
 
 
-func disconnect_player(peer_id: int, at_tick: int) -> bool:
+## With hold_departure_result, a departure that would end the match (forfeit or
+## an empty match) only settles the interrupted heat. The caller then either
+## reconnects the player or calls resolve_departures().
+func disconnect_player(peer_id: int, at_tick: int, hold_departure_result: bool = false) -> bool:
 	var player := players.get(peer_id) as PlayerMatchState
 	if player == null or not player.connected:
 		return false
@@ -247,7 +250,23 @@ func disconnect_player(peer_id: int, at_tick: int) -> bool:
 		players.erase(peer_id)
 		scores.remove_player(peer_id)
 		return true
+	if hold_departure_result and departure_result_due():
+		if state == State.ACTIVE_HEAT:
+			eliminate_players([], at_tick)
+		return true
+	resolve_departures(at_tick)
+	return true
 
+
+## True when too few connected participants remain for the match to continue.
+func departure_result_due() -> bool:
+	var remaining := participant_ids()
+	if remaining.size() <= 1:
+		return true
+	return GameModeRules.is_team_mode(config.game_mode) and _participant_team_ids().size() == 1
+
+
+func resolve_departures(at_tick: int) -> void:
 	var remaining := participant_ids()
 	if remaining.is_empty():
 		_return_to_lobby(at_tick)
@@ -257,7 +276,33 @@ func disconnect_player(peer_id: int, at_tick: int) -> bool:
 		_award_forfeit(remaining[0], at_tick)
 	elif state == State.ACTIVE_HEAT:
 		eliminate_players([], at_tick)
-	return true
+
+
+## Restores a disconnected participant under their new peer id with cards,
+## score and team intact. They sit out any heat already under way.
+func reconnect_player(previous_peer_id: int, peer_id: int) -> PlayerMatchState:
+	var player := players.get(previous_peer_id) as PlayerMatchState
+	if player == null or player.connected or players.has(peer_id) or state == State.LOBBY:
+		return null
+	# Rebuild in place: the draft may hold a reference to this dictionary.
+	var reordered := players.duplicate()
+	reordered.erase(previous_peer_id)
+	reordered[peer_id] = player
+	players.clear()
+	players.merge(_sorted_player_dictionary(reordered))
+	player.peer_id = peer_id
+	player.connected = true
+	player.participant = true
+	player.alive = false
+	player.spectator = true
+	scores.remove_player(previous_peer_id)
+	player.score = scores.register_player(peer_id, player.score)
+	if last_heat_winner == previous_peer_id: last_heat_winner = peer_id
+	if last_round_winner == previous_peer_id: last_round_winner = peer_id
+	if match_winner == previous_peer_id: match_winner = peer_id
+	if _pending_round_winner == previous_peer_id: _pending_round_winner = peer_id
+	if _pending_match_winner == previous_peer_id: _pending_match_winner = peer_id
+	return player
 
 
 func participant_ids() -> Array[int]:
