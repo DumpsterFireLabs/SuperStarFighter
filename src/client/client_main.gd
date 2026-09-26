@@ -561,6 +561,9 @@ func _create_credits_overlay() -> void:
 	repo_link.add_theme_color_override("font_color", Color("73f7ff"))
 	repo_link.add_theme_color_override("font_hover_color", Color("fff1bf"))
 	repo_link.add_theme_color_override("font_focus_color", Color("fff1bf"))
+	# ON_HOVER only reacts to the mouse, so keyboard and controller focus underline explicitly.
+	repo_link.focus_entered.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ALWAYS)
+	repo_link.focus_exited.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER)
 	repo_center.add_child(repo_link)
 	var back_center := CenterContainer.new()
 	content.add_child(back_center)

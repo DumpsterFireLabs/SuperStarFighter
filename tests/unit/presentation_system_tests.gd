@@ -562,6 +562,11 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		repo_links.size() == 1 and (repo_links[0] as LinkButton).uri == "https://github.com/DumpsterFireLabs/SuperStarFighter",
 		"credits screen links to the project repository"
 	)
+	var repo_link := repo_links[0] as LinkButton
+	repo_link.focus_entered.emit()
+	context.expect_equal(repo_link.underline, LinkButton.UNDERLINE_MODE_ALWAYS, "focusing the repository link underlines it for keyboard and controller users")
+	repo_link.focus_exited.emit()
+	context.expect_equal(repo_link.underline, LinkButton.UNDERLINE_MODE_ON_HOVER, "leaving the repository link restores hover-only underlining")
 	context.expect_true(client.input_profiles != null, "production client owns a persistent input profile manager")
 	context.expect_true(client.gameplay_cursor != null and client.gameplay_cursor.texture != null, "production client renders the combat crosshair inside the game framebuffer")
 	context.expect_true(client.gameplay_cursor_canvas.layer > client.connection_controller.connection_canvas.layer, "software crosshair renders above the combat world and HUD")
