@@ -373,10 +373,10 @@ Keyboard and mouse is the first-launch default:
 
 | Input | During combat |
 | --- | --- |
-| `W` | Accelerate forward along the ship's nose |
-| `S` | Accelerate backward |
-| `A` | Strafe left |
-| `D` | Strafe right |
+| `W` | Accelerate up (Relative) or forward along the ship's nose (Newtonian) |
+| `S` | Accelerate down (Relative) or backward (Newtonian) |
+| `A` | Accelerate left (Relative) or strafe left (Newtonian) |
+| `D` | Accelerate right (Relative) or strafe right (Newtonian) |
 | Mouse | Point ship and weapon |
 | Hold left mouse | Automatic fire |
 | Hold right mouse | Directional shield |
@@ -392,7 +392,7 @@ The controller/joystick profile defaults to:
 
 | Input | During combat and menus |
 | --- | --- |
-| Left stick | Forward/backward thrust and strafe |
+| Left stick | Move (screen-aligned in Relative, ship-aligned in Newtonian) |
 | Right stick | Point ship and weapon |
 | Hold right trigger | Automatic fire |
 | Hold left trigger | Directional shield |
