@@ -67,7 +67,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		elif argument.begins_with("--host="):
 			var parsed_host := argument.trim_prefix("--host=").strip_edges()
 			if not NetworkProtocol.is_valid_server_address(parsed_host):
-				return _error("--host requires a valid IP address, hostname, or ws:// / wss:// URL.")
+				return _error("--host requires a valid IP address or hostname (use --port for the port), or a ws:// / wss:// URL.")
 			result.host = parsed_host
 		elif argument.begins_with("--server-name="):
 			var parsed_server_name := argument.trim_prefix("--server-name=").strip_edges()

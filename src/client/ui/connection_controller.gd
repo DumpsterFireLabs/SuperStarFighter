@@ -316,8 +316,11 @@ func _remembered_password_port() -> int:
 
 
 func _connect_online() -> void:
-	var port := _validated_port(port_field)
-	if port == 0:
+	var address := host_field.text.strip_edges()
+	# A ws:// or wss:// address carries its own port, so the port field is ignored.
+	var uses_url := address.contains("://")
+	var port := 0 if uses_url else _validated_port(port_field)
+	if port == 0 and not uses_url:
 		return
 	var display_name := ServerLobby.sanitize_display_name(name_field.text)
 	if display_name.is_empty():
@@ -329,14 +332,13 @@ func _connect_online() -> void:
 		connection_status.text = "Enter the lobby password (1–%d printable characters)." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
 		direct_password_field.grab_focus()
 		return
-	var address := host_field.text.strip_edges()
 	if not NetworkProtocol.is_valid_server_address(address):
-		connection_status.text = "Enter a server IP, hostname, or ws:// / wss:// address."
+		connection_status.text = "Enter a server IP or hostname (with the port in its own field), or a ws:// / wss:// address."
 		host_field.grab_focus()
 		return
 	connection_requested.emit()
 	preferences.begin_attempt(address, port, lobby_password, remember_password_button.button_pressed)
-	var endpoint := address if address.contains("://") else "%s:%d" % [address, port]
+	var endpoint := address if uses_url else "%s:%d" % [address, port]
 	connection_status.text = "Authenticating with %s…" % endpoint
 	var error: Error = bridge.start_client(address, port, display_name, GameConstants.PROTOCOL_VERSION, lobby_password)
 	if error != OK:

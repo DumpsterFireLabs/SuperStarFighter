@@ -1,12 +1,12 @@
-SUPER STAR FIGHTER — BETA 15
-Version 0.1.0-beta.15
+SUPER STAR FIGHTER — BETA 16
+Version 0.1.0-beta.16
 
 QUICK START
 
 1. Extract the entire ZIP to a writable folder.
-2. On Windows, run SuperStarFighter-Beta15.exe.
-   On Linux, run: chmod +x SuperStarFighter-Beta15.x86_64 && ./SuperStarFighter-Beta15.x86_64
-   On Linux ARM64/Raspberry Pi with a 64-bit OS, run: chmod +x SuperStarFighter-Beta15.arm64 && ./SuperStarFighter-Beta15.arm64
+2. On Windows, run SuperStarFighter-Beta16.exe.
+   On Linux, run: chmod +x SuperStarFighter-Beta16.x86_64 && ./SuperStarFighter-Beta16.x86_64
+   On Linux ARM64/Raspberry Pi with a 64-bit OS, run: chmod +x SuperStarFighter-Beta16.arm64 && ./SuperStarFighter-Beta16.arm64
    On macOS, Control-click Super Star Fighter.app, choose Open, then confirm Open.
    If macOS instead says the app is damaged, open Terminal in the extracted folder and run:
 
@@ -24,33 +24,36 @@ The normal Linux launch uses Godot's Compatibility renderer through desktop Open
 
 If a Linux machine has native OpenGL ES 3.0 through Mesa but does not expose desktop OpenGL 3.3, try:
 
-  ./SuperStarFighter-Beta15.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+  ./SuperStarFighter-Beta16.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
 
-For Linux x64, replace SuperStarFighter-Beta15.arm64 with SuperStarFighter-Beta15.x86_64.
+For Linux x64, replace SuperStarFighter-Beta16.arm64 with SuperStarFighter-Beta16.x86_64.
 
 If the machine has a working Vulkan driver, including Mesa V3DV on a suitably configured Raspberry Pi, the Mobile renderer is another possible fallback:
 
-  ./SuperStarFighter-Beta15.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+  ./SuperStarFighter-Beta16.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
 
 As a slow last resort on Mesa systems, software rendering may work:
 
-  LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta15.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+  LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta16.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
 
 These are compatibility suggestions, not native acceptance-tested configurations. Renderer overrides may change appearance or performance, and software rendering can be very slow. Godot 4 requires at least OpenGL ES 3.0 for its Compatibility renderer; GLES 2-only hardware is not supported. Use a current 64-bit OS and current Mesa/V3D drivers on Raspberry Pi.
 
 INTERNET HOSTING
 
-The host must allow the executable through the operating-system firewall and forward the selected TCP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 15.
+The host must allow the executable through the operating-system firewall and forward the selected TCP gameplay port (7000 by default) in the router. LAN discovery uses UDP 7359 only on the local network. There is no public matchmaking or automatic NAT traversal in Beta 16.
 
-BETA 15 CHANGES
+BETA 16 CHANGES
 
 - Gameplay now runs over TCP (WebSocket) instead of UDP. Hosts forward the TCP gameplay port (7000 by default); no UDP forwarding is needed.
-- Beta 15 cannot connect to Beta 15 or earlier; every player and server must update together (protocol 45).
+- Beta 16 cannot connect to Beta 15 or earlier; every player and server must update together (protocol 46).
 - Players on slow or congested connections now receive fewer but current updates instead of falling seconds behind, and the server uses far less memory per player.
+- Quickly changing lobby settings can no longer leave a healthy player stuck on reduced updates, and ejected players always see why they were removed.
+- A player whose connection falls too far behind is disconnected instead of silently missing lobby and match messages.
+- Direct Connect asks for the port in its own field instead of accepting host:port, and wss:// addresses no longer need a port or lose their remembered password.
 - Direct Connect accepts wss:// addresses, so a Linux dedicated server can run behind a Cloudflare Tunnel on port 443 with --bind=127.0.0.1 --behind-proxy and no port forwarding.
 - Clients retry briefly when many players join at once, and both sides drop a connection that stays silent for 10 seconds.
 - The F3 diagnostics measure round-trip time with a once-per-second ping; UDP loss/throttle readouts are removed.
-- Windows x64, Linux x64, Linux ARM64, and universal macOS packages share version 0.1.0-beta.15.
+- Windows x64, Linux x64, Linux ARM64, and universal macOS packages share version 0.1.0-beta.16.
 
 DEDICATED SERVER OPERATION
 

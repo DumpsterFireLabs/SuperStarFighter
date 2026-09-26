@@ -21,11 +21,17 @@ const SERVER_OUTBOUND_BUFFER_BYTES: int = 1 << 19
 const CLIENT_INBOUND_BUFFER_BYTES: int = 1 << 20
 const CLIENT_OUTBOUND_BUFFER_BYTES: int = 1 << 16
 const TRANSPORT_MAX_QUEUED_PACKETS: int = 2048
+# A full outbound buffer silently drops reliable RPCs, so a peer that backs up
+# this far is disconnected while there is still room for the close frame.
+const SERVER_OUTBOUND_OVERFLOW_BYTES: int = SERVER_OUTBOUND_BUFFER_BYTES * 3 / 4
 # TCP hides congestion inside the OS send buffer. The server probes each peer's
 # round trip; delay above that peer's baseline means replaceable streams are
 # queueing, so they are thinned until the backlog drains.
 const TRANSPORT_PROBE_INTERVAL_SECONDS: float = 0.25
 const TRANSPORT_PROBE_MAX_OUTSTANDING: int = 16
+# An ack that never arrives must not hold a peer in congestion forever; newer
+# outstanding probes still signal a genuinely backlogged stream.
+const TRANSPORT_PROBE_EXPIRY_SECONDS: float = 2.0
 const TRANSPORT_CONGESTION_ENTER_MS: float = 150.0
 const TRANSPORT_CONGESTION_EXIT_MS: float = 50.0
 const TRANSPORT_PING_INTERVAL_SECONDS: float = 1.0
@@ -33,6 +39,9 @@ const TRANSPORT_CONNECT_ATTEMPTS: int = 12
 const TRANSPORT_CONNECT_WINDOW_SECONDS: float = 10.0
 # TCP never times out a silent peer, so both ends require regular traffic.
 const TRANSPORT_IDLE_TIMEOUT_SECONDS: float = 10.0
+# Pings and probe acks are limited apart from lobby controls so control bursts
+# cannot starve liveness; the ceiling leaves room for acks queued during a stall.
+const MAX_TRANSPORT_MESSAGES_PER_SECOND: int = 40
 const MAX_SERVER_ADDRESS_LENGTH: int = 512
 # Behind a reverse proxy every player shares one source address, so repeated
 # wrong passwords slow new challenges globally instead of locking a source out.
@@ -124,7 +133,8 @@ static func rejection_message(reason: StringName) -> String:
 
 
 ## Accepts a hostname or IP, or a ws:// / wss:// URL (for example a
-## Cloudflare-proxied wss://game.example.com) with a non-empty host.
+## Cloudflare-proxied wss://game.example.com) with a non-empty host. A bare
+## host:port is rejected because the port belongs in its own field.
 static func is_valid_server_address(address: String) -> bool:
 	if address.is_empty() or address.length() > MAX_SERVER_ADDRESS_LENGTH or address.contains(" "):
 		return false
@@ -133,7 +143,12 @@ static func is_valid_server_address(address: String) -> bool:
 		if lowered.begins_with(scheme):
 			var authority := address.substr(scheme.length()).get_slice("/", 0)
 			return not authority.is_empty() and not authority.begins_with(":") and not authority.contains("@")
-	return address.length() <= 253 and not address.contains("/")
+	if address.length() > 253 or address.contains("/"):
+		return false
+	# Outside a URL, a colon or bracket is only valid around an IPv6 literal.
+	if address.contains(":") or address.contains("[") or address.contains("]"):
+		return address.trim_prefix("[").trim_suffix("]").is_valid_ip_address()
+	return true
 
 
 static func is_valid_lobby_password(password: String) -> bool:

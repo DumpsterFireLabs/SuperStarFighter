@@ -825,7 +825,7 @@ func transport_ping(client_usec: int) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "transport_ping"):
+	if not session.accept_transport_message(sender_id):
 		return
 	session.note_peer_alive(sender_id)
 	transport_pong.rpc_id(sender_id, client_usec)
@@ -855,7 +855,7 @@ func transport_probe_ack(server_usec: int) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "transport_probe_ack"):
+	if not session.accept_transport_message(sender_id):
 		return
 	session.note_peer_alive(sender_id)
 	session.record_probe_ack(sender_id, server_usec)

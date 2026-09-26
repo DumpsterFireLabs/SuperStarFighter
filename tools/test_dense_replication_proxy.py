@@ -1,5 +1,7 @@
 from pathlib import Path
+import socket
 import sys
+import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -63,6 +65,52 @@ class StreamLinkTests(unittest.TestCase):
         self.assertEqual(links[0].counters, links[1].counters)
         self.assertEqual(links[0].counters['down']['received_bytes'], sum(range(100)))
         self.assertGreater(links[0].counters['down']['loss_stalls'], 0)
+
+
+class StreamProxyTests(unittest.TestCase):
+    def _pump(self, relay, until, seconds=3.0):
+        deadline = time.monotonic() + seconds
+        while not until() and time.monotonic() < deadline:
+            relay.poll(time.monotonic(), 0.005)
+        return until()
+
+    def test_bytes_in_flight_are_delivered_before_close(self):
+        target = socket.create_server(('127.0.0.1', 0))
+        relay = proxy.StreamProxy(0, target.getsockname()[1], proxy.StreamLink({'delay': 0.2}, 4), max_connections=1)
+        client = socket.create_connection(relay.listener.getsockname())
+        try:
+            self.assertTrue(self._pump(relay, lambda: relay.accepted == 1), 'upstream connect completes')
+            server, _ = target.accept()
+            server.sendall(b'rejected')
+            server.close()
+            client.setblocking(False)
+            received = bytearray()
+            def closed():
+                try:
+                    data = client.recv(64)
+                except BlockingIOError:
+                    return False
+                received.extend(data)
+                return not data
+            self.assertTrue(self._pump(relay, closed), 'the client sees the close')
+            self.assertEqual(bytes(received), b'rejected', 'delayed bytes arrive before the FIN')
+        finally:
+            client.close()
+            relay.close()
+            target.close()
+
+    def test_refused_target_does_not_block(self):
+        unused = socket.create_server(('127.0.0.1', 0))
+        port = unused.getsockname()[1]
+        unused.close()
+        relay = proxy.StreamProxy(0, port, proxy.StreamLink({}, 5), max_connections=1)
+        client = socket.create_connection(relay.listener.getsockname())
+        try:
+            self.assertTrue(self._pump(relay, lambda: relay.refused == 1), 'a refused target is mirrored to the client')
+            self.assertEqual((relay.accepted, len(relay.connecting)), (0, 0))
+        finally:
+            client.close()
+            relay.close()
 
 
 if __name__ == '__main__':

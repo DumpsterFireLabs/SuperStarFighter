@@ -47,6 +47,7 @@ var _pending_handshakes := HandshakeRegistry.new()
 var _pending_disconnects: Dictionary = {}
 var _rate_limiter := InputRateLimiter.new()
 var _control_rate_limiter := RequestRateLimiter.new()
+var _transport_rate_limiter := RequestRateLimiter.new(NetworkProtocol.MAX_TRANSPORT_MESSAGES_PER_SECOND)
 var _authentication_attempt_limiter := AuthenticationAttemptLimiterScript.new()
 var _connection_attempt_limiter := AuthenticationAttemptLimiterScript.new(
 	NetworkProtocol.CONNECTION_ATTEMPT_LIMIT,
@@ -141,7 +142,7 @@ func start_client(
 	_connect_rng.randomize()
 	var error := _open_client_transport()
 	if error != OK:
-		last_error = "Could not connect to %s:%d (error %d)." % [host, port, error]
+		last_error = "Could not connect to %s (error %d)." % [_client_url, error]
 		role = NetworkBridge.Role.NONE
 		return error
 	if not runtime.multiplayer.connected_to_server.is_connected(_on_client_transport_connected):
@@ -205,6 +206,7 @@ func stop() -> void:
 	_next_proxy_challenge = 0.0
 	_rate_limiter.clear()
 	_control_rate_limiter.clear()
+	_transport_rate_limiter.clear()
 	_authentication_attempt_limiter.clear()
 	_connection_attempt_limiter.clear()
 	_peer_auth_sources.clear()
@@ -283,7 +285,7 @@ static func transport_url(host: String, port: int) -> String:
 	# Full URLs (e.g. wss://game.example.com behind Cloudflare) carry their own port.
 	if address.to_lower().begins_with("ws://") or address.to_lower().begins_with("wss://"):
 		return address
-	if address.contains(":") and not address.begins_with("["):
+	if address.contains(":") and not address.begins_with("[") and address.is_valid_ip_address():
 		address = "[%s]" % address
 	return "ws://%s:%d" % [address, port]
 
@@ -336,6 +338,7 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
 	_control_rate_limiter.remove_peer(peer_id)
+	_transport_rate_limiter.remove_peer(peer_id)
 	_malformed_control_strikes.erase(peer_id)
 	peer_departed.emit(peer_id)
 
@@ -541,6 +544,7 @@ func process_pending_connections() -> void:
 			reject_connection(peer_id, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT)
 	_start_queued_handshakes()
 	_process_probes(Time.get_ticks_usec())
+	_disconnect_overflowing_peers()
 	for peer_value in _last_heard.keys():
 		if now - float(_last_heard[peer_value]) > NetworkProtocol.TRANSPORT_IDLE_TIMEOUT_SECONDS:
 			var peer_id := int(peer_value)
@@ -598,6 +602,9 @@ func _process_probes(now_usec: int) -> void:
 	for peer_value in _probes.keys():
 		var state: Dictionary = _probes[peer_value]
 		var outstanding: Dictionary = state.outstanding
+		for sent_usec in outstanding.keys():
+			if now_usec - int(sent_usec) > int(NetworkProtocol.TRANSPORT_PROBE_EXPIRY_SECONDS * 1_000_000.0):
+				outstanding.erase(sent_usec)
 		# An unanswered probe is at least this late; count it before its ack arrives.
 		if not outstanding.is_empty() and is_finite(float(state.baseline_ms)):
 			var oldest_ms := (now_usec - int(outstanding.keys().min())) / 1000.0
@@ -607,6 +614,34 @@ func _process_probes(now_usec: int) -> void:
 		state.next_probe = now_usec + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0)
 		outstanding[now_usec] = true
 		probe_requested.emit(int(peer_value), now_usec)
+
+
+func _disconnect_overflowing_peers() -> void:
+	for peer_value in _probes.keys():
+		var peer_id := int(peer_value)
+		if not _has_transport_peer(peer_id):
+			continue
+		var peer := _transport_peer.get_peer(peer_id)
+		if peer == null or peer.get_current_outbound_buffered_amount() < NetworkProtocol.SERVER_OUTBOUND_OVERFLOW_BYTES:
+			continue
+		log_requested.emit("warning", "peer_outbound_overflow", {"peer_id": peer_id, "buffered_bytes": peer.get_current_outbound_buffered_amount()})
+		_probes.erase(peer_id)
+		_congested_peers.erase(peer_id)
+		_transport_peer.disconnect_peer(peer_id)
+
+
+## Pings and probe acks from peers that are no longer admitted (for example
+## during an eject's disconnect grace) are ignored rather than treated as
+## pre-handshake traffic, and they are limited apart from lobby controls.
+func accept_transport_message(peer_id: int) -> bool:
+	if not _last_heard.has(peer_id):
+		return false
+	var decision := _transport_rate_limiter.register(peer_id, _now_seconds())
+	if decision == RequestRateLimiter.Decision.DISCONNECT:
+		log_requested.emit("warning", "traffic_peer_isolated", {"peer_id": peer_id, "traffic": "transport", "detail": "transport_rate_limit"})
+		reject_connection(peer_id, NetworkProtocol.REJECT_MALFORMED_TRAFFIC)
+		return false
+	return decision == RequestRateLimiter.Decision.ACCEPT
 
 
 ## Server-side round trip for one probe; queueing shows as delay above baseline.
@@ -727,6 +762,7 @@ func forget_admission(peer_id: int) -> void:
 	_congested_peers.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
 	_control_rate_limiter.remove_peer(peer_id)
+	_transport_rate_limiter.remove_peer(peer_id)
 	_malformed_control_strikes.erase(peer_id)
 	_pending_handshakes.complete(peer_id)
 

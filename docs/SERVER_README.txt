@@ -1,4 +1,4 @@
-Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 15)
+Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 16)
 
 WINDOWS QUICK START
 
@@ -19,7 +19,7 @@ use Unblock-File on the included start-server.ps1 and admin.ps1 scripts.
 
 The package starts in server mode without graphics or audio. No Godot editor,
 source checkout, client assets or separate PCK file is required. Use the same
-game/protocol version on clients: 0.1.0-beta.15 (compatibility 45, binary packets 17).
+game/protocol version on clients: 0.1.0-beta.16 (compatibility 46, binary packets 17).
 
 Set the lobby password before starting. The example is not a public password.
 Use the --port value when connecting directly. Configure any network/firewall
@@ -217,7 +217,7 @@ acceptance still need to be performed on your deployment host.
 
 Extract the matching archive into a writable folder, then cd into that folder:
 
-  tar -xzf SuperStarFighter-Beta15-Server-Linux-x64.tar.gz
+  tar -xzf SuperStarFighter-Beta16-Server-Linux-x64.tar.gz
   chmod +x start-server.sh SuperStarFighter-Server.x86_64
 
 For ARM64 use the arm64 archive and SuperStarFighter-Server.arm64 instead.
@@ -284,7 +284,7 @@ by ssf for writable state. Adjust every path/account before installing this
 example as /etc/systemd/system/ssf.service:
 
   [Unit]
-  Description=Super Star Fighter Beta 15 dedicated server
+  Description=Super Star Fighter Beta 16 dedicated server
   After=network.target
 
   [Service]
