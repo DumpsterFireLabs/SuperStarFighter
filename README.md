@@ -1,10 +1,12 @@
 # Super Star Fighter
 
-Super Star Fighter is a Windows-first, server-authoritative, top-down multiplayer arena shooter built with Godot 4.7.2 and GDScript.
+Super Star Fighter is a top-down multiplayer arena shooter for up to 32 pilots. Every round you draft a new upgrade card, the cards stack without limit, and a sensible little starter ship slowly becomes a screen-filling mechanical disaster. Then you take it into the arena against your friends.
 
 **[Download the latest release](https://github.com/DumpsterFireLabs/SuperStarFighter/releases/latest)** for Windows, Linux (x64 and ARM64), or macOS, plus dedicated servers.
 
-Up to 32 human and NPC pilots fight through solo or team heats. Before each round, eligible pilots choose one upgrade from a private five-card draw. Cards stack without limit, their effects compound, and a sensible little starter ship can become a screen-filling mechanical disaster. The first pilot or team to win two heats wins the round; the first to reach the configured round target wins the match.
+Play solo or in teams across Death Match, Team Death Match, King of the Hill, and Capture the Flag, with any mix of humans and NPCs over LAN, direct connect, or a dedicated server. Each round is a series of short heats. Win two heats to take the round, then pick your next card from a private five-card draw. The first pilot or team to reach the round target wins the match.
+
+Built with Godot 4.7.2 and GDScript. The server runs the simulation, so every player sees the same fight.
 
 ## The Loop
 
@@ -17,22 +19,15 @@ Up to 32 human and NPC pilots fight through solo or team heats. Before each roun
 
 ## Highlights
 
-- Persistent Newtonian ship-facing or Relative screen-aligned flight, with keyboard/mouse and twin-stick controller/joystick profiles.
-- Automatic weapons, directional energy shields, shield-ram melee builds, knockback rounds, ricochets, piercing rounds, multi-shot arrays, and pulse beams.
-- 136 unlimited-stack cards across seven increasingly scarce rarity tiers, including Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, Star Mines, Hunter Missiles, and Rebound Shields.
-- 41 numeric build stats plus beam, auto-repair, Afterburner, Cloak!, Kinetic Vent, Breakaway Thrusters, rebound shields, active mines, and forward-tracking missiles.
-- Two to 32 total participants with individual and bulk NPC difficulty controls.
-- Five selectable authoritative modes: Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag, with configurable two-to-eight-team Death Match lobbies, per-player/NPC team assignment, friendly-fire protection, five-second objective-mode respawns, round-rotating hills, home-base flag scoring, objective-aware NPCs, live objective HUD state, and team scoring.
-- Optional server-owned Rare-or-better arena powerups with a configurable 5–90 second interval and heat-only or match-long inventory rules.
-- Persistent Random or colour-wheel ship appearance selection with non-colour identity patterns.
-- One-click local hosting, LAN server discovery, and direct-IP joining.
-- Host-controlled global pause for breaks and intermissions, freezing combat and match timers for everyone.
-- Ten authoritative arena layouts in a shuffled no-repeat rotation, changing between rounds while every heat stays on the same map.
-- Server-authoritative simulation with client prediction, reconciliation, and remote interpolation.
-- Independent active-ability selection, confirmed hull-hit and shield-block feedback, and authoritative death explanations.
-- A searchable offline build lab with presets, configurable targets, and measured combat results using the server's simulation.
-- A guided combat introduction and mechanic icons with effective build changes on draft cards.
-- Persistent display, audio, control-profile, deadzone, and per-action binding settings, plus HUD scaling, reduced shake/flashes, an ultrawide HUD safe area, spectating, live standings, and rematches.
+- **136 stackable cards** across seven rarity tiers: faster fire, ricochets, piercing rounds, pulse beams, shield rams, Afterburner, Cloak!, Star Mines, Hunter Missiles, Rebound Shields, and many more.
+- **Five modes:** Death Match, Team Death Match, King of the Hill, Capture the Flag, and Team Capture the Flag. Team games support two to eight teams, with friendly-fire protection.
+- **2 to 32 pilots**, with any mix of humans and NPCs. NPC difficulty can be set per pilot or for all of them at once, and NPCs play the objectives.
+- **Ten arenas** in a shuffled rotation that changes each round, plus optional arena powerups.
+- **Easy hosting:** host from the menu in one click, find games on your LAN, join by IP address, or run a dedicated server on Windows or Linux.
+- **Relative or Newtonian flight**, keyboard/mouse or controller/joystick, with every action rebindable.
+- **An offline build lab** for trying any combination of cards against configurable targets, plus a guided combat tutorial.
+- **Custom ship colours and hull patterns**, spectating, live standings, rematches, and a host-controlled pause for everyone.
+- **Accessibility options:** HUD scaling, reduced shake and flashes, and an ultrawide HUD safe area.
 
 ## Quick Start
 
@@ -60,11 +55,52 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 
 Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, select Newtonian ship-facing or Relative screen-aligned flight, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
-Select an owned active ability with **Q/E** or **D-pad left/right**, then activate it with **Shift** or **left-stick click**. In the offline lab, **F2** switches between the paused build editor and the firing range. **Settings → Accessibility** adjusts HUD scale, shake, flashes, and the centered HUD safe area.
+If you own several active-ability cards, such as Afterburner, Cloak!, and Star Mines, cycle between them with **Q/E** or **D-pad left/right**, then trigger the selected one with **Shift** or **Left Stick Click**. Passive cards work on their own. **Settings → Accessibility** adjusts HUD scale, shake, flashes, and the centered HUD safe area.
 
 Choose **Learn to play** on the main menu for a short interactive lesson covering movement, firing, reloads, directional shields, Perfect Guard, abilities, and drafting. Each step advances when you perform its action; retry or skip at any time.
 
 Display settings support persistent Windowed, Borderless Fullscreen, and Exclusive Fullscreen modes. Sixteen selectable resolutions cover common 16:9, 16:10, 3:2, 21:9, and 32:9 displays through 5120×2160, including 2880×1920 and 5120×1440 super-ultrawide.
+
+Relative is the default flight mode: movement stays aligned to the screen, so `W` or stick-up always moves upward regardless of aim. Newtonian mode instead follows the ship's heading, so if the ship faces down, `W` moves it down. The local ship carries its own ammo/reload readout above the model.
+
+### Keyboard and mouse
+
+| Input | Action |
+| --- | --- |
+| `W` / `S` | Fly up / down (Relative) or forward / backward along the ship's nose (Newtonian) |
+| `A` / `D` | Fly left / right (Relative) or strafe relative to the ship's nose (Newtonian) |
+| Mouse | Aim ship and weapon |
+| Left mouse | Fire automatically while held |
+| Right mouse | Hold the directional shield |
+| `R` | Manually reload a partially used magazine |
+| `Q` / `E` | Select the previous / next owned active ability |
+| `Shift` | Activate the selected ability |
+| `1`–`5` or click, then confirm | Choose and lock in a draft card |
+| Hold `Tab` | Show live standings and public builds |
+| `Escape` | Open the pilot menu (online combat keeps running) |
+| `F2` | Return to the main menu (active sessions ask for confirmation); in the offline lab, switch between the build editor and the firing range |
+| `F3` | Toggle network diagnostics |
+| `F10` (host only) | Pause or resume the match for everyone |
+| `A` / `D` or mouse buttons while spectating | Cycle living pilots |
+
+### Controller / joystick defaults
+
+| Input | Action |
+| --- | --- |
+| Left stick | Move (screen-aligned in Relative, ship-aligned in Newtonian) |
+| Right stick | Aim ship and weapon |
+| Right / left trigger | Fire / shield |
+| X / Square | Manually reload a partially used magazine |
+| D-pad left / right during combat | Select the previous / next owned active ability |
+| Left Stick Click | Activate the selected ability |
+| View / Back | Hold live scoreboard |
+| Menu / Start | Open the pilot menu (online combat keeps running) |
+| Left / right bumper while spectating | Cycle living pilots |
+| D-pad in menus | Navigate menus and draft cards |
+| A / Cross | Confirm |
+| B / Circle | Back |
+
+Mapped Xbox-, PlayStation-, and similar controllers use these defaults. Flight sticks and other joysticks can bind any detected axis direction or button from the Controls tab.
 
 ## Beta Builds
 
@@ -137,45 +173,6 @@ LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-BetaNN.arm64 --rendering-method gl_co
 
 Use the `.x86_64` filename for Linux x64. These overrides are compatibility suggestions rather than native acceptance-tested configurations. Godot 4 requires at least OpenGL ES 3.0 for Compatibility; GLES 2-only systems are unsupported. Keep `--verbose` during diagnosis to confirm the selected API, renderer, and GPU.
 
-### Keyboard and mouse
-
-| Input | Action |
-| --- | --- |
-| `W` / `S` | Fly forward / backward relative to the ship's nose |
-| `A` / `D` | Strafe left / right relative to the ship's nose |
-| Mouse | Aim ship and weapon |
-| Left mouse | Fire automatically while held |
-| Right mouse | Hold the directional shield |
-| `R` | Manually reload a partially used magazine |
-| `Shift` | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
-| `1`–`5` or click, then confirm | Choose and lock in a draft card |
-| Hold `Tab` | Show live standings and public builds |
-| `Escape` | Open the non-pausing pilot menu |
-| `F2` | Return to the main menu; active sessions require confirmation |
-| `F3` | Toggle network diagnostics |
-| `F10` (host only) | Pause or resume the match for everyone |
-| `A` / `D` or mouse buttons while spectating | Cycle living pilots |
-
-### Controller / joystick defaults
-
-| Input | Action |
-| --- | --- |
-| Left stick | Forward/backward thrust and strafe |
-| Right stick | Aim ship and weapon |
-| Right / left trigger | Fire / shield |
-| X / Square | Manually reload a partially used magazine |
-| Left Stick Click | Activate Afterburner, Cloak!, or Star Mines when its card is owned |
-| View / Back | Hold live scoreboard |
-| Menu / Start | Open the non-pausing pilot menu |
-| Left / right bumper while spectating | Cycle living pilots |
-| D-pad | Navigate menus and draft cards |
-| A / Cross | Confirm |
-| B / Circle | Back |
-
-Mapped Xbox-, PlayStation-, and similar controllers use these defaults. Flight sticks and other joysticks can bind any detected axis direction or button from the Controls tab.
-
-Relative is the default flight mode: movement stays aligned to the screen, so `W` or stick-up always moves upward regardless of aim. Newtonian mode instead follows the ship's heading. The local ship carries its own ammo/reload readout above the model.
-
 ## Documentation
 
 - [Player and Host Manual](./docs/MANUAL.md) — complete instructions, match rules, card strategy, hosting, settings, and troubleshooting.
@@ -231,6 +228,10 @@ Super Star Fighter carries all gameplay over one WebSocket (TCP) connection per 
 
 See the [hosting chapter](./docs/MANUAL.md#4-hosting-and-joining) for practical LAN and internet setup.
 
+### Linux dedicated server packages
+
+Build with `tools/build-linux-server.ps1 -Architecture x86_64` or `-Architecture arm64`. Server archives are written under `builds/beta-NN/server-linux-x86_64/` and `builds/beta-NN/server-linux-arm64/`. Each includes a headless shell launcher, Python 3 administration tool, and the [dedicated server operations guide](docs/SERVER_README.txt), including Linux setup and a systemd example. Both tar.gz and ZIP archives are verified for architecture, embedded resources and contents; native Linux launch/load acceptance remains separate.
+
 ## Development
 
 Open the project editor:
@@ -264,7 +265,3 @@ The current beta targets Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and u
 The source code, scenes, data, tests, tools, and documentation are released under the [MIT License](./LICENSE). The bundled music and the Dumpster Fire Labs logo are **not** covered by it; they remain all rights reserved, and forks should replace them and use a different name. See [asset licensing](./assets/LICENSE.md) for the full breakdown. Any replacement music or sound effects must be original or properly licensed for the project.
 
 The [attribution inventory](./docs/ATTRIBUTION.md) records source/dependency coverage and exact asset hashes, including unresolved provenance. Packages include Godot and bundled-component notices.
-
-### Linux dedicated server packages
-
-Build with `tools/build-linux-server.ps1 -Architecture x86_64` or `-Architecture arm64`. Server archives are written under `builds/beta-NN/server-linux-x86_64/` and `builds/beta-NN/server-linux-arm64/`. Each includes a headless shell launcher, Python 3 administration tool, and the [dedicated server operations guide](docs/SERVER_README.txt), including Linux setup and a systemd example. Both tar.gz and ZIP archives are verified for architecture, embedded resources and contents; native Linux launch/load acceptance remains separate.
