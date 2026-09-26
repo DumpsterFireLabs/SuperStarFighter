@@ -92,8 +92,8 @@ func _ready() -> void:
 func _run_foundation_tests() -> void:
 	var release: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://release.json"))
 	_context.expect_equal(GameConstants.GAME_VERSION, release.version, "game version matches the release manifest")
-	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 47, "protocol version is pinned")
+	_context.expect_equal(GameConstants.RELEASE_LABEL, "BETA " + str(release.version).get_slice("-beta.", 1), "release label is derived from the game version")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, int(release.protocol_version), "protocol version matches the release manifest")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")

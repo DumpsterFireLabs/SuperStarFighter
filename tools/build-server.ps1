@@ -34,9 +34,10 @@ $errors = $text -split "`r?`n" | Where-Object { $_ -match '^(SCRIPT ERROR:|ERROR
 if ($process.ExitCode -ne 0 -or $errors -or -not $text.Contains('SSF_MODE_READY=server') -or -not $text.Contains('SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration')) {
     throw 'Standalone server smoke failed.'
 }
-foreach ($name in @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt', 'SERVER_README.txt')) {
+foreach ($name in @('THIRD_PARTY_NOTICES.txt', 'GODOT_COPYRIGHT.txt')) {
     Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot "docs/$name") -Destination $buildRoot
 }
+Copy-SsfReleaseDocument -Source (Join-Path $SsfRepositoryRoot 'docs/SERVER_README.txt') -Destination (Join-Path $buildRoot 'SERVER_README.txt') | Out-Null
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'LICENSE') -Destination (Join-Path $buildRoot 'LICENSE.txt')
 foreach ($name in @('start-server.ps1', 'admin.ps1')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $buildRoot

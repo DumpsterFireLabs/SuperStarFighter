@@ -31,8 +31,7 @@ This guide is for contributors working on the Godot source project. For gameplay
 | Physics | 60 Hz |
 | Network transport | WebSocket over TCP (`WebSocketMultiplayerPeer`) |
 | Maximum participants | 32 |
-| Game version | 0.1.0-beta.17 |
-| Protocol version | 47 (binary packets 17) |
+| Release identity | [`release.json`](../release.json): game version, protocol version and binary packet version |
 | Automated suite | Actual assertion count reported by `run-tests.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 | Project gate | Actual check count reported by `verify-foundation.ps1`; [dated evidence](./archive/REVIEW-2026-09-03.md) |
 
@@ -443,7 +442,7 @@ Use a commit message that describes the player/developer outcome rather than a v
 
 ## 15. Release Status
 
-The source-playable vertical slice and hardening milestone are complete. Beta 17 has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four Beta 17 client targets export to `builds/beta-17/`. Beta 1 through Beta 11 remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
+The source-playable vertical slice and hardening milestone are complete. The current beta has Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS client presets with repeatable package scripts; Windows receives a rendered launch smoke check, Linux receives architecture-specific ELF/package verification, and macOS receives `.app`, metadata, embedded-version, and universal Mach-O verification when cross-built on Windows. All four client targets export to `builds/beta-NN/`. Earlier betas remain archived in their own output folders. A stripped Windows dedicated-server artifact and short packaged-server 32-client soak are now verified. Clean-machine install validation, native platform acceptance, longer representative-hardware performance testing, signing/notarization and final release-candidate checks remain.
 
 Every tester-facing rebuild must increment the displayed game/build version and package/executable identity before export. Never replace a shared artifact under the same version label; each beta is retained in its own versioned output folder.
 
@@ -527,4 +526,4 @@ Both hosting entry points compose `ServerRuntime`, including the bounded asynchr
 
 `src/client/settings_store.gd` owns the shared settings path and guarded read/modify/save operation. Preferences must preserve unrelated sections and return/report persistence failures through that boundary.
 
-`release.json` is the canonical release identity. For the next release, edit that manifest and run `python tools/update-release-metadata.py --write`, then `python tools/update-export-policy.py`. Build scripts read the manifest through `tools/common.ps1` / `tools/release_metadata.py`; the shipping and foundation gates reject stale generated metadata. Run `python tools/test_release_metadata.py` to exercise release propagation without building packages. Updating metadata does not publish or overwrite a packaged release.
+`release.json` is the canonical release identity. For the next release, edit that manifest and run `python tools/update-release-metadata.py --write`; a beta bump then touches only `release.json`, `project.godot` and the platform version fields in `export_presets.cfg`. The game reads its version from `project.godot` at runtime, export preset names and paths carry no version, and package scripts fill `{{VERSION}}`, `{{LABEL}}`, `{{TAG}}`, `{{PROTOCOL}}` and `{{PACKET}}` in `docs/BETA_README.txt` and `docs/SERVER_README.txt` while packaging. Other documentation refers to the current beta generically (`BetaNN`) rather than by number. Build scripts read the manifest through `tools/common.ps1` / `tools/release_metadata.py`; the shipping and foundation gates reject stale generated metadata. Run `python tools/test_release_metadata.py` to exercise release propagation without building packages. Updating metadata does not publish or overwrite a packaged release.

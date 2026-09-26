@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 Assert-SsfShippingPolicy
 
 $isArm64 = $Architecture -eq 'arm64'
-$presetName = if ($isArm64) { "Linux ARM64 $($SsfRelease.label)" } else { "Linux $($SsfRelease.label)" }
+$presetName = if ($isArm64) { 'Linux ARM64 Client' } else { 'Linux Client' }
 $releaseLabel = "$($SsfRelease.label)"
 $expectedGameVersion = "$($SsfRelease.version)"
 $buildRoot = Join-Path $SsfRepositoryRoot "$($SsfRelease.directory)"
@@ -95,7 +95,7 @@ if (-not $binaryText.Contains($expectedGameVersion)) {
     throw "Linux export does not contain the expected packaged version $expectedGameVersion."
 }
 
-Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
+Copy-SsfReleaseDocument -Source (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme | Out-Null
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt') -Destination $engineNotices
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'LICENSE') -Destination $projectLicense

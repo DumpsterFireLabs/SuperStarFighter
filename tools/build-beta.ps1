@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 Assert-SsfShippingPolicy
 
-$presetName = "Windows $($SsfRelease.label)"
+$presetName = 'Windows Client'
 $releaseLabel = "$($SsfRelease.label)"
 $expectedGameVersion = "$($SsfRelease.version)"
 $expectedWindowsVersion = "$($SsfRelease.platform_version)"
@@ -123,7 +123,7 @@ if ($exportedMenuMusic -ne $expectedMenuMusic -or $exportedGameplayMusic -ne $ex
 }
 Write-Host "Exported music inventory verified: menu=$exportedMenuMusic gameplay=$exportedGameplayMusic win=$exportedWinMusic"
 
-Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme
+Copy-SsfReleaseDocument -Source (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination $friendReadme | Out-Null
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs\THIRD_PARTY_NOTICES.txt') -Destination $notices
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'docs/GODOT_COPYRIGHT.txt') -Destination $engineNotices
 Copy-Item -LiteralPath (Join-Path $SsfRepositoryRoot 'LICENSE') -Destination $projectLicense

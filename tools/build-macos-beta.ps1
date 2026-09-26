@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 Assert-SsfShippingPolicy
 
-$presetName = "macOS $($SsfRelease.label)"
+$presetName = 'macOS Client'
 $releaseLabel = "$($SsfRelease.label)"
 $expectedGameVersion = "$($SsfRelease.version)"
 $expectedBundleVersion = "$($SsfRelease.platform_version)"
@@ -173,7 +173,7 @@ try {
     }
     [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
         $archive,
-        (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt'),
+        (Copy-SsfReleaseDocument -Source (Join-Path $SsfRepositoryRoot 'docs\BETA_README.txt') -Destination (Join-Path $buildRoot 'README-BETA.txt')),
         'README-BETA.txt',
         [System.IO.Compression.CompressionLevel]::Optimal
     ) | Out-Null

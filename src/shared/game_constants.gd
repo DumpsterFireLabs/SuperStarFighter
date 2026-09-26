@@ -2,8 +2,9 @@ class_name GameConstants
 extends RefCounted
 
 const GAME_NAME: String = "Super Star Fighter"
-const GAME_VERSION: String = "0.1.0-beta.17"
-const RELEASE_LABEL: String = "BETA 17"
+# The release version lives in project.godot, generated from release.json.
+static var GAME_VERSION: String = ProjectSettings.get_setting("application/config/version")
+static var RELEASE_LABEL: String = "BETA " + GAME_VERSION.get_slice("-beta.", 1)
 const ENGINE_VERSION: String = "4.7.2"
 const PROTOCOL_VERSION: int = 47
 const SHIELD_PRESS_RETENTION_TICKS: int = 15

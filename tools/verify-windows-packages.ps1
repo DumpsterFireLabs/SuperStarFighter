@@ -28,7 +28,7 @@ Assert-SsfGodotResult -Output $importText -ExitCode $LASTEXITCODE -Name 'Package
 
 foreach ($package in @(
     @{ Name = 'server'; Preset = 'Windows Dedicated Server'; Path = $serverPath },
-    @{ Name = 'client'; Preset = "Windows $($SsfRelease.label)"; Path = $clientPath }
+    @{ Name = 'client'; Preset = 'Windows Client'; Path = $clientPath }
 )) {
     $logPath = Join-Path $outputRoot "$($package.Name)-export.log"
     $text = (& $godot --headless --path $SsfRepositoryRoot --log-file $logPath --export-release $package.Preset $package.Path 2>&1 | Out-String)
