@@ -853,6 +853,11 @@ func take_client_hello(challenge: String) -> Dictionary:
 	return result
 
 
+## Drops this server's seat token after a deliberate leave: that seat is gone.
+func forget_reconnect_token() -> void:
+	_reconnect_tokens.erase(_client_url)
+
+
 func accept_welcome(peer_id: int, state: Dictionary, reconnect_token: String = "") -> void:
 	local_peer_id = peer_id
 	if not reconnect_token.is_empty():
