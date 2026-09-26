@@ -15,6 +15,8 @@ var disconnected := false
 var max_pending := 0
 var first_recovery_ticks: Dictionary = {}
 var max_inflight := 0
+# Server replication cost per tick, including RPC serialization and socket writes.
+var replication_usec: Array[int] = []
 
 func _initialize() -> void:
 	_run.call_deferred()
@@ -99,10 +101,21 @@ func _run() -> void:
 	var all_complete := initial_complete and recovered.size() == 32 and not disconnected and max_pending <= 27 and max_inflight <= 2 and snapshots.size() == 32
 	for complete in recovered.values(): all_complete = all_complete and bool(complete)
 	for count in snapshots.values(): all_complete = all_complete and int(count) > 20
-	print("SSF_DENSE_RESULT=" + JSON.stringify({"passed": all_complete, "initial_complete": initial_complete, "clients": clients.size(), "recovered": recovered, "recovery_rounds": recovery_rounds, "last_recovery_ticks": last_recovery_ticks, "snapshots": snapshots, "mutation_tick": mutation_tick, "disconnected": disconnected, "max_pending": max_pending, "ticks": tick, "payload_bytes": server.replication.outbound_bytes(), "payload": server.replication.payload_metrics()}))
+	print("SSF_DENSE_RESULT=" + JSON.stringify({"passed": all_complete, "initial_complete": initial_complete, "clients": clients.size(), "recovered": recovered, "recovery_rounds": recovery_rounds, "last_recovery_ticks": last_recovery_ticks, "snapshots": snapshots, "mutation_tick": mutation_tick, "disconnected": disconnected, "max_pending": max_pending, "ticks": tick, "payload_bytes": server.replication.outbound_bytes(), "payload": server.replication.payload_metrics(), "replication_usec": _replication_timing()}))
 	for client in clients: client.stop()
 	server.stop()
 	quit(0 if all_complete else 1)
+
+
+func _replication_timing() -> Dictionary:
+	var sorted := replication_usec.duplicate()
+	sorted.sort()
+	if sorted.is_empty():
+		return {}
+	var total := 0
+	for value in sorted: total += value
+	return {"samples": sorted.size(), "mean": total / sorted.size(),
+		"p50": sorted[sorted.size() / 2], "p95": sorted[clampi(ceili(sorted.size() * 0.95) - 1, 0, sorted.size() - 1)], "max": sorted.back()}
 
 
 func _all_admitted() -> bool:
@@ -118,7 +131,9 @@ func _physics_process(_delta: float) -> bool:
 		# Mirror the production callback's transport work: probes and congestion.
 		server.session.process_pending_connections()
 		server.replication.set_transport_congested_peers(server.session.congested_peers())
+		var replication_started := Time.get_ticks_usec()
 		server.replication.replicate_tick(tick, server.lobby, server.world)
+		replication_usec.append(Time.get_ticks_usec() - replication_started)
 		max_pending = maxi(max_pending, server.replication.payload_metrics().recovery_pending_chunks)
 		max_inflight = maxi(max_inflight, server.replication.payload_metrics().recovery_inflight_chunks_per_peer)
 	return false

@@ -481,6 +481,36 @@ static func _transport_congestion(context: TestContext) -> void:
 		scheduler.replicate_tick(world.server_tick, lobby, world)
 	context.expect_equal(received, {7: 2, 8: 8}, "a congested stream receives one snapshot in four while others are unaffected")
 	context.expect_equal(scheduler.payload_metrics().transport_congested_peers, 1, "metrics report transport-congested peers")
+	_distant_peer_snapshot_rate(context)
+
+
+static func _distant_peer_snapshot_rate(context: TestContext) -> void:
+	# Recovery ACKs from a healthy peer 250 ms away arrive after 15 ticks. Over
+	# TCP that is distance, not backlog, and must not thin its snapshots.
+	var scheduler := NetworkReplicationScheduler.new()
+	var lobby := ServerLobby.new()
+	lobby.admit(7, "Distant")
+	lobby.match_active = true
+	var world := AuthoritativeWorld.new()
+	world.add_peer(7)
+	var snapshots := [0]
+	var acknowledged := [0]
+	var pending_acks: Array[Dictionary] = []
+	var round_trip_ticks := 15
+	scheduler.player_snapshot_ready.connect(func(_peer_id: int, _packet: PackedByteArray) -> void: snapshots[0] += 1)
+	var queue_ack := func(_peer_id: int, packet: PackedByteArray) -> void:
+		pending_acks.append({"due": world.server_tick + round_trip_ticks, "decoded": ProjectilePacketCodec.decode_correction(packet)})
+	scheduler.projectile_recovery_ready.connect(queue_ack)
+	var seconds := 3
+	for unused in seconds * GameConstants.PHYSICS_TICKS_PER_SECOND:
+		world.server_tick += 1
+		while not pending_acks.is_empty() and int(pending_acks[0].due) <= world.server_tick:
+			var decoded: Dictionary = pending_acks.pop_front().decoded
+			scheduler.acknowledge_recovery(7, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
+			acknowledged[0] += 1
+		scheduler.replicate_tick(world.server_tick, lobby, world)
+	context.expect_true(acknowledged[0] >= seconds - 1, "the distant peer exercises delayed recovery acknowledgements")
+	context.expect_equal(snapshots[0], seconds * GameConstants.PLAYER_SNAPSHOT_RATE, "a distant but healthy peer keeps the full snapshot rate")
 
 
 static func _proxy_mode(context: TestContext) -> void:
@@ -603,7 +633,8 @@ static func _recovery_budget(context: TestContext) -> void:
 	var snapshot_counts: Dictionary = {}
 	scheduler.player_snapshot_ready.connect(func(peer: int, _packet: PackedByteArray) -> void: snapshot_counts[peer] = int(snapshot_counts.get(peer, 0)) + 1)
 	for index in 4: scheduler._send_player_snapshots(lobby, world)
-	context.expect_equal(snapshot_counts[1], 2, "stalled peer temporarily receives ten player snapshots per second")
+	# Unacknowledged recovery only bounds recovery; transport probes own snapshot thinning.
+	context.expect_equal(snapshot_counts[1], 4, "unacknowledged recovery does not thin player snapshots")
 	context.expect_equal(snapshot_counts[2], 4, "healthy peer retains full snapshot rate")
 	lobby.remove(1)
 	scheduler._flush_recovery(lobby)

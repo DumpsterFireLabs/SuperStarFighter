@@ -13,6 +13,8 @@ var _owner_heads: Dictionary = {}
 var _owner_cleanup_remaining: Dictionary = {}
 var _active_count: int = 0
 var _mine_count: int = 0
+# Per-owner mine counts, kept with _mine_count so snapshots need not scan.
+var _owner_mine_counts: Dictionary = {}
 var _ordered_head: int = 0
 var revision: int = 0
 var budget_evictions: int = 0
@@ -43,6 +45,7 @@ func add(projectile: ProjectileState) -> Array[int]:
 	_active_count += 1
 	if projectile.is_mine:
 		_mine_count += 1
+		_owner_mine_counts[projectile.owner_id] = mine_count_for_owner(projectile.owner_id) + 1
 	revision += 1
 	_owner_counts[projectile.owner_id] = count_for_owner(projectile.owner_id) + 1
 	var owner_ids := _owner_ordered_ids.get(projectile.owner_id, []) as Array
@@ -80,6 +83,7 @@ func remove(projectile_id: int) -> bool:
 	_active_count -= 1
 	if projectile.is_mine:
 		_mine_count = maxi(_mine_count - 1, 0)
+		_release_owner_mine(projectile.owner_id)
 	revision += 1
 	var slot := int(_slot_by_id.get(projectile_id, -1))
 	_slot_by_id.erase(projectile_id)
@@ -107,6 +111,9 @@ func transfer_owner(projectile_id: int, new_owner_id: int) -> Array[int]:
 	var old_owner_id := projectile.owner_id
 	_remove_owner_tracking(old_owner_id, projectile_id)
 	projectile.owner_id = new_owner_id
+	if projectile.is_mine:
+		_release_owner_mine(old_owner_id)
+		_owner_mine_counts[new_owner_id] = mine_count_for_owner(new_owner_id) + 1
 	_owner_counts[new_owner_id] = count_for_owner(new_owner_id) + 1
 	var owner_ids := _owner_ordered_ids.get(new_owner_id, []) as Array
 	owner_ids.append(projectile_id)
@@ -195,12 +202,15 @@ func mine_limit_global() -> int:
 
 
 func mine_count_for_owner(owner_id: int) -> int:
-	var count := 0
-	for id in _owner_ordered_ids.get(owner_id, []):
-		var projectile := get_projectile(int(id))
-		if projectile != null and projectile.is_mine:
-			count += 1
-	return count
+	return int(_owner_mine_counts.get(owner_id, 0))
+
+
+func _release_owner_mine(owner_id: int) -> void:
+	var remaining := mine_count_for_owner(owner_id) - 1
+	if remaining > 0:
+		_owner_mine_counts[owner_id] = remaining
+	else:
+		_owner_mine_counts.erase(owner_id)
 
 
 func budget_evictions_for_owner(owner_id: int) -> int:
