@@ -80,7 +80,7 @@ This replaces only the repository's local `.tools` engine/template files.
 
 ## 3. Main Menu
 
-The main screen displays **BETA 11 · VERSION 0.1.0-beta.11** so players can confirm they are using the same build before joining one another.
+The main screen displays the build, for example **BETA NN · VERSION 0.1.0-beta.NN**, so players can confirm they are using the same build before joining one another.
 
 The splash screen accepts a keyboard, mouse, or controller press immediately and otherwise advances after ten seconds.
 

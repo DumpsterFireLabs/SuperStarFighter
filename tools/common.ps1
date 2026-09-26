@@ -58,6 +58,16 @@ function Assert-SsfGodotResult {
     }
 }
 
+function Copy-SsfReleaseDocument {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+    & python (Join-Path $PSScriptRoot 'release_metadata.py') render $Source $Destination
+    if ($LASTEXITCODE -ne 0) { throw "Could not render release document $Source." }
+    return $Destination
+}
+
 function Assert-SsfShippingPolicy {
     & python (Join-Path $PSScriptRoot 'update-release-metadata.py')
     if ($LASTEXITCODE -ne 0) { throw 'Release metadata is stale.' }

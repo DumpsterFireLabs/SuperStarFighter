@@ -11,14 +11,14 @@ There are two setups:
 - [Part A — Temporary tunnel](#part-a--temporary-tunnel): one command, a random `https://….trycloudflare.com` address, no domain or account. Good for a quick session or testing.
 - [Part B — Permanent tunnel](#part-b--permanent-tunnel): your own `wss://game.example.com`, the server and tunnel start at boot.
 
-Both need Beta 17 (`0.1.0-beta.17`, protocol 47) or later on every client and the server.
+Both need Beta 17 or later, with every client running the same beta as the server. In the file names below, replace `NN` with that beta number.
 
 ## Requirements
 
 - Ubuntu 22.04 or 24.04, x86_64 or arm64, with outbound internet access and `sudo`.
-- The matching server package from `builds/beta-17/`:
-  - x86_64: `server-linux-x86_64/SuperStarFighter-Beta17-Server-Linux-x64.tar.gz`
-  - arm64: `server-linux-arm64/SuperStarFighter-Beta17-Server-Linux-arm64.tar.gz`
+- The matching server package from `builds/beta-NN/`:
+  - x86_64: `server-linux-x86_64/SuperStarFighter-BetaNN-Server-Linux-x64.tar.gz`
+  - arm64: `server-linux-arm64/SuperStarFighter-BetaNN-Server-Linux-arm64.tar.gz`
 - Python 3 for the admin tool (preinstalled on Ubuntu).
 - Part B only: a domain whose DNS is managed by Cloudflare (a free account is enough).
 
@@ -27,7 +27,7 @@ Check the architecture with `uname -m` (`x86_64` or `aarch64`).
 Copy the package to the host, for example:
 
 ```bash
-scp SuperStarFighter-Beta17-Server-Linux-x64.tar.gz you@your-vps:~
+scp SuperStarFighter-BetaNN-Server-Linux-x64.tar.gz you@your-vps:~
 ```
 
 ## Install cloudflared (both parts)
@@ -47,7 +47,7 @@ cloudflared --version
 
    ```bash
    mkdir -p ~/ssf && cd ~/ssf
-   tar -xzf ~/SuperStarFighter-Beta17-Server-Linux-x64.tar.gz
+   tar -xzf ~/SuperStarFighter-BetaNN-Server-Linux-x64.tar.gz
    chmod +x start-server.sh SuperStarFighter-Server.*
    ```
 
@@ -92,7 +92,7 @@ Program files stay owned by root; the `ssf` service account can only write to `s
 ```bash
 sudo useradd --system --no-create-home --home-dir /var/opt/ssf/state --shell /usr/sbin/nologin ssf
 sudo mkdir -p /var/opt/ssf/state
-sudo tar -xzf ~/SuperStarFighter-Beta17-Server-Linux-x64.tar.gz -C /var/opt/ssf
+sudo tar -xzf ~/SuperStarFighter-BetaNN-Server-Linux-x64.tar.gz -C /var/opt/ssf
 sudo chown root:root /var/opt/ssf && sudo chmod 755 /var/opt/ssf
 sudo chmod 755 /var/opt/ssf/start-server.sh /var/opt/ssf/SuperStarFighter-Server.*
 sudo chown ssf:ssf /var/opt/ssf/state && sudo chmod 700 /var/opt/ssf/state

@@ -23,7 +23,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from release_metadata import load_release
+from release_metadata import load_release, render_file
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
@@ -296,9 +296,10 @@ def write_zip(archive, entries):
             raise GateError(f"Archive verification failed: {archive}")
 
 
-def client_documents(linux=False):
+def client_documents(release, output, linux=False):
     suffix = "-LINUX" if linux else ""
-    return [(f"README-BETA{suffix}.txt", ROOT / "docs/BETA_README.txt", False),
+    readme = render_file(ROOT / "docs/BETA_README.txt", output / f"README-BETA{suffix}.txt", release)
+    return [(readme.name, readme, False),
             (f"THIRD-PARTY-NOTICES{suffix}.txt", ROOT / "docs/THIRD_PARTY_NOTICES.txt", False),
             ("GODOT_COPYRIGHT.txt", ROOT / "docs/GODOT_COPYRIGHT.txt", False),
             ("LICENSE.txt", ROOT / "LICENSE", False),
@@ -370,7 +371,7 @@ def windows_version_present(data, version):
 
 def build_windows(godot, release, output):
     client = output / f"SuperStarFighter-{release['tag']}.exe"
-    export(godot, f"Windows {release['label']}", client)
+    export(godot, "Windows Client", client)
     audit(client, output / "client-package-audit.json")
     if not windows_version_present(client.read_bytes(), release["platform_version"]):
         raise GateError(f"Exported Windows file/product version is not {release['platform_version']}.")
@@ -380,14 +381,14 @@ def build_windows(godot, release, output):
     else:
         print("SKIP Launch smoke: requires a Windows x64 host.")
     archive = output / f"SuperStarFighter-{release['tag']}-Windows-x64.zip"
-    write_zip(archive, [(client.name, client, True), *client_documents()])
+    write_zip(archive, [(client.name, client, True), *client_documents(release, output)])
     return [archive]
 
 
 def build_linux(godot, release, output, arch):
     arm = arch == "arm64"
     client = output / f"SuperStarFighter-{release['tag']}.{arch}"
-    export(godot, f"Linux {'ARM64 ' if arm else ''}{release['label']}", client)
+    export(godot, f"Linux {'ARM64 ' if arm else ''}Client", client)
     audit(client, output / f"linux-{arch}-package-audit.json")
     data = client.read_bytes()
     if data[:4] != b"\x7fELF" or data[4] != 2 or data[5] != 1 or data[18:20] != bytes([0xB7 if arm else 0x3E, 0]):
@@ -400,7 +401,7 @@ def build_linux(godot, release, output, arch):
     else:
         print(f"SKIP Launch smoke: requires a Linux {arch} host with a display.")
     archive = output / f"SuperStarFighter-{release['tag']}-Linux-{'arm64' if arm else 'x64'}.zip"
-    write_zip(archive, [(client.name, client, True), *client_documents(linux=True)])
+    write_zip(archive, [(client.name, client, True), *client_documents(release, output, linux=True)])
     return [archive]
 
 
@@ -416,7 +417,7 @@ def entry_contains(bundle, entry, text):
 
 def build_macos(godot, release, output):
     archive = output / f"SuperStarFighter-{release['tag']}-macOS-universal.zip"
-    export(godot, f"macOS {release['label']}", archive)
+    export(godot, "macOS Client", archive)
     with zipfile.ZipFile(archive) as bundle:
         entries = bundle.infolist()
         executable = next((e for e in entries if re.search(r"\.app/Contents/MacOS/[^/]+$", e.filename)), None)
@@ -442,7 +443,7 @@ def build_macos(godot, release, output):
                    for e in entries):
             raise GateError(f"macOS export does not contain the packaged version {release['version']}.")
         existing = set(bundle.namelist())
-    documents = [(name, source) for name, source, _ in client_documents()]
+    documents = [(name, source) for name, source, _ in client_documents(release, output)]
     if existing & {name for name, _ in documents}:
         raise GateError("macOS export unexpectedly already contains release documents.")
     with zipfile.ZipFile(archive, "a", zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
@@ -467,7 +468,10 @@ def build_windows_server(godot, release, output):
     payload = [(ROOT / "docs" / name, name) for name in ("THIRD_PARTY_NOTICES.txt", "GODOT_COPYRIGHT.txt", "SERVER_README.txt")]
     payload += [(ROOT / "LICENSE", "LICENSE.txt"), (TOOLS / "start-server.ps1", "start-server.ps1"), (TOOLS / "admin.ps1", "admin.ps1")]
     for source, name in payload:
-        shutil.copyfile(source, folder / name)
+        if name == "SERVER_README.txt":
+            render_file(source, folder / name, release)
+        else:
+            shutil.copyfile(source, folder / name)
     if can_run("Windows", "x86_64"):
         smoke_server(server, folder / "server-smoke.log")
         shell = shutil.which("pwsh") or shutil.which("powershell")

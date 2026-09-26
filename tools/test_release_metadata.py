@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
-from release_metadata import ROOT, load_release
+from release_metadata import ROOT, load_release, render
 
 spec = importlib.util.spec_from_file_location("update_release", ROOT / "tools/update-release-metadata.py")
 updater = importlib.util.module_from_spec(spec)
@@ -26,14 +26,25 @@ class ReleaseMetadataTests(unittest.TestCase):
             (root / "release.json").write_text(json.dumps({"version": "1.2.3-beta.42", "protocol_version": 99, "packet_version": 20}))
             result = {path: after for path, _, after in updater.updates(root)}
             self.assertIn('config/version="1.2.3-beta.42"', result["project.godot"])
-            self.assertIn('const RELEASE_LABEL: String = "BETA 42"', result["src/shared/game_constants.gd"])
-            self.assertIn("99 (binary packets 20)", result["docs/DEVELOPMENT.md"])
+            self.assertIn("const PROTOCOL_VERSION: int = 99", result["src/shared/game_constants.gd"])
+            self.assertIn("const PACKET_VERSION: int = 20", result["src/shared/network/network_protocol.gd"])
             exports = result["export_presets.cfg"]
-            for filename in ("SuperStarFighter-Beta42.exe", "SuperStarFighter-Beta42.arm64", "SuperStarFighter-Beta42.x86_64", "SuperStarFighter-Beta42-macOS-universal.zip", "server/SuperStarFighter-Server.exe", "server-linux-arm64/SuperStarFighter-Server.arm64"):
-                self.assertIn(f'export_path="builds/beta-42/{filename}"', exports)
             self.assertIn('application/file_version="1.2.3.42"', exports)
             self.assertIn('application/version="1.2.3.42"', exports)
             self.assertIn('application/short_version="1.2.3"', exports)
+            self.assertNotRegex(exports, r"(?i)beta ?\d|beta-\d")
+
+    def test_documents_render_release_placeholders(self):
+        release = load_release()
+        text = render("{{LABEL}} {{VERSION}} SuperStarFighter-{{TAG}} protocol {{PROTOCOL}}/{{PACKET}}", release)
+        self.assertEqual(text, f"{release['label']} {release['version']} SuperStarFighter-{release['tag']} "
+                               f"protocol {release['protocol_version']}/{release['packet_version']}")
+        with self.assertRaises(ValueError):
+            render("{{UNKNOWN}}", release)
+        for name in ("BETA_README.txt", "SERVER_README.txt"):
+            rendered = render((ROOT / "docs" / name).read_text(encoding="utf-8"), release)
+            self.assertIn(release["version"], rendered)
+            self.assertNotIn("{{", rendered)
 
     def test_invalid_identity_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=ROOT / ".tools") as directory:
