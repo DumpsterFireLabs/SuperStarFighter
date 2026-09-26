@@ -136,6 +136,10 @@ func start_client(
 	_client_protocol_version = protocol_version
 	_client_password = lobby_password
 	_client_url = transport_url(host, port)
+	if _client_url.is_empty():
+		last_error = "Invalid server address %s." % host.strip_edges()
+		role = NetworkBridge.Role.NONE
+		return ERR_INVALID_PARAMETER
 	_server_loss_reported = false
 	_connect_attempts = 1
 	_connect_deadline = _now_seconds() + NetworkProtocol.TRANSPORT_CONNECT_WINDOW_SECONDS
@@ -285,8 +289,13 @@ static func transport_url(host: String, port: int) -> String:
 	# Full URLs (e.g. wss://game.example.com behind Cloudflare) carry their own port.
 	if address.to_lower().begins_with("ws://") or address.to_lower().begins_with("wss://"):
 		return address
-	if address.contains(":") and not address.begins_with("[") and address.is_valid_ip_address():
-		address = "[%s]" % address
+	# Outside a URL, a colon or bracket is only valid around an IPv6 literal;
+	# anything else (e.g. an accidental host:port) yields "" rather than a bad URL.
+	if address.contains(":") or address.contains("[") or address.contains("]"):
+		var literal := NetworkProtocol.unbracketed_ipv6(address)
+		if literal.is_empty():
+			return ""
+		address = "[%s]" % literal
 	return "ws://%s:%d" % [address, port]
 
 
