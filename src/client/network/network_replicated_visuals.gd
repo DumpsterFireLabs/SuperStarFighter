@@ -242,6 +242,8 @@ func _emit_weapon_shot(
 
 func _update_remote_ships() -> void:
 	var now := context.now_seconds()
+	interpolation.adaptive = bool(context.accessibility_settings.get("adaptive_smoothing", true))
+	interpolation.update_delay(snapshot_jitter_ms / 1000.0, now)
 	for peer_value in ships.keys():
 		var peer_id := int(peer_value)
 		if peer_id == context.local_peer_id:

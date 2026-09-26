@@ -317,7 +317,7 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			visuals.snapshot_jitter_ms,
 			visuals.snapshot_gap_count,
 			extrapolation_percent,
-			roundi(RemoteInterpolator.INTERPOLATION_DELAY_SECONDS * 1000.0),
+			roundi(visuals.interpolation.delay_seconds * 1000.0),
 			local_prediction.prediction.last_reconciliation_error,
 			local_prediction.prediction.snap_count,
 			local_prediction.prediction.buffered_inputs.size(),

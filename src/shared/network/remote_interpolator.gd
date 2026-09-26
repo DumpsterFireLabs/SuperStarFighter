@@ -1,10 +1,22 @@
 class_name RemoteInterpolator
 extends RefCounted
 
+# The delay never drops below this floor, so a stable connection renders
+# remote ships exactly as before. With adaptive smoothing, measured snapshot
+# jitter (TCP retransmission stalls arrive as late bursts) raises it toward
+# the cap: every added millisecond is an older view of opponents, so the cap
+# stays low. It moves gradually so rendered ships never jump back in time.
 const INTERPOLATION_DELAY_SECONDS: float = 0.1
+const MAX_ADAPTIVE_DELAY_SECONDS: float = 0.175
+const ADAPTIVE_JITTER_MARGIN: float = 2.5
+const ADAPTIVE_RISE_PER_SECOND: float = 0.1
+const ADAPTIVE_DECAY_PER_SECOND: float = 0.025
 const MAX_EXTRAPOLATION_SECONDS: float = 0.1
 const MAX_SAMPLES_PER_PEER: int = 32
 
+var adaptive: bool = true
+var delay_seconds: float = INTERPOLATION_DELAY_SECONDS
+var _last_delay_update: float = -1.0
 var _samples: Dictionary = {}
 var _clock_offset_seconds: float = 0.0
 var _clock_initialized: bool = false
@@ -30,7 +42,7 @@ func sample(peer_id: int, now_seconds: float) -> Dictionary:
 	if peer_samples.is_empty():
 		return {"ok": false}
 	var estimated_server_time := now_seconds - _clock_offset_seconds if _clock_initialized else now_seconds
-	var render_time := estimated_server_time - INTERPOLATION_DELAY_SECONDS
+	var render_time := estimated_server_time - delay_seconds
 	var before: Dictionary = peer_samples[0]
 	var after: Dictionary = peer_samples[peer_samples.size() - 1]
 	for item_value in peer_samples:
@@ -67,12 +79,31 @@ func sample(peer_id: int, now_seconds: float) -> Dictionary:
 	}
 
 
+## Moves the delay toward the target for the measured arrival jitter (mean
+## absolute deviation from the snapshot interval). Call once per render frame.
+func update_delay(jitter_seconds: float, now_seconds: float) -> void:
+	var elapsed := clampf(now_seconds - _last_delay_update, 0.0, 0.25) if _last_delay_update >= 0.0 else 0.0
+	_last_delay_update = now_seconds
+	var target := INTERPOLATION_DELAY_SECONDS
+	if adaptive and is_finite(jitter_seconds):
+		target = clampf(1.0 / GameConstants.PLAYER_SNAPSHOT_RATE + ADAPTIVE_JITTER_MARGIN * maxf(jitter_seconds, 0.0),
+			INTERPOLATION_DELAY_SECONDS, MAX_ADAPTIVE_DELAY_SECONDS)
+	if not adaptive:
+		delay_seconds = target
+	elif target > delay_seconds:
+		delay_seconds = minf(target, delay_seconds + ADAPTIVE_RISE_PER_SECOND * elapsed)
+	else:
+		delay_seconds = maxf(target, delay_seconds - ADAPTIVE_DECAY_PER_SECOND * elapsed)
+
+
 func remove_peer(peer_id: int) -> void:
 	_samples.erase(peer_id)
 
 
 func clear() -> void:
 	_samples.clear()
+	delay_seconds = INTERPOLATION_DELAY_SECONDS
+	_last_delay_update = -1.0
 	_clock_offset_seconds = 0.0
 	_clock_initialized = false
 	_last_clock_server_tick = -1

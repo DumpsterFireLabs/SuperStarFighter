@@ -333,7 +333,9 @@ During a match, ten-second metric windows include connected peers, participants,
 
 Do not log every input frame, unbounded collections, or client IP addresses. New logs must pass through the bridge's bounded logging helper.
 
-Client `F3` diagnostics expose local FPS, round-trip time and variance from a 1 Hz application ping, snapshot arrival jitter and gaps, interpolation extrapolation rate, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment.
+`RemoteInterpolator` renders remote ships at least 100 ms behind the server. With the default *Adaptive motion smoothing* preference, measured snapshot jitter raises that delay toward the snapshot interval plus 2.5 times the jitter, capped at 175 ms, rising by at most 100 ms per second and falling by 25 ms per second so rendered ships never jump back in time. With no lag compensation, a larger delay means an older view of opponents, so the cap stays low and the floor is unchanged.
+
+Client `F3` diagnostics expose local FPS, round-trip time and variance from a 1 Hz application ping, snapshot arrival jitter and gaps, interpolation extrapolation rate and the live interpolation delay, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment.
 
 ## 11. Verification Matrix
 

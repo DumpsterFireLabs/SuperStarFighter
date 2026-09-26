@@ -569,7 +569,7 @@ For a break or intermission, the host can choose **Pause Match for Everyone** in
 
 The host can also press **F10** to toggle global pause, including while the pilot menu is open. Rebind **Pause / Resume Match (Host Only)** in Settings → Controls; the menu and intermission notice show the current binding. The controller profile leaves this shortcut unbound by default; assign a spare button or use the pilot menu. Holding the shortcut does not repeatedly toggle pause.
 
-The configured diagnostics action (`F3` or Y / Triangle by default) shows frame rate, round-trip time and variance (measured by a once-per-second ping), snapshot jitter and gaps, interpolation extrapolation, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment. It is primarily a playtest and troubleshooting tool.
+The configured diagnostics action (`F3` or Y / Triangle by default) shows frame rate, round-trip time and variance (measured by a once-per-second ping), snapshot jitter and gaps, interpolation extrapolation and the current remote-ship delay, prediction error/snaps, pending replay inputs, expired predicted shots, and the latest input acknowledgment. It is primarily a playtest and troubleshooting tool.
 
 ## 10. Settings, Controls, and Audio
 
@@ -625,6 +625,7 @@ The **Accessibility** tab provides:
 - **Disable camera shake and boost kick**, which suppresses both impact shake and Afterburner camera movement.
 - **Reduce combat flashes**, which reduces bright hit, shield, elimination, and boost flashes while retaining damage information and impact cues.
 - **Keep HUD within a centered 16:9 area**, enabled by default, which keeps important readouts near the center on ultrawide displays. Disable it to use the full display width.
+- **Adaptive motion smoothing on unstable connections**, enabled by default. Other ships are always shown about 100 ms behind the server so their movement stays smooth. When updates arrive unevenly, this raises that delay gradually, to at most 175 ms, to avoid stutter and snapping, and lowers it again once the connection settles. A stable connection is unaffected. Disable it to keep the most current view of opponents at the cost of visible stutter on a poor connection.
 
 These options apply immediately to online play and the offline laboratory. Navigate settings with `Tab` / `Shift+Tab` or the controller D-pad; left / right adjusts HUD size. The settings tabs and toggles also support controller navigation.
 
