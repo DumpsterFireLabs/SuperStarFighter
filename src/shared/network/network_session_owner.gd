@@ -34,6 +34,10 @@ var _last_heard: Dictionary = {}
 var _last_server_heard: float = 0.0
 var _server_loss_reported: bool = false
 var _behind_proxy: bool = false
+# peer_id -> {baseline_ms, queue_delay_ms, outstanding: {sent_usec: true}, congested, next_probe}
+var _probes: Dictionary = {}
+var _congested_peers: Dictionary = {}
+signal probe_requested(peer_id: int, server_usec: int)
 var _proxy_failure_limiter := AuthenticationAttemptLimiterScript.new()
 var _next_proxy_challenge: float = 0.0
 ## Test hook: trusts this certificate chain for wss:// instead of system roots.
@@ -79,7 +83,7 @@ func start_server(configuration: Dictionary, match_config: MatchConfig) -> Error
 	_ban_file_path = String(configuration.get("ban_file", "user://server-bans.json"))
 	_load_blocked_sources()
 	_discovery_instance_id = "%x-%x" % [Time.get_ticks_msec(), runtime.get_instance_id()]
-	_transport_peer = _new_transport_peer()
+	_transport_peer = _new_transport_peer(NetworkProtocol.SERVER_INBOUND_BUFFER_BYTES, NetworkProtocol.SERVER_OUTBOUND_BUFFER_BYTES)
 	_peer_capacity = match_config.max_players + NetworkProtocol.AUTH_RESERVED_PEERS
 	_behind_proxy = bool(configuration.get("behind_proxy", false))
 	var bind_address := String(configuration.get("bind_address", "*"))
@@ -150,7 +154,7 @@ func start_client(
 
 
 func _open_client_transport() -> Error:
-	_transport_peer = _new_transport_peer()
+	_transport_peer = _new_transport_peer(NetworkProtocol.CLIENT_INBOUND_BUFFER_BYTES, NetworkProtocol.CLIENT_OUTBOUND_BUFFER_BYTES)
 	var tls: TLSOptions = null
 	if _client_url.to_lower().begins_with("wss://"):
 		tls = TLSOptions.client(tls_trusted_chain) if tls_trusted_chain != null else TLSOptions.client()
@@ -194,6 +198,8 @@ func stop() -> void:
 	_pending_handshakes.clear()
 	_pending_disconnects.clear()
 	_last_heard.clear()
+	_probes.clear()
+	_congested_peers.clear()
 	_behind_proxy = false
 	_proxy_failure_limiter.clear()
 	_next_proxy_challenge = 0.0
@@ -282,11 +288,11 @@ static func transport_url(host: String, port: int) -> String:
 	return "ws://%s:%d" % [address, port]
 
 
-static func _new_transport_peer() -> WebSocketMultiplayerPeer:
+static func _new_transport_peer(inbound_bytes: int, outbound_bytes: int) -> WebSocketMultiplayerPeer:
 	var peer := WebSocketMultiplayerPeer.new()
 	peer.handshake_timeout = NetworkProtocol.TRANSPORT_HANDSHAKE_TIMEOUT_SECONDS
-	peer.inbound_buffer_size = NetworkProtocol.TRANSPORT_BUFFER_BYTES
-	peer.outbound_buffer_size = NetworkProtocol.TRANSPORT_BUFFER_BYTES
+	peer.inbound_buffer_size = inbound_bytes
+	peer.outbound_buffer_size = outbound_bytes
 	peer.max_queued_packets = NetworkProtocol.TRANSPORT_MAX_QUEUED_PACKETS
 	return peer
 
@@ -324,6 +330,8 @@ func _on_server_peer_connected(peer_id: int) -> void:
 func _on_server_peer_disconnected(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
 	_last_heard.erase(peer_id)
+	_probes.erase(peer_id)
+	_congested_peers.erase(peer_id)
 	_peer_auth_sources.erase(peer_id)
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
@@ -532,6 +540,7 @@ func process_pending_connections() -> void:
 		for peer_id in _pending_handshakes.expired(now):
 			reject_connection(peer_id, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT)
 	_start_queued_handshakes()
+	_process_probes(Time.get_ticks_usec())
 	for peer_value in _last_heard.keys():
 		if now - float(_last_heard[peer_value]) > NetworkProtocol.TRANSPORT_IDLE_TIMEOUT_SECONDS:
 			var peer_id := int(peer_value)
@@ -582,6 +591,58 @@ func reject_malformed_control(peer_id: int, detail: String) -> void:
 func complete_handshake(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
 	_last_heard[peer_id] = _now_seconds()
+	_probes[peer_id] = {"baseline_ms": INF, "queue_delay_ms": 0.0, "outstanding": {}, "congested": false, "next_probe": 0}
+
+
+func _process_probes(now_usec: int) -> void:
+	for peer_value in _probes.keys():
+		var state: Dictionary = _probes[peer_value]
+		var outstanding: Dictionary = state.outstanding
+		# An unanswered probe is at least this late; count it before its ack arrives.
+		if not outstanding.is_empty() and is_finite(float(state.baseline_ms)):
+			var oldest_ms := (now_usec - int(outstanding.keys().min())) / 1000.0
+			_update_congestion(int(peer_value), state, maxf(float(state.queue_delay_ms), oldest_ms - float(state.baseline_ms)))
+		if now_usec < int(state.next_probe) or outstanding.size() >= NetworkProtocol.TRANSPORT_PROBE_MAX_OUTSTANDING:
+			continue
+		state.next_probe = now_usec + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0)
+		outstanding[now_usec] = true
+		probe_requested.emit(int(peer_value), now_usec)
+
+
+## Server-side round trip for one probe; queueing shows as delay above baseline.
+func record_probe_ack(peer_id: int, server_usec: int, now_usec: int = -1) -> void:
+	var state: Dictionary = _probes.get(peer_id, {})
+	if state.is_empty() or not (state.outstanding as Dictionary).erase(server_usec):
+		return
+	if now_usec < 0:
+		now_usec = Time.get_ticks_usec()
+	var rtt_ms := (now_usec - server_usec) / 1000.0
+	if rtt_ms < 0.0:
+		return
+	# Let the baseline creep upward (1 ms per probe) so a route change is learned.
+	var baseline := minf(float(state.baseline_ms) + 1.0, rtt_ms) if is_finite(float(state.baseline_ms)) else rtt_ms
+	state.baseline_ms = baseline
+	state.queue_delay_ms = rtt_ms - baseline
+	_update_congestion(peer_id, state, float(state.queue_delay_ms))
+
+
+func _update_congestion(peer_id: int, state: Dictionary, queue_delay_ms: float) -> void:
+	var was_congested := bool(state.congested)
+	# Hysteresis between the enter and exit thresholds avoids flapping per probe.
+	var congested := queue_delay_ms > NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS if not was_congested else queue_delay_ms > NetworkProtocol.TRANSPORT_CONGESTION_EXIT_MS
+	if congested == was_congested:
+		return
+	state.congested = congested
+	if congested:
+		_congested_peers[peer_id] = true
+	else:
+		_congested_peers.erase(peer_id)
+	log_requested.emit("warning" if congested else "info", "peer_transport_congested" if congested else "peer_transport_recovered", {"peer_id": peer_id, "queue_delay_ms": roundi(queue_delay_ms)})
+
+
+## Peers whose outbound stream is backlogged; read by replication each tick.
+func congested_peers() -> Dictionary:
+	return _congested_peers
 
 
 ## Refreshes an admitted peer's liveness deadline.
@@ -662,6 +723,8 @@ func accept_input(sender_id: int, decoded: Dictionary) -> bool:
 
 func forget_admission(peer_id: int) -> void:
 	_last_heard.erase(peer_id)
+	_probes.erase(peer_id)
+	_congested_peers.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
 	_control_rate_limiter.remove_peer(peer_id)
 	_malformed_control_strikes.erase(peer_id)

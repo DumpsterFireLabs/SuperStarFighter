@@ -13,8 +13,21 @@ const CHANNEL_OBJECTIVE: int = 5
 const CHANNEL_COUNT: int = 6
 # One WebSocket (TCP) stream per peer carries every channel in order.
 const TRANSPORT_HANDSHAKE_TIMEOUT_SECONDS: float = 5.0
-const TRANSPORT_BUFFER_BYTES: int = 1 << 20
-const TRANSPORT_MAX_QUEUED_PACKETS: int = 4096
+# Buffers are per peer. Clients send at most ADMIN_MAX_MESSAGE_BYTES, so the
+# server's inbound side stays small; its outbound side and the client's inbound
+# side must hold the largest reliable message (end-of-match builds) plus bursts.
+const SERVER_INBOUND_BUFFER_BYTES: int = 1 << 16
+const SERVER_OUTBOUND_BUFFER_BYTES: int = 1 << 19
+const CLIENT_INBOUND_BUFFER_BYTES: int = 1 << 20
+const CLIENT_OUTBOUND_BUFFER_BYTES: int = 1 << 16
+const TRANSPORT_MAX_QUEUED_PACKETS: int = 2048
+# TCP hides congestion inside the OS send buffer. The server probes each peer's
+# round trip; delay above that peer's baseline means replaceable streams are
+# queueing, so they are thinned until the backlog drains.
+const TRANSPORT_PROBE_INTERVAL_SECONDS: float = 0.25
+const TRANSPORT_PROBE_MAX_OUTSTANDING: int = 16
+const TRANSPORT_CONGESTION_ENTER_MS: float = 150.0
+const TRANSPORT_CONGESTION_EXIT_MS: float = 50.0
 const TRANSPORT_PING_INTERVAL_SECONDS: float = 1.0
 const TRANSPORT_CONNECT_ATTEMPTS: int = 12
 const TRANSPORT_CONNECT_WINDOW_SECONDS: float = 10.0

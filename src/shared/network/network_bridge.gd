@@ -81,10 +81,12 @@ func _init() -> void:
 	session.peer_departed.connect(_on_session_peer_departed)
 	session.request_rejected.connect(_reject_request)
 	session.stopped.connect(_on_session_stopped)
+	session.probe_requested.connect(func(peer_id: int, server_usec: int) -> void: transport_probe.rpc_id(peer_id, server_usec))
 	replication = NetworkReplicationScheduler.new()
 	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: world_snapshot.rpc_id(peer_id, packet))
 	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
-	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet]))
+	# Periodic corrections are replaceable; a backlogged TCP peer receives the next one instead of queueing this one.
+	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet], replication.transport_congested_peers()))
 	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: projectile_recovery.rpc_id(peer_id, packet))
 	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
 	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
@@ -355,6 +357,7 @@ func _physics_process(delta: float) -> void:
 			_broadcast_lobby_state()
 	var coordination_done_usec := Time.get_ticks_usec()
 	var tick := world.server_tick
+	replication.set_transport_congested_peers(session.congested_peers())
 	replication.replicate_tick(tick, lobby, world)
 	var replication_done_usec := Time.get_ticks_usec()
 	# A heat result may produce a row for every player. Preserve all JSON lines
@@ -838,6 +841,26 @@ func transport_pong(client_usec: int) -> void:
 		session.record_round_trip(elapsed_usec / 1000.0)
 
 
+# Server-originated probe: its round trip includes queueing in the server's
+# outbound TCP stream, which the client's own ping cannot observe.
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_probe(server_usec: int) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	transport_probe_ack.rpc_id(NetworkProtocol.SERVER_PEER_ID, server_usec)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_probe_ack(server_usec: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "transport_probe_ack"):
+		return
+	session.note_peer_alive(sender_id)
+	session.record_probe_ack(sender_id, server_usec)
+
+
 @rpc("any_peer", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_INPUT)
 func submit_input(packet: PackedByteArray) -> void:
 	_accept_input_packet(packet)
@@ -1209,11 +1232,11 @@ func _send_control_to_peer(peer_id: int, method: StringName, arguments: Array) -
 	callv(&"rpc_id", [peer_id, method] + arguments)
 
 
-func _broadcast_to_admitted(method: StringName, arguments: Array) -> void:
+func _broadcast_to_admitted(method: StringName, arguments: Array, excluded: Dictionary = {}) -> void:
 	if role != Role.SERVER or lobby == null: return
 	var recipients: Array[int] = []
 	for peer_id in lobby.human_peer_ids_view():
-		if session.can_send_to(peer_id): recipients.append(peer_id)
+		if session.can_send_to(peer_id) and not excluded.has(peer_id): recipients.append(peer_id)
 	if recipients.is_empty(): return
 	if method in [&"lobby_state", &"match_event", &"objective_snapshot"]:
 		replication.record_payload("control", var_to_bytes(arguments).size() * recipients.size())

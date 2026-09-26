@@ -68,6 +68,7 @@ static func run(context: TestContext) -> void:
 	_admission_queue(context)
 	_transport_liveness(context)
 	_proxy_mode(context)
+	_transport_congestion(context)
 	_server_health(context)
 	_admin_restart(context)
 	_server_log_batching(context)
@@ -382,6 +383,57 @@ static func _transport_liveness(context: TestContext) -> void:
 	owner.forget_admission(6)
 	context.expect_true(owner._last_heard.is_empty(), "forgotten admissions drop their liveness deadline")
 	runtime.free()
+
+
+static func _transport_congestion(context: TestContext) -> void:
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	owner.role = NetworkBridge.Role.SERVER
+	var probes: Array[int] = []
+	owner.probe_requested.connect(func(peer_id: int, _server_usec: int) -> void: probes.append(peer_id))
+	owner.complete_handshake(7)
+	owner._process_probes(1_000_000)
+	owner._process_probes(1_100_000)
+	context.expect_equal(probes, [7], "admitted peers are probed at most once per probe interval")
+	owner._process_probes(1_000_000 + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0))
+	context.expect_equal(probes, [7, 7], "probing repeats after the interval")
+	owner.record_probe_ack(7, 1_000_000, 1_020_000)
+	context.expect_false(owner.congested_peers().has(7), "a probe at baseline round trip is not congestion")
+	owner.record_probe_ack(7, 424_242, 2_000_000)
+	context.expect_false(owner.congested_peers().has(7), "unknown or duplicate probe acknowledgements are ignored")
+	var second := 1_000_000 + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0)
+	owner.record_probe_ack(7, second, second + 20_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 10_000)
+	context.expect_true(owner.congested_peers().has(7), "round trip well above the baseline marks the stream congested")
+	owner._probes[7].outstanding[3_000_000] = true
+	owner.record_probe_ack(7, 3_000_000, 3_000_000 + 20_000 + int((NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS + NetworkProtocol.TRANSPORT_CONGESTION_EXIT_MS) * 500.0))
+	context.expect_true(owner.congested_peers().has(7), "hysteresis keeps a congested stream thinned between the thresholds")
+	owner._probes[7].outstanding[4_000_000] = true
+	owner.record_probe_ack(7, 4_000_000, 4_021_000)
+	context.expect_false(owner.congested_peers().has(7), "a drained stream leaves congestion")
+	owner._probes[7].outstanding[5_000_000] = true
+	owner._probes[7].next_probe = 9_000_000
+	owner._process_probes(5_000_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.congested_peers().has(7), "an unanswered probe counts as queueing before its ack arrives")
+	owner.forget_admission(7)
+	context.expect_true(owner.congested_peers().is_empty() and owner._probes.is_empty(), "departed peers leave the congestion set")
+	runtime.free()
+	var scheduler := NetworkReplicationScheduler.new()
+	var lobby := ServerLobby.new()
+	lobby.admit(7, "Slow")
+	lobby.admit(8, "Fast")
+	lobby.match_active = true
+	var world := AuthoritativeWorld.new()
+	world.add_peer(7)
+	world.add_peer(8)
+	var received := {7: 0, 8: 0}
+	scheduler.player_snapshot_ready.connect(func(peer_id: int, _packet: PackedByteArray) -> void: received[peer_id] += 1)
+	scheduler.set_transport_congested_peers({7: true})
+	var snapshot_interval := GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE
+	for round_index in 8:
+		world.server_tick = (round_index + 1) * snapshot_interval
+		scheduler.replicate_tick(world.server_tick, lobby, world)
+	context.expect_equal(received, {7: 2, 8: 8}, "a congested stream receives one snapshot in four while others are unaffected")
+	context.expect_equal(scheduler.payload_metrics().transport_congested_peers, 1, "metrics report transport-congested peers")
 
 
 static func _proxy_mode(context: TestContext) -> void:
