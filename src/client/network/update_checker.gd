@@ -7,6 +7,8 @@ extends Node
 signal update_available(version: String, url: String)
 
 const LATEST_RELEASE_URL: String = "https://api.github.com/repos/DumpsterFireLabs/SuperStarFighter/releases/latest"
+const RELEASES_PAGE_PREFIX: String = "https://github.com/DumpsterFireLabs/SuperStarFighter/releases/"
+const FALLBACK_RELEASE_PAGE: String = RELEASES_PAGE_PREFIX + "latest"
 const REQUEST_TIMEOUT_SECONDS: float = 8.0
 
 var _request: HTTPRequest
@@ -36,12 +38,23 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if tag.is_empty() or bool(release.get("draft", false)):
 		return
 	if is_newer(tag, current_version):
-		update_available.emit(tag.trim_prefix("v"), str(release.get("html_url", "")))
+		update_available.emit(tag.trim_prefix("v"), release_page_url(str(release.get("html_url", ""))))
 
 
 func _finish() -> void:
 	if _request != null:
 		_request.queue_free()
+		_request = null
+
+
+## The page URL comes off the network and is handed to the OS, so only this
+## repository's release pages are ever opened; anything else falls back.
+static func release_page_url(candidate: String) -> String:
+	var url := candidate.strip_edges()
+	var path := url.trim_prefix(RELEASES_PAGE_PREFIX)
+	if not url.begins_with(RELEASES_PAGE_PREFIX) or path.is_empty() or path.contains("..") or path.contains("?") or path.contains("#") or path.contains("@"):
+		return FALLBACK_RELEASE_PAGE
+	return url
 
 
 ## Semantic-version comparison that understands this project's tags, e.g.

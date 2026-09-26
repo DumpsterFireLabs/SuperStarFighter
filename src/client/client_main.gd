@@ -491,7 +491,7 @@ func _create_update_notice() -> void:
 
 
 func _on_update_available(version: String, url: String) -> void:
-	_pending_update_url = url if not url.is_empty() else "https://github.com/DumpsterFireLabs/SuperStarFighter/releases/latest"
+	_pending_update_url = url
 	update_notice.dialog_text = "Super Star Fighter %s is out — you're on %s.\nGrab the new build so you can keep joining the latest servers." % [version, GameConstants.GAME_VERSION]
 	_show_pending_update_notice()
 
@@ -554,6 +554,7 @@ func _hide_settings() -> void:
 			connection_controller.focus_menu()
 	settings_return_to_pause = false
 	settings_return_to_lobby = false
+	_show_pending_update_notice()
 
 
 func _create_credits_overlay() -> void:

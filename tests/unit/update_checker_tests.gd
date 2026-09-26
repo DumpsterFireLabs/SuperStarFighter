@@ -14,3 +14,7 @@ static func run(context: TestContext) -> void:
 	context.expect_true(UpdateChecker.is_newer("v0.1.0-rc.1", "0.1.0-beta.18"), "release candidates follow betas")
 	context.expect_false(UpdateChecker.is_newer("v0.1", "0.1.0"), "missing patch numbers count as zero")
 	context.expect_equal(UpdateChecker.compare_versions("0.1.0-beta.18+build.7", "0.1.0-beta.18"), 0, "build metadata is ignored")
+	context.expect_equal(UpdateChecker.release_page_url(" https://github.com/DumpsterFireLabs/SuperStarFighter/releases/tag/v0.1.0-beta.19 "), "https://github.com/DumpsterFireLabs/SuperStarFighter/releases/tag/v0.1.0-beta.19", "a genuine release page is opened as given")
+	context.expect_equal(UpdateChecker.release_page_url("https://evil.example/releases/tag/v9"), UpdateChecker.FALLBACK_RELEASE_PAGE, "a foreign host falls back to the project release page")
+	context.expect_equal(UpdateChecker.release_page_url("file:///C:/Windows/System32/calc.exe"), UpdateChecker.FALLBACK_RELEASE_PAGE, "non-web schemes are never opened")
+	context.expect_equal(UpdateChecker.release_page_url(""), UpdateChecker.FALLBACK_RELEASE_PAGE, "a missing page URL falls back to the project release page")
