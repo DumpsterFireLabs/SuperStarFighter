@@ -17,6 +17,10 @@ var _synchronized_peers: Dictionary = {}
 var _recovery_clock: int = 0
 # Peers whose outbound TCP stream is backlogged (see NetworkSessionOwner probes).
 var _transport_congested: Dictionary = {}
+# Peers so far behind that replaceable streams are paused (a copy, so starts
+# and finishes can be detected), and the union excluded from those streams.
+var _transport_resyncing: Dictionary = {}
+var _replaceable_excluded: Dictionary = {}
 var _snapshot_round: int = 0
 var _payload_bytes: Dictionary = {}
 var _peak_recovery_queue: int = 0
@@ -44,6 +48,8 @@ func clear() -> void:
 	_recoveries.clear()
 	_synchronized_peers.clear()
 	_transport_congested = {}
+	_transport_resyncing = {}
+	_replaceable_excluded = {}
 	_recovery_clock = 0
 	_snapshot_round = 0
 
@@ -72,6 +78,8 @@ func _send_player_snapshots(lobby: ServerLobby, world: AuthoritativeWorld) -> vo
 	var public_body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 0)
 	_snapshot_round += 1
 	for peer_id in lobby.human_peer_ids_view():
+		if _transport_resyncing.has(peer_id):
+			continue
 		# A backlogged TCP stream would deliver every queued snapshot late; send
 		# one in four (5 Hz) so the backlog drains and the next one is fresh.
 		if _transport_congested.has(peer_id) and _snapshot_round % 4 != 0:
@@ -93,6 +101,8 @@ func _send_combat_feedback(lobby: ServerLobby, world: AuthoritativeWorld) -> voi
 	if lobby == null or feedback.is_empty():
 		return
 	for peer_id in lobby.human_peer_ids_view():
+		if _transport_resyncing.has(peer_id):
+			continue
 		var payload := CombatFeedbackBuffer.for_recipient(feedback, world.combatants, peer_id, world.server_tick)
 		if not payload.is_empty():
 			combat_feedback_ready.emit(peer_id, world.server_tick, payload)
@@ -106,7 +116,7 @@ func _send_mine_detonations(lobby: ServerLobby, world: AuthoritativeWorld) -> vo
 	for start in range(0, events.size(), 8):
 		var chunk := events.slice(start, start + 8)
 		mine_detonations_ready.emit(world.server_tick, chunk)
-		record_payload("feedback", var_to_bytes(chunk).size() * lobby.human_count())
+		record_payload("feedback", var_to_bytes(chunk).size() * maxi(lobby.human_count() - _transport_resyncing.size(), 0))
 
 
 func _send_projectile_batch(lobby: ServerLobby, world: AuthoritativeWorld) -> void:
@@ -124,7 +134,7 @@ func _send_projectile_batch(lobby: ServerLobby, world: AuthoritativeWorld) -> vo
 	)
 	for packet in packets:
 		projectile_batch_ready.emit(packet)
-		record_payload("projectile_delta", packet.size() * lobby.human_count())
+		record_payload("projectile_delta", packet.size() * maxi(lobby.human_count() - _transport_resyncing.size(), 0))
 
 
 func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) -> void:
@@ -134,7 +144,7 @@ func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) 
 	_projectile_correction_send_count += 1
 	var unsynchronized: Array[int] = []
 	for peer_id in lobby.human_peer_ids_view():
-		if not _recoveries.has(peer_id) and (periodic or not _synchronized_peers.has(peer_id)):
+		if not _recoveries.has(peer_id) and not _transport_resyncing.has(peer_id) and (periodic or not _synchronized_peers.has(peer_id)):
 			unsynchronized.append(peer_id)
 	if not unsynchronized.is_empty():
 		_queue_complete_snapshot(unsynchronized, world)
@@ -148,7 +158,7 @@ func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) 
 	)
 	var recipients := 0
 	for peer_id in lobby.human_peer_ids_view():
-		if not _transport_congested.has(peer_id): recipients += 1
+		if not _replaceable_excluded.has(peer_id): recipients += 1
 	for packet in packets:
 		projectile_correction_ready.emit(packet)
 		record_payload("projectile_motion", packet.size() * maxi(recipients, 0))
@@ -207,10 +217,37 @@ func request_complete_snapshot(peer_id: int) -> void:
 
 func set_transport_congested_peers(peers: Dictionary) -> void:
 	_transport_congested = peers
+	_refresh_replaceable_exclusions()
 
 
 func transport_congested_peers() -> Dictionary:
 	return _transport_congested
+
+
+## A resyncing peer's queued replaceable data is already stale. Its projectile
+## set is forgotten when the pause starts, so the first correction tick after
+## it drains sends a fresh complete snapshot.
+func set_transport_resyncing_peers(peers: Dictionary) -> void:
+	for peer_id in peers:
+		if not _transport_resyncing.has(peer_id):
+			request_complete_snapshot(peer_id)
+	_transport_resyncing = peers.duplicate()
+	_refresh_replaceable_exclusions()
+
+
+func transport_resyncing_peers() -> Dictionary:
+	return _transport_resyncing
+
+
+## Peers that receive no replaceable broadcast this tick: periodic corrections
+## skip congested and resyncing peers.
+func correction_excluded_peers() -> Dictionary:
+	return _replaceable_excluded
+
+
+func _refresh_replaceable_exclusions() -> void:
+	_replaceable_excluded = _transport_congested.duplicate()
+	_replaceable_excluded.merge(_transport_resyncing)
 
 
 func payload_metrics() -> Dictionary:
@@ -221,6 +258,7 @@ func payload_metrics() -> Dictionary:
 		"bytes_by_category": _payload_bytes.duplicate(), "recovery_pending_chunks": pending,
 		"recovery_active_peers": _recoveries.size(), "synchronized_peers": _synchronized_peers.size(),
 		"transport_congested_peers": _transport_congested.size(),
+		"transport_resyncing_peers": _transport_resyncing.size(),
 		"peak_recovery_chunks": _peak_recovery_queue}
 
 

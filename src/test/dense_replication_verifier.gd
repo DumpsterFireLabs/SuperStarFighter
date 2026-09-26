@@ -130,6 +130,7 @@ func _physics_process(_delta: float) -> bool:
 		# Mirror the production callback's transport work: probes and congestion.
 		server.session.process_pending_connections()
 		server.replication.set_transport_congested_peers(server.session.congested_peers())
+		server.replication.set_transport_resyncing_peers(server.session.resyncing_peers())
 		var replication_started := Time.get_ticks_usec()
 		server.replication.replicate_tick(tick, server.lobby, server.world)
 		replication_usec.append(Time.get_ticks_usec() - replication_started)

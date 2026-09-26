@@ -50,6 +50,7 @@ class RecoveryFixture extends RefCounted:
 	var received: Dictionary = {}
 	var recovery_bytes: int = 0
 	var snapshots: int = 0
+	var snapshots_by_peer: Dictionary = {}
 	var max_chunks_in_one_tick: int = 0
 	var _chunks_this_tick: int = 0
 
@@ -65,8 +66,9 @@ class RecoveryFixture extends RefCounted:
 
 	# Bound methods, not lambdas: a lambda capturing self would form a cycle
 	# through the scheduler this fixture owns.
-	func _on_snapshot(_peer_id: int, _packet: PackedByteArray) -> void:
+	func _on_snapshot(peer_id: int, _packet: PackedByteArray) -> void:
 		snapshots += 1
+		snapshots_by_peer[peer_id] = int(snapshots_by_peer.get(peer_id, 0)) + 1
 
 	func _on_chunk(peer_id: int, packet: PackedByteArray) -> void:
 		var chunks: Array = received.get(peer_id, [])
@@ -129,6 +131,7 @@ static func run(context: TestContext) -> void:
 	_transport_liveness(context)
 	_proxy_mode(context)
 	_transport_congestion(context)
+	_transport_resync(context)
 	_server_health(context)
 	_admin_restart(context)
 	_server_log_batching(context)
@@ -541,6 +544,65 @@ static func _transport_congestion(context: TestContext) -> void:
 	context.expect_equal(received, {7: 2, 8: 8}, "a congested stream receives one snapshot in four while others are unaffected")
 	context.expect_equal(scheduler.payload_metrics().transport_congested_peers, 1, "metrics report transport-congested peers")
 	_distant_peer_snapshot_rate(context)
+
+
+static func _transport_resync(context: TestContext) -> void:
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	owner.role = NetworkBridge.Role.SERVER
+	var events: Array[String] = []
+	owner.log_requested.connect(func(_level: String, event_name: String, _fields: Dictionary) -> void: events.append(event_name))
+	owner.complete_handshake(7)
+	owner._probes[7].outstanding[1_000_000] = true
+	owner.record_probe_ack(7, 1_000_000, 1_020_000)
+	var stalled_probe := 2_000_000
+	owner._probes[7].outstanding[stalled_probe] = true
+	owner._probes[7].next_probe = stalled_probe * 10
+	owner._process_probes(stalled_probe + 20_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 60_000)
+	context.expect_false(owner.resyncing_peers().has(7), "ordinary congestion does not pause a stream")
+	owner._process_probes(stalled_probe + 20_000 + int(NetworkProtocol.TRANSPORT_RESYNC_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.resyncing_peers().has(7), "a stream far behind its baseline is paused for resync")
+	context.expect_equal(owner.resync_count(), 1, "resyncs are counted")
+	context.expect_true(events.has("peer_transport_resync"), "a resync is logged")
+	owner.record_probe_ack(7, stalled_probe, stalled_probe + 900_000)
+	context.expect_true(owner.resyncing_peers().has(7), "the late ack of a probe queued behind the backlog keeps the pause")
+	var fresh_probe := 4_000_000
+	owner._probes[7].outstanding[fresh_probe] = true
+	owner.record_probe_ack(7, fresh_probe, fresh_probe + 21_000)
+	context.expect_false(owner.resyncing_peers().has(7), "a probe at baseline round trip ends the resync")
+	context.expect_true(events.has("peer_transport_resynced"), "the end of a resync is logged")
+	context.expect_equal(owner.resync_count(), 1, "ending a resync does not count another")
+	owner._probes[7].outstanding[6_000_000] = true
+	owner._process_probes(6_000_000 + int(NetworkProtocol.TRANSPORT_RESYNC_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.resyncing_peers().has(7), "a later backlog starts another resync")
+	owner.forget_admission(7)
+	context.expect_true(owner.resyncing_peers().is_empty(), "a forgotten admission leaves the resync set")
+	owner.complete_handshake(8)
+	owner._begin_resync(8, owner._probes[8], 800.0, 7_000_000)
+	owner.stop()
+	context.expect_true(owner.resyncing_peers().is_empty() and owner.resync_count() == 0, "stop clears resync state")
+	runtime.free()
+
+	# Replication pauses every replaceable stream for a resyncing peer, then
+	# rebuilds its projectile set with a complete snapshot once it drains.
+	var chunks_per_snapshot := ProjectilePacketCodec.correction_chunk_count(300)
+	var fixture := RecoveryFixture.new(2, 300)
+	fixture.run(1, 60)
+	fixture.received.clear()
+	fixture.snapshots_by_peer.clear()
+	fixture.scheduler.set_transport_resyncing_peers({1: true})
+	context.expect_true(fixture.scheduler.correction_excluded_peers().has(1), "a resyncing peer is excluded from periodic corrections")
+	context.expect_equal(fixture.scheduler.payload_metrics().synchronized_peers, 1, "a resync forgets the peer's projectile set")
+	fixture.run(61, 120)
+	context.expect_false(fixture.snapshots_by_peer.has(1), "a resyncing peer receives no player snapshots")
+	context.expect_equal(int(fixture.snapshots_by_peer.get(2, 0)), 20, "other peers keep their snapshot rate")
+	context.expect_true(fixture.received.is_empty(), "a resyncing peer receives no complete snapshot while paused")
+	fixture.scheduler.set_transport_resyncing_peers({})
+	context.expect_false(fixture.scheduler.correction_excluded_peers().has(1), "a drained peer receives corrections again")
+	fixture.run(121, 132 + chunks_per_snapshot * NetworkReplicationScheduler.RECOVERY_INTERVAL_TICKS)
+	context.expect_equal(fixture.received.keys(), [1], "only the drained peer receives a complete snapshot")
+	context.expect_true(fixture.is_complete(1, chunks_per_snapshot), "the drained peer's projectile set is rebuilt")
+	context.expect_true(int(fixture.snapshots_by_peer.get(1, 0)) > 0, "player snapshots resume after the resync")
 
 
 static func _distant_peer_snapshot_rate(context: TestContext) -> void:

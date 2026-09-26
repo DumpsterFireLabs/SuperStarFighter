@@ -34,6 +34,14 @@ const TRANSPORT_PROBE_MAX_OUTSTANDING: int = 16
 const TRANSPORT_PROBE_EXPIRY_SECONDS: float = 2.0
 const TRANSPORT_CONGESTION_ENTER_MS: float = 150.0
 const TRANSPORT_CONGESTION_EXIT_MS: float = 50.0
+# A stream this far behind is resynchronized rather than drained: replaceable
+# traffic stops until the backlog clears, then the peer receives a complete
+# snapshot. It is never disconnected for this, which would eliminate them.
+# The server's own buffer is checked too because probes only see the OS queue
+# once it has filled. Leaving needs the congestion exit threshold and a
+# buffer below a quarter of the entry size.
+const TRANSPORT_RESYNC_ENTER_MS: float = 750.0
+const SERVER_OUTBOUND_RESYNC_BYTES: int = 1 << 17
 const TRANSPORT_PING_INTERVAL_SECONDS: float = 1.0
 const TRANSPORT_CONNECT_ATTEMPTS: int = 12
 const TRANSPORT_CONNECT_WINDOW_SECONDS: float = 10.0
