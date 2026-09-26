@@ -207,7 +207,7 @@ try {
         $server.HasExited -and (Get-SsfOutput -Name 'server').Contains('SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration')
     }
     $serverText = Get-SsfOutput -Name 'server'
-    Assert-SsfContains -Text $serverText -Pattern '"event":"server_shutdown"' -Description 'clean ENet shutdown log'
+    Assert-SsfContains -Text $serverText -Pattern '"event":"server_shutdown"' -Description 'clean transport shutdown log'
 
     Write-Host 'Network verification passed: handshake/rejections, lobby authority, input/snapshots, projectiles, leader transfer, and late spectator.'
 }

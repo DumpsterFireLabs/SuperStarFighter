@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Actual ClientMain screen flow/audio and shared ServerRuntime over real ENet.
+## Actual ClientMain screen flow/audio and shared ServerRuntime over real TCP.
 var duration := 45.0
 var expected_fps := 60.0
 var app: Node
@@ -67,7 +67,7 @@ func _run() -> void:
 	Input.action_release("fire")
 	var pacing := preload("res://src/test/frame_timing_summary.gd").summarize(samples, expected_fps)
 	var valid: bool = samples.size() >= 600 and snapshots >= 100 and peak_ships == 32 and peak_projectiles > 0 and audio_events > 0 and app.audio_director.peak_active_voices > 0 and states.has("DRAFT") and states.has("ACTIVE_HEAT")
-	print("SSF_PRODUCTION_RENDER=" + JSON.stringify({"valid": valid, "samples": samples.size(), "pacing": pacing, "audio_driver": AudioServer.get_driver_name(), "audio_events": audio_events, "peak_audio_voices": app.audio_director.peak_active_voices, "audio_muted": app.audio_director.muted, "states": states.keys(), "snapshots": snapshots, "peak_ships": peak_ships, "peak_projectiles": peak_projectiles, "viewport": str(root.size), "frame_cap": Engine.max_fps, "vsync_mode": DisplayServer.window_get_vsync_mode(), "scope": "actual ClientMain with real audio driver, screen/event handlers and shared ServerRuntime; ENet loopback plus 31 NPCs; active heat frames after 5s warmup; cadence diagnostic, no pure GPU/audio execution timer"}))
+	print("SSF_PRODUCTION_RENDER=" + JSON.stringify({"valid": valid, "samples": samples.size(), "pacing": pacing, "audio_driver": AudioServer.get_driver_name(), "audio_events": audio_events, "peak_audio_voices": app.audio_director.peak_active_voices, "audio_muted": app.audio_director.muted, "states": states.keys(), "snapshots": snapshots, "peak_ships": peak_ships, "peak_projectiles": peak_projectiles, "viewport": str(root.size), "frame_cap": Engine.max_fps, "vsync_mode": DisplayServer.window_get_vsync_mode(), "scope": "actual ClientMain with real audio driver, screen/event handlers and shared ServerRuntime; TCP loopback plus 31 NPCs; active heat frames after 5s warmup; cadence diagnostic, no pure GPU/audio execution timer"}))
 	app.bridge.stop()
 	runtime.stop()
 	quit(0 if valid else 1)

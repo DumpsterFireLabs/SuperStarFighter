@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-beta.13",
-  "protocol_version": 43,
+  "version": "0.1.0-beta.15",
+  "protocol_version": 45,
   "packet_version": 17
 }

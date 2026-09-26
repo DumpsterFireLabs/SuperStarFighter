@@ -17,6 +17,7 @@ This directory holds practical guides at the top level, the authoritative design
 | Add music or replace placeholder sound effects | [Audio Drop-in Contract](../assets/audio/README.md) |
 | Check source/asset provenance and engine notices | [Attribution Inventory](./ATTRIBUTION.md) |
 | Run the stripped Windows server package | [Dedicated Server Instructions](./SERVER_README.txt) |
+| Host on Ubuntu behind a Cloudflare Tunnel (temporary or permanent `wss://`) | [Cloudflare Tunnel How-To](./CLOUDFLARE_TUNNEL.md) |
 | Read historical reviews, studies, and raw measurement evidence | [Archive](./archive/) |
 
 ## Document Authority

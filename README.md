@@ -51,12 +51,12 @@ In the game:
 
 1. Press any keyboard, mouse, or controller input on the splash screen.
 2. Open **Host Game**.
-3. Choose a server name, gameplay UDP port, and required lobby password, then select **Host & Join**.
+3. Choose a server name, gameplay TCP port, and required lobby password, then select **Host & Join**.
 4. Open **Match Setup** in the lobby. **Match** contains presets, game mode, teams, and rounds to win; **Pilots** contains the player limit and NPC settings; **Arena Rules** contains overtime, powerups, and competitive view. Changes apply immediately. Click your appearance swatch beside your roster name to combine a custom colour with Solid, Zebra, Leopard, Checkerboard, Racing Stripe, or Chevron hull graphics, then apply the appearance or choose a random colour.
 5. Every human selects **Ready for Launch**.
 6. The lobby leader selects **Start Match**.
 
-Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address, gameplay port, and lobby password. Guests may remember an accepted password locally for that exact host-and-port endpoint.
+Other players on the same subnet can join from **LAN Servers**. **Direct Connect** accepts a hostname or IP address and gameplay port, or a `wss://` address for a server behind Cloudflare, plus the lobby password. Guests may remember an accepted password locally for that exact host-and-port endpoint.
 
 ## Controls
 
@@ -70,7 +70,7 @@ Display settings support persistent Windowed, Borderless Fullscreen, and Exclusi
 
 ## Beta Builds
 
-The main menu identifies the current release as **Beta 13**, version `0.1.0-beta.13`. Build and verify the friend-ready Windows x64 client first:
+The main menu identifies the current release as **Beta 15**, version `0.1.0-beta.15`. Build and verify the friend-ready Windows x64 client first:
 
 ```powershell
 .\tools\build-beta.ps1
@@ -122,19 +122,19 @@ Packages, per-package audits, and a combined `SHA256SUMS.txt` are written to the
 Linux normally uses the project's Compatibility renderer through desktop OpenGL 3.3. On Mesa systems that expose native OpenGL ES 3.0 but not desktop OpenGL 3.3, try:
 
 ```bash
-./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
+./SuperStarFighter-Beta15.arm64 --rendering-method gl_compatibility --rendering-driver opengl3_es --verbose
 ```
 
 On a Raspberry Pi or other ARM64 machine with a working Vulkan driver, the Mobile renderer is another possible fallback:
 
 ```bash
-./SuperStarFighter-Beta13.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
+./SuperStarFighter-Beta15.arm64 --rendering-method mobile --rendering-driver vulkan --verbose
 ```
 
 As a slow last resort with Mesa software rendering:
 
 ```bash
-LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta13.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
+LIBGL_ALWAYS_SOFTWARE=1 ./SuperStarFighter-Beta15.arm64 --rendering-method gl_compatibility --rendering-driver opengl3 --verbose
 ```
 
 Use the `.x86_64` filename for Linux x64. These overrides are compatibility suggestions rather than native acceptance-tested configurations. Godot 4 requires at least OpenGL ES 3.0 for Compatibility; GLES 2-only systems are unsupported. Keep `--verbose` during diagnosis to confirm the selected API, renderer, and GPU.
@@ -207,7 +207,7 @@ An unattended launch can provide protected one-line password files and a persist
 .\tools\start-server.ps1 -Port 7000 -ServerName "Friday Fight Night" -AdminPort 7001 -MaxPlayers 32 -RoundsToWin 3 -PasswordFile "C:\ServerSecrets\ssf-lobby.txt" -AdminPasswordFile "C:\ServerSecrets\ssf-admin.txt" -BanFile "C:\ServerData\ssf-bans.json"
 ```
 
-For in-game administration alone, omit `-AdminPort` and keep `-AdminPasswordFile`. The server then opens only its gameplay UDP port.
+For in-game administration alone, omit `-AdminPort` and keep `-AdminPasswordFile`. The server then opens only its gameplay TCP port.
 
 Common management commands are:
 
@@ -229,7 +229,7 @@ Once connected, open **Admin** in the online lobby or **Server Admin** in the pa
 
 The Windows dedicated package includes unattended launch and administration scripts. Health reports continue while idle or paused; admin status includes uptime, recent metrics and their age. See the [dedicated server runbook](./docs/SERVER_README.txt) and [readiness validation](./docs/archive/SERVER-READINESS-2026-09-08.md) for launch commands, capacity gates and measured limits.
 
-Super Star Fighter uses ENet over UDP. LAN discovery uses UDP `7359`; gameplay uses the selected UDP port, `7000` by default. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting currently requires direct IP/hostname access and manual router/firewall configuration; UPnP traversal is not implemented.
+Super Star Fighter carries all gameplay over one WebSocket (TCP) connection per player on the selected port, `7000` by default; forward that TCP port for internet play. LAN discovery separately uses UDP `7359` on the local subnet only and is never forwarded. Discovery is local-subnet convenience rather than public matchmaking. Internet hosting requires either forwarding that TCP port or running a Linux dedicated server behind a Cloudflare Tunnel with `--bind=127.0.0.1 --behind-proxy`, which players reach at `wss://your-hostname` on port 443 with no port forwarding ([setup](docs/MANUAL.md#47-hosting-behind-cloudflare-wss-on-port-443)); UPnP traversal is not implemented.
 
 See the [hosting chapter](./docs/MANUAL.md#4-hosting-and-joining) for practical LAN and internet setup.
 
@@ -259,7 +259,7 @@ The test and foundation commands report their actual assertion and check counts.
 
 Milestones 0–6 and the subsequent gameplay/presentation improvements are complete. The playable vertical slice includes the full lobby-to-victory-to-rematch loop, five solo/team elimination and objective modes, authored-audio discovery with safe fallbacks, local hosting and LAN discovery, configurable objective-aware NPCs, timed arena card pickups, 136 cards, custom ship colours and hull patterns, and validated 32-client server behavior.
 
-Beta 13 targets Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS, with outputs under `builds/beta-13/`. Beta 1 through Beta 13 remain archived separately. A stripped Windows dedicated-server build is available through `tools/build-server.ps1`, with resource auditing, standalone startup and a short packaged-server 32-client soak verified. Clean-machine testing, native distribution acceptance, longer representative-hardware performance testing, signing/notarization and final release acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
+Beta 15 targets Windows x64, Linux x64, Linux ARM64/Raspberry Pi, and universal macOS, with outputs under `builds/beta-15/`. Beta 1 through Beta 13 remain archived separately. A stripped Windows dedicated-server build is available through `tools/build-server.ps1`, with resource auditing, standalone startup and a short packaged-server 32-client soak verified. Clean-machine testing, native distribution acceptance, longer representative-hardware performance testing, signing/notarization and final release acceptance remain. Public matchmaking, accounts, progression, chat, automatic NAT traversal, reconnect restoration during an active match, and manual map selection/voting are not part of the current slice.
 
 ## License and Assets
 
@@ -269,4 +269,4 @@ The [attribution inventory](./docs/ATTRIBUTION.md) records source/dependency cov
 
 ### Linux dedicated server packages
 
-Build with `tools/build-linux-server.ps1 -Architecture x86_64` or `-Architecture arm64`. Beta 13 server archives are written under `builds/beta-13/server-linux-x86_64/` and `builds/beta-13/server-linux-arm64/`. Each includes a headless shell launcher, Python 3 administration tool, and the [dedicated server operations guide](docs/SERVER_README.txt), including Linux setup and a systemd example. Both tar.gz and ZIP archives are verified for architecture, embedded resources and contents; native Linux launch/load acceptance remains separate.
+Build with `tools/build-linux-server.ps1 -Architecture x86_64` or `-Architecture arm64`. Beta 15 server archives are written under `builds/beta-15/server-linux-x86_64/` and `builds/beta-15/server-linux-arm64/`. Each includes a headless shell launcher, Python 3 administration tool, and the [dedicated server operations guide](docs/SERVER_README.txt), including Linux setup and a systemd example. Both tar.gz and ZIP archives are verified for architecture, embedded resources and contents; native Linux launch/load acceptance remains separate.

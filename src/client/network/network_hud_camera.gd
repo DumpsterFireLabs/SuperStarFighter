@@ -307,15 +307,13 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			else 0.0
 		)
 		diagnostics_label.text = (
-			"NETWORK · FPS %d · RTT %d ± %d ms · loss %.2f%% · throttle %.0f%%\n"
+			"NETWORK · FPS %d · RTT %d ± %d ms · TCP\n"
 			+ "SNAP · jitter %.1f ms · gaps %d · extrap %.1f%% · buffer %d ms\n"
 			+ "PRED · error %.2f px · snaps %d · pending %d · expired shots %d · ack %d"
 		) % [
 			Engine.get_frames_per_second(),
 			int(network_stats.rtt_ms),
 			int(network_stats.rtt_variance_ms),
-			float(network_stats.packet_loss_percent),
-			float(network_stats.packet_throttle_percent),
 			visuals.snapshot_jitter_ms,
 			visuals.snapshot_gap_count,
 			extrapolation_percent,

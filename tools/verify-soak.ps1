@@ -94,7 +94,7 @@ function Get-SsfJsonEvents {
 try {
     $serverDuration = $DurationSeconds + 45
     $wallDeadline = [DateTime]::UtcNow.AddSeconds($serverDuration + 120)
-    Write-Host "Starting $ClientCount-client ENet soak for at least $DurationSeconds seconds."
+    Write-Host "Starting $ClientCount-client TCP soak for at least $DurationSeconds seconds."
     Write-Host "Evidence: $logRoot"
     $server = Start-SsfSoakProcess -Name 'server' -UserArguments @(
         '--server', '--password=test-lobby', "--port=$Port", "--max-players=$ClientCount", '--rounds-to-win=5', '--test-fast-match',
@@ -278,7 +278,7 @@ try {
         minimum_physics_ticks_per_second = $minimumTickRate
         maximum_physics_gap_usec = ($fullWindows | Measure-Object -Property max_physics_gap_usec -Maximum).Maximum
         maximum_outbound_bytes_per_second = ($fullWindows | Measure-Object -Property outbound_bytes_per_second -Maximum).Maximum
-        timing_scope = 'Callback work includes coordination, encoding, ENet enqueue/fan-out and log submission; background log I/O is separate and queue overflow fails acceptance. Wall-clock callback rate and maximum scheduling gap additionally expose stalls outside that work. Outbound bytes count replication payloads, excluding transport overhead and other control RPCs.'
+        timing_scope = 'Callback work includes coordination, encoding, WebSocket enqueue/fan-out and log submission; background log I/O is separate and queue overflow fails acceptance. Wall-clock callback rate and maximum scheduling gap additionally expose stalls outside that work. Outbound bytes count replication payloads, excluding transport overhead and other control RPCs.'
         maximum_active_projectiles = ($metrics | Measure-Object -Property active_projectiles -Maximum).Maximum
         maximum_object_count = ($metrics | Measure-Object -Property object_count -Maximum).Maximum
         maximum_static_memory_bytes = ($metrics | Measure-Object -Property static_memory_bytes -Maximum).Maximum

@@ -1,4 +1,4 @@
-Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 13)
+Super Star Fighter - Dedicated Server (Windows x64 / Linux x64 / Linux ARM64, Beta 15)
 
 WINDOWS QUICK START
 
@@ -19,12 +19,12 @@ use Unblock-File on the included start-server.ps1 and admin.ps1 scripts.
 
 The package starts in server mode without graphics or audio. No Godot editor,
 source checkout, client assets or separate PCK file is required. Use the same
-game/protocol version on clients: 0.1.0-beta.13 (compatibility 43, binary packets 17).
+game/protocol version on clients: 0.1.0-beta.15 (compatibility 45, binary packets 17).
 
 Set the lobby password before starting. The example is not a public password.
 Use the --port value when connecting directly. Configure any network/firewall
 access appropriate to your host; this package does not change those settings.
-Gameplay uses UDP on the selected port. LAN discovery uses UDP 7359.
+Gameplay uses TCP (WebSocket) on the selected port. LAN discovery uses UDP 7359.
 Console/server logs report startup, joins, match activity and health every ten
 wall-clock seconds, including while idle or paused.
 
@@ -131,7 +131,7 @@ panel keeps access active for this connection; Lock Admin or disconnecting
 revokes it. Set -AdminPasswordFile at launch to enable this even with
 -AdminPort 0. Lobby-password changes use the local admin tool.
 
-ENet gameplay traffic is not encrypted. Authentication avoids sending the raw
+Gameplay ws:// traffic is not encrypted. Authentication avoids sending the raw
 admin password and commands are signed, but a captured exchange permits offline
 password guessing. Use a long random admin password. The optional TCP admin
 listener stays on loopback; reach it with SSH only for command-line access.
@@ -154,12 +154,20 @@ host to run the tool. Do not forward the admin port on your router.
 
 NETWORK AND INSTANCE SETUP
 
-For internet play, allow inbound UDP on your chosen gameplay port and forward
-that UDP port to this machine if it is behind a router. Players outside the
+For internet play, allow inbound TCP on your chosen gameplay port and forward
+that TCP port to this machine if it is behind a router. Players outside the
 LAN need the public address; LAN players use the host's LAN address or LAN
 discovery. Carrier-grade NAT may prevent inbound connections. Discovery is
 local-only on UDP 7359. In-game admin uses the gameplay connection; the
 optional TCP command listener is loopback-only.
+
+Behind Cloudflare (players connect to wss://game.example.com on port 443):
+run cloudflared with an ingress rule to http://127.0.0.1:7000 and start the
+server with --bind=127.0.0.1 --behind-proxy. No port forwarding is needed.
+Proxy mode is required because every player shares the tunnel's address: it
+tracks limits per connection, slows logins after repeated wrong passwords
+instead of locking everyone out, and disables address bans (kick instead).
+See the Player and Host Manual, section 4.7, for the full tunnel setup.
 
 Launcher defaults: gameplay port 7000, TCP admin listener disabled (AdminPort 0), 32 players,
 3 rounds to win, auto-start off. Give each instance a writable working folder,
@@ -187,7 +195,7 @@ TROUBLESHOOTING
 
 No startup marker: inspect the log for invalid passwords, file permissions or
 a port already in use. Confirm the full ZIP was extracted, including scripts.
-No players can connect: check client version, lobby password, UDP port, host
+No players can connect: check client version, lobby password, TCP port, host
 firewall and router forwarding. A local test does not verify internet access.
 Admin connection refused: check the server is running with -AdminPort 7778 and
 run the tool on the same host. Authentication failure: check the ADMIN secret,
@@ -209,7 +217,7 @@ acceptance still need to be performed on your deployment host.
 
 Extract the matching archive into a writable folder, then cd into that folder:
 
-  tar -xzf SuperStarFighter-Beta13-Server-Linux-x64.tar.gz
+  tar -xzf SuperStarFighter-Beta15-Server-Linux-x64.tar.gz
   chmod +x start-server.sh SuperStarFighter-Server.x86_64
 
 For ARM64 use the arm64 archive and SuperStarFighter-Server.arm64 instead.
@@ -276,7 +284,7 @@ by ssf for writable state. Adjust every path/account before installing this
 example as /etc/systemd/system/ssf.service:
 
   [Unit]
-  Description=Super Star Fighter Beta 13 dedicated server
+  Description=Super Star Fighter Beta 15 dedicated server
   After=network.target
 
   [Service]

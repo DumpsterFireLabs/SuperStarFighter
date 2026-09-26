@@ -89,7 +89,7 @@ try {
     }
     if ($unexpectedErrors) { throw "Smoke verification emitted unexpected errors: $($unexpectedErrors -join ' | ')" }
     if ($server.ExitCode -ne 0) { throw "Smoke server exited with code $($server.ExitCode)." }
-    Write-Host "Smoke verification passed: $ClientCount real ENet clients drafted, fought, received snapshots, produced metrics, and shut down cleanly."
+    Write-Host "Smoke verification passed: $ClientCount real TCP clients drafted, fought, received snapshots, produced metrics, and shut down cleanly."
 }
 finally {
     foreach ($process in $processes) {

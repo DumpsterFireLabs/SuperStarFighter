@@ -1,6 +1,6 @@
 extends SceneTree
 
-## 32 real, independently admitted ENet clients; Python counts proxy datagrams.
+## 32 real, independently admitted TCP clients; Python counts proxy stream bytes.
 var server: NetworkBridge
 var clients: Array[NetworkBridge] = []
 var recovered: Dictionary = {}
@@ -115,6 +115,9 @@ func _physics_process(_delta: float) -> bool:
 	if running:
 		tick += 1
 		server.world.server_tick = tick
+		# Mirror the production callback's transport work: probes and congestion.
+		server.session.process_pending_connections()
+		server.replication.set_transport_congested_peers(server.session.congested_peers())
 		server.replication.replicate_tick(tick, server.lobby, server.world)
 		max_pending = maxi(max_pending, server.replication.payload_metrics().recovery_pending_chunks)
 		max_inflight = maxi(max_inflight, server.replication.payload_metrics().recovery_inflight_chunks_per_peer)

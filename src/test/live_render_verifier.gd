@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Real ENet loopback, production server/NPC stepping and client rendering in one
+## Real TCP loopback, production server/NPC stepping and client rendering in one
 ## process. Frame intervals include their combined work; this is not remote RTT.
 class MeasuredWorldView extends NetworkWorldFixture:
 	var snapshot_usec: Array[int] = []
@@ -179,7 +179,7 @@ func _run() -> void:
 		"p50_usec": NetworkBridge.percentile_usec(samples, 0.5), "p95_usec": NetworkBridge.percentile_usec(samples, 0.95),
 		"p99_usec": NetworkBridge.percentile_usec(samples, 0.99),
 		"snapshots": snapshots, "peak_ships": peak_ships, "peak_projectiles": peak_projectiles,
-		"scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process ENet server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles."}))
+		"scope": "Post-draw wall-clock intervals during active heats after 5s warmup; same-process TCP server, 31 NPCs and client; vsync off; excludes physical display latency. Engine process/physics monitors and pre-to-post draw intervals overlap; do not sum their percentiles."}))
 	view.set_network_active(false)
 	client.stop()
 	server.stop()

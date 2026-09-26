@@ -23,6 +23,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"max_players": GameConstants.DEFAULT_MAX_PLAYERS,
 		"rounds_to_win": GameConstants.DEFAULT_ROUNDS_TO_WIN,
 		"auto_start": false,
+		"bind_address": "*",
+		"behind_proxy": false,
 		"competitive_view": false,
 		"bot_name": "",
 		"force_test_failure": false,
@@ -64,8 +66,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			result.port = parsed_port.value
 		elif argument.begins_with("--host="):
 			var parsed_host := argument.trim_prefix("--host=").strip_edges()
-			if parsed_host.is_empty() or parsed_host.length() > 253 or parsed_host.contains(" "):
-				return _error("--host requires a valid IP address or hostname.")
+			if not NetworkProtocol.is_valid_server_address(parsed_host):
+				return _error("--host requires a valid IP address, hostname, or ws:// / wss:// URL.")
 			result.host = parsed_host
 		elif argument.begins_with("--server-name="):
 			var parsed_server_name := argument.trim_prefix("--server-name=").strip_edges()
@@ -126,6 +128,13 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			result.competitive_view = true
 		elif argument == "--auto-start":
 			result.auto_start = true
+		elif argument.begins_with("--bind="):
+			var parsed_bind := argument.trim_prefix("--bind=").strip_edges()
+			if parsed_bind != "*" and not parsed_bind.is_valid_ip_address():
+				return _error("--bind requires an IP address such as 127.0.0.1, or * for all interfaces.")
+			result.bind_address = parsed_bind
+		elif argument == "--behind-proxy":
+			result.behind_proxy = true
 		elif argument == "--force-test-failure":
 			result.force_test_failure = true
 		elif argument == "--test-fast-match":
@@ -230,6 +239,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("The admin password must differ from the lobby password.")
 	if result.auto_start and result.mode != "server":
 		return _error("--auto-start is only valid with --server.")
+	if (result.bind_address != "*" or result.behind_proxy) and result.mode != "server":
+		return _error("--bind and --behind-proxy are only valid with --server.")
 	if result.force_test_failure and result.mode != "tests":
 		return _error("--force-test-failure is only valid with --run-tests.")
 	if result.has_test_protocol_override and result.mode != "bot_client":

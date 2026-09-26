@@ -237,7 +237,7 @@ func step(delta: float, local_ship: CombatShipView, mouse_world_position: Vector
 	)
 	if special_just_pressed:
 		# Retain one press identity until authority consumes it. Three sends can
-		# all vanish during ENet throttling, jitter or a short delivery outage.
+		# all vanish during TCP retransmission stalls, jitter or a short delivery outage.
 		# The press also travels reliably below; ordinary samples retain the
 		# identity until a consumption correction or the retry deadline.
 		special_activation_sends_remaining = ceili(SPECIAL_ACTIVATION_RETRY_SECONDS * GameConstants.INPUT_SEND_RATE)

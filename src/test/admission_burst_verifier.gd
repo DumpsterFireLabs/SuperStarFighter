@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Real ENet clients sharing one source address, as with an internet NAT.
+## Real TCP clients sharing one source address, as with an internet NAT.
 var server: NetworkBridge
 var clients: Array[NetworkBridge] = []
 var rejections: Array[Dictionary] = []
@@ -33,7 +33,7 @@ func _run() -> void:
 		if arg.begins_with("--port="): port = int(arg.get_slice("=", 1))
 	server = _runtime("Server")
 	# Delay challenge transmission to keep simultaneous handshakes in flight.
-	# Packets still use production RPC/ENet; this is not a WAN latency claim.
+	# Packets still use production RPC/TCP; this is not a WAN latency claim.
 	for connection in server.session.challenge_requested.get_connections():
 		server.session.challenge_requested.disconnect(connection.callable)
 	server.session.challenge_requested.connect(_challenge)

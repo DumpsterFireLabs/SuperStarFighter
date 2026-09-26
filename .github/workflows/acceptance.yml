@@ -59,6 +59,8 @@ jobs:
         run: python tools/verify-network-impairment.py --profile all
       - name: Dense fan-out under loss, jitter and per-client congestion
         run: python tools/verify-dense-replication.py --profile all
+      - name: wss:// through a TLS-terminating reverse proxy
+        run: python tools/verify-wss-proxy.py
       - name: Repeated match teardown and audio preparation
         shell: pwsh
         run: |

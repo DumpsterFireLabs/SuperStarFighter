@@ -21,7 +21,27 @@ var local_peer_id: int = 0
 var latest_lobby_state: Dictionary = {}
 var last_error: String = ""
 var _configuration: Dictionary = {}
-var _enet_peer: ENetMultiplayerPeer
+var _transport_peer: WebSocketMultiplayerPeer
+var _peer_capacity: int = 0
+var _round_trip_ms: float = -1.0
+var _round_trip_variance_ms: float = 0.0
+var _client_url: String = ""
+var _connect_attempts: int = 0
+var _connect_deadline: float = 0.0
+var _connect_generation: int = 0
+var _connect_rng := RandomNumberGenerator.new()
+var _last_heard: Dictionary = {}
+var _last_server_heard: float = 0.0
+var _server_loss_reported: bool = false
+var _behind_proxy: bool = false
+# peer_id -> {baseline_ms, queue_delay_ms, outstanding: {sent_usec: true}, congested, next_probe}
+var _probes: Dictionary = {}
+var _congested_peers: Dictionary = {}
+signal probe_requested(peer_id: int, server_usec: int)
+var _proxy_failure_limiter := AuthenticationAttemptLimiterScript.new()
+var _next_proxy_challenge: float = 0.0
+## Test hook: trusts this certificate chain for wss:// instead of system roots.
+var tls_trusted_chain: X509Certificate
 var _lan_discovery: LanDiscoveryService
 var _pending_handshakes := HandshakeRegistry.new()
 var _pending_disconnects: Dictionary = {}
@@ -63,14 +83,14 @@ func start_server(configuration: Dictionary, match_config: MatchConfig) -> Error
 	_ban_file_path = String(configuration.get("ban_file", "user://server-bans.json"))
 	_load_blocked_sources()
 	_discovery_instance_id = "%x-%x" % [Time.get_ticks_msec(), runtime.get_instance_id()]
-	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_server(
-		match_config.port,
-		match_config.max_players + NetworkProtocol.AUTH_RESERVED_PEERS,
-		NetworkProtocol.CHANNEL_COUNT
-	)
+	_transport_peer = _new_transport_peer(NetworkProtocol.SERVER_INBOUND_BUFFER_BYTES, NetworkProtocol.SERVER_OUTBOUND_BUFFER_BYTES)
+	_peer_capacity = match_config.max_players + NetworkProtocol.AUTH_RESERVED_PEERS
+	_behind_proxy = bool(configuration.get("behind_proxy", false))
+	var bind_address := String(configuration.get("bind_address", "*"))
+	var error := _transport_peer.create_server(match_config.port, bind_address)
 	if error != OK:
-		last_error = "Could not bind UDP port %d (error %d)." % [match_config.port, error]
+		_transport_peer = null
+		last_error = "Could not bind TCP %s:%d (error %d)." % [bind_address, match_config.port, error]
 		log_requested.emit("error", "server_bind_failed", {"port": match_config.port, "error": error})
 		role = NetworkBridge.Role.NONE
 		return error
@@ -78,7 +98,7 @@ func start_server(configuration: Dictionary, match_config: MatchConfig) -> Error
 	# unused peer-to-peer announcements, including relays to closing peers.
 	var scene_multiplayer := runtime.multiplayer as SceneMultiplayer
 	if scene_multiplayer != null: scene_multiplayer.server_relay = false
-	runtime.multiplayer.multiplayer_peer = _enet_peer
+	runtime.multiplayer.multiplayer_peer = _transport_peer
 	if not runtime.multiplayer.peer_connected.is_connected(_on_server_peer_connected):
 		runtime.multiplayer.peer_connected.connect(_on_server_peer_connected)
 	if not runtime.multiplayer.peer_disconnected.is_connected(_on_server_peer_disconnected):
@@ -94,6 +114,8 @@ func start_server(configuration: Dictionary, match_config: MatchConfig) -> Error
 		})
 	log_requested.emit("info", "server_started", {
 		"port": match_config.port,
+		"bind_address": bind_address,
+		"behind_proxy": _behind_proxy,
 		"max_players": match_config.max_players,
 		"rounds_to_win": match_config.rounds_to_win,
 	})
@@ -112,13 +134,16 @@ func start_client(
 	_client_name = display_name
 	_client_protocol_version = protocol_version
 	_client_password = lobby_password
-	_enet_peer = ENetMultiplayerPeer.new()
-	var error := _enet_peer.create_client(host, port, NetworkProtocol.CHANNEL_COUNT)
+	_client_url = transport_url(host, port)
+	_server_loss_reported = false
+	_connect_attempts = 1
+	_connect_deadline = _now_seconds() + NetworkProtocol.TRANSPORT_CONNECT_WINDOW_SECONDS
+	_connect_rng.randomize()
+	var error := _open_client_transport()
 	if error != OK:
 		last_error = "Could not connect to %s:%d (error %d)." % [host, port, error]
 		role = NetworkBridge.Role.NONE
 		return error
-	runtime.multiplayer.multiplayer_peer = _enet_peer
 	if not runtime.multiplayer.connected_to_server.is_connected(_on_client_transport_connected):
 		runtime.multiplayer.connected_to_server.connect(_on_client_transport_connected)
 	if not runtime.multiplayer.connection_failed.is_connected(_on_client_connection_failed):
@@ -128,14 +153,28 @@ func start_client(
 	return OK
 
 
+func _open_client_transport() -> Error:
+	_transport_peer = _new_transport_peer(NetworkProtocol.CLIENT_INBOUND_BUFFER_BYTES, NetworkProtocol.CLIENT_OUTBOUND_BUFFER_BYTES)
+	var tls: TLSOptions = null
+	if _client_url.to_lower().begins_with("wss://"):
+		tls = TLSOptions.client(tls_trusted_chain) if tls_trusted_chain != null else TLSOptions.client()
+	var error := _transport_peer.create_client(_client_url, tls)
+	if error != OK:
+		_transport_peer = null
+		return error
+	runtime.multiplayer.multiplayer_peer = _transport_peer
+	return OK
+
+
 func stop() -> void:
-	# Mark teardown before closing ENet. Closing a live client can synchronously emit
+	_connect_generation += 1
+	# Mark teardown before closing the transport. Closing a live client can synchronously emit
 	# server_disconnected; that callback must see NONE instead of recursively
 	# entering the UI's disconnect path while this cleanup is still in progress.
 	var stopped_role := role
 	role = NetworkBridge.Role.NONE
 	_disconnect_transport_signals()
-	if stopped_role == NetworkBridge.Role.SERVER and _enet_peer != null:
+	if stopped_role == NetworkBridge.Role.SERVER and _transport_peer != null:
 		var status: Dictionary = _status_provider.call()
 		log_requested.emit("info", "server_shutdown", {
 			"connected_peers": int(status.get("human_count", 0)),
@@ -144,9 +183,12 @@ func stop() -> void:
 			"active_projectiles": int(status.get("active_projectiles", 0)),
 			"pending_handshakes": _pending_handshakes.size(),
 		})
-	if _enet_peer != null:
-		_enet_peer.close()
-	_enet_peer = null
+	if _transport_peer != null:
+		_transport_peer.close()
+	_transport_peer = null
+	_peer_capacity = 0
+	_round_trip_ms = -1.0
+	_round_trip_variance_ms = 0.0
 	if _lan_discovery != null:
 		_lan_discovery.stop()
 		_lan_discovery.queue_free()
@@ -155,6 +197,12 @@ func stop() -> void:
 		runtime.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_pending_handshakes.clear()
 	_pending_disconnects.clear()
+	_last_heard.clear()
+	_probes.clear()
+	_congested_peers.clear()
+	_behind_proxy = false
+	_proxy_failure_limiter.clear()
+	_next_proxy_challenge = 0.0
 	_rate_limiter.clear()
 	_control_rate_limiter.clear()
 	_authentication_attempt_limiter.clear()
@@ -198,41 +246,63 @@ func _lan_discovery_payload() -> Dictionary:
 
 
 func get_network_statistics() -> Dictionary:
-	var unavailable := {
-		"rtt_ms": -1,
-		"rtt_variance_ms": 0,
-		"packet_loss_percent": 0.0,
-		"packet_throttle_percent": 100.0,
-	}
-	if role != NetworkBridge.Role.CLIENT or _enet_peer == null:
-		return unavailable
-	var server_peer := _enet_peer.get_peer(NetworkProtocol.SERVER_PEER_ID)
-	if server_peer == null:
-		return unavailable
+	# TCP retransmits internally, so loss appears as latency rather than drops.
+	var connected := role == NetworkBridge.Role.CLIENT and _transport_peer != null and _round_trip_ms >= 0.0
 	return {
-		"rtt_ms": int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
-		"rtt_variance_ms": int(server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME_VARIANCE)),
-		"packet_loss_percent": (
-			float(server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS))
-			/ ENetPacketPeer.PACKET_LOSS_SCALE
-			* 100.0
-		),
-		"packet_throttle_percent": (
-			float(server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE))
-			/ ENetPacketPeer.PACKET_THROTTLE_SCALE
-			* 100.0
-		),
+		"rtt_ms": int(round(_round_trip_ms)) if connected else -1,
+		"rtt_variance_ms": int(round(_round_trip_variance_ms)) if connected else 0,
 	}
+
+
+## Smooths application-level ping samples (RFC 6298 style SRTT/RTTVAR).
+func record_round_trip(sample_ms: float) -> void:
+	if not is_finite(sample_ms) or sample_ms < 0.0:
+		return
+	if _round_trip_ms < 0.0:
+		_round_trip_ms = sample_ms
+		_round_trip_variance_ms = sample_ms * 0.5
+		return
+	var difference := sample_ms - _round_trip_ms
+	_round_trip_ms += difference * 0.125
+	_round_trip_variance_ms += (absf(difference) - _round_trip_variance_ms) * 0.25
 
 
 func can_send_to(peer_id: int) -> bool:
-	if _enet_peer == null or not runtime.is_inside_tree(): return false
+	if _transport_peer == null or not runtime.is_inside_tree(): return false
 	if not runtime.multiplayer.get_peers().has(peer_id): return false
-	var peer := _enet_peer.get_peer(peer_id)
-	return peer != null and peer.get_state() == ENetPacketPeer.STATE_CONNECTED
+	var peer := _transport_peer.get_peer(peer_id)
+	return peer != null and peer.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+
+func _has_transport_peer(peer_id: int) -> bool:
+	return _transport_peer != null and runtime.is_inside_tree() and runtime.multiplayer.get_peers().has(peer_id)
+
+
+static func transport_url(host: String, port: int) -> String:
+	var address := host.strip_edges()
+	# Full URLs (e.g. wss://game.example.com behind Cloudflare) carry their own port.
+	if address.to_lower().begins_with("ws://") or address.to_lower().begins_with("wss://"):
+		return address
+	if address.contains(":") and not address.begins_with("["):
+		address = "[%s]" % address
+	return "ws://%s:%d" % [address, port]
+
+
+static func _new_transport_peer(inbound_bytes: int, outbound_bytes: int) -> WebSocketMultiplayerPeer:
+	var peer := WebSocketMultiplayerPeer.new()
+	peer.handshake_timeout = NetworkProtocol.TRANSPORT_HANDSHAKE_TIMEOUT_SECONDS
+	peer.inbound_buffer_size = inbound_bytes
+	peer.outbound_buffer_size = outbound_bytes
+	peer.max_queued_packets = NetworkProtocol.TRANSPORT_MAX_QUEUED_PACKETS
+	return peer
 
 
 func _on_server_peer_connected(peer_id: int) -> void:
+	if runtime.multiplayer.get_peers().size() > _peer_capacity:
+		# WebSocket servers have no peer cap; bound admitted plus reserved peers.
+		log_requested.emit("warning", "connection_capacity_exceeded", {"peer_id": peer_id})
+		_transport_peer.disconnect_peer(peer_id)
+		return
 	var source := _peer_auth_source(peer_id)
 	_peer_auth_sources[peer_id] = source
 	var now := _now_seconds()
@@ -259,6 +329,9 @@ func _on_server_peer_connected(peer_id: int) -> void:
 
 func _on_server_peer_disconnected(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
+	_last_heard.erase(peer_id)
+	_probes.erase(peer_id)
+	_congested_peers.erase(peer_id)
 	_peer_auth_sources.erase(peer_id)
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
@@ -268,12 +341,15 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 
 
 func _peer_auth_source(peer_id: int) -> String:
-	if _enet_peer == null:
+	if _behind_proxy:
+		# Every connection arrives from the proxy; never throttle or ban its address.
+		return "proxied:%d" % peer_id
+	if _transport_peer == null:
 		return "peer:%d" % peer_id
-	var packet_peer := _enet_peer.get_peer(peer_id)
+	var packet_peer := _transport_peer.get_peer(peer_id)
 	if packet_peer == null:
 		return "peer:%d" % peer_id
-	var address := packet_peer.get_remote_address()
+	var address := packet_peer.get_connected_host()
 	return address if not address.is_empty() else "peer:%d" % peer_id
 
 
@@ -289,7 +365,7 @@ func _pending_auth_count_for_source(source: String, excluded_peer_id: int) -> in
 
 func _start_queued_handshakes() -> void:
 	# Keep the per-source in-flight proof budget while accommodating cohorts
-	# behind one NAT. ENet bounds total peers; the original admission deadline
+	# behind one NAT. The peer capacity bounds total peers; the original admission deadline
 	# also bounds queue residence and is never extended by promotion.
 	var now := _now_seconds()
 	for peer_id in _pending_handshakes.queued_peers():
@@ -302,6 +378,10 @@ func _start_queued_handshakes() -> void:
 			continue
 		if _pending_auth_count_for_source(source, peer_id) >= NetworkProtocol.AUTH_MAX_PENDING_PER_SOURCE:
 			continue
+		if _behind_proxy and _proxy_failure_limiter.is_blocked("proxy", now):
+			if now < _next_proxy_challenge:
+				break
+			_next_proxy_challenge = now + NetworkProtocol.PROXY_THROTTLED_CHALLENGE_INTERVAL_SECONDS
 		var challenge := Crypto.new().generate_random_bytes(NetworkProtocol.AUTH_CHALLENGE_BYTES).hex_encode()
 		if _pending_handshakes.start_challenge(peer_id, challenge, now):
 			challenge_requested.emit(peer_id, challenge)
@@ -325,6 +405,8 @@ func operator_kick(peer_id: int, display_name: String, block_source: bool = fals
 
 
 func operator_block_source(source: String) -> Dictionary:
+	if _behind_proxy:
+		return {"ok": false, "error": "Address bans are unavailable behind a proxy because every player shares its address. Kick the player instead."}
 	var normalized := _normalized_source(source)
 	if not _is_valid_block_source(normalized):
 		return {"ok": false, "error": "A bounded source address is required."}
@@ -423,13 +505,30 @@ func _on_client_transport_connected() -> void:
 func _on_client_connection_failed() -> void:
 	if role != NetworkBridge.Role.CLIENT:
 		return
+	# A TCP listener refuses connections beyond its small accept backlog, so a
+	# burst of simultaneous joins retries with jittered backoff before admission.
+	if local_peer_id == 0 and _connect_attempts < NetworkProtocol.TRANSPORT_CONNECT_ATTEMPTS and _now_seconds() < _connect_deadline and runtime.is_inside_tree():
+		var backoff := minf(0.1 * pow(2.0, _connect_attempts - 1), 1.0) * _connect_rng.randf_range(0.5, 1.5)
+		_connect_attempts += 1
+		runtime.get_tree().create_timer(backoff).timeout.connect(_retry_client_transport.bind(_connect_generation))
+		return
 	last_error = "Could not reach the server."
 	connection_lost.emit(last_error)
 
 
-func _on_client_server_disconnected() -> void:
-	if role != NetworkBridge.Role.CLIENT:
+func _retry_client_transport(generation: int) -> void:
+	if generation != _connect_generation or role != NetworkBridge.Role.CLIENT or local_peer_id != 0:
 		return
+	if _transport_peer != null:
+		_transport_peer.close()
+	if _open_client_transport() != OK:
+		_on_client_connection_failed()
+
+
+func _on_client_server_disconnected() -> void:
+	if role != NetworkBridge.Role.CLIENT or _server_loss_reported:
+		return
+	_server_loss_reported = true
 	var message := last_error if not last_error.is_empty() else NetworkProtocol.rejection_message(NetworkProtocol.REJECT_SERVER_CLOSED)
 	local_peer_id = 0
 	connection_lost.emit(message)
@@ -441,13 +540,21 @@ func process_pending_connections() -> void:
 		for peer_id in _pending_handshakes.expired(now):
 			reject_connection(peer_id, NetworkProtocol.REJECT_HANDSHAKE_TIMEOUT)
 	_start_queued_handshakes()
+	_process_probes(Time.get_ticks_usec())
+	for peer_value in _last_heard.keys():
+		if now - float(_last_heard[peer_value]) > NetworkProtocol.TRANSPORT_IDLE_TIMEOUT_SECONDS:
+			var peer_id := int(peer_value)
+			_last_heard.erase(peer_id)
+			log_requested.emit("warning", "peer_timed_out", {"peer_id": peer_id})
+			if _has_transport_peer(peer_id):
+				_transport_peer.disconnect_peer(peer_id)
 	if not _pending_disconnects.is_empty():
 		for peer_value in _pending_disconnects.keys():
 			var peer_id := int(peer_value)
 			if now >= float(_pending_disconnects[peer_id]):
 				_pending_disconnects.erase(peer_id)
-				if _enet_peer != null:
-					_enet_peer.disconnect_peer(peer_id)
+				if _has_transport_peer(peer_id):
+					_transport_peer.disconnect_peer(peer_id)
 
 
 func reject_connection(peer_id: int, reason: StringName) -> void:
@@ -483,6 +590,81 @@ func reject_malformed_control(peer_id: int, detail: String) -> void:
 
 func complete_handshake(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
+	_last_heard[peer_id] = _now_seconds()
+	_probes[peer_id] = {"baseline_ms": INF, "queue_delay_ms": 0.0, "outstanding": {}, "congested": false, "next_probe": 0}
+
+
+func _process_probes(now_usec: int) -> void:
+	for peer_value in _probes.keys():
+		var state: Dictionary = _probes[peer_value]
+		var outstanding: Dictionary = state.outstanding
+		# An unanswered probe is at least this late; count it before its ack arrives.
+		if not outstanding.is_empty() and is_finite(float(state.baseline_ms)):
+			var oldest_ms := (now_usec - int(outstanding.keys().min())) / 1000.0
+			_update_congestion(int(peer_value), state, maxf(float(state.queue_delay_ms), oldest_ms - float(state.baseline_ms)))
+		if now_usec < int(state.next_probe) or outstanding.size() >= NetworkProtocol.TRANSPORT_PROBE_MAX_OUTSTANDING:
+			continue
+		state.next_probe = now_usec + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0)
+		outstanding[now_usec] = true
+		probe_requested.emit(int(peer_value), now_usec)
+
+
+## Server-side round trip for one probe; queueing shows as delay above baseline.
+func record_probe_ack(peer_id: int, server_usec: int, now_usec: int = -1) -> void:
+	var state: Dictionary = _probes.get(peer_id, {})
+	if state.is_empty() or not (state.outstanding as Dictionary).erase(server_usec):
+		return
+	if now_usec < 0:
+		now_usec = Time.get_ticks_usec()
+	var rtt_ms := (now_usec - server_usec) / 1000.0
+	if rtt_ms < 0.0:
+		return
+	# Let the baseline creep upward (1 ms per probe) so a route change is learned.
+	var baseline := minf(float(state.baseline_ms) + 1.0, rtt_ms) if is_finite(float(state.baseline_ms)) else rtt_ms
+	state.baseline_ms = baseline
+	state.queue_delay_ms = rtt_ms - baseline
+	_update_congestion(peer_id, state, float(state.queue_delay_ms))
+
+
+func _update_congestion(peer_id: int, state: Dictionary, queue_delay_ms: float) -> void:
+	var was_congested := bool(state.congested)
+	# Hysteresis between the enter and exit thresholds avoids flapping per probe.
+	var congested := queue_delay_ms > NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS if not was_congested else queue_delay_ms > NetworkProtocol.TRANSPORT_CONGESTION_EXIT_MS
+	if congested == was_congested:
+		return
+	state.congested = congested
+	if congested:
+		_congested_peers[peer_id] = true
+	else:
+		_congested_peers.erase(peer_id)
+	log_requested.emit("warning" if congested else "info", "peer_transport_congested" if congested else "peer_transport_recovered", {"peer_id": peer_id, "queue_delay_ms": roundi(queue_delay_ms)})
+
+
+## Peers whose outbound stream is backlogged; read by replication each tick.
+func congested_peers() -> Dictionary:
+	return _congested_peers
+
+
+## Refreshes an admitted peer's liveness deadline.
+func note_peer_alive(peer_id: int) -> void:
+	if _last_heard.has(peer_id):
+		_last_heard[peer_id] = _now_seconds()
+
+
+func note_server_alive() -> void:
+	_last_server_heard = _now_seconds()
+
+
+## Reports a lost server when an admitted client stops receiving pongs.
+func check_server_liveness() -> void:
+	if role != NetworkBridge.Role.CLIENT or local_peer_id == 0 or _server_loss_reported:
+		return
+	if _now_seconds() - _last_server_heard <= NetworkProtocol.TRANSPORT_IDLE_TIMEOUT_SECONDS:
+		return
+	last_error = "The connection to the server timed out."
+	if _transport_peer != null:
+		_transport_peer.close()
+	_on_client_server_disconnected()
 
 
 
@@ -520,6 +702,8 @@ func validate_hello(sender_id: int, protocol_version: int, display_name: String,
 				String(_peer_auth_sources.get(sender_id, "peer:%d" % sender_id)),
 				_now_seconds()
 			)
+			if _behind_proxy and _proxy_failure_limiter.register_failure("proxy", _now_seconds()):
+				log_requested.emit("warning", "proxy_authentication_throttled", {"interval_seconds": NetworkProtocol.PROXY_THROTTLED_CHALLENGE_INTERVAL_SECONDS})
 		reject_connection(sender_id, rejection)
 		return false
 	return true
@@ -538,6 +722,9 @@ func accept_input(sender_id: int, decoded: Dictionary) -> bool:
 
 
 func forget_admission(peer_id: int) -> void:
+	_last_heard.erase(peer_id)
+	_probes.erase(peer_id)
+	_congested_peers.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
 	_control_rate_limiter.remove_peer(peer_id)
 	_malformed_control_strikes.erase(peer_id)
@@ -577,6 +764,7 @@ func take_client_hello(challenge: String) -> Dictionary:
 
 func accept_welcome(peer_id: int, state: Dictionary) -> void:
 	local_peer_id = peer_id
+	_last_server_heard = _now_seconds()
 	latest_lobby_state = state.duplicate(true)
 
 

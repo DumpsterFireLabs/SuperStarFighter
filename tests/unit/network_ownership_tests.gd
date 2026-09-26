@@ -66,6 +66,9 @@ static func run(context: TestContext) -> void:
 	command_bridge.free()
 	context.expect_equal(service._owner.get_ref(), null, "command service cannot retain its bridge")
 	_admission_queue(context)
+	_transport_liveness(context)
+	_proxy_mode(context)
+	_transport_congestion(context)
 	_server_health(context)
 	_admin_restart(context)
 	_server_log_batching(context)
@@ -232,7 +235,7 @@ static func _server_health(context: TestContext) -> void:
 
 
 static func _replication_contract(context: TestContext) -> void:
-	# No bridge, scene tree or ENet peer is needed to verify packet generation.
+	# No bridge, scene tree or transport peer is needed to verify packet generation.
 	var scheduler := NetworkReplicationScheduler.new()
 	var lobby := ServerLobby.new()
 	lobby.admit(7, "PacketPilot")
@@ -339,6 +342,133 @@ static func _ban_persistence(context: TestContext) -> void:
 	DirAccess.remove_absolute(path)
 
 
+static func _transport_liveness(context: TestContext) -> void:
+	context.expect_equal(NetworkSessionOwner.transport_url(" 192.0.2.4 ", 7000), "ws://192.0.2.4:7000", "IPv4 hosts form a trimmed WebSocket URL")
+	context.expect_equal(NetworkSessionOwner.transport_url("::1", 7123), "ws://[::1]:7123", "IPv6 literals are bracketed in the WebSocket URL")
+	context.expect_equal(NetworkSessionOwner.transport_url("[::1]", 7123), "ws://[::1]:7123", "bracketed IPv6 literals are not double-bracketed")
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	owner.role = NetworkBridge.Role.CLIENT
+	context.expect_equal(owner.get_network_statistics().rtt_ms, -1, "round-trip time is unavailable before transport exists")
+	owner._transport_peer = WebSocketMultiplayerPeer.new()
+	context.expect_equal(owner.get_network_statistics().rtt_ms, -1, "round-trip time is unavailable before the first pong")
+	owner.record_round_trip(40.0)
+	context.expect_equal(owner.get_network_statistics(), {"rtt_ms": 40, "rtt_variance_ms": 20}, "first ping seeds smoothed round-trip time and variance")
+	owner.record_round_trip(80.0)
+	owner.record_round_trip(-1.0)
+	owner.record_round_trip(INF)
+	context.expect_equal(owner.get_network_statistics(), {"rtt_ms": 45, "rtt_variance_ms": 25}, "later pings smooth round-trip time; invalid samples are ignored")
+	owner._transport_peer = null
+	var now := Time.get_ticks_msec() / 1000.0
+	owner.local_peer_id = 9
+	owner._last_server_heard = now - NetworkProtocol.TRANSPORT_IDLE_TIMEOUT_SECONDS - 1.0
+	var lost: Array[String] = []
+	owner.connection_lost.connect(func(message: String) -> void: lost.append(message))
+	owner.check_server_liveness()
+	owner.check_server_liveness()
+	owner._on_client_server_disconnected()
+	context.expect_equal(lost, ["The connection to the server timed out."], "a silent server is reported lost exactly once")
+	context.expect_equal(owner.local_peer_id, 0, "a timed-out client forgets its admitted identity")
+	owner.role = NetworkBridge.Role.SERVER
+	var events: Array[String] = []
+	owner.log_requested.connect(func(_level: String, event_name: String, _fields: Dictionary) -> void: events.append(event_name))
+	owner.note_peer_alive(5)
+	context.expect_false(owner._last_heard.has(5), "unadmitted peers do not gain a liveness deadline")
+	owner.complete_handshake(5)
+	owner.complete_handshake(6)
+	owner._last_heard[5] = now - NetworkProtocol.TRANSPORT_IDLE_TIMEOUT_SECONDS - 1.0
+	owner.process_pending_connections()
+	context.expect_equal(events, ["peer_timed_out"], "a silent admitted peer times out")
+	context.expect_equal(owner._last_heard.keys(), [6], "only the silent peer loses its liveness deadline")
+	owner.forget_admission(6)
+	context.expect_true(owner._last_heard.is_empty(), "forgotten admissions drop their liveness deadline")
+	runtime.free()
+
+
+static func _transport_congestion(context: TestContext) -> void:
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	owner.role = NetworkBridge.Role.SERVER
+	var probes: Array[int] = []
+	owner.probe_requested.connect(func(peer_id: int, _server_usec: int) -> void: probes.append(peer_id))
+	owner.complete_handshake(7)
+	owner._process_probes(1_000_000)
+	owner._process_probes(1_100_000)
+	context.expect_equal(probes, [7], "admitted peers are probed at most once per probe interval")
+	owner._process_probes(1_000_000 + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0))
+	context.expect_equal(probes, [7, 7], "probing repeats after the interval")
+	owner.record_probe_ack(7, 1_000_000, 1_020_000)
+	context.expect_false(owner.congested_peers().has(7), "a probe at baseline round trip is not congestion")
+	owner.record_probe_ack(7, 424_242, 2_000_000)
+	context.expect_false(owner.congested_peers().has(7), "unknown or duplicate probe acknowledgements are ignored")
+	var second := 1_000_000 + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0)
+	owner.record_probe_ack(7, second, second + 20_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 10_000)
+	context.expect_true(owner.congested_peers().has(7), "round trip well above the baseline marks the stream congested")
+	owner._probes[7].outstanding[3_000_000] = true
+	owner.record_probe_ack(7, 3_000_000, 3_000_000 + 20_000 + int((NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS + NetworkProtocol.TRANSPORT_CONGESTION_EXIT_MS) * 500.0))
+	context.expect_true(owner.congested_peers().has(7), "hysteresis keeps a congested stream thinned between the thresholds")
+	owner._probes[7].outstanding[4_000_000] = true
+	owner.record_probe_ack(7, 4_000_000, 4_021_000)
+	context.expect_false(owner.congested_peers().has(7), "a drained stream leaves congestion")
+	owner._probes[7].outstanding[5_000_000] = true
+	owner._probes[7].next_probe = 9_000_000
+	owner._process_probes(5_000_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.congested_peers().has(7), "an unanswered probe counts as queueing before its ack arrives")
+	owner.forget_admission(7)
+	context.expect_true(owner.congested_peers().is_empty() and owner._probes.is_empty(), "departed peers leave the congestion set")
+	runtime.free()
+	var scheduler := NetworkReplicationScheduler.new()
+	var lobby := ServerLobby.new()
+	lobby.admit(7, "Slow")
+	lobby.admit(8, "Fast")
+	lobby.match_active = true
+	var world := AuthoritativeWorld.new()
+	world.add_peer(7)
+	world.add_peer(8)
+	var received := {7: 0, 8: 0}
+	scheduler.player_snapshot_ready.connect(func(peer_id: int, _packet: PackedByteArray) -> void: received[peer_id] += 1)
+	scheduler.set_transport_congested_peers({7: true})
+	var snapshot_interval := GameConstants.PHYSICS_TICKS_PER_SECOND / GameConstants.PLAYER_SNAPSHOT_RATE
+	for round_index in 8:
+		world.server_tick = (round_index + 1) * snapshot_interval
+		scheduler.replicate_tick(world.server_tick, lobby, world)
+	context.expect_equal(received, {7: 2, 8: 8}, "a congested stream receives one snapshot in four while others are unaffected")
+	context.expect_equal(scheduler.payload_metrics().transport_congested_peers, 1, "metrics report transport-congested peers")
+
+
+static func _proxy_mode(context: TestContext) -> void:
+	for address in ["192.0.2.4", "game.example.com", "::1", "wss://game.example.com", "WSS://game.example.com:8443/play", "ws://127.0.0.1:7000"]:
+		context.expect_true(NetworkProtocol.is_valid_server_address(address), "%s is a valid server address" % address)
+	for address in ["", "has space", "wss://", "wss://:443", "wss://user@game.example.com", "http://game.example.com", "game.example.com/path", "x".repeat(254)]:
+		context.expect_false(NetworkProtocol.is_valid_server_address(address), "%s is rejected as a server address" % address)
+	context.expect_equal(NetworkSessionOwner.transport_url(" wss://game.example.com ", 7000), "wss://game.example.com", "wss:// URLs keep their own port instead of the port field")
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	owner._behind_proxy = true
+	context.expect_equal(owner._peer_auth_source(41), "proxied:41", "proxied players are tracked per connection, not by the shared proxy address")
+	context.expect_false(owner.operator_block_source("127.0.0.1").ok, "address bans are refused behind a proxy")
+	# A proxy-address ban from an older ban file must not block every player.
+	owner._blocked_sources["127.0.0.1"] = true
+	var challenged: Array[int] = []
+	owner.challenge_requested.connect(func(id: int, _challenge: String) -> void: challenged.append(id))
+	var now := Time.get_ticks_msec() / 1000.0
+	for failure in NetworkProtocol.AUTH_FAILURE_LIMIT:
+		owner._proxy_failure_limiter.register_failure("proxy", now)
+	for id in [51, 52, 53]:
+		owner._peer_auth_sources[id] = owner._peer_auth_source(id)
+		owner._pending_handshakes.begin(id, now)
+	owner._start_queued_handshakes()
+	owner._start_queued_handshakes()
+	context.expect_equal(challenged, [51], "repeated wrong passwords throttle proxied challenges to one per interval")
+	owner._next_proxy_challenge = now - 0.01
+	owner._start_queued_handshakes()
+	context.expect_equal(challenged, [51, 52], "throttled proxied players are still admitted in arrival order")
+	owner._proxy_failure_limiter.clear()
+	owner._start_queued_handshakes()
+	context.expect_equal(challenged, [51, 52, 53], "challenges resume at full speed once the failure window clears")
+	runtime.free()
+
+
 static func _admission_queue(context: TestContext) -> void:
 	var runtime := Node.new()
 	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
@@ -401,7 +531,7 @@ static func _recovery_budget(context: TestContext) -> void:
 		var previous := received.size()
 		scheduler._flush_recovery(lobby)
 		context.expect_true(received.size() - previous <= 32, "each peer sends at most one recovery chunk in a tick")
-	context.expect_equal(stalled.size(), 2, "non-acknowledging peer cannot fill ENet with recovery traffic")
+	context.expect_equal(stalled.size(), 2, "non-acknowledging peer cannot fill the transport with recovery traffic")
 	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 1, "healthy peers finish independently of stalled peer")
 	var first := ProjectilePacketCodec.decode_correction(stalled[0])
 	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 26)

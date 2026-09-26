@@ -167,7 +167,7 @@ func _ready() -> void:
 	_create_gameplay_cursor()
 	_create_splash_screen()
 	audio_director.set_context(&"menu")
-	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=enet" % configuration.get("port", GameConstants.DEFAULT_PORT))
+	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=tcp" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
 
 func _notification(what: int) -> void:

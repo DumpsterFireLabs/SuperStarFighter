@@ -93,7 +93,7 @@ func _run_foundation_tests() -> void:
 	var release: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://release.json"))
 	_context.expect_equal(GameConstants.GAME_VERSION, release.version, "game version matches the release manifest")
 	_context.expect_equal(ProjectSettings.get_setting("application/config/version"), GameConstants.GAME_VERSION, "project metadata matches the shared game version")
-	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 43, "protocol version is pinned")
+	_context.expect_equal(GameConstants.PROTOCOL_VERSION, 45, "protocol version is pinned")
 	_context.expect_equal(GameConstants.PHYSICS_TICKS_PER_SECOND, 60, "physics tick rate is pinned")
 	_context.expect_equal(GameConstants.DEFAULT_MAX_PLAYERS, 32, "default player capacity is pinned")
 	_context.expect_equal(Engine.physics_ticks_per_second, 60, "project physics tick rate matches shared constants")
@@ -180,6 +180,13 @@ func _run_foundation_tests() -> void:
 	_context.expect_true(match_test_config.ok, "match-loop test server options parse")
 	_context.expect_true(match_test_config.get("test_fast_match"), "fast match test mode is retained")
 	_context.expect_equal(match_test_config.get("test_match_seed"), 4242, "deterministic match seed parses")
+	var proxy_config := CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--bind=127.0.0.1", "--behind-proxy"]))
+	_context.expect_true(proxy_config.ok and proxy_config.bind_address == "127.0.0.1" and proxy_config.behind_proxy, "tunnel server bind address and proxy mode parse")
+	_context.expect_equal(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret"])).bind_address, "*", "servers listen on every interface by default")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--password=lobby-secret", "--bind=localhost"])).ok, "bind requires an IP address")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--behind-proxy"])).ok, "proxy mode is server-only")
+	_context.expect_true(CommandLineConfig.parse(PackedStringArray(["--bot-client=Tunnel", "--password=test-lobby", "--host=wss://game.example.com"])).ok, "clients accept a wss:// host")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--bot-client=Tunnel", "--password=test-lobby", "--host=https://game.example.com"])).ok, "non-WebSocket URL schemes are rejected")
 	var bot_config := CommandLineConfig.parse(PackedStringArray([
 		"--bot-client=ProtocolProbe",
 		"--host=127.0.0.1",

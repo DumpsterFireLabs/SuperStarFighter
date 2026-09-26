@@ -68,6 +68,7 @@ var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
 var _admission_lobby_broadcast_pending: bool = false
 var in_game_admin := InGameAdminAuthority.new()
+var _ping_accumulator: float = 0.0
 
 
 func _init() -> void:
@@ -80,10 +81,12 @@ func _init() -> void:
 	session.peer_departed.connect(_on_session_peer_departed)
 	session.request_rejected.connect(_reject_request)
 	session.stopped.connect(_on_session_stopped)
+	session.probe_requested.connect(func(peer_id: int, server_usec: int) -> void: transport_probe.rpc_id(peer_id, server_usec))
 	replication = NetworkReplicationScheduler.new()
 	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: world_snapshot.rpc_id(peer_id, packet))
 	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
-	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet]))
+	# Periodic corrections are replaceable; a backlogged TCP peer receives the next one instead of queueing this one.
+	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet], replication.transport_congested_peers()))
 	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: projectile_recovery.rpc_id(peer_id, packet))
 	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
 	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
@@ -94,7 +97,7 @@ func start_server(configuration: Dictionary) -> Error:
 	var match_config := MatchConfig.new()
 	match_config.port = int(configuration.get("port", GameConstants.DEFAULT_PORT))
 	if match_config.port == LanDiscoveryProtocol.DISCOVERY_PORT:
-		session.set_error("UDP port %d is reserved for LAN server discovery." % LanDiscoveryProtocol.DISCOVERY_PORT)
+		session.set_error("Port %d is reserved for LAN server discovery." % LanDiscoveryProtocol.DISCOVERY_PORT)
 		return ERR_INVALID_PARAMETER
 	match_config.max_players = int(configuration.get("max_players", GameConstants.DEFAULT_MAX_PLAYERS))
 	match_config.rounds_to_win = int(configuration.get("rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN))
@@ -322,6 +325,9 @@ func send_test_input_packet(packet: PackedByteArray) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if role == Role.CLIENT:
+		_process_client_ping(delta)
+		return
 	if role != Role.SERVER or world == null:
 		return
 	var start_usec := Time.get_ticks_usec()
@@ -351,6 +357,7 @@ func _physics_process(delta: float) -> void:
 			_broadcast_lobby_state()
 	var coordination_done_usec := Time.get_ticks_usec()
 	var tick := world.server_tick
+	replication.set_transport_congested_peers(session.congested_peers())
 	replication.replicate_tick(tick, lobby, world)
 	var replication_done_usec := Time.get_ticks_usec()
 	# A heat result may produce a row for every player. Preserve all JSON lines
@@ -796,6 +803,64 @@ func select_card(offer_token: String, card_id: String) -> void:
 	_drain_match_coordinator()
 
 
+func _process_client_ping(delta: float) -> void:
+	if local_peer_id == 0:
+		_ping_accumulator = 0.0
+		return
+	session.check_server_liveness()
+	_ping_accumulator += delta
+	if _ping_accumulator >= NetworkProtocol.TRANSPORT_PING_INTERVAL_SECONDS:
+		_ping_accumulator = 0.0
+		_send_ping()
+
+
+func _send_ping() -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		transport_ping.rpc_id(NetworkProtocol.SERVER_PEER_ID, Time.get_ticks_usec())
+
+
+# TCP exposes no round-trip statistic, so clients echo a local timestamp.
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_ping(client_usec: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "transport_ping"):
+		return
+	session.note_peer_alive(sender_id)
+	transport_pong.rpc_id(sender_id, client_usec)
+
+
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_pong(client_usec: int) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	session.note_server_alive()
+	var elapsed_usec := Time.get_ticks_usec() - client_usec
+	if elapsed_usec >= 0 and elapsed_usec < 60_000_000:
+		session.record_round_trip(elapsed_usec / 1000.0)
+
+
+# Server-originated probe: its round trip includes queueing in the server's
+# outbound TCP stream, which the client's own ping cannot observe.
+@rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_probe(server_usec: int) -> void:
+	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
+		return
+	transport_probe_ack.rpc_id(NetworkProtocol.SERVER_PEER_ID, server_usec)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func transport_probe_ack(server_usec: int) -> void:
+	if role != Role.SERVER:
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "transport_probe_ack"):
+		return
+	session.note_peer_alive(sender_id)
+	session.record_probe_ack(sender_id, server_usec)
+
+
 @rpc("any_peer", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_INPUT)
 func submit_input(packet: PackedByteArray) -> void:
 	_accept_input_packet(packet)
@@ -813,6 +878,7 @@ func _accept_input_packet(packet: PackedByteArray) -> void:
 	if not lobby.players.has(sender_id):
 		_reject_request(sender_id, "input_before_handshake")
 		return
+	session.note_peer_alive(sender_id)
 	var decoded := InputPacketCodec.decode(packet)
 	if session.accept_input(sender_id, decoded):
 		world.submit_input(sender_id, decoded.frame)
@@ -826,6 +892,7 @@ func server_welcome(peer_id: int, lobby_state_value: Dictionary) -> void:
 		_reject_malformed_server_payload()
 		return
 	session.accept_welcome(peer_id, lobby_state_value)
+	_send_ping()
 	client_connected.emit(peer_id)
 	client_lobby_updated.emit(lobby_state_value)
 
@@ -1165,11 +1232,11 @@ func _send_control_to_peer(peer_id: int, method: StringName, arguments: Array) -
 	callv(&"rpc_id", [peer_id, method] + arguments)
 
 
-func _broadcast_to_admitted(method: StringName, arguments: Array) -> void:
+func _broadcast_to_admitted(method: StringName, arguments: Array, excluded: Dictionary = {}) -> void:
 	if role != Role.SERVER or lobby == null: return
 	var recipients: Array[int] = []
 	for peer_id in lobby.human_peer_ids_view():
-		if session.can_send_to(peer_id): recipients.append(peer_id)
+		if session.can_send_to(peer_id) and not excluded.has(peer_id): recipients.append(peer_id)
 	if recipients.is_empty(): return
 	if method in [&"lobby_state", &"match_event", &"objective_snapshot"]:
 		replication.record_payload("control", var_to_bytes(arguments).size() * recipients.size())
