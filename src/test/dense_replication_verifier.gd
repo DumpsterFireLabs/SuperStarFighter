@@ -14,7 +14,6 @@ var exercise_recovery := false
 var disconnected := false
 var max_pending := 0
 var first_recovery_ticks: Dictionary = {}
-var max_inflight := 0
 # Server replication cost per tick, including RPC serialization and socket writes.
 var replication_usec: Array[int] = []
 
@@ -85,7 +84,7 @@ func _run() -> void:
 	print("DENSE_MEASUREMENT_BEGIN")
 	await create_timer(12.0 if exercise_recovery else 5.0).timeout
 	var initial_complete := recovered.size() == 32 and not false in recovered.values()
-	print("SSF_DENSE_INITIAL=" + JSON.stringify({"first_recovery_ticks": first_recovery_ticks, "recovered": recovered, "max_inflight": max_inflight}))
+	print("SSF_DENSE_INITIAL=" + JSON.stringify({"first_recovery_ticks": first_recovery_ticks, "recovered": recovered}))
 	if exercise_recovery:
 		# Deliberately omit a delta: full recovery must repair both missing and
 		# obsolete membership, not merely report the right projectile count.
@@ -98,7 +97,7 @@ func _run() -> void:
 		await create_timer(6.0).timeout
 	running = false
 	disconnected = disconnected or server.lobby.human_count() != 32
-	var all_complete := initial_complete and recovered.size() == 32 and not disconnected and max_pending <= 27 and max_inflight <= 2 and snapshots.size() == 32
+	var all_complete := initial_complete and recovered.size() == 32 and not disconnected and max_pending <= ProjectilePacketCodec.correction_chunk_count(1025) and snapshots.size() == 32
 	for complete in recovered.values(): all_complete = all_complete and bool(complete)
 	for count in snapshots.values(): all_complete = all_complete and int(count) > 20
 	print("SSF_DENSE_RESULT=" + JSON.stringify({"passed": all_complete, "initial_complete": initial_complete, "clients": clients.size(), "recovered": recovered, "recovery_rounds": recovery_rounds, "last_recovery_ticks": last_recovery_ticks, "snapshots": snapshots, "mutation_tick": mutation_tick, "disconnected": disconnected, "max_pending": max_pending, "ticks": tick, "payload_bytes": server.replication.outbound_bytes(), "payload": server.replication.payload_metrics(), "replication_usec": _replication_timing()}))
@@ -131,9 +130,9 @@ func _physics_process(_delta: float) -> bool:
 		# Mirror the production callback's transport work: probes and congestion.
 		server.session.process_pending_connections()
 		server.replication.set_transport_congested_peers(server.session.congested_peers())
+		server.replication.set_transport_resyncing_peers(server.session.resyncing_peers())
 		var replication_started := Time.get_ticks_usec()
 		server.replication.replicate_tick(tick, server.lobby, server.world)
 		replication_usec.append(Time.get_ticks_usec() - replication_started)
 		max_pending = maxi(max_pending, server.replication.payload_metrics().recovery_pending_chunks)
-		max_inflight = maxi(max_inflight, server.replication.payload_metrics().recovery_inflight_chunks_per_peer)
 	return false

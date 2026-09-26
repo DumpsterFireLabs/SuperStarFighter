@@ -42,6 +42,67 @@ class RecordingReplication extends NetworkReplicationScheduler:
 		calls.append(&"feedback")
 
 
+class RecoveryFixture extends RefCounted:
+	var scheduler := NetworkReplicationScheduler.new()
+	var lobby := ServerLobby.new()
+	var world := AuthoritativeWorld.new()
+	# peer_id -> decoded complete-snapshot chunks received.
+	var received: Dictionary = {}
+	var recovery_bytes: int = 0
+	var snapshots: int = 0
+	var snapshots_by_peer: Dictionary = {}
+	var max_chunks_in_one_tick: int = 0
+	var _chunks_this_tick: int = 0
+
+	func _init(peer_count: int, projectile_count: int) -> void:
+		for peer in range(1, peer_count + 1):
+			lobby.admit(peer, "P%d" % peer)
+			world.add_peer(peer)
+		lobby.match_active = true
+		for index in projectile_count:
+			world.projectile_registry.add(ProjectileState.create(index + 1, 100 + index / 32, index, Vector2(700, 700), 0, CombatStats.create_base()))
+		scheduler.projectile_recovery_ready.connect(_on_chunk)
+		scheduler.player_snapshot_ready.connect(_on_snapshot)
+
+	# Bound methods, not lambdas: a lambda capturing self would form a cycle
+	# through the scheduler this fixture owns.
+	func _on_snapshot(peer_id: int, _packet: PackedByteArray) -> void:
+		snapshots += 1
+		snapshots_by_peer[peer_id] = int(snapshots_by_peer.get(peer_id, 0)) + 1
+
+	func _on_chunk(peer_id: int, packet: PackedByteArray) -> void:
+		var chunks: Array = received.get(peer_id, [])
+		chunks.append(ProjectilePacketCodec.decode_correction(packet))
+		received[peer_id] = chunks
+		recovery_bytes += packet.size()
+		_chunks_this_tick += 1
+
+	func run(first_tick: int, last_tick: int) -> void:
+		for tick in range(first_tick, last_tick + 1):
+			world.server_tick = tick
+			_chunks_this_tick = 0
+			scheduler.replicate_tick(tick, lobby, world)
+			max_chunks_in_one_tick = maxi(max_chunks_in_one_tick, _chunks_this_tick)
+
+	func chunk_count(peer_id: int) -> int:
+		return (received.get(peer_id, []) as Array).size()
+
+	func total_chunks() -> int:
+		var total := 0
+		for chunks: Array in received.values(): total += chunks.size()
+		return total
+
+	func is_complete(peer_id: int, expected_chunks: int) -> bool:
+		var chunks: Array = received.get(peer_id, [])
+		if chunks.size() != expected_chunks:
+			return false
+		for index in chunks.size():
+			var chunk: Dictionary = chunks[index]
+			if not chunk.ok or not bool(chunk.complete_snapshot) or int(chunk.chunk_index) != index or int(chunk.chunk_count) != expected_chunks:
+				return false
+		return true
+
+
 class AdminBridge extends NetworkBridge:
 	var emitted: Array[StringName] = []
 
@@ -70,6 +131,7 @@ static func run(context: TestContext) -> void:
 	_transport_liveness(context)
 	_proxy_mode(context)
 	_transport_congestion(context)
+	_transport_resync(context)
 	_server_health(context)
 	_admin_restart(context)
 	_server_log_batching(context)
@@ -484,33 +546,73 @@ static func _transport_congestion(context: TestContext) -> void:
 	_distant_peer_snapshot_rate(context)
 
 
+static func _transport_resync(context: TestContext) -> void:
+	var runtime := Node.new()
+	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
+	owner.role = NetworkBridge.Role.SERVER
+	var events: Array[String] = []
+	owner.log_requested.connect(func(_level: String, event_name: String, _fields: Dictionary) -> void: events.append(event_name))
+	owner.complete_handshake(7)
+	owner._probes[7].outstanding[1_000_000] = true
+	owner.record_probe_ack(7, 1_000_000, 1_020_000)
+	var stalled_probe := 2_000_000
+	owner._probes[7].outstanding[stalled_probe] = true
+	owner._probes[7].next_probe = stalled_probe * 10
+	owner._process_probes(stalled_probe + 20_000 + int(NetworkProtocol.TRANSPORT_CONGESTION_ENTER_MS * 1000.0) + 60_000)
+	context.expect_false(owner.resyncing_peers().has(7), "ordinary congestion does not pause a stream")
+	owner._process_probes(stalled_probe + 20_000 + int(NetworkProtocol.TRANSPORT_RESYNC_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.resyncing_peers().has(7), "a stream far behind its baseline is paused for resync")
+	context.expect_equal(owner.resync_count(), 1, "resyncs are counted")
+	context.expect_true(events.has("peer_transport_resync"), "a resync is logged")
+	owner.record_probe_ack(7, stalled_probe, stalled_probe + 900_000)
+	context.expect_true(owner.resyncing_peers().has(7), "the late ack of a probe queued behind the backlog keeps the pause")
+	var fresh_probe := 4_000_000
+	owner._probes[7].outstanding[fresh_probe] = true
+	owner.record_probe_ack(7, fresh_probe, fresh_probe + 21_000)
+	context.expect_false(owner.resyncing_peers().has(7), "a probe at baseline round trip ends the resync")
+	context.expect_true(events.has("peer_transport_resynced"), "the end of a resync is logged")
+	context.expect_equal(owner.resync_count(), 1, "ending a resync does not count another")
+	owner._probes[7].outstanding[6_000_000] = true
+	owner._process_probes(6_000_000 + int(NetworkProtocol.TRANSPORT_RESYNC_ENTER_MS * 1000.0) + 60_000)
+	context.expect_true(owner.resyncing_peers().has(7), "a later backlog starts another resync")
+	owner.forget_admission(7)
+	context.expect_true(owner.resyncing_peers().is_empty(), "a forgotten admission leaves the resync set")
+	owner.complete_handshake(8)
+	owner._begin_resync(8, owner._probes[8], 800.0, 7_000_000)
+	owner.stop()
+	context.expect_true(owner.resyncing_peers().is_empty() and owner.resync_count() == 0, "stop clears resync state")
+	runtime.free()
+
+	# Replication pauses every replaceable stream for a resyncing peer, then
+	# rebuilds its projectile set with a complete snapshot once it drains.
+	var chunks_per_snapshot := ProjectilePacketCodec.correction_chunk_count(300)
+	var fixture := RecoveryFixture.new(2, 300)
+	fixture.run(1, 60)
+	fixture.received.clear()
+	fixture.snapshots_by_peer.clear()
+	fixture.scheduler.set_transport_resyncing_peers({1: true})
+	context.expect_true(fixture.scheduler.correction_excluded_peers().has(1), "a resyncing peer is excluded from periodic corrections")
+	context.expect_equal(fixture.scheduler.payload_metrics().synchronized_peers, 1, "a resync forgets the peer's projectile set")
+	fixture.run(61, 120)
+	context.expect_false(fixture.snapshots_by_peer.has(1), "a resyncing peer receives no player snapshots")
+	context.expect_equal(int(fixture.snapshots_by_peer.get(2, 0)), 20, "other peers keep their snapshot rate")
+	context.expect_true(fixture.received.is_empty(), "a resyncing peer receives no complete snapshot while paused")
+	fixture.scheduler.set_transport_resyncing_peers({})
+	context.expect_false(fixture.scheduler.correction_excluded_peers().has(1), "a drained peer receives corrections again")
+	fixture.run(121, 132 + chunks_per_snapshot * NetworkReplicationScheduler.RECOVERY_INTERVAL_TICKS)
+	context.expect_equal(fixture.received.keys(), [1], "only the drained peer receives a complete snapshot")
+	context.expect_true(fixture.is_complete(1, chunks_per_snapshot), "the drained peer's projectile set is rebuilt")
+	context.expect_true(int(fixture.snapshots_by_peer.get(1, 0)) > 0, "player snapshots resume after the resync")
+
+
 static func _distant_peer_snapshot_rate(context: TestContext) -> void:
-	# Recovery ACKs from a healthy peer 250 ms away arrive after 15 ticks. Over
-	# TCP that is distance, not backlog, and must not thin its snapshots.
-	var scheduler := NetworkReplicationScheduler.new()
-	var lobby := ServerLobby.new()
-	lobby.admit(7, "Distant")
-	lobby.match_active = true
-	var world := AuthoritativeWorld.new()
-	world.add_peer(7)
-	var snapshots := [0]
-	var acknowledged := [0]
-	var pending_acks: Array[Dictionary] = []
-	var round_trip_ticks := 15
-	scheduler.player_snapshot_ready.connect(func(_peer_id: int, _packet: PackedByteArray) -> void: snapshots[0] += 1)
-	var queue_ack := func(_peer_id: int, packet: PackedByteArray) -> void:
-		pending_acks.append({"due": world.server_tick + round_trip_ticks, "decoded": ProjectilePacketCodec.decode_correction(packet)})
-	scheduler.projectile_recovery_ready.connect(queue_ack)
+	# Projectile recovery takes no client input, so nothing on it depends on
+	# round-trip time; a paced complete snapshot must never thin snapshots.
+	var fixture := RecoveryFixture.new(1, 300)
 	var seconds := 3
-	for unused in seconds * GameConstants.PHYSICS_TICKS_PER_SECOND:
-		world.server_tick += 1
-		while not pending_acks.is_empty() and int(pending_acks[0].due) <= world.server_tick:
-			var decoded: Dictionary = pending_acks.pop_front().decoded
-			scheduler.acknowledge_recovery(7, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
-			acknowledged[0] += 1
-		scheduler.replicate_tick(world.server_tick, lobby, world)
-	context.expect_true(acknowledged[0] >= seconds - 1, "the distant peer exercises delayed recovery acknowledgements")
-	context.expect_equal(snapshots[0], seconds * GameConstants.PLAYER_SNAPSHOT_RATE, "a distant but healthy peer keeps the full snapshot rate")
+	fixture.run(1, seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	context.expect_true(fixture.chunk_count(1) > 1, "the peer receives a paced complete projectile snapshot")
+	context.expect_equal(fixture.snapshots, seconds * GameConstants.PLAYER_SNAPSHOT_RATE, "complete projectile snapshots never thin player snapshots")
 
 
 static func _proxy_mode(context: TestContext) -> void:
@@ -589,58 +691,66 @@ static func _admission_queue(context: TestContext) -> void:
 
 
 static func _recovery_budget(context: TestContext) -> void:
-	var scheduler := NetworkReplicationScheduler.new()
-	var lobby := ServerLobby.new()
-	for peer in range(1, 33): lobby.admit(peer, "P%d" % peer)
-	lobby.match_active = true
-	var world := AuthoritativeWorld.new()
-	var stats := CombatStats.create_base()
-	for index in 1024:
-		world.projectile_registry.add(ProjectileState.create(index + 1, index / 32 + 1, index, Vector2(700, 700), 0, stats))
-	var received: Array[PackedByteArray] = []
-	var stalled: Array[PackedByteArray] = []
-	var listener := func(peer: int, packet: PackedByteArray) -> void:
-		received.append(packet)
-		if peer == 1:
-			stalled.append(packet)
-		else:
-			var decoded := ProjectilePacketCodec.decode_correction(packet)
-			scheduler.acknowledge_recovery(peer, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
-	scheduler.projectile_recovery_ready.connect(listener)
-	scheduler._send_projectile_correction(lobby, world)
-	context.expect_equal(received.size(), 0, "full recovery is queued without a synchronous fan-out burst")
-	for tick in 180:
-		var previous := received.size()
-		scheduler._flush_recovery(lobby)
-		context.expect_true(received.size() - previous <= 32, "each peer sends at most one recovery chunk in a tick")
-	context.expect_equal(stalled.size(), 2, "non-acknowledging peer cannot fill the transport with recovery traffic")
-	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 1, "healthy peers finish independently of stalled peer")
-	var first := ProjectilePacketCodec.decode_correction(stalled[0])
-	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 26)
-	scheduler.acknowledge_recovery(1, int(first.server_tick) + 1, int(first.batch_sequence), 0)
-	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence) + 1, 0)
-	scheduler._flush_recovery(lobby)
-	context.expect_equal(stalled.size(), 2, "unsent and stale acknowledgements do not release capacity")
-	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 0)
-	scheduler.acknowledge_recovery(1, int(first.server_tick), int(first.batch_sequence), 0)
-	for tick in 18: scheduler._flush_recovery(lobby)
-	context.expect_equal(stalled.size(), 3, "one acknowledged chunk releases exactly one slot")
-	for tick in 12: scheduler._flush_recovery(lobby)
-	context.expect_equal(stalled.size(), 3, "duplicate acknowledgement cannot inflate window")
-	var total := 0
-	for packet in received: total += packet.size()
-	context.expect_equal(scheduler.outbound_bytes(), total, "accounting includes actual per-peer recovery sends")
-	var snapshot_counts: Dictionary = {}
-	scheduler.player_snapshot_ready.connect(func(peer: int, _packet: PackedByteArray) -> void: snapshot_counts[peer] = int(snapshot_counts.get(peer, 0)) + 1)
-	for index in 4: scheduler._send_player_snapshots(lobby, world)
-	# Unacknowledged recovery only bounds recovery; transport probes own snapshot thinning.
-	context.expect_equal(snapshot_counts[1], 4, "unacknowledged recovery does not thin player snapshots")
-	context.expect_equal(snapshot_counts[2], 4, "healthy peer retains full snapshot rate")
-	lobby.remove(1)
-	scheduler._flush_recovery(lobby)
-	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 0, "disconnect releases queued recovery and inflight records")
-	scheduler.clear()
-	context.expect_equal(scheduler.payload_metrics().recovery_pending_chunks, 0, "rematch discards old recovery queue")
-	context.expect_equal(scheduler.payload_metrics().recovery_active_peers, 0, "rematch releases every peer window")
+	# Correction ticks fall every 12 ticks from tick 12; chunks leave every 6.
+	var chunks_per_snapshot := ProjectilePacketCodec.correction_chunk_count(1024)
+	var fixture := RecoveryFixture.new(32, 1024)
+	fixture.scheduler._send_projectile_correction(fixture.lobby, fixture.world)
+	context.expect_equal(fixture.total_chunks(), 0, "complete snapshots are queued without a synchronous fan-out burst")
+	fixture.scheduler.clear()
+	fixture.run(1, 60)
+	context.expect_true(fixture.max_chunks_in_one_tick <= 32, "each peer sends at most one complete-snapshot chunk in a tick")
+	var complete_for_all := fixture.received.size() == 32
+	for peer in fixture.received:
+		complete_for_all = complete_for_all and fixture.is_complete(peer, chunks_per_snapshot)
+	context.expect_true(complete_for_all, "match start sends every peer exactly one complete projectile snapshot")
+	context.expect_equal(fixture.scheduler.payload_metrics().synchronized_peers, 32, "peers are synchronized once every chunk is handed to the transport")
+	context.expect_equal(fixture.scheduler.payload_metrics().recovery_active_peers, 0, "no complete snapshot remains queued after delivery")
+	context.expect_equal(int(fixture.scheduler.payload_metrics().bytes_by_category.projectile_recovery), fixture.recovery_bytes, "accounting includes actual per-peer complete-snapshot sends")
+	# The first correction (tick 12) is the start of the safety interval.
+	var safety_tick := 12 + GameConstants.PHYSICS_TICKS_PER_SECOND * NetworkReplicationScheduler.FULL_SNAPSHOT_INTERVAL_SECONDS
+	fixture.received.clear()
+	fixture.run(61, safety_tick - 1)
+	context.expect_equal(fixture.total_chunks(), 0, "synchronized peers receive no complete snapshot before the safety interval")
+	fixture.run(safety_tick, safety_tick + chunks_per_snapshot * NetworkReplicationScheduler.RECOVERY_INTERVAL_TICKS)
+	complete_for_all = fixture.received.size() == 32
+	for peer in fixture.received:
+		complete_for_all = complete_for_all and fixture.is_complete(peer, chunks_per_snapshot)
+	context.expect_true(complete_for_all, "every peer receives one safety snapshot per interval")
 
-	scheduler.projectile_recovery_ready.disconnect(listener)
+	# A mid-match join or a rejoin (which returns under a new peer id) is
+	# synchronized at the next correction tick without resending to others.
+	var joining := RecoveryFixture.new(2, 1024)
+	joining.run(1, 60)
+	joining.received.clear()
+	joining.lobby.admit(3, "LateJoiner")
+	joining.run(61, 72 + chunks_per_snapshot * NetworkReplicationScheduler.RECOVERY_INTERVAL_TICKS)
+	context.expect_equal(joining.received.keys(), [3], "a mid-match joiner alone receives a complete snapshot")
+	context.expect_true(joining.is_complete(3, chunks_per_snapshot), "the joiner receives every chunk of its snapshot")
+	context.expect_equal(joining.scheduler.payload_metrics().synchronized_peers, 3, "the joiner becomes synchronized")
+	joining.received.clear()
+	joining.scheduler.request_complete_snapshot(2)
+	context.expect_equal(joining.scheduler.payload_metrics().synchronized_peers, 2, "a requested resync forgets the peer's projectile set")
+	joining.run(121, 132 + chunks_per_snapshot * NetworkReplicationScheduler.RECOVERY_INTERVAL_TICKS)
+	context.expect_equal(joining.received.keys(), [2], "a requested resync sends that peer alone a complete snapshot")
+	context.expect_true(joining.is_complete(2, chunks_per_snapshot), "the requested resync delivers every chunk")
+
+	# A congested stream paces chunks four times slower: tick 12, 36 and 60.
+	var congested := RecoveryFixture.new(2, 1024)
+	congested.scheduler.set_transport_congested_peers({1: true})
+	congested.run(1, 60)
+	context.expect_equal(congested.chunk_count(1), 3, "a congested stream paces complete-snapshot chunks four times slower")
+	context.expect_equal(congested.chunk_count(2), chunks_per_snapshot, "a healthy peer is paced independently of a congested one")
+	congested.lobby.remove(1)
+	congested.run(61, 61)
+	context.expect_equal(congested.scheduler.payload_metrics().recovery_active_peers, 0, "departure releases a queued complete snapshot")
+
+	# A finished match forgets synchronization; the next one starts over.
+	fixture.lobby.match_active = false
+	fixture.run(700, 700)
+	context.expect_equal(fixture.scheduler.payload_metrics().synchronized_peers, 0, "a finished match forgets every synchronized peer")
+	fixture.lobby.match_active = true
+	fixture.run(701, 708)
+	context.expect_equal(fixture.scheduler.payload_metrics().recovery_active_peers, 32, "the next match queues a complete snapshot for every peer")
+	fixture.scheduler.clear()
+	context.expect_equal(fixture.scheduler.payload_metrics().recovery_pending_chunks, 0, "rematch discards the old complete-snapshot queue")
+	context.expect_equal(fixture.scheduler.payload_metrics().recovery_active_peers, 0, "rematch releases every peer")

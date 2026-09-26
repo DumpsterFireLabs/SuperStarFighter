@@ -214,19 +214,22 @@ static func _replication_ordering(context: TestContext, parent: Node) -> void:
 	context.expect_equal(view.replicated_visuals.authoritative_projectiles.get_projectile(103).position, moved.position, "older delta cannot rewind a newer partial correction")
 	_deliver_delta(bridge, 226, 24, [mine], [101])
 	context.expect_equal(view.replicated_visuals.authoritative_projectiles.get_projectile(101), null, "same-batch removal wins over spawn")
+	# Enough records to span two recovery chunks at the current message size.
+	var records_per_chunk := (NetworkProtocol.MAX_PROJECTILE_MESSAGE_BYTES - ProjectilePacketCodec.HEADER_SIZE - 2) / ProjectilePacketCodec.PROJECTILE_RECORD_SIZE
 	var many: Array[ProjectileState] = []
-	for id in range(300, 350):
+	for id in range(300, 300 + records_per_chunk + 19):
 		many.append(ProjectileState.create_mine(id, id % 32 + 2, Vector2(700, 300)))
 	_deliver_delta(bridge, 230, 25, many, [])
-	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), 51, "all chunks of one delta sequence are accepted")
+	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), many.size() + 1, "all chunks of one delta sequence are accepted")
 	var chunks := ProjectilePacketCodec.encode_correction_chunks(232, 26, many, true)
+	context.expect_true(chunks.size() >= 2, "the recovery fixture spans several chunks")
 	bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[0]))
-	var interleaved := ProjectileState.create_mine(400, 2, Vector2(800, 300))
+	var interleaved := ProjectileState.create_mine(5000, 2, Vector2(800, 300))
 	_deliver_delta(bridge, 233, 27, [interleaved], [])
 	for index in range(1, chunks.size()):
 		bridge._accept_projectile_correction_chunk(ProjectilePacketCodec.decode_correction(chunks[index]))
-	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), 51, "assembled recovery preserves a delta received between its chunks")
-	context.expect_true(view.replicated_visuals.authoritative_projectiles.get_projectile(400) != null, "interleaved new entity survives old recovery assembly")
+	context.expect_equal(view.replicated_visuals.authoritative_projectiles.size(), many.size() + 1, "assembled recovery preserves a delta received between its chunks")
+	context.expect_true(view.replicated_visuals.authoritative_projectiles.get_projectile(5000) != null, "interleaved new entity survives old recovery assembly")
 	# Lose the initial delta and withhold one recovery chunk: received records
 	# must already exist, while a ghost is pruned only after reliable repair.
 	view.reset_session()

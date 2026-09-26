@@ -10,6 +10,8 @@ const DEFAULTS: Dictionary = {
 	"high_contrast": false,
 	"toggle_fire": false,
 	"toggle_shield": false,
+	# Lets measured connection jitter raise the remote-ship delay (100-175 ms).
+	"adaptive_smoothing": true,
 }
 
 var values: Dictionary = DEFAULTS.duplicate()
@@ -32,7 +34,7 @@ func set_values(changes: Dictionary) -> void:
 			values[key] = changes[key]
 	var requested_scale := float(values.hud_scale)
 	values.hud_scale = clampf(requested_scale, 1.0, 1.5) if is_finite(requested_scale) else 1.0
-	for key in ["reduced_shake", "reduced_flashes", "constrain_hud", "high_contrast", "toggle_fire", "toggle_shield"]:
+	for key in ["reduced_shake", "reduced_flashes", "constrain_hud", "high_contrast", "toggle_fire", "toggle_shield", "adaptive_smoothing"]:
 		values[key] = bool(values[key])
 
 

@@ -277,7 +277,7 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_correction(packet).ok, "projectile correction rejects removal records")
 	var crowded: Array[ProjectileState] = []
-	for projectile_id in 100:
+	for projectile_id in 300:
 		crowded.append(ProjectileState.create(1000 + projectile_id, 4, projectile_id, Vector2(20.0 + projectile_id, 40.0), 0.0, stats))
 	var crowded_packets := ProjectilePacketCodec.encode_correction_chunks(1002, 9, crowded, true)
 	context.expect_true(crowded_packets.size() > 1, "crowded projectile correction is divided into transport-safe chunks")
@@ -901,6 +901,7 @@ static func _validate_prediction_and_interpolation(context: TestContext) -> void
 		"server-tick interpolation resists uneven snapshot arrival spacing",
 		0.05
 	)
+	_adaptive_interpolation_delay(context)
 
 	var predicted_projectiles := PredictedProjectileTracker.new()
 	predicted_projectiles.add(2, 7, 0.0)
@@ -1675,6 +1676,45 @@ static func _validate_reconnect_reset(context: TestContext) -> void:
 	local_ship.free()
 	view.hud_camera.camera.free()
 	view.free()
+
+
+static func _step_delay(interpolation: RemoteInterpolator, jitter_seconds: float, from_seconds: float, to_seconds: float) -> void:
+	var frames := roundi((to_seconds - from_seconds) * 60.0)
+	for frame in range(1, frames + 1):
+		interpolation.update_delay(jitter_seconds, from_seconds + frame / 60.0)
+
+
+static func _adaptive_interpolation_delay(context: TestContext) -> void:
+	var interpolation := RemoteInterpolator.new()
+	interpolation.update_delay(0.0, 0.0)
+	_step_delay(interpolation, 0.004, 0.0, 1.0)
+	context.expect_approx(interpolation.delay_seconds, RemoteInterpolator.INTERPOLATION_DELAY_SECONDS, "a steady connection keeps the 100 ms delay floor")
+	# 40 ms of arrival jitter targets 50 ms + 2.5 x 40 ms = 150 ms.
+	_step_delay(interpolation, 0.04, 1.0, 1.25)
+	context.expect_approx(interpolation.delay_seconds, 0.125, "jitter raises the delay gradually, not in one jump", 0.002)
+	_step_delay(interpolation, 0.04, 1.25, 2.0)
+	context.expect_approx(interpolation.delay_seconds, 0.15, "the delay settles at the snapshot interval plus 2.5x jitter", 0.002)
+	_step_delay(interpolation, 0.5, 2.0, 3.0)
+	context.expect_approx(interpolation.delay_seconds, RemoteInterpolator.MAX_ADAPTIVE_DELAY_SECONDS, "severe jitter is capped at 175 ms", 0.002)
+	_step_delay(interpolation, 0.0, 3.0, 4.0)
+	context.expect_approx(interpolation.delay_seconds, 0.15, "a calmer connection lowers the delay by 25 ms per second", 0.002)
+	interpolation.update_delay(0.0, 4.2)
+	interpolation.update_delay(0.0, 14.0)
+	context.expect_approx(interpolation.delay_seconds, 0.15 - 0.2 * RemoteInterpolator.ADAPTIVE_DECAY_PER_SECOND - 0.25 * RemoteInterpolator.ADAPTIVE_DECAY_PER_SECOND, "a long frame gap moves the delay by at most a quarter second of change", 0.002)
+	interpolation.adaptive = false
+	interpolation.update_delay(0.5, 14.1)
+	context.expect_approx(interpolation.delay_seconds, RemoteInterpolator.INTERPOLATION_DELAY_SECONDS, "with smoothing off the delay stays at 100 ms")
+	interpolation.adaptive = true
+	_step_delay(interpolation, 0.04, 14.1, 16.0)
+	interpolation.add_sample(3, 0.0, 0, {"position": Vector2.ZERO, "velocity": Vector2(100.0, 0.0), "aim_angle": 0.0})
+	interpolation.add_sample(3, 0.2, 12, {"position": Vector2(20.0, 0.0), "velocity": Vector2(100.0, 0.0), "aim_angle": 0.0})
+	context.expect_approx((interpolation.sample(3, 0.2).position as Vector2).x, 5.0, "remote ships render at the current adaptive delay", 0.05)
+	interpolation.clear()
+	context.expect_approx(interpolation.delay_seconds, RemoteInterpolator.INTERPOLATION_DELAY_SECONDS, "a session reset restores the delay floor")
+	var preferences = preload("res://src/client/presentation/accessibility_preferences.gd").new()
+	context.expect_true(bool(preferences.values.adaptive_smoothing), "adaptive smoothing is on by default")
+	preferences.set_values({"adaptive_smoothing": 0})
+	context.expect_true(preferences.values.adaptive_smoothing is bool and not preferences.values.adaptive_smoothing, "the smoothing preference is stored as a boolean")
 
 
 static func _validate_projectile_wire_compatibility(context: TestContext) -> void:

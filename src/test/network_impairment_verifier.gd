@@ -325,6 +325,8 @@ func _delivery_diagnostics() -> Dictionary:
 		"shield_active": authority.shield.active if authority != null else false,
 		"weapon_cooldown": authority.weapon.cooldown_remaining if authority != null else -1.0,
 		"snapshots": snapshots, "snapshot_rate_hz": _active_snapshot_rate_hz(),
+		"transport_resyncs": server.session.resync_count() if server != null else 0,
+		"transport_resyncing_at_end": server.session.resyncing_peers().size() if server != null else 0,
 		"reload_observed": observed_reload, "shield_observed": observed_shield,
 		"authority_reload_observed": authority_reload_observed, "authority_shield_observed": authority_shield_observed}
 

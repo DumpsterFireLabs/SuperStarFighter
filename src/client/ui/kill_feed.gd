@@ -130,10 +130,17 @@ func _create_entry(
 	if reason == "disconnect":
 		killer_label.text = victim_label.text
 		killer_label.add_theme_color_override("font_color", _identity_color(victim))
-		action_label.text = "left"
 		action_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
-		victim_label.text = ""
-		victim_label.hide()
+		if killer_id != 0:
+			# The attacker still earns the kill when a damaged player leaves.
+			var credited := _player_identity(killer_id, players)
+			action_label.text = "left, kill to"
+			victim_label.text = String(credited.get("display_name", "Pilot %d" % killer_id))
+			victim_label.add_theme_color_override("font_color", _identity_color(credited))
+		else:
+			action_label.text = "left"
+			victim_label.text = ""
+			victim_label.hide()
 	elif killer_id == 0:
 		killer_label.text = "Arena"
 		killer_label.add_theme_color_override("font_color", DesignTokensScript.WARNING)

@@ -35,9 +35,12 @@ var _last_heard: Dictionary = {}
 var _last_server_heard: float = 0.0
 var _server_loss_reported: bool = false
 var _behind_proxy: bool = false
-# peer_id -> {baseline_ms, queue_delay_ms, outstanding: {sent_usec: true}, congested, next_probe}
+# peer_id -> {baseline_ms, queue_delay_ms, outstanding: {sent_usec: true}, congested, resync_started_usec, next_probe}
 var _probes: Dictionary = {}
 var _congested_peers: Dictionary = {}
+# Peers so far behind that replaceable traffic is paused until they drain.
+var _resyncing_peers: Dictionary = {}
+var _resync_count: int = 0
 signal probe_requested(peer_id: int, server_usec: int)
 var _proxy_failure_limiter := AuthenticationAttemptLimiterScript.new()
 var _next_proxy_challenge: float = 0.0
@@ -245,6 +248,8 @@ func stop() -> void:
 	_last_heard.clear()
 	_probes.clear()
 	_congested_peers.clear()
+	_resyncing_peers.clear()
+	_resync_count = 0
 	_behind_proxy = false
 	_proxy_failure_limiter.clear()
 	_next_proxy_challenge = 0.0
@@ -383,6 +388,7 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 	_last_heard.erase(peer_id)
 	_probes.erase(peer_id)
 	_congested_peers.erase(peer_id)
+	_resyncing_peers.erase(peer_id)
 	_peer_auth_sources.erase(peer_id)
 	_pending_disconnects.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
@@ -648,7 +654,7 @@ func reject_malformed_control(peer_id: int, detail: String) -> void:
 func complete_handshake(peer_id: int) -> void:
 	_pending_handshakes.complete(peer_id)
 	_last_heard[peer_id] = _now_seconds()
-	_probes[peer_id] = {"baseline_ms": INF, "queue_delay_ms": 0.0, "outstanding": {}, "congested": false, "next_probe": 0}
+	_probes[peer_id] = {"baseline_ms": INF, "queue_delay_ms": 0.0, "outstanding": {}, "congested": false, "resync_started_usec": -1, "next_probe": 0}
 
 
 func _process_probes(now_usec: int) -> void:
@@ -661,7 +667,9 @@ func _process_probes(now_usec: int) -> void:
 		# An unanswered probe is at least this late; count it before its ack arrives.
 		if not outstanding.is_empty() and is_finite(float(state.baseline_ms)):
 			var oldest_ms := (now_usec - int(outstanding.keys().min())) / 1000.0
-			_update_congestion(int(peer_value), state, maxf(float(state.queue_delay_ms), oldest_ms - float(state.baseline_ms)))
+			var queue_delay_ms := maxf(float(state.queue_delay_ms), oldest_ms - float(state.baseline_ms))
+			_update_congestion(int(peer_value), state, queue_delay_ms)
+			_update_resync(int(peer_value), state, queue_delay_ms, now_usec)
 		if now_usec < int(state.next_probe) or outstanding.size() >= NetworkProtocol.TRANSPORT_PROBE_MAX_OUTSTANDING:
 			continue
 		state.next_probe = now_usec + int(NetworkProtocol.TRANSPORT_PROBE_INTERVAL_SECONDS * 1_000_000.0)
@@ -675,11 +683,17 @@ func _disconnect_overflowing_peers() -> void:
 		if not _has_transport_peer(peer_id):
 			continue
 		var peer := _transport_peer.get_peer(peer_id)
-		if peer == null or peer.get_current_outbound_buffered_amount() < NetworkProtocol.SERVER_OUTBOUND_OVERFLOW_BYTES:
+		if peer == null:
 			continue
-		log_requested.emit("warning", "peer_outbound_overflow", {"peer_id": peer_id, "buffered_bytes": peer.get_current_outbound_buffered_amount()})
+		var buffered := peer.get_current_outbound_buffered_amount()
+		if buffered >= NetworkProtocol.SERVER_OUTBOUND_RESYNC_BYTES and not _resyncing_peers.has(peer_id):
+			_begin_resync(peer_id, _probes[peer_id], float((_probes[peer_id] as Dictionary).queue_delay_ms), Time.get_ticks_usec())
+		if buffered < NetworkProtocol.SERVER_OUTBOUND_OVERFLOW_BYTES:
+			continue
+		log_requested.emit("warning", "peer_outbound_overflow", {"peer_id": peer_id, "buffered_bytes": buffered})
 		_probes.erase(peer_id)
 		_congested_peers.erase(peer_id)
+		_resyncing_peers.erase(peer_id)
 		_transport_peer.disconnect_peer(peer_id)
 
 
@@ -712,6 +726,7 @@ func record_probe_ack(peer_id: int, server_usec: int, now_usec: int = -1) -> voi
 	state.baseline_ms = baseline
 	state.queue_delay_ms = rtt_ms - baseline
 	_update_congestion(peer_id, state, float(state.queue_delay_ms))
+	_update_resync(peer_id, state, float(state.queue_delay_ms), now_usec)
 
 
 func _update_congestion(peer_id: int, state: Dictionary, queue_delay_ms: float) -> void:
@@ -731,6 +746,45 @@ func _update_congestion(peer_id: int, state: Dictionary, queue_delay_ms: float) 
 ## Peers whose outbound stream is backlogged; read by replication each tick.
 func congested_peers() -> Dictionary:
 	return _congested_peers
+
+
+func _update_resync(peer_id: int, state: Dictionary, queue_delay_ms: float, now_usec: int) -> void:
+	if not _resyncing_peers.has(peer_id):
+		if queue_delay_ms > NetworkProtocol.TRANSPORT_RESYNC_ENTER_MS:
+			_begin_resync(peer_id, state, queue_delay_ms, now_usec)
+		return
+	if queue_delay_ms > NetworkProtocol.TRANSPORT_CONGESTION_EXIT_MS or _outbound_buffered_bytes(peer_id) >= NetworkProtocol.SERVER_OUTBOUND_RESYNC_BYTES / 4:
+		return
+	_resyncing_peers.erase(peer_id)
+	log_requested.emit("info", "peer_transport_resynced", {"peer_id": peer_id,
+		"paused_ms": roundi((now_usec - int(state.resync_started_usec)) / 1000.0)})
+	state.resync_started_usec = -1
+
+
+func _begin_resync(peer_id: int, state: Dictionary, queue_delay_ms: float, now_usec: int) -> void:
+	_resyncing_peers[peer_id] = true
+	_resync_count += 1
+	state.resync_started_usec = now_usec
+	log_requested.emit("warning", "peer_transport_resync", {"peer_id": peer_id,
+		"queue_delay_ms": roundi(queue_delay_ms), "buffered_bytes": _outbound_buffered_bytes(peer_id)})
+
+
+func _outbound_buffered_bytes(peer_id: int) -> int:
+	if not _has_transport_peer(peer_id):
+		return 0
+	var peer := _transport_peer.get_peer(peer_id)
+	return peer.get_current_outbound_buffered_amount() if peer != null else 0
+
+
+## Peers so far behind that replaceable traffic is paused until they drain;
+## read by replication each tick.
+func resyncing_peers() -> Dictionary:
+	return _resyncing_peers
+
+
+## Resyncs started this session, for operator metrics and fixtures.
+func resync_count() -> int:
+	return _resync_count
 
 
 ## Refreshes an admitted peer's liveness deadline.
@@ -813,6 +867,7 @@ func forget_admission(peer_id: int) -> void:
 	_last_heard.erase(peer_id)
 	_probes.erase(peer_id)
 	_congested_peers.erase(peer_id)
+	_resyncing_peers.erase(peer_id)
 	_rate_limiter.remove_peer(peer_id)
 	_control_rate_limiter.remove_peer(peer_id)
 	_transport_rate_limiter.remove_peer(peer_id)

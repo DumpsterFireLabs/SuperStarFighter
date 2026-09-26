@@ -56,6 +56,7 @@ var constrain_hud_control: CheckButton
 var high_contrast_control: CheckButton
 var toggle_fire_control: CheckButton
 var toggle_shield_control: CheckButton
+var adaptive_smoothing_control: CheckButton
 var accessible_refresh_pending: bool = false
 var accessible_pending_nodes: Array[WeakRef] = []
 var settings_back_button: Button
@@ -198,6 +199,8 @@ func _create_accessibility_settings_tab() -> void:
 	high_contrast_control = _add_accessibility_toggle(tab, "Stronger text, panel and obstacle contrast", "high_contrast")
 	toggle_fire_control = _add_accessibility_toggle(tab, "Toggle fire: press to start / stop", "toggle_fire")
 	toggle_shield_control = _add_accessibility_toggle(tab, "Toggle shield: press to raise / lower", "toggle_shield")
+	adaptive_smoothing_control = _add_accessibility_toggle(tab, "Adaptive motion smoothing on unstable connections", "adaptive_smoothing")
+	adaptive_smoothing_control.tooltip_text = "Other ships are shown 100 ms behind the server. When snapshots arrive unevenly, this raises that delay up to 175 ms to avoid stutter and snapping. Off keeps 100 ms, the most current view of opponents."
 	var note := Label.new()
 	note.text = "Toggles reset on menus, elimination and session changes.\nApplies immediately to online play and the build laboratory.\nReduced flashes keeps impact outlines and damage information visible.\nUse Tab / Shift+Tab or controller D-pad to navigate; Left / Right adjusts size."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -236,7 +239,7 @@ func _change_accessibility_setting(key: String, value: Variant) -> void:
 
 
 func _configure_accessibility_focus() -> void:
-	var controls: Array[Control] = [settings_tabs.get_tab_bar(), hud_scale_control, reduced_shake_control, reduced_flashes_control, constrain_hud_control, high_contrast_control, toggle_fire_control, toggle_shield_control, settings_back_button]
+	var controls: Array[Control] = [settings_tabs.get_tab_bar(), hud_scale_control, reduced_shake_control, reduced_flashes_control, constrain_hud_control, high_contrast_control, toggle_fire_control, toggle_shield_control, adaptive_smoothing_control, settings_back_button]
 	for index in range(1, controls.size() - 1):
 		controls[index].focus_previous = controls[index].get_path_to(controls[index - 1])
 		controls[index].focus_neighbor_top = controls[index].focus_previous

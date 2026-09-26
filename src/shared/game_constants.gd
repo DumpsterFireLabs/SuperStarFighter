@@ -6,11 +6,14 @@ const GAME_NAME: String = "Super Star Fighter"
 static var GAME_VERSION: String = ProjectSettings.get_setting("application/config/version")
 static var RELEASE_LABEL: String = "BETA " + GAME_VERSION.get_slice("-beta.", 1)
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 47
+const PROTOCOL_VERSION: int = 48
 const SHIELD_PRESS_RETENTION_TICKS: int = 15
 const INPUT_STALE_SECONDS: float = 0.5
 # How long a disconnected match participant's seat, cards and score are held.
 const RECONNECT_GRACE_SECONDS: float = 90.0
+# Leaving within this long of taking hostile hull damage credits the attacker
+# with the kill, so disconnecting cannot deny an earned elimination.
+const DISCONNECT_KILL_CREDIT_SECONDS: float = 5.0
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024

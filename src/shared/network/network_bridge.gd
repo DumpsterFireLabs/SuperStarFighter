@@ -93,12 +93,13 @@ func _init() -> void:
 	replication = NetworkReplicationScheduler.new()
 	# Per-peer sends skip a peer whose socket is already closing, as broadcasts do.
 	replication.player_snapshot_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: if session.can_send_to(peer_id): world_snapshot.rpc_id(peer_id, packet))
-	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet]))
+	# A resyncing peer's projectile set is rebuilt by a complete snapshot, so deltas pause with it.
+	replication.projectile_batch_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_batch", [packet], replication.transport_resyncing_peers()))
 	# Periodic corrections are replaceable; a backlogged TCP peer receives the next one instead of queueing this one.
-	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet], replication.transport_congested_peers()))
+	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet], replication.correction_excluded_peers()))
 	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: if session.can_send_to(peer_id): projectile_recovery.rpc_id(peer_id, packet))
 	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: if session.can_send_to(peer_id): match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
-	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events]))
+	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events], replication.transport_resyncing_peers()))
 
 
 func start_server(configuration: Dictionary) -> Error:
@@ -396,6 +397,7 @@ func _physics_process(delta: float) -> void:
 	var coordination_done_usec := Time.get_ticks_usec()
 	var tick := world.server_tick
 	replication.set_transport_congested_peers(session.congested_peers())
+	replication.set_transport_resyncing_peers(session.resyncing_peers())
 	replication.replicate_tick(tick, lobby, world)
 	var replication_done_usec := Time.get_ticks_usec()
 	# A heat result may produce a row for every player. Preserve all JSON lines
@@ -1107,17 +1109,6 @@ func projectile_recovery(packet: PackedByteArray) -> void:
 	if decoded.ok and bool(decoded.get("complete_snapshot", false)):
 		_accept_projectile_correction_chunk(decoded)
 
-		projectile_recovery_ack.rpc_id(NetworkProtocol.SERVER_PEER_ID, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_PROJECTILE_CORRECTION)
-func projectile_recovery_ack(tick: int, sequence: int, chunk: int) -> void:
-	if role != Role.SERVER or lobby == null:
-		return
-	var sender := multiplayer.get_remote_sender_id()
-	if lobby.human_peer_ids_view().has(sender):
-		replication.acknowledge_recovery(sender, tick, sequence, chunk)
-
 
 func operator_status() -> Dictionary:
 	var lobby_summary := lobby.serialize() if lobby != null else {}
@@ -1458,7 +1449,7 @@ func _drain_match_coordinator() -> void:
 				for index in rows.size():
 					_log("info", "heat_observation" if index == 0 else "heat_player_observation", rows[index])
 		if event_type == &"OBJECTIVE_UPDATED":
-			_broadcast_to_admitted(&"objective_snapshot", [server_tick_value, payload])
+			_broadcast_to_admitted(&"objective_snapshot", [server_tick_value, payload], replication.transport_resyncing_peers())
 		else:
 			_broadcast_to_admitted(&"match_event", [event_type, server_tick_value, payload])
 		if event_type not in [&"OBJECTIVE_UPDATED", &"ARENA_EFFECTS_UPDATED"]:

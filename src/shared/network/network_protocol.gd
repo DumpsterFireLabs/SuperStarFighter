@@ -34,6 +34,14 @@ const TRANSPORT_PROBE_MAX_OUTSTANDING: int = 16
 const TRANSPORT_PROBE_EXPIRY_SECONDS: float = 2.0
 const TRANSPORT_CONGESTION_ENTER_MS: float = 150.0
 const TRANSPORT_CONGESTION_EXIT_MS: float = 50.0
+# A stream this far behind is resynchronized rather than drained: replaceable
+# traffic stops until the backlog clears, then the peer receives a complete
+# snapshot. It is never disconnected for this, which would eliminate them.
+# The server's own buffer is checked too because probes only see the OS queue
+# once it has filled. Leaving needs the congestion exit threshold and a
+# buffer below a quarter of the entry size.
+const TRANSPORT_RESYNC_ENTER_MS: float = 750.0
+const SERVER_OUTBOUND_RESYNC_BYTES: int = 1 << 17
 const TRANSPORT_PING_INTERVAL_SECONDS: float = 1.0
 const TRANSPORT_CONNECT_ATTEMPTS: int = 12
 const TRANSPORT_CONNECT_WINDOW_SECONDS: float = 10.0
@@ -95,7 +103,10 @@ const MAX_LOG_STRING_LENGTH: int = 128
 const MAX_LOG_COLLECTION_LENGTH: int = 16
 const MAX_SNAPSHOT_PLAYERS: int = GameConstants.MAX_PLAYERS
 const MAX_PACKET_PROJECTILES: int = GameConstants.MAX_PROJECTILES_GLOBAL
-const MAX_PROJECTILE_MESSAGE_BYTES: int = 1200
+# Sized for the TCP stream rather than a datagram MTU: fewer, larger chunks
+# carry less framing. A paced complete-snapshot chunk stays small enough not to
+# hold a snapshot behind it for long on a slow link (~33 ms at 1 Mbit/s).
+const MAX_PROJECTILE_MESSAGE_BYTES: int = 4096
 
 const REJECT_SERVER_FULL: StringName = &"SERVER_FULL"
 const REJECT_VERSION_MISMATCH: StringName = &"VERSION_MISMATCH"

@@ -21,6 +21,9 @@ PROFILES = {
     # TCP recovers loss by retransmission: modelled as head-of-line stalls.
     "loss": {"loss": 0.12},
     "blackout": {"blackout": True},
+    # A downstream-only outage long enough to back the stream up past the
+    # resync threshold; the player must resync and converge without a disconnect.
+    "downstream_blackout": {"blackout": True, "blackout_window": (4.0, 6.5), "blackout_directions": ("down",), "min_resyncs": 1},
     "combined": {"delay": 0.060, "jitter": 0.025, "loss": 0.08, "blackout": True},
     "tail_loss": {"settlement_blackout": 0.35},
     "limited_bandwidth": {"delay": 0.05, "jitter": 0.02, "bytes_per_second": 4096},
@@ -55,8 +58,9 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
                     elapsed = now - started
                     # Faults include handshake/control traffic. The blackout is
                     # bounded; held fire must stop through server input expiry.
-                    if profile.get("blackout") and BLACKOUT_WINDOW[0] <= elapsed < BLACKOUT_WINDOW[1]:
-                        hold = {"up": started + BLACKOUT_WINDOW[1], "down": started + BLACKOUT_WINDOW[1]}
+                    window = profile.get("blackout_window", BLACKOUT_WINDOW)
+                    if profile.get("blackout") and window[0] <= elapsed < window[1]:
+                        hold = {direction: started + window[1] for direction in profile.get("blackout_directions", ("up", "down"))}
                     if settlement_started is not None and now - settlement_started < profile["settlement_blackout"]:
                         hold["up"] = settlement_started + profile["settlement_blackout"]
                     proxy.poll(now, 0.002, hold_until=hold)
@@ -83,7 +87,7 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
         required = ["received", "delivered"]
         if profile.get("loss"):
             required.append("loss_stalls")
-        if profile.get("blackout"):
+        if profile.get("blackout") and direction in profile.get("blackout_directions", ("up", "down")):
             required.append("held")
         if profile.get("delay"):
             required.append("delayed")
@@ -95,12 +99,17 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
     if profile.get("settlement_blackout") and (counters["up"]["held"] == 0 or fixture["delivery"]["neutral_send_attempts"] < 2):
         raise RuntimeError(f"{name}: did not exercise a stall and retry of the final neutral barrier")
     snapshot_rate = fixture["delivery"]["snapshot_rate_hz"]
+    resyncs = fixture["delivery"]["transport_resyncs"]
+    if profile.get("min_resyncs") and resyncs < profile["min_resyncs"]:
+        raise RuntimeError(f"{name}: expected at least {profile['min_resyncs']} transport resync, observed {resyncs}")
+    if fixture["delivery"]["transport_resyncing_at_end"]:
+        raise RuntimeError(f"{name}: a transport resync never finished")
     if profile.get("min_snapshot_hz") and snapshot_rate < profile["min_snapshot_hz"]:
         raise RuntimeError(f"{name}: snapshot rate {snapshot_rate:.1f} Hz is below {profile['min_snapshot_hz']:.1f} Hz")
     result = dict(profile=name, seed=seed, shield_only=shield_only, configuration=profile, stream=counters,
                   peak_queued_segments=link.peak, elapsed_seconds=time.monotonic() - started, fixture=fixture)
     (output / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS {name}: {fixture['snapshots']} snapshots at {snapshot_rate:.1f} Hz, resources converged, faults={counters}", flush=True)
+    print(f"PASS {name}: {fixture['snapshots']} snapshots at {snapshot_rate:.1f} Hz, {resyncs} resyncs, resources converged, faults={counters}", flush=True)
     return result
 
 

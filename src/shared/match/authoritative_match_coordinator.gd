@@ -226,6 +226,13 @@ func disconnect_peer(peer_id: int, hold_for_reconnect: bool = false) -> bool:
 		player.participant and not player.is_npc and
 		machine.state not in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]
 	)
+	# Leaving shortly after taking hostile damage cannot deny the attacker a kill.
+	var credited_killer := 0
+	var departing := world.combatants.get(peer_id) as CombatantState
+	if was_active_participant and departing != null and departing.alive:
+		credited_killer = world.recent_hostile_attacker(peer_id, lobby.config.duration_to_ticks(GameConstants.DISCONNECT_KILL_CREDIT_SECONDS))
+		if credited_killer != 0 and not machine.scores.award_kill(credited_killer):
+			credited_killer = 0
 	if draft != null and draft.is_active():
 		draft.withdraw_player(peer_id)
 	_respawn_deadlines.erase(peer_id)
@@ -240,7 +247,7 @@ func disconnect_peer(peer_id: int, hold_for_reconnect: bool = false) -> bool:
 		_events.append(MatchEvent.new(&"PLAYER_ELIMINATED", world.server_tick, {
 			"peer_ids": [peer_id],
 			"eliminations": [{
-				"killer_id": 0,
+				"killer_id": credited_killer,
 				"victim_id": peer_id,
 				"reason": "disconnect",
 			}],

@@ -32,6 +32,12 @@ static func encode_correction_chunks(
 	return _encode_chunks(server_tick, batch_sequence, kind, active, [])
 
 
+## Chunks a complete snapshot of projectile_count records occupies.
+static func correction_chunk_count(projectile_count: int) -> int:
+	var per_chunk := (NetworkProtocol.MAX_PROJECTILE_MESSAGE_BYTES - HEADER_SIZE - 2) / PROJECTILE_RECORD_SIZE
+	return maxi(ceili(float(projectile_count) / per_chunk), 1)
+
+
 static func _encode_chunks(
 	server_tick: int,
 	batch_sequence: int,

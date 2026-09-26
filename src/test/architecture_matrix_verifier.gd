@@ -54,10 +54,6 @@ func _run() -> void:
 		ship.health = ship.stats.max_health
 	var fixture := LoadFixture.new()
 	var scheduler := NetworkReplicationScheduler.new()
-	# Model healthy recipients; transport latency is measured by the TCP impairment fixture.
-	var scheduler_ref: WeakRef = weakref(scheduler)
-	scheduler.projectile_recovery_ready.connect(func(peer: int, packet: PackedByteArray) -> void:
-		(scheduler_ref.get_ref() as NetworkReplicationScheduler).acknowledge_recovery(peer, packet.decode_u32(1), packet.decode_u16(6), packet.decode_u16(8)))
 	var npc := NpcPilotController.new()
 	var npc_ids := lobby.npc_peer_ids_view()
 	var difficulties := lobby.npc_difficulties_view()
@@ -104,7 +100,7 @@ func _run() -> void:
 		samples.assign(phase_samples[phase])
 		phases[phase] = Summary.summarize(samples)
 	print("SSF_MATRIX_PHASES=" + JSON.stringify({"phases": phases, "collision_totals": collision_totals, "profiled": world.performance_profiling_enabled}))
-	valid = valid and active_ticks >= 120 and times.size() == 480 and max_pending <= 27 and scheduler.outbound_bytes() > 0
+	valid = valid and active_ticks >= 120 and times.size() == 480 and max_pending <= ProjectilePacketCodec.correction_chunk_count(GameConstants.MAX_PROJECTILES_GLOBAL) and scheduler.outbound_bytes() > 0
 	if world.arena_effects.enabled != 0: valid = valid and effect_activity > 0
 	if "--strict-physics-budget" in OS.get_cmdline_user_args(): valid = valid and summary.over_physics_budget == 0
 	print("SSF_ARCHITECTURE_MATRIX=" + JSON.stringify({"valid": valid, "mode": GameModeRules.mode_name(config.game_mode), "map": maps[case_index], "humans": 16, "npcs": npc_ids.size(), "build": build, "effects_enabled": world.arena_effects.enabled, "effect_activity_ticks": effect_activity, "active_ticks": active_ticks, "timings": summary, "phase_work": coordinator.phase_work_snapshot(), "payload": scheduler.payload_metrics(), "scope": "Combined CPU work; includes human input, NPC decisions, world, coordinator and replication. Refill and validation excluded. No socket, renderer or FPS claim."}))
