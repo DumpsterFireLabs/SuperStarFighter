@@ -4,6 +4,7 @@ extends RefCounted
 static func run(context: TestContext, parent: Node) -> void:
 	_selection(context)
 	_budgets(context)
+	_owner_mine_counts(context)
 	_mine_detonation_events(context)
 	_ability_replay(context)
 	_feedback_panel(context, parent)
@@ -42,6 +43,42 @@ static func _selection(context: TestContext) -> void:
 	context.expect_true(&"special_previous" in profiles.rebind_actions() and &"special_next" in profiles.rebind_actions(), "controller ability selection is remappable")
 	profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
 	profiles.free()
+
+
+static func _owner_mine_counts(context: TestContext) -> void:
+	# Snapshots read per-owner mine counts every tick, so they are maintained
+	# rather than scanned. They must match a scan through every mutation path.
+	var registry := ProjectileRegistry.new()
+	registry.maximum_per_owner = 12
+	registry.maximum_global = 40
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 230926
+	var next_id := 1
+	var consistent := true
+	for step in 2000:
+		var owner := rng.randi_range(1, 6)
+		var action := rng.randi_range(0, 9)
+		if action <= 3:
+			registry.add(ProjectileState.create_mine(next_id, owner, Vector2.ZERO))
+			next_id += 1
+		elif action <= 6:
+			registry.add(ProjectileState.create(next_id, owner, next_id, Vector2.ZERO, 0, CombatStats.create_base()))
+			next_id += 1
+		elif action == 7 and registry.size() > 0:
+			registry.remove(registry.all_projectiles()[rng.randi_range(0, registry.size() - 1)].projectile_id)
+		elif action == 8 and registry.size() > 0:
+			registry.transfer_owner(registry.all_projectiles()[rng.randi_range(0, registry.size() - 1)].projectile_id, rng.randi_range(1, 6))
+		elif action == 9:
+			registry.schedule_owner_cleanup(owner)
+			registry.step_cleanup(GameConstants.DEAD_OWNER_PROJECTILE_LIFETIME)
+		for check_owner in range(1, 7):
+			var scanned := 0
+			for projectile in registry.all_projectiles():
+				if projectile.owner_id == check_owner and projectile.is_mine:
+					scanned += 1
+			consistent = consistent and registry.mine_count_for_owner(check_owner) == scanned
+	context.expect_true(consistent, "maintained per-owner mine counts match a scan through adds, removals, evictions, transfers and cleanup")
+	context.expect_true(registry.budget_evictions > 0, "the owner mine count check exercised budget evictions")
 
 
 static func _budgets(context: TestContext) -> void:
