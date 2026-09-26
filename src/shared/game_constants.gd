@@ -11,6 +11,9 @@ const SHIELD_PRESS_RETENTION_TICKS: int = 15
 const INPUT_STALE_SECONDS: float = 0.5
 # How long a disconnected match participant's seat, cards and score are held.
 const RECONNECT_GRACE_SECONDS: float = 90.0
+# Leaving within this long of taking hostile hull damage credits the attacker
+# with the kill, so disconnecting cannot deny an earned elimination.
+const DISCONNECT_KILL_CREDIT_SECONDS: float = 5.0
 
 const DEFAULT_PORT: int = 7000
 const MIN_PORT: int = 1024

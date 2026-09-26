@@ -26,6 +26,8 @@ var _spawned_since_batch: Array[ProjectileState] = []
 var _removed_since_batch: Array[int] = []
 var _ram_contact_ticks: Dictionary = {}
 var _kills_since_drain: Array[Dictionary] = []
+# target peer -> {attacker, tick, life_generation} of the latest hostile hull hit.
+var _last_hostile_hits: Dictionary = {}
 var combat_contact_serial: int = 0
 var combat_hull_damage: float = 0.0
 
@@ -66,6 +68,7 @@ func remove_peer(peer_id: int) -> void:
 	_combat_feedback.forget_peer(peer_id)
 	projectile_registry.forget_owner_metrics(peer_id)
 	combatants.erase(peer_id)
+	_last_hostile_hits.erase(peer_id)
 	_ordered_peer_ids_dirty = true
 	latest_inputs.erase(peer_id)
 	acknowledged_inputs.erase(peer_id)
@@ -810,6 +813,7 @@ func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 			combat_contact_serial += 1
 			combat_hull_damage += float(impact.damage)
 			_combat_feedback.record_hit(killer_id, float(impact.damage), String(impact.source))
+			record_hostile_hit(target_id, killer_id)
 		if not bool(impact.lethal):
 			continue
 		_combat_feedback.record_death(target_id, {
@@ -824,6 +828,27 @@ func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 				kill["mechanic"] = "ram_contact"
 			_kills_since_drain.append(kill)
 	return deaths
+
+
+## Remembers the latest hostile hull hit on a target for disconnect kill credit.
+func record_hostile_hit(target_id: int, attacker_id: int) -> void:
+	var target := combatants.get(target_id) as CombatantState
+	if target == null:
+		return
+	_last_hostile_hits[target_id] = {"attacker": attacker_id, "tick": server_tick, "life_generation": target.life_generation}
+
+
+## The attacker who hit this target's current life within the window and is
+## still in the world, or 0. A hit from an earlier life never counts.
+func recent_hostile_attacker(target_id: int, within_ticks: int) -> int:
+	var hit: Dictionary = _last_hostile_hits.get(target_id, {})
+	var target := combatants.get(target_id) as CombatantState
+	if hit.is_empty() or target == null or int(hit.life_generation) != target.life_generation:
+		return 0
+	if ((server_tick - int(hit.tick)) & SequenceMath.UINT32_MASK) > within_ticks:
+		return 0
+	var attacker_id := int(hit.attacker)
+	return attacker_id if combatants.has(attacker_id) else 0
 
 
 func _record_shield_feedback(attacker_id: int, defender_id: int, reason: String) -> void:

@@ -14,6 +14,7 @@ static func run(context: TestContext) -> void:
 	_validate_round_winner_draft_bye(context)
 	_validate_npc_draft(context)
 	_validate_forfeit(context)
+	_validate_disconnect_kill_credit(context)
 	_validate_reconnect_keeps_seat(context)
 	_validate_reconnect_holds_forfeit(context)
 	_validate_reconnect_expiry_forfeits(context)
@@ -248,6 +249,73 @@ static func _validate_forfeit(context: TestContext) -> void:
 	coordinator.disconnect_peer(11)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "single remaining participant wins by forfeit")
 	context.expect_equal(coordinator.machine.match_winner, 10, "forfeit records remaining participant as match winner")
+
+
+static func _active_heat_fixture(peer_ids: Array[int], seed: int) -> Dictionary:
+	var lobby := ServerLobby.new(_fast_config())
+	var world := AuthoritativeWorld.new()
+	for peer_id in peer_ids:
+		lobby.admit(peer_id, "Pilot%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(peer_ids[0])
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, seed)
+	coordinator.start(0)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	coordinator.drain_events()
+	return {"world": world, "coordinator": coordinator}
+
+
+static func _disconnect_elimination(coordinator: AuthoritativeMatchCoordinator, victim_id: int) -> Dictionary:
+	for event in coordinator.drain_events():
+		if event.event_type != &"PLAYER_ELIMINATED":
+			continue
+		for elimination: Dictionary in event.payload.get("eliminations", []):
+			if int(elimination.victim_id) == victim_id and String(elimination.reason) == "disconnect":
+				return elimination
+	return {}
+
+
+static func _validate_disconnect_kill_credit(context: TestContext) -> void:
+	var window_ticks := ceili(GameConstants.DISCONNECT_KILL_CREDIT_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	var credited := _active_heat_fixture([10, 11, 12], 91)
+	var world := credited.world as AuthoritativeWorld
+	var coordinator := credited.coordinator as AuthoritativeMatchCoordinator
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.ACTIVE_HEAT, "kill credit fixture reaches an active heat")
+	world.record_hostile_hit(12, 11)
+	world.server_tick += window_ticks - 1
+	coordinator.disconnect_peer(12)
+	context.expect_equal(coordinator.machine.scores.get_score(11).kills, 1, "leaving soon after hostile damage credits the attacker with the kill")
+	var record := _disconnect_elimination(coordinator, 12)
+	context.expect_equal(int(record.get("killer_id", -1)), 11, "the disconnect elimination names the credited attacker")
+
+	var stale := _active_heat_fixture([20, 21, 22], 92)
+	(stale.world as AuthoritativeWorld).record_hostile_hit(22, 21)
+	(stale.world as AuthoritativeWorld).server_tick += window_ticks + 1
+	(stale.coordinator as AuthoritativeMatchCoordinator).disconnect_peer(22)
+	context.expect_equal((stale.coordinator as AuthoritativeMatchCoordinator).machine.scores.get_score(21).kills, 0, "damage older than the window earns no kill")
+	context.expect_equal(int(_disconnect_elimination(stale.coordinator, 22).get("killer_id", -1)), 0, "an uncredited disconnect keeps no killer")
+
+	var respawned := _active_heat_fixture([30, 31, 32], 93)
+	var respawned_world := respawned.world as AuthoritativeWorld
+	respawned_world.record_hostile_hit(32, 31)
+	var victim := respawned_world.combatants[32] as CombatantState
+	victim.reset_for_heat(victim.stats, victim.position, false)
+	(respawned.coordinator as AuthoritativeMatchCoordinator).disconnect_peer(32)
+	context.expect_equal((respawned.coordinator as AuthoritativeMatchCoordinator).machine.scores.get_score(31).kills, 0, "a hit on an earlier life earns no kill")
+
+	var departed := _active_heat_fixture([40, 41, 42], 94)
+	(departed.world as AuthoritativeWorld).record_hostile_hit(42, 41)
+	(departed.coordinator as AuthoritativeMatchCoordinator).disconnect_peer(41)
+	(departed.world as AuthoritativeWorld).remove_peer(41)
+	(departed.coordinator as AuthoritativeMatchCoordinator).disconnect_peer(42)
+	context.expect_equal(int(_disconnect_elimination(departed.coordinator, 42).get("killer_id", -1)), 0, "an attacker who already left is not credited")
+
+	var dead := _active_heat_fixture([50, 51, 52], 95)
+	(dead.world as AuthoritativeWorld).record_hostile_hit(52, 51)
+	((dead.world as AuthoritativeWorld).combatants[52] as CombatantState).alive = false
+	(dead.coordinator as AuthoritativeMatchCoordinator).disconnect_peer(52)
+	context.expect_equal((dead.coordinator as AuthoritativeMatchCoordinator).machine.scores.get_score(51).kills, 0, "leaving while already eliminated earns no second kill")
 
 
 static func _reconnect_fixture(peer_ids: Array[int], seed: int) -> Dictionary:
