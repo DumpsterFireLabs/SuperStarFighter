@@ -64,10 +64,15 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_equal(audio.weapon_preparation.stats().cached, Policy.WEAPON_CACHE_LIMIT, "generated weapon cache remains bounded")
 	context.expect_true(audio.weapon_preparation._cache.has(profile.cache_key() + ":v0"), "recently used weapon survives cache eviction")
 	context.expect_true(not audio.weapon_preparation._cache.has("fixture:0"), "least-recently used weapon is evicted first")
+	# Finished voices legitimately free budget, so hold it with a looping stream: a 100 ms
+	# weapon shot can end mid-loop when console output from assertions is slow.
+	var sustained := _looping_silence()
+	var admitted := 0
 	for index in Policy.REMOTE_WEAPON_VOICES:
 		var voice := audio._acquire_sfx_player(1, &"remote_weapon")
-		context.expect_true(voice != null, "remote weapon budget admits its configured voices")
-		audio._play_on_player(voice, cached, 1.0, -24.0, 1, &"remote_weapon", -0.5)
+		admitted += 1 if voice != null else 0
+		audio._play_on_player(voice, sustained, 1.0, -24.0, 1, &"remote_weapon", -0.5)
+	context.expect_equal(admitted, Policy.REMOTE_WEAPON_VOICES, "remote weapon budget admits its configured voices")
 	context.expect_true(audio._acquire_sfx_player(1, &"remote_weapon") == null, "remote volley overflow cannot consume protected feedback capacity")
 	var important := audio._acquire_sfx_player(7, &"important")
 	context.expect_true(important != null, "local feedback remains admissible under remote gunfire")
@@ -81,6 +86,18 @@ static func run(context: TestContext, parent: Node) -> void:
 		player.stop()
 	audio.free()
 	_test_preparation_shutdown(context)
+
+
+static func _looping_silence() -> AudioStreamWAV:
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = 22050
+	var samples := PackedByteArray()
+	samples.resize(2205 * 2)
+	stream.data = samples
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = 2205
+	return stream
 
 
 static func _finish_weapon_requests(audio: AudioDirector) -> void:
