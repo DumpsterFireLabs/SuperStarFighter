@@ -190,6 +190,36 @@ func withdraw_player(peer_id: int) -> void:
 	offer.selected_card_id = &""
 	offer.build_complete = true
 	offer.locked = true
+	offer.withdrawn = true
+
+
+## Moves a reconnecting player's draft state to their new peer id. A withdrawn
+## offer is reopened with the same cards; any earlier pick must be made again.
+func restore_player(previous_peer_id: int, peer_id: int) -> DraftOffer:
+	if not _active:
+		return null
+	var pending_index := _pending_peers.find(previous_peer_id)
+	if pending_index >= 0:
+		_pending_peers[pending_index] = peer_id
+	var skipped_index := _preparing_skipped.find(previous_peer_id)
+	if skipped_index >= 0:
+		_preparing_skipped[skipped_index] = peer_id
+	for cache: Dictionary in [_automatic_choices, _baseline_stats, _candidate_stats]:
+		if cache.has(previous_peer_id):
+			cache[peer_id] = cache[previous_peer_id]
+			cache.erase(previous_peer_id)
+	var offer := get_offer(previous_peer_id)
+	if offer == null:
+		return null
+	_offers.erase(previous_peer_id)
+	offer.peer_id = peer_id
+	_offers[peer_id] = offer
+	if offer.withdrawn:
+		offer.withdrawn = false
+		offer.selected_card_id = &""
+		offer.build_complete = offer.card_ids.is_empty()
+		offer.locked = offer.build_complete or offer.skipped
+	return offer
 
 
 func _shuffle(values: Array[StringName]) -> void:

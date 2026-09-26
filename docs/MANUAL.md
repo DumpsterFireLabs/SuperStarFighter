@@ -97,7 +97,7 @@ The same screen also offers:
 - **Settings** for display mode, resolution, audio, controls, and accessibility.
 - **Quit** to close the game.
 
-Display names may contain 1–16 visible characters. Unsafe invisible or direction-formatting characters are rejected. International text and emoji are supported; when names are visually confusable, the server adds bounded suffixes such as `#2` for display clarity.
+Display names may contain 1–16 visible characters. Unsafe invisible or direction-formatting characters are rejected. International text and emoji are supported; when names are visually confusable, the server adds bounded suffixes such as `#2` for display clarity. The game remembers your display name between sessions, alongside your ship appearance and remembered lobby passwords.
 
 ## 4. Hosting and Joining
 
@@ -675,13 +675,19 @@ Practice is untimed until overtime is explicitly enabled. HUD size, reduced shak
 
 ## 12. Disconnects and Rejoining
 
-- Disconnecting during a heat eliminates that participant before survivor resolution.
-- Disconnecting in another match state removes the participant from future spawns.
-- Joining after a match has started admits the client as a spectator.
+If your connection drops during a match, the server holds your seat for **90 seconds**. Reconnect from the connection screen with the same server address and lobby password, and you return to the same match with your cards, score, team, name, and ship colour. The name field is ignored for a rejoin; you keep your original pilot name.
+
+- **Where you come back in.** During a draft you get your card offer back (pick again if you had already chosen). During the countdown you join the coming heat. During a heat you sit out the rest of it in Death Match and Team Death Match and fly from the next heat; in King of the Hill and Capture the Flag you respawn after the usual five seconds.
+- **What others see.** With three or more participants (NPCs count), play continues without you. If your departure would end the match—a 1v1, or your team's last pilot—a Death Match or Team Death Match heat in progress goes to the remaining side (a King of the Hill or Capture the Flag heat simply waits) and the match pauses with "Waiting for *name* to reconnect." The host cannot resume it. If you are not back within 90 seconds, the remaining side wins by forfeit.
+- **Leaving on purpose gives up the seat.** Returning to the main menu (pilot menu or F2) or closing the game tells the server you left, and a 1v1 ends immediately by forfeit. Players who are kicked, banned, or removed by the server do not keep a seat either.
+- **Same game session only.** The rejoin code lives in the running game, so reconnect without restarting it. After a relaunch, or once that match has ended, you join like anyone else: as a spectator during a match, or as a lobby player.
+- **Held seats count toward the player limit,** so a full server stays full until the seat is reclaimed or released.
+
+Other rules:
+
+- Joining after a match has started, without a held seat, admits the client as a spectator.
 - A late spectator becomes a normal lobby participant after the match returns to the lobby.
 - Returning to the same lobby after victory supports a clean rematch without reconnecting.
-
-Active-match reconnect restoration is not implemented. A rejoining player does not reclaim their earlier ship/build during the current match.
 
 ## 13. Troubleshooting
 
@@ -783,7 +789,7 @@ After the session:
 
 ## 15. Current Limitations
 
-The current vertical slice does not include public matchmaking, a public server directory, accounts, stable player identity, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, active-match reconnect restoration, online map selection/voting, destructible cover, teleporter relays, anti-DDoS infrastructure, replays, or console/mobile/web builds. Server authority rejects invalid state-changing requests, but without stable identity and replay evidence the current build should be treated as suitable for organized semi-competitive play rather than prize-bearing tournament administration.
+The current vertical slice does not include public matchmaking, a public server directory, accounts, stable player identity, persistent progression, team colour customization, chat, automatic UPnP/NAT traversal, relay hosting, reconnecting after a game restart (see [Disconnects and Rejoining](#12-disconnects-and-rejoining)), online map selection/voting, destructible cover, teleporter relays, anti-DDoS infrastructure, replays, or console/mobile/web builds. Server authority rejects invalid state-changing requests, but without stable identity and replay evidence the current build should be treated as suitable for organized semi-competitive play rather than prize-bearing tournament administration.
 
 Those omissions are deliberate scope boundaries, not hidden menu options.
 

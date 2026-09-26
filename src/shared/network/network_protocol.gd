@@ -65,6 +65,12 @@ const MIN_ADMIN_PASSWORD_LENGTH: int = 12
 const AUTH_CHALLENGE_BYTES: int = 32
 const AUTH_CHALLENGE_HEX_LENGTH: int = AUTH_CHALLENGE_BYTES * 2
 const AUTH_PROOF_HEX_LENGTH: int = 64
+# Longest a leaving client keeps its socket open for the server to read the notice.
+const LEAVE_DELIVERY_SECONDS: float = 2.0
+# When quitting, the longest the game waits for that delivery.
+const LEAVE_EXIT_WAIT_MSEC: int = 300
+const RECONNECT_TOKEN_BYTES: int = 32
+const RECONNECT_TOKEN_HEX_LENGTH: int = RECONNECT_TOKEN_BYTES * 2
 const AUTH_RESERVED_PEERS: int = 8
 const AUTH_MAX_PENDING_PER_SOURCE: int = 2
 const AUTH_FAILURE_LIMIT: int = 8
@@ -182,6 +188,10 @@ static func is_valid_auth_challenge(challenge: String) -> bool:
 
 static func is_valid_auth_proof(proof: String) -> bool:
 	return _is_lower_hex(proof, AUTH_PROOF_HEX_LENGTH)
+
+
+static func is_valid_reconnect_token(token: String) -> bool:
+	return _is_lower_hex(token, RECONNECT_TOKEN_HEX_LENGTH)
 
 
 static func lobby_password_proof(challenge: String, password: String) -> String:

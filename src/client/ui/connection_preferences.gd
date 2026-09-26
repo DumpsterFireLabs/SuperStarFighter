@@ -42,6 +42,23 @@ func save_appearance(random_value: bool, color: Color, pattern: StringName) -> E
 	, settings_path)
 
 
+## Returns the remembered display name, or "" when none is stored or it is invalid.
+func load_display_name() -> String:
+	var config := ConfigFile.new()
+	if config.load(settings_path) != OK: return ""
+	var stored := String(config.get_value("profile", "display_name", ""))
+	return stored if ServerLobby.is_valid_display_name(stored) else ""
+
+
+## Remembers a valid display name; an invalid one leaves the stored name alone.
+func save_display_name(display_name: String) -> Error:
+	var sanitized := ServerLobby.sanitize_display_name(display_name)
+	if sanitized.is_empty(): return ERR_INVALID_PARAMETER
+	return SettingsStore.update(func(config: ConfigFile) -> void:
+		if String(config.get_value("profile", "display_name", "")) != sanitized:
+			config.set_value("profile", "display_name", sanitized)
+	, settings_path)
+
 
 func password_for_endpoint(address: String, port: int) -> String:
 	var key := endpoint_key(address, port)

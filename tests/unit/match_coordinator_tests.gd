@@ -14,6 +14,14 @@ static func run(context: TestContext) -> void:
 	_validate_round_winner_draft_bye(context)
 	_validate_npc_draft(context)
 	_validate_forfeit(context)
+	_validate_reconnect_keeps_seat(context)
+	_validate_reconnect_holds_forfeit(context)
+	_validate_reconnect_expiry_forfeits(context)
+	_validate_reconnect_during_draft(context)
+	_validate_reconnect_during_countdown(context)
+	_validate_reconnect_deadline_owned_by_coordinator(context)
+	_validate_reconnect_names_stay_consistent(context)
+	_validate_reconnect_hold_does_not_freeze_results(context)
 	_validate_powerup_match_integration(context)
 	_validate_objective_modes(context)
 	_validate_objective_respawns(context)
@@ -240,6 +248,197 @@ static func _validate_forfeit(context: TestContext) -> void:
 	coordinator.disconnect_peer(11)
 	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "single remaining participant wins by forfeit")
 	context.expect_equal(coordinator.machine.match_winner, 10, "forfeit records remaining participant as match winner")
+
+
+static func _reconnect_fixture(peer_ids: Array[int], seed: int) -> Dictionary:
+	var lobby := ServerLobby.new(_fast_config())
+	var world := AuthoritativeWorld.new()
+	for peer_id in peer_ids:
+		lobby.admit(peer_id, "Pilot%d" % peer_id)
+		world.add_peer(peer_id)
+	_ready_all(lobby)
+	lobby.request_start(peer_ids[0])
+	var coordinator := AuthoritativeMatchCoordinator.new(lobby, world, seed)
+	coordinator.start(0)
+	return {"lobby": lobby, "world": world, "coordinator": coordinator}
+
+
+## Mirrors the bridge: the departed lobby record is replaced by one under the new peer id.
+static func _rejoin(fixture: Dictionary, previous_peer_id: int, peer_id: int) -> bool:
+	var lobby := fixture.lobby as ServerLobby
+	var world := fixture.world as AuthoritativeWorld
+	var departed := lobby.remove(previous_peer_id)
+	lobby.admit(peer_id, "Ignored", departed)
+	world.remove_peer(previous_peer_id)
+	world.add_peer(peer_id)
+	return (fixture.coordinator as AuthoritativeMatchCoordinator).reconnect_peer(previous_peer_id, peer_id)
+
+
+static func _validate_reconnect_keeps_seat(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([2, 3, 4], 4242)
+	var world := fixture.world as AuthoritativeWorld
+	var lobby := fixture.lobby as ServerLobby
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	var player := coordinator.machine.players[3] as PlayerMatchState
+	var cards := player.card_stacks.duplicate()
+	context.expect_false(cards.is_empty(), "reconnect fixture drafted a card before the drop")
+	coordinator.machine.scores.award_kill(3)
+	var color := (lobby.players[3] as PlayerMatchState).ship_color
+	context.expect_true(coordinator.disconnect_peer(3, true), "a departing human participant keeps a held seat")
+	context.expect_false(world.simulation_paused, "two remaining pilots keep playing while the seat is held")
+	context.expect_true(coordinator.can_reconnect(3), "the held seat can be reclaimed")
+	context.expect_true(_rejoin(fixture, 3, 9), "the returning pilot reclaims the seat under a new peer id")
+	context.expect_false(coordinator.can_reconnect(3), "a seat can be reclaimed only once")
+	context.expect_false(coordinator.machine.players.has(3), "the previous peer id no longer owns match state")
+	var restored := coordinator.machine.players[9] as PlayerMatchState
+	context.expect_equal(restored.card_stacks, cards, "reconnect keeps drafted cards")
+	context.expect_equal(coordinator.machine.scores.get_score(9).kills, 1, "reconnect keeps the score")
+	context.expect_equal(restored.display_name, "Pilot3", "reconnect keeps the original pilot name")
+	context.expect_equal((lobby.players[9] as PlayerMatchState).ship_color, color, "reconnect keeps the ship colour")
+	context.expect_true(restored.participant and restored.connected, "the returning pilot is a participant again")
+	context.expect_false((world.combatants[9] as CombatantState).alive, "the returning pilot sits out the heat in progress")
+	context.expect_true(9 in (coordinator.current_state_payload().participant_peer_ids as Array), "clients see the returning pilot as a participant")
+	_finish_heat(world, coordinator, 2)
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	context.expect_true((world.combatants[9] as CombatantState).alive, "the returning pilot flies again from the next heat")
+
+
+static func _validate_reconnect_holds_forfeit(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([10, 11], 777)
+	var world := fixture.world as AuthoritativeWorld
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	coordinator.drain_events()
+	context.expect_true(coordinator.disconnect_peer(11, true), "a 1v1 departure holds the seat")
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "the interrupted heat goes to the remaining pilot, not the match")
+	context.expect_equal(coordinator.machine.last_heat_winner, 10, "the remaining pilot wins the interrupted heat")
+	context.expect_true(world.simulation_paused, "the match pauses while waiting for the pilot")
+	var pause_events := coordinator.drain_events().filter(func(event: Dictionary) -> bool: return StringName(event.event_type) == &"MATCH_PAUSE_CHANGED")
+	context.expect_equal(pause_events.size(), 1, "one pause event announces the wait")
+	context.expect_equal(pause_events[0].payload.awaiting_reconnect, ["Pilot11"], "the pause names the missing pilot")
+	context.expect_true(coordinator.request_pause(10, false), "host resume during the wait is accepted as intent")
+	context.expect_true(world.simulation_paused, "host cannot resume while the match is waiting on a pilot")
+	_advance(world, coordinator, 600)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "the wait freezes the match")
+	context.expect_true(_rejoin(fixture, 11, 12), "the pilot reclaims the 1v1 seat")
+	context.expect_false(world.simulation_paused, "the match resumes once the pilot is back")
+	context.expect_equal(coordinator.current_state_payload().awaiting_reconnect, [], "nobody is awaited after the return")
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	context.expect_equal(coordinator.machine.alive_participant_ids(), [10, 12] as Array[int], "both pilots fly the next heat")
+
+
+static func _validate_reconnect_expiry_forfeits(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([10, 11], 778)
+	var world := fixture.world as AuthoritativeWorld
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	_advance_until_state(world, coordinator, MatchStateMachine.State.COUNTDOWN)
+	coordinator.disconnect_peer(11, true)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.COUNTDOWN, "a held departure does not end the match yet")
+	coordinator.release_reconnect(11)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "an expired seat forfeits the match")
+	context.expect_equal(coordinator.machine.match_winner, 10, "the remaining pilot wins by forfeit after the wait")
+	context.expect_false(world.simulation_paused, "the forfeit result is not left paused")
+	context.expect_false(coordinator.can_reconnect(11), "an expired seat cannot be reclaimed")
+	var npc_fixture := _reconnect_fixture([20, 21], 779)
+	(npc_fixture.coordinator as AuthoritativeMatchCoordinator).machine.players[21].is_npc = true
+	context.expect_false((npc_fixture.coordinator as AuthoritativeMatchCoordinator).disconnect_peer(21, true), "NPC seats are never held")
+
+
+static func _validate_reconnect_hold_does_not_freeze_results(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([10, 11], 781)
+	var world := fixture.world as AuthoritativeWorld
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	context.expect_true(coordinator.request_pause(10, true), "the host pauses before anyone drops")
+	coordinator.disconnect_peer(11, true)
+	context.expect_true(world.simulation_paused, "the match stays paused while waiting for the pilot")
+	coordinator.disconnect_peer(10)
+	context.expect_true(coordinator.is_finished(), "the last pilot leaving ends the match")
+	context.expect_false(world.simulation_paused, "a host pause from before the hold does not freeze the lobby")
+	var resumed := _reconnect_fixture([10, 11], 782)
+	var resumed_world := resumed.world as AuthoritativeWorld
+	var resumed_coordinator := resumed.coordinator as AuthoritativeMatchCoordinator
+	_advance_until_state(resumed_world, resumed_coordinator, MatchStateMachine.State.COUNTDOWN)
+	resumed_coordinator.disconnect_peer(11, true)
+	resumed_world.latest_inputs[10] = PlayerInputFrame.new(1, resumed_world.server_tick, Vector2.RIGHT, 0.0)
+	context.expect_true(_rejoin(resumed, 11, 12), "the pilot reclaims the seat")
+	context.expect_false(resumed_world.simulation_paused, "the match resumes after the rejoin")
+	context.expect_equal((resumed_world.latest_inputs[10] as PlayerInputFrame).movement, Vector2.ZERO, "input held through the wait is discarded on resume")
+
+
+static func _validate_reconnect_during_countdown(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([10, 11], 780)
+	var world := fixture.world as AuthoritativeWorld
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	_advance_until_state(world, coordinator, MatchStateMachine.State.COUNTDOWN)
+	coordinator.disconnect_peer(11, true)
+	context.expect_true(world.simulation_paused, "a 1v1 countdown waits for the missing pilot")
+	context.expect_true(_rejoin(fixture, 11, 12), "the pilot reclaims the seat during the countdown")
+	context.expect_true((world.combatants[12] as CombatantState).alive, "a pilot back during the countdown joins the coming heat")
+	var spawn := (world.combatants[12] as CombatantState).position
+	context.expect_true(spawn.distance_to((world.combatants[10] as CombatantState).position) > GameConstants.SHIP_COLLISION_RADIUS * 2.0, "the returning pilot spawns clear of the opponent")
+	_advance_until_state(world, coordinator, MatchStateMachine.State.ACTIVE_HEAT)
+	context.expect_equal(coordinator.machine.alive_participant_ids(), [10, 12] as Array[int], "both pilots fly the heat after a countdown rejoin")
+	_finish_heat(world, coordinator, 10)
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.HEAT_RESULT, "the heat resolves normally once a pilot is eliminated")
+
+
+static func _validate_reconnect_deadline_owned_by_coordinator(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([10, 11], 781)
+	var world := fixture.world as AuthoritativeWorld
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	var now := [1000.0]
+	coordinator.clock = func() -> float: return now[0]
+	_advance_until_state(world, coordinator, MatchStateMachine.State.COUNTDOWN)
+	coordinator.disconnect_peer(11, true)
+	now[0] += GameConstants.RECONNECT_GRACE_SECONDS - 1.0
+	context.expect_empty(coordinator.expire_reconnects(), "a held seat survives inside its grace period")
+	context.expect_true(world.simulation_paused, "the match still waits inside the grace period")
+	now[0] += 1.0
+	context.expect_equal(coordinator.expire_reconnects(), [11] as Array[int], "the coordinator releases a seat when its own deadline passes")
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.MATCH_RESULT, "an expired 1v1 seat forfeits without any caller bookkeeping")
+	context.expect_false(world.simulation_paused, "the forfeit is not left paused")
+	context.expect_empty(coordinator.expire_reconnects(), "a released seat expires only once")
+
+
+static func _validate_reconnect_names_stay_consistent(context: TestContext) -> void:
+	var lobby := ServerLobby.new(_fast_config())
+	lobby.admit(1, "Pilot3")
+	lobby.reserved_names = PackedStringArray(["Ace"])
+	var newcomer := lobby.admit(2, "Ace").player as PlayerMatchState
+	context.expect_equal(newcomer.display_name, "Ace#2", "a newcomer cannot take a held seat's name")
+	# Without a reservation the lobby may rename the returning pilot; the
+	# scoreboard must then show the same name.
+	var fixture := _reconnect_fixture([3, 4, 5], 782)
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	var fixture_lobby := fixture.lobby as ServerLobby
+	coordinator.disconnect_peer(4, true)
+	var departed := fixture_lobby.remove(4)
+	fixture_lobby.admit(8, "Pilot4")
+	fixture_lobby.admit(9, "Ignored", departed)
+	(fixture.world as AuthoritativeWorld).add_peer(9)
+	context.expect_true(coordinator.reconnect_peer(4, 9), "the pilot reclaims the seat despite the name clash")
+	var lobby_name := (fixture_lobby.players[9] as PlayerMatchState).display_name
+	context.expect_equal((coordinator.machine.players[9] as PlayerMatchState).display_name, lobby_name, "lobby and scoreboard show the same returning name")
+
+
+static func _validate_reconnect_during_draft(context: TestContext) -> void:
+	var fixture := _reconnect_fixture([30, 31, 32], 31337)
+	var coordinator := fixture.coordinator as AuthoritativeMatchCoordinator
+	context.expect_equal(coordinator.state(), MatchStateMachine.State.DRAFT, "draft fixture starts in the draft")
+	var cards := coordinator.draft.get_offer(31).card_ids.duplicate()
+	coordinator.drain_private_offers()
+	coordinator.disconnect_peer(31, true)
+	context.expect_true(coordinator.draft.get_offer(31).locked, "a departed pilot does not block the draft")
+	context.expect_true(_rejoin(fixture, 31, 40), "the pilot reclaims the seat during the draft")
+	var offer := coordinator.draft.get_offer(40)
+	context.expect_true(offer != null and not offer.locked, "the returning pilot gets their draft pick back")
+	context.expect_equal(offer.card_ids, cards, "the reopened offer has the same cards")
+	var offers := coordinator.drain_private_offers()
+	context.expect_equal(offers.size(), 1, "the reopened offer is sent to the returning pilot")
+	context.expect_equal(int(offers[0].peer_id), 40, "the offer goes to the new peer id")
+	context.expect_equal(coordinator.select_card(40, offer.token, cards[0]), DraftManager.SelectionResult.ACCEPTED, "the returning pilot can pick a card")
 
 
 static func _validate_powerup_match_integration(context: TestContext) -> void:

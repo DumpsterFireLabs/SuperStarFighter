@@ -54,6 +54,13 @@ var _capture_zones_cache: Dictionary:
 var _spawn_assignments_cache: Dictionary = {}
 var _respawn_deadlines: Dictionary = {}
 var _respawn_retry_ticks: Dictionary = {}
+# Departed participants whose seats are held: previous peer id -> {"name", "deadline"}.
+var _awaiting_reconnect: Dictionary = {}
+# Wall-clock seconds for hold deadlines. Match ticks freeze while a hold pauses
+# the match, so they cannot time the hold. Tests may replace this clock.
+var clock: Callable = func() -> float: return Time.get_ticks_msec() / 1000.0
+var _reconnect_hold: bool = false
+var _paused_before_reconnect_hold: bool = false
 var _heat_time_limit_reached: bool = false
 var incremental_drafts: bool = false
 const DRAFT_SLICE_BUDGET_USEC: int = 2000
@@ -206,14 +213,29 @@ func add_late_spectator(player: PlayerMatchState) -> void:
 	world.set_spectator(player.peer_id)
 
 
-func disconnect_peer(peer_id: int) -> void:
+## With hold_for_reconnect, a departing human participant keeps their seat until
+## reconnect_peer() or release_reconnect(). Returns whether the seat was kept.
+func disconnect_peer(peer_id: int, hold_for_reconnect: bool = false) -> bool:
+	var player := machine.players.get(peer_id) as PlayerMatchState
 	var was_active_participant := (
 		machine.state == MatchStateMachine.State.ACTIVE_HEAT and
 		peer_id in machine.participant_ids()
 	)
+	var keep_seat := (
+		hold_for_reconnect and player != null and player.connected and
+		player.participant and not player.is_npc and
+		machine.state not in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]
+	)
 	if draft != null and draft.is_active():
 		draft.withdraw_player(peer_id)
-	machine.disconnect_player(peer_id, world.server_tick)
+	_respawn_deadlines.erase(peer_id)
+	_respawn_retry_ticks.erase(peer_id)
+	machine.disconnect_player(peer_id, world.server_tick, keep_seat)
+	if keep_seat:
+		_awaiting_reconnect[peer_id] = {
+			"name": player.display_name,
+			"deadline": float(clock.call()) + GameConstants.RECONNECT_GRACE_SECONDS,
+		}
 	if was_active_participant:
 		_events.append(MatchEvent.new(&"PLAYER_ELIMINATED", world.server_tick, {
 			"peer_ids": [peer_id],
@@ -226,6 +248,163 @@ func disconnect_peer(peer_id: int) -> void:
 			"scores": machine.score_snapshot(),
 		}))
 	_capture_transitions()
+	_update_reconnect_hold()
+	return keep_seat
+
+
+func can_reconnect(previous_peer_id: int) -> bool:
+	return _awaiting_reconnect.has(previous_peer_id)
+
+
+## Returns a held seat to its player under their new peer id. The new peer must
+## already have a lobby record and a world combatant.
+func reconnect_peer(previous_peer_id: int, peer_id: int) -> bool:
+	if not _awaiting_reconnect.has(previous_peer_id):
+		return false
+	var player := machine.reconnect_player(previous_peer_id, peer_id)
+	if player == null:
+		return false
+	_awaiting_reconnect.erase(previous_peer_id)
+	# The lobby record is authoritative for names; keep the scoreboard in step.
+	var lobby_player := lobby.players.get(peer_id) as PlayerMatchState
+	if lobby_player != null:
+		player.display_name = lobby_player.display_name
+	if _team_assignments_cache.has(previous_peer_id):
+		_team_assignments_cache[peer_id] = _team_assignments_cache[previous_peer_id]
+		_team_assignments_cache.erase(previous_peer_id)
+	if _spawn_assignments_cache.has(previous_peer_id):
+		_spawn_assignments_cache[peer_id] = _spawn_assignments_cache[previous_peer_id]
+		_spawn_assignments_cache.erase(previous_peer_id)
+	if _hill.state.progress.has(previous_peer_id):
+		_hill.state.progress[peer_id] = _hill.state.progress[previous_peer_id]
+		_hill.state.progress.erase(previous_peer_id)
+	var bye_index := _next_draft_bye_peer_ids.find(previous_peer_id)
+	if bye_index >= 0:
+		_next_draft_bye_peer_ids[bye_index] = peer_id
+	if _next_draft_bye_peer_id == previous_peer_id:
+		_next_draft_bye_peer_id = peer_id
+	observations.rekey_peer(previous_peer_id, peer_id)
+	world.set_spectator(peer_id)
+	world.set_team_assignments(_team_assignments_cache)
+	_rebuild_objective_static_cache()
+	var tick := world.server_tick
+	if machine.state == MatchStateMachine.State.COUNTDOWN:
+		# The heat was prepared without this pilot; join it before it starts so a
+		# returning 1v1 opponent is not left to wait out a one-ship heat.
+		_join_prepared_heat(player)
+	elif machine.state == MatchStateMachine.State.ACTIVE_HEAT and GameModeRules.uses_respawns(lobby.config.game_mode):
+		_respawn_deadlines[peer_id] = tick + lobby.config.duration_to_ticks(GameModeRules.OBJECTIVE_RESPAWN_SECONDS)
+	if draft != null and draft.is_active():
+		var offer := draft.restore_player(previous_peer_id, peer_id)
+		if offer != null and not draft.is_preparing() and not offer.locked:
+			_private_offers.append({
+				"peer_id": peer_id,
+				"offer_token": offer.token,
+				"card_ids": offer.card_ids.duplicate(),
+				"deadline_tick": machine.state_deadline_tick,
+				"build_complete": offer.build_complete,
+			})
+		_events.append(MatchEvent.new(&"DRAFT_READY", tick, {"ready_peer_ids": _ready_peer_ids()}))
+	_update_reconnect_hold()
+	_events.append(MatchEvent.new(&"STATE_CHANGED", tick, _state_payload()))
+	return true
+
+
+func _join_prepared_heat(player: PlayerMatchState) -> void:
+	var peer_id := player.peer_id
+	var stats := StatSystem.derive(player.effective_card_stacks(), catalog)
+	var spawn_position := _safe_respawn_position(peer_id)
+	if not spawn_position.is_finite() or not world.respawn_peer(peer_id, stats, spawn_position):
+		return
+	player.reset_for_heat(stats)
+	_spawn_assignments_cache[peer_id] = spawn_position
+	if not _hill.state.progress.has(peer_id) and GameModeRules.uses_hill(lobby.config.game_mode):
+		_hill.state.progress[peer_id] = 0.0
+	# Capture the Flag bases follow spawn positions.
+	_rebuild_objective_static_cache()
+
+
+## Releases every held seat whose grace period has run out and returns their
+## previous peer ids. The coordinator owns these deadlines, so no hold can
+## outlive its grace period even if the caller lost track of it.
+func expire_reconnects() -> Array[int]:
+	var expired: Array[int] = []
+	if _awaiting_reconnect.is_empty():
+		return expired
+	var now := float(clock.call())
+	for peer_value in _awaiting_reconnect.keys():
+		if now >= float(_awaiting_reconnect[peer_value].deadline):
+			expired.append(int(peer_value))
+	expired.sort()
+	for peer_id in expired:
+		release_reconnect(peer_id)
+	return expired
+
+
+## Gives up a held seat. If the match was waiting on it, the departure result
+## (forfeit or return to lobby) is applied now.
+func release_reconnect(previous_peer_id: int) -> void:
+	if not _awaiting_reconnect.erase(previous_peer_id):
+		return
+	if _reconnect_hold and _awaiting_reconnect.is_empty():
+		_set_reconnect_hold(false)
+		machine.resolve_departures(world.server_tick)
+		_capture_transitions()
+	else:
+		_update_reconnect_hold()
+
+
+func awaiting_reconnect_names() -> Array[String]:
+	var names: Array[String] = []
+	var peer_ids := _awaiting_reconnect.keys()
+	peer_ids.sort()
+	for peer_id in peer_ids:
+		names.append(String(_awaiting_reconnect[peer_id].name))
+	return names
+
+
+func _update_reconnect_hold() -> void:
+	var hold := (
+		not _awaiting_reconnect.is_empty() and not _finished and
+		machine.state not in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT] and
+		machine.departure_result_due()
+	)
+	if hold != _reconnect_hold:
+		_set_reconnect_hold(hold)
+	elif hold:
+		_append_pause_event()
+
+
+func _set_reconnect_hold(hold: bool) -> void:
+	_reconnect_hold = hold
+	var was_paused := world.simulation_paused
+	if hold:
+		_paused_before_reconnect_hold = was_paused
+		world.simulation_paused = true
+	else:
+		# A host pause only outlives the hold while the match can still be paused;
+		# a result or lobby reached meanwhile must never be left frozen.
+		world.simulation_paused = (
+			_paused_before_reconnect_hold and not _finished and
+			machine.state not in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]
+		)
+	if world.simulation_paused != was_paused:
+		_discard_held_inputs()
+	_append_pause_event()
+
+
+## Discards held actions on a pause edge without resetting input sequence validation.
+func _discard_held_inputs() -> void:
+	for input_peer in world.latest_inputs:
+		var previous := world.latest_inputs[input_peer] as PlayerInputFrame
+		world.latest_inputs[input_peer] = PlayerInputFrame.new(previous.sequence, world.server_tick, Vector2.ZERO, previous.aim_angle)
+
+
+func _append_pause_event() -> void:
+	_events.append(MatchEvent.new(&"MATCH_PAUSE_CHANGED", world.server_tick, {
+		"paused": world.simulation_paused,
+		"awaiting_reconnect": awaiting_reconnect_names() if _reconnect_hold else [],
+	}))
 
 
 func state() -> int:
@@ -239,13 +418,14 @@ func controls_enabled() -> bool:
 func request_pause(peer_id: int, paused: bool) -> bool:
 	if peer_id == 0 or peer_id != lobby.leader_id or _finished or machine.state in [MatchStateMachine.State.LOBBY, MatchStateMachine.State.MATCH_RESULT]:
 		return false
+	if _reconnect_hold:
+		# The match stays paused until the seat is filled or released.
+		_paused_before_reconnect_hold = paused
+		return true
 	if world.simulation_paused == paused:
 		return true
 	world.simulation_paused = paused
-	# Discard held actions on both edges without resetting input sequence validation.
-	for input_peer in world.latest_inputs:
-		var previous := world.latest_inputs[input_peer] as PlayerInputFrame
-		world.latest_inputs[input_peer] = PlayerInputFrame.new(previous.sequence, world.server_tick, Vector2.ZERO, previous.aim_angle)
+	_discard_held_inputs()
 	_events.append(MatchEvent.new(&"MATCH_PAUSE_CHANGED", world.server_tick, {"paused": paused}))
 	return true
 
@@ -722,6 +902,7 @@ func _rebuild_objective_static_cache() -> void:
 func _state_payload() -> Dictionary:
 	return {
 		"paused": world.simulation_paused,
+		"awaiting_reconnect": awaiting_reconnect_names() if _reconnect_hold else [],
 		"objective_contributions": observations.contributions.duplicate(true),
 		"state": machine.state,
 		"state_name": machine.state_name(),

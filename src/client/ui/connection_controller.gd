@@ -109,6 +109,8 @@ func create_ui(configuration: Dictionary) -> void:
 	content.add_child(version_label)
 	name_field = _add_labeled_field(content, "Display name", "Pilot")
 	name_field.max_length = 16
+	name_field.text = preferences.load_display_name()
+	name_field.focus_exited.connect(_remember_display_name)
 	connection_tabs = TabContainer.new()
 	connection_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
 	connection_tabs.get_tab_bar().gui_input.connect(NavigationScript.handle_tab_bar_input.bind(connection_tabs))
@@ -327,6 +329,7 @@ func _connect_online() -> void:
 		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
 		return
 	name_field.text = display_name
+	_remember_display_name()
 	var lobby_password := direct_password_field.text
 	if not NetworkProtocol.is_valid_lobby_password(lobby_password):
 		connection_status.text = "Enter the lobby password (1–%d printable characters)." % NetworkProtocol.MAX_LOBBY_PASSWORD_LENGTH
@@ -355,6 +358,7 @@ func _host_online() -> void:
 		connection_status.text = NetworkProtocol.rejection_message(NetworkProtocol.REJECT_INVALID_NAME)
 		return
 	name_field.text = display_name
+	_remember_display_name()
 	var server_name := server_name_field.text.strip_edges()
 	if not LanDiscoveryProtocol.is_valid_server_name(server_name):
 		connection_status.text = "Server name must contain 1–%d printable characters." % LanDiscoveryProtocol.MAX_SERVER_NAME_LENGTH
@@ -525,7 +529,14 @@ func start_discovery() -> void:
 		connection_status.text = lan_browser.last_error
 
 
+func _remember_display_name() -> void:
+	if is_instance_valid(name_field) and not name_field.text.strip_edges().is_empty():
+		preferences.save_display_name(name_field.text)
+
+
 func shutdown() -> void:
+	# Quitting keeps a name typed but never used to connect.
+	_remember_display_name()
 	if is_instance_valid(lan_browser):
 		lan_browser.stop()
 	hosted_session.stop()

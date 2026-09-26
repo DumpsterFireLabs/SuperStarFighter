@@ -7,7 +7,8 @@ signal log_requested(level: String, event_name: String, fields: Dictionary)
 signal challenge_requested(peer_id: int, challenge: String)
 signal rejection_requested(peer_id: int, reason: StringName, message: String)
 signal connection_lost(message: String)
-signal peer_departed(peer_id: int)
+## keeps_seat is false when the server removed the peer or the player chose to leave.
+signal peer_departed(peer_id: int, keeps_seat: bool)
 signal request_rejected(peer_id: int, detail: String)
 signal stopped()
 
@@ -45,6 +46,11 @@ var tls_trusted_chain: X509Certificate
 var _lan_discovery: LanDiscoveryService
 var _pending_handshakes := HandshakeRegistry.new()
 var _pending_disconnects: Dictionary = {}
+# Peers whose next departure must not hold a match seat: removed by the server
+# (kick, ban, rejection) or leaving deliberately.
+var _seatless_departures: Dictionary = {}
+var _lingering_transport: WebSocketMultiplayerPeer
+var _lingering_deadline: float = 0.0
 var _rate_limiter := InputRateLimiter.new()
 var _control_rate_limiter := RequestRateLimiter.new()
 var _transport_rate_limiter := RequestRateLimiter.new(NetworkProtocol.MAX_TRANSPORT_MESSAGES_PER_SECOND)
@@ -60,6 +66,9 @@ var _ban_file_path: String = ""
 var _malformed_control_strikes: Dictionary = {}
 var _client_name: String = "Pilot"
 var _client_protocol_version: int = GameConstants.PROTOCOL_VERSION
+# Server URL -> the seat token that server issued, kept across stop() so a
+# dropped player can reconnect into their match seat.
+var _reconnect_tokens: Dictionary = {}
 var _client_password: String = ""
 var _discovery_instance_id: String = ""
 
@@ -171,7 +180,37 @@ func _open_client_transport() -> Error:
 	return OK
 
 
+## Stops the session but keeps the client socket open briefly, polled by
+## poll_lingering_transport(), so packets already sent (a leave notice) reach
+## the server. Closing at once can discard them.
+func stop_after_delivery() -> void:
+	var transport := _transport_peer if role == NetworkBridge.Role.CLIENT else null
+	_transport_peer = null
+	stop()
+	if transport != null:
+		_lingering_transport = transport
+		_lingering_deadline = _now_seconds() + NetworkProtocol.LEAVE_DELIVERY_SECONDS
+
+
+## Returns true while a stopped client's socket is still delivering.
+func poll_lingering_transport() -> bool:
+	if _lingering_transport == null:
+		return false
+	_lingering_transport.poll()
+	if _lingering_transport.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED or _now_seconds() >= _lingering_deadline:
+		_close_lingering_transport()
+		return false
+	return true
+
+
+func _close_lingering_transport() -> void:
+	if _lingering_transport != null:
+		_lingering_transport.close()
+	_lingering_transport = null
+
+
 func stop() -> void:
+	_close_lingering_transport()
 	_connect_generation += 1
 	# Mark teardown before closing the transport. Closing a live client can synchronously emit
 	# server_disconnected; that callback must see NONE instead of recursively
@@ -202,6 +241,7 @@ func stop() -> void:
 		runtime.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_pending_handshakes.clear()
 	_pending_disconnects.clear()
+	_seatless_departures.clear()
 	_last_heard.clear()
 	_probes.clear()
 	_congested_peers.clear()
@@ -349,7 +389,9 @@ func _on_server_peer_disconnected(peer_id: int) -> void:
 	_control_rate_limiter.remove_peer(peer_id)
 	_transport_rate_limiter.remove_peer(peer_id)
 	_malformed_control_strikes.erase(peer_id)
-	peer_departed.emit(peer_id)
+	var keeps_seat := not _seatless_departures.has(peer_id)
+	_seatless_departures.erase(peer_id)
+	peer_departed.emit(peer_id, keeps_seat)
 
 
 func _peer_auth_source(peer_id: int) -> String:
@@ -408,6 +450,7 @@ func operator_kick(peer_id: int, display_name: String, block_source: bool = fals
 	var reason := NetworkProtocol.REJECT_BLOCKED if block_source else NetworkProtocol.REJECT_KICKED
 	rejection_requested.emit(peer_id, reason, NetworkProtocol.rejection_message(reason))
 	_pending_disconnects[peer_id] = _now_seconds() + 0.1
+	_seatless_departures[peer_id] = true
 	log_requested.emit("warning", "operator_peer_removed", {
 		"peer_id": peer_id,
 		"display_name": display_name,
@@ -575,6 +618,7 @@ func reject_connection(peer_id: int, reason: StringName) -> void:
 	rejection_requested.emit(peer_id, reason, message)
 	_pending_handshakes.complete(peer_id)
 	_pending_disconnects[peer_id] = _now_seconds() + 0.1
+	_seatless_departures[peer_id] = true
 	log_requested.emit("warning", "connection_rejected", {"peer_id": peer_id, "reason": String(reason)})
 
 
@@ -778,6 +822,7 @@ func forget_admission(peer_id: int) -> void:
 
 func schedule_disconnect(peer_id: int) -> void:
 	_pending_disconnects[peer_id] = _now_seconds() + 0.1
+	_seatless_departures[peer_id] = true
 
 
 func configuration_value(key: String, fallback: Variant = null) -> Variant:
@@ -802,13 +847,16 @@ func peer_source(peer_id: int) -> String:
 
 func take_client_hello(challenge: String) -> Dictionary:
 	var result := {"protocol": _client_protocol_version, "name": _client_name,
-		"proof": NetworkProtocol.lobby_password_proof(challenge, _client_password)}
+		"proof": NetworkProtocol.lobby_password_proof(challenge, _client_password),
+		"reconnect_token": String(_reconnect_tokens.get(_client_url, ""))}
 	_client_password = ""
 	return result
 
 
-func accept_welcome(peer_id: int, state: Dictionary) -> void:
+func accept_welcome(peer_id: int, state: Dictionary, reconnect_token: String = "") -> void:
 	local_peer_id = peer_id
+	if not reconnect_token.is_empty():
+		_reconnect_tokens[_client_url] = reconnect_token
 	_last_server_heard = _now_seconds()
 	latest_lobby_state = state.duplicate(true)
 
