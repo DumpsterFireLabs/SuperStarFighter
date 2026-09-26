@@ -1107,17 +1107,6 @@ func projectile_recovery(packet: PackedByteArray) -> void:
 	if decoded.ok and bool(decoded.get("complete_snapshot", false)):
 		_accept_projectile_correction_chunk(decoded)
 
-		projectile_recovery_ack.rpc_id(NetworkProtocol.SERVER_PEER_ID, int(decoded.server_tick), int(decoded.batch_sequence), int(decoded.chunk_index))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_PROJECTILE_CORRECTION)
-func projectile_recovery_ack(tick: int, sequence: int, chunk: int) -> void:
-	if role != Role.SERVER or lobby == null:
-		return
-	var sender := multiplayer.get_remote_sender_id()
-	if lobby.human_peer_ids_view().has(sender):
-		replication.acknowledge_recovery(sender, tick, sequence, chunk)
-
 
 func operator_status() -> Dictionary:
 	var lobby_summary := lobby.serialize() if lobby != null else {}

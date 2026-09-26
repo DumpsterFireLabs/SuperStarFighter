@@ -95,7 +95,10 @@ const MAX_LOG_STRING_LENGTH: int = 128
 const MAX_LOG_COLLECTION_LENGTH: int = 16
 const MAX_SNAPSHOT_PLAYERS: int = GameConstants.MAX_PLAYERS
 const MAX_PACKET_PROJECTILES: int = GameConstants.MAX_PROJECTILES_GLOBAL
-const MAX_PROJECTILE_MESSAGE_BYTES: int = 1200
+# Sized for the TCP stream rather than a datagram MTU: fewer, larger chunks
+# carry less framing. A paced complete-snapshot chunk stays small enough not to
+# hold a snapshot behind it for long on a slow link (~33 ms at 1 Mbit/s).
+const MAX_PROJECTILE_MESSAGE_BYTES: int = 4096
 
 const REJECT_SERVER_FULL: StringName = &"SERVER_FULL"
 const REJECT_VERSION_MISMATCH: StringName = &"VERSION_MISMATCH"

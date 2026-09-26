@@ -46,10 +46,6 @@ func _run() -> void:
 		combatant.stats = CombatStats.create_base()
 	var fixture := LoadFixture.new()
 	var scheduler := NetworkReplicationScheduler.new()
-	# Model healthy recipients; transport latency is measured by the TCP impairment fixture.
-	var scheduler_ref: WeakRef = weakref(scheduler)
-	scheduler.projectile_recovery_ready.connect(func(peer: int, packet: PackedByteArray) -> void:
-		(scheduler_ref.get_ref() as NetworkReplicationScheduler).acknowledge_recovery(peer, packet.decode_u32(1), packet.decode_u16(6), packet.decode_u16(8)))
 	scheduler.projectile_recovery_ready.connect(func(_peer: int, packet: PackedByteArray) -> void:
 		recovery_this_tick = true
 		bytes_this_tick += packet.size()
@@ -69,6 +65,10 @@ func _run() -> void:
 	for tick in WARMUP + SAMPLES:
 		fixture._fill_projectiles(world, ids)
 		minimum_projectiles = mini(minimum_projectiles, world.projectile_registry.size())
+		# Complete snapshots now follow joins and the 10 s safety interval. Force
+		# an all-peer resync each measured second so that worst case is gated.
+		if tick >= WARMUP and (tick - WARMUP) % GameConstants.PHYSICS_TICKS_PER_SECOND == 0:
+			for peer in ids: scheduler.request_complete_snapshot(peer)
 		recovery_this_tick = false
 		bytes_this_tick = 0
 		var started := Time.get_ticks_usec()
@@ -87,7 +87,7 @@ func _run() -> void:
 	var recovery_ticks := summarize(recovery)
 	valid = valid and samples.size() == SAMPLES and recovery.size() >= 6 and payload_bytes > 0 and events > 0 and minimum_projectiles == GameConstants.MAX_PROJECTILES_GLOBAL
 	# Defensive overload limits match the existing fixture, with recovery tails
-	# independently gated so a once-per-second spike cannot hide below p95.
+	# independently gated so an all-peer resync spike cannot hide below p95.
 	valid = valid and all_ticks.p95_usec <= 20000 and all_ticks.p99_usec <= 24000 and all_ticks.max_usec <= 30000
 	valid = valid and recovery_ticks.p95_usec <= 24000 and recovery_ticks.max_usec <= 30000
 	if "--strict-physics-budget" in OS.get_cmdline_user_args():

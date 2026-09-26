@@ -140,9 +140,9 @@ The client may predict local movement and shots for responsiveness, but it never
 ### Competitive hot paths
 
 - `CombatSpatialIndex` bounds ship-overlap, ship-hit, and NPC projectile-threat candidate searches by arena cells instead of scanning every entity for every query. Its ship-sweep index expands occupied cells once per living ship for ordinary projectile/missile radii. A short sweep inside one cell borrows that cell's candidate array without allocating; multi-cell sweeps merge candidates in stable order. Larger radii use the general padded query. Callers must not mutate borrowed arrays, and every candidate still passes the unchanged narrow-phase collision test.
-- `ProjectileRegistry` keeps indexed global/owner order, O(1) live counts, tombstoned removal, and allocation-free ordered views for simulation and rendering loops. The existing 64-per-owner/1,024-global budgets include reserved mine allowances of 16 per owner and 512 globally. Ordinary fire evicts moving ordnance rather than deployed mines; excess mine deployment retires the oldest mine at the applicable allowance. Owner/global eviction counters make budget pressure observable.
+- `ProjectileRegistry` keeps indexed global/owner order, O(1) live and per-owner mine counts, tombstoned removal, and allocation-free ordered views for simulation and rendering loops. The existing 64-per-owner/1,024-global budgets include reserved mine allowances of 16 per owner and 512 globally. Ordinary fire evicts moving ordnance rather than deployed mines; excess mine deployment retires the oldest mine at the applicable allowance. Owner/global eviction counters make budget pressure observable.
 - Arena layouts and radius-expanded projectile geometry are immutable shared caches. A world may retain a cache entry but must never mutate or clear it.
-- Projectile messages are divided into messages no larger than 1,200 bytes. Four rotating partial corrections keep positions fresh; the fifth correction is a complete, chunk-assembled recovery snapshot.
+- Projectile messages are divided into messages no larger than 4,096 bytes. Rotating partial corrections at 5 Hz keep positions fresh. TCP delivers every projectile delta in order, so a complete, chunk-assembled snapshot goes only to a peer without one this match (match start, a join or a rejoin under its new peer id), to a peer whose resync was requested through `request_complete_snapshot()`, and to every peer each 10 seconds as a drift safety net. Its chunks are paced one per six ticks (quartered while the stream is congested) and need no acknowledgement.
 - Client projectile replication merges those independent channels using wrap-aware tick/message versions per entity. Complete recovery prunes only entities without newer observations; retained removal history is bounded, and forgetting old history also advances the packet rejection floor. New draft/countdown boundaries reject prior-heat ordnance. Registry ID zero is reserved for removed slots; authoritative IDs are positive and predicted IDs negative. Ownership changes must use `ProjectileRegistry.transfer_owner()` so counts and queues remain consistent.
 - Client build updates commit a detached build dictionary before refreshing ships and prediction. Respawn and cloak reappearance derive from that same saved build. Objective updates reject older ticks across periodic and reliable streams; within one tick, periodic final state supersedes intermediate transitions and a full match-state event supersedes both.
 - Player snapshot bodies, roster views, team assignments, standings data, and common UI rows are reused until their source revision changes. NPC objective readers receive detached typed snapshots.
@@ -178,15 +178,15 @@ When adding networked behavior:
 6. Add encode/decode, malformed/truncated, and integration coverage.
 7. Bump the compatibility protocol when a wire-format or semantic mismatch would make old/new builds unsafe together.
 
-The six logical channels are:
+The six logical channels are listed below. `WebSocketMultiplayerPeer` ignores channels and transfer modes: every RPC travels reliably and in order on one TCP stream per peer. The annotations record intent, replaceable streams versus durable events, and replaceable streams are thinned for a congested peer rather than dropped by the transport.
 
-| Channel | Delivery | Use |
+| Channel | Annotation | Use |
 | --- | --- | --- |
 | Control | Reliable ordered | Handshake, lobby, draft, match events, results, private coalesced combat feedback at 20 Hz |
 | Input | Unreliable ordered | Latest local movement/aim/action frame |
 | Player snapshot | Unreliable ordered | Player transforms, resources, and local input acknowledgements |
 | Projectile delta | Unreliable ordered | Projectile spawn/removal batches and actual mine detonations in chunks of at most eight |
-| Projectile correction | Unreliable ordered | Rotating partial and periodic complete projectile recovery snapshots |
+| Projectile correction | Unreliable ordered (partial), reliable (complete) | Rotating partial corrections and paced complete projectile snapshots |
 | Objective | Unreliable ordered | Replaceable hill/flag state at 4 Hz; durable objective transitions remain on Control |
 
 LAN discovery is a separate bounded UDP query/response service on port `7359`. It advertises session metadata only and conveys no gameplay authority.

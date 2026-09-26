@@ -277,7 +277,7 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")
 	context.expect_false(ProjectilePacketCodec.decode_correction(packet).ok, "projectile correction rejects removal records")
 	var crowded: Array[ProjectileState] = []
-	for projectile_id in 100:
+	for projectile_id in 300:
 		crowded.append(ProjectileState.create(1000 + projectile_id, 4, projectile_id, Vector2(20.0 + projectile_id, 40.0), 0.0, stats))
 	var crowded_packets := ProjectilePacketCodec.encode_correction_chunks(1002, 9, crowded, true)
 	context.expect_true(crowded_packets.size() > 1, "crowded projectile correction is divided into transport-safe chunks")
