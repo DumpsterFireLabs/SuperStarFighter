@@ -10,7 +10,6 @@ const RECOVERY_WINDOW: int = 2
 const RECOVERY_INTERVAL_TICKS: int = 6
 var _recoveries: Dictionary = {}
 var _recovery_clock: int = 0
-var _congested_until: Dictionary = {}
 # Peers whose outbound TCP stream is backlogged (see NetworkSessionOwner probes).
 var _transport_congested: Dictionary = {}
 var _snapshot_round: int = 0
@@ -38,7 +37,6 @@ func clear() -> void:
 	_projectile_correction_send_count = 0
 	_projectile_correction_assembler.clear()
 	_recoveries.clear()
-	_congested_until.clear()
 	_transport_congested = {}
 	_recovery_clock = 0
 	_snapshot_round = 0
@@ -68,10 +66,6 @@ func _send_player_snapshots(lobby: ServerLobby, world: AuthoritativeWorld) -> vo
 	var public_body := PlayerSnapshotCodec.encode_combatant_body(world.combatants, world.ordered_peer_ids_view(), 0)
 	_snapshot_round += 1
 	for peer_id in lobby.human_peer_ids_view():
-		# Backlogged recovery ACKs signal a constrained path. Temporarily halve
-		# snapshot traffic for that peer; keep inputs and gameplay deltas intact.
-		if _recovery_clock < int(_congested_until.get(peer_id, 0)) and _snapshot_round % 2 == 0:
-			continue
 		# A backlogged TCP stream would deliver every queued snapshot late; send
 		# one in four (5 Hz) so the backlog drains and the next one is fresh.
 		if _transport_congested.has(peer_id) and _snapshot_round % 4 != 0:
@@ -160,12 +154,8 @@ func _send_projectile_correction(lobby: ServerLobby, world: AuthoritativeWorld) 
 func _flush_recovery(lobby: ServerLobby) -> void:
 	if lobby == null or not lobby.match_active or lobby.human_count() == 0:
 		_recoveries.clear()
-		_congested_until.clear()
 		return
 	_recovery_clock += 1
-	for peer_id in _congested_until.keys():
-		if _recovery_clock >= int(_congested_until[peer_id]) or not lobby.human_peer_ids_view().has(peer_id):
-			_congested_until.erase(peer_id)
 	for peer_id in _recoveries.keys():
 		if not lobby.human_peer_ids_view().has(peer_id):
 			_recoveries.erase(peer_id)
@@ -173,9 +163,8 @@ func _flush_recovery(lobby: ServerLobby) -> void:
 		var state: Dictionary = _recoveries[peer_id]
 		var packets: Array = state.packets
 		var inflight: Dictionary = state.inflight
-		for sent_at: int in inflight.values():
-			if _recovery_clock - sent_at >= 12:
-				_congested_until[peer_id] = _recovery_clock + 120
+		# Unacknowledged chunks only bound the window. Over TCP a late ACK usually
+		# means distance, not backlog; the transport probes detect real queueing.
 		if inflight.size() >= RECOVERY_WINDOW or int(state.next) >= packets.size() or _recovery_clock < int(state.next_send):
 			continue
 		var index := int(state.next)
@@ -219,7 +208,6 @@ func payload_metrics() -> Dictionary:
 	return {"scope": "application payload estimate; excludes RPC/WebSocket/TCP overhead and retransmission",
 		"bytes_by_category": _payload_bytes.duplicate(), "recovery_pending_chunks": pending,
 		"recovery_inflight_chunks_per_peer": inflight, "recovery_active_peers": _recoveries.size(),
-		"congested_peers": _congested_until.size(),
 		"transport_congested_peers": _transport_congested.size(),
 		"peak_recovery_chunks": _peak_recovery_queue}
 

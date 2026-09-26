@@ -31,6 +31,11 @@ var client: NetworkBridge
 var view: NetworkWorldFixture
 var stats := CombatStats.create_base()
 var snapshots: int = 0
+# Snapshot cadence while combat is active, so a link that only adds latency can
+# be held to the configured rate.
+var active_snapshots: int = 0
+var first_active_snapshot_msec: int = -1
+var last_active_snapshot_msec: int = -1
 var previous_ack: int = 0
 var previous_tick: int = 0
 var max_buffer: int = 0
@@ -241,6 +246,10 @@ func _snapshot(decoded: Dictionary) -> void:
 		_fail("unbounded replay")
 		return
 	if not active: return
+	var now_msec := Time.get_ticks_msec()
+	if first_active_snapshot_msec < 0: first_active_snapshot_msec = now_msec
+	last_active_snapshot_msec = now_msec
+	active_snapshots += 1
 	correction_errors.append(view.local_prediction.prediction.last_reconciliation_error)
 	var ship := server.world.combatants[client.local_peer_id] as CombatantState
 	if view.local_prediction.prediction.last_reconciliation_error > 64.0 and large_corrections.size() < 64:
@@ -315,8 +324,16 @@ func _delivery_diagnostics() -> Dictionary:
 		"input_age": server.world.input_ages.get(client.local_peer_id, -1.0),
 		"shield_active": authority.shield.active if authority != null else false,
 		"weapon_cooldown": authority.weapon.cooldown_remaining if authority != null else -1.0,
-		"snapshots": snapshots, "reload_observed": observed_reload, "shield_observed": observed_shield,
+		"snapshots": snapshots, "snapshot_rate_hz": _active_snapshot_rate_hz(),
+		"reload_observed": observed_reload, "shield_observed": observed_shield,
 		"authority_reload_observed": authority_reload_observed, "authority_shield_observed": authority_shield_observed}
+
+
+func _active_snapshot_rate_hz() -> float:
+	var elapsed_msec := last_active_snapshot_msec - first_active_snapshot_msec
+	if active_snapshots < 2 or elapsed_msec <= 0:
+		return 0.0
+	return (active_snapshots - 1) * 1000.0 / elapsed_msec
 
 
 func _until(predicate: Callable, seconds: float) -> bool:

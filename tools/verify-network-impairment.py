@@ -15,6 +15,9 @@ BLACKOUT_WINDOW = (4.0, 4.7)
 PROFILES = {
     "baseline": {},
     "latency": {"delay": 0.100, "jitter": 0.035},
+    # A distant but healthy link (~260 ms round trip) must keep the full
+    # snapshot rate: distance alone is not congestion.
+    "high_latency": {"delay": 0.130, "jitter": 0.005, "min_snapshot_hz": 18.0},
     # TCP recovers loss by retransmission: modelled as head-of-line stalls.
     "loss": {"loss": 0.12},
     "blackout": {"blackout": True},
@@ -91,10 +94,13 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
     fixture = json.loads(next(line.split("=", 1)[1] for line in text.splitlines() if line.startswith("SSF_IMPAIRMENT_OK=")))
     if profile.get("settlement_blackout") and (counters["up"]["held"] == 0 or fixture["delivery"]["neutral_send_attempts"] < 2):
         raise RuntimeError(f"{name}: did not exercise a stall and retry of the final neutral barrier")
+    snapshot_rate = fixture["delivery"]["snapshot_rate_hz"]
+    if profile.get("min_snapshot_hz") and snapshot_rate < profile["min_snapshot_hz"]:
+        raise RuntimeError(f"{name}: snapshot rate {snapshot_rate:.1f} Hz is below {profile['min_snapshot_hz']:.1f} Hz")
     result = dict(profile=name, seed=seed, shield_only=shield_only, configuration=profile, stream=counters,
                   peak_queued_segments=link.peak, elapsed_seconds=time.monotonic() - started, fixture=fixture)
     (output / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print(f"PASS {name}: {fixture['snapshots']} snapshots, resources converged, faults={counters}", flush=True)
+    print(f"PASS {name}: {fixture['snapshots']} snapshots at {snapshot_rate:.1f} Hz, resources converged, faults={counters}", flush=True)
     return result
 
 
