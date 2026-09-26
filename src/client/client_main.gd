@@ -548,9 +548,23 @@ func _create_credits_overlay() -> void:
 	thank_you.add_theme_font_size_override("font_size", 18)
 	thank_you.add_theme_color_override("font_color", Color("f4fbff"))
 	content.add_child(thank_you)
-	_add_credit_block(content, "CREATED BY", "Graphite")
+	_add_credit_block(content, "CREATED BY", "Graphite  ·  jbohack")
 	_add_credit_block(content, "TESTERS", "Champ")
-	_add_credit_block(content, "HONOURABLE MENTIONS", "Equip  ·  jbohack  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  ChatGPT")
+	_add_credit_block(content, "HONOURABLE MENTIONS", "Equip  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  ChatGPT")
+	var repo_center := CenterContainer.new()
+	content.add_child(repo_center)
+	var repo_link := LinkButton.new()
+	repo_link.text = "github.com/DumpsterFireLabs/SuperStarFighter"
+	repo_link.uri = "https://github.com/DumpsterFireLabs/SuperStarFighter"
+	repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
+	repo_link.add_theme_font_size_override("font_size", 18)
+	repo_link.add_theme_color_override("font_color", Color("73f7ff"))
+	repo_link.add_theme_color_override("font_hover_color", Color("fff1bf"))
+	repo_link.add_theme_color_override("font_focus_color", Color("fff1bf"))
+	# ON_HOVER only reacts to the mouse, so keyboard and controller focus underline explicitly.
+	repo_link.focus_entered.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ALWAYS)
+	repo_link.focus_exited.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER)
+	repo_center.add_child(repo_link)
 	var back_center := CenterContainer.new()
 	content.add_child(back_center)
 	var back_button := Button.new()
