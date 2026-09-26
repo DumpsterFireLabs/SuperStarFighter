@@ -55,7 +55,7 @@ Other players on the same subnet can join from **LAN Servers**. **Direct Connect
 
 Keyboard and mouse is the default profile. Open **Settings → Controls** to switch profiles, select Newtonian ship-facing or Relative screen-aligned flight, remap every gameplay/menu action, tune controller deadzone, or restore only the selected profile's defaults.
 
-Active-ability cards such as Afterburner, Cloak!, and Star Mines are selected and triggered with their own keys (see the tables below); passive cards work on their own. **Settings → Accessibility** adjusts HUD scale, shake, flashes, and the centered HUD safe area.
+If you own several active-ability cards, such as Afterburner, Cloak!, and Star Mines, cycle between them with **Q/E** or **D-pad left/right**, then trigger the selected one with **Shift** or **Left Stick Click**. Passive cards work on their own. **Settings → Accessibility** adjusts HUD scale, shake, flashes, and the centered HUD safe area.
 
 Choose **Learn to play** on the main menu for a short interactive lesson covering movement, firing, reloads, directional shields, Perfect Guard, abilities, and drafting. Each step advances when you perform its action; retry or skip at any time.
 
