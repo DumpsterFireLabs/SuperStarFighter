@@ -466,11 +466,14 @@ static func _transport_congestion(context: TestContext) -> void:
 static func _proxy_mode(context: TestContext) -> void:
 	for address in ["192.0.2.4", "game.example.com", "::1", "wss://game.example.com", "WSS://game.example.com:8443/play", "ws://127.0.0.1:7000"]:
 		context.expect_true(NetworkProtocol.is_valid_server_address(address), "%s is a valid server address" % address)
-	for address in ["", "has space", "wss://", "wss://:443", "wss://user@game.example.com", "http://game.example.com", "game.example.com/path", "x".repeat(254), "game.example.com:7000", "203.0.113.5:7000", "[game.example.com]"]:
+	for address in ["", "has space", "wss://", "wss://:443", "wss://user@game.example.com", "http://game.example.com", "game.example.com/path", "x".repeat(254), "game.example.com:7000", "203.0.113.5:7000", "[game.example.com]", "[2001:db8::1", "2001:db8::1]", "[::1]]", "[[::1]]", "[192.0.2.4]"]:
 		context.expect_false(NetworkProtocol.is_valid_server_address(address), "%s is rejected as a server address" % address)
 	context.expect_equal(NetworkSessionOwner.transport_url(" wss://game.example.com ", 7000), "wss://game.example.com", "wss:// URLs keep their own port instead of the port field")
 	context.expect_true(NetworkProtocol.is_valid_server_address("[2001:db8::1]"), "bracketed IPv6 literals are valid server addresses")
-	context.expect_equal(NetworkSessionOwner.transport_url("game.example.com:7000", 7000), "ws://game.example.com:7000:7000", "only IPv6 literals are bracketed")
+	context.expect_equal(NetworkSessionOwner.transport_url("game.example.com", 7000), "ws://game.example.com:7000", "hostnames are not bracketed")
+	context.expect_equal(NetworkSessionOwner.transport_url("2001:db8::1", 7000), "ws://[2001:db8::1]:7000", "unbracketed IPv6 literals are bracketed")
+	for address in ["game.example.com:7000", "[2001:db8::1", "2001:db8::1]"]:
+		context.expect_equal(NetworkSessionOwner.transport_url(address, 7000), "", "%s does not form a WebSocket URL" % address)
 	var runtime := Node.new()
 	var owner := NetworkSessionOwner.new(runtime, func() -> Dictionary: return {})
 	owner._behind_proxy = true

@@ -147,8 +147,19 @@ static func is_valid_server_address(address: String) -> bool:
 		return false
 	# Outside a URL, a colon or bracket is only valid around an IPv6 literal.
 	if address.contains(":") or address.contains("[") or address.contains("]"):
-		return address.trim_prefix("[").trim_suffix("]").is_valid_ip_address()
+		return not unbracketed_ipv6(address).is_empty()
 	return true
+
+
+## Returns the bare IPv6 literal from "::1" or "[::1]", or "" when the address
+## is anything else (including mismatched brackets or a bracketed IPv4/hostname).
+static func unbracketed_ipv6(address: String) -> String:
+	var literal := address
+	if address.begins_with("[") and address.ends_with("]"):
+		literal = address.substr(1, address.length() - 2)
+	if literal.contains("[") or literal.contains("]") or not literal.contains(":"):
+		return ""
+	return literal if literal.is_valid_ip_address() else ""
 
 
 static func is_valid_lobby_password(password: String) -> bool:
