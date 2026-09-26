@@ -594,6 +594,11 @@ func _load_video_settings() -> void:
 			current_resolution = configured
 	if current_resolution not in RESOLUTION_OPTIONS:
 		current_resolution = RESOLUTION_OPTIONS[0]
+	# A launch override applies to this session only; the saved preference is untouched.
+	var command_line: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
+	match String(command_line.get("window_mode_override", "")):
+		"windowed": current_window_mode = WindowModeOption.WINDOWED
+		"fullscreen": current_window_mode = WindowModeOption.BORDERLESS_FULLSCREEN
 	if DisplayServer.get_name() != "headless":
 		_apply_video_settings()
 
@@ -616,6 +621,20 @@ func _apply_video_settings() -> void:
 				maxi((usable_rect.size.y - current_resolution.y) / 2, 0)
 			)
 			DisplayServer.window_set_position(usable_rect.position + safe_offset)
+
+
+## Alt+Enter: leave any fullscreen mode for Windowed, or go Borderless Fullscreen from Windowed.
+func toggle_fullscreen() -> void:
+	if current_window_mode == WindowModeOption.WINDOWED:
+		current_window_mode = WindowModeOption.BORDERLESS_FULLSCREEN
+	else:
+		current_window_mode = WindowModeOption.WINDOWED
+	if window_mode_control != null:
+		window_mode_control.select(window_mode_control.get_item_index(current_window_mode))
+	_update_resolution_control_state()
+	if DisplayServer.get_name() != "headless":
+		_apply_video_settings()
+	_save_video_settings()
 
 
 func _update_resolution_control_state() -> void:

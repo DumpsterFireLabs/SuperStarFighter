@@ -544,6 +544,8 @@ Display mode choices:
 - **Borderless Fullscreen** uses the desktop's current native resolution; the resolution selector is disabled while this mode is active.
 - **Exclusive Fullscreen** requests the selected resolution from the monitor and graphics driver. Unsupported hardware modes may be rejected or scaled by the platform.
 
+Press **Alt+Enter** at any time to switch between Windowed and Borderless Fullscreen (from Exclusive Fullscreen it returns to Windowed). The choice is saved like any other display setting. To override the saved mode for a single launch, start the game with `--windowed` or `--fullscreen` (Borderless); the saved setting is left unchanged.
+
 Supported selectable resolutions:
 
 - 1280×720
