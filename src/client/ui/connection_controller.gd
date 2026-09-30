@@ -133,7 +133,9 @@ func create_ui(configuration: Dictionary) -> void:
 	var offline_button := Button.new()
 	offline_button.text = "COMBAT LAB"
 	offline_button.tooltip_text = "Offline combat lab: freely experiment with builds and targets."
-	offline_button.theme_type_variation = &"PrimaryButton"
+	# Join, Host and Connect are the primary actions; the footer holds alternates.
+	# Combat Lab still takes default focus so controllers always have a target.
+	offline_button.theme_type_variation = &"SecondaryButton"
 	offline_button.custom_minimum_size.y = 54.0
 	offline_button.pressed.connect(offline_requested.emit)
 	buttons.add_child(offline_button)

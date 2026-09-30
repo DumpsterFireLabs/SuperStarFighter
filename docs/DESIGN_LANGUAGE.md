@@ -50,7 +50,9 @@ may appear beside semantic UI colours, but should not replace them.
 
 A pilot's **identity colour** is their team colour in team modes and their ship
 colour otherwise. Scoreboard, results, lobby and kill-feed rows use it. The local
-pilot is marked with `◆` before the name, never with a different hue. Rarity is
+pilot is marked with `◆` before the name, never with a different hue. In the
+arena, your nameplate, aim chevron and ammo outline use your identity colour
+(lightened for legibility); reload text uses `WARNING`. Rarity is
 the only colour dimension on a card: the card category stays neutral and is
 carried by its text and mechanic icon.
 
@@ -88,7 +90,9 @@ Apply a `theme_type_variation` to every meaningful action:
 | `SettingToggle` | Neutral on/off preferences |
 | `SuccessToggle` | Readiness or positive commitment |
 
-Do not place multiple primary actions in the same decision group. Prefer
+Do not place multiple primary actions in the same decision group. On the main
+menu, JOIN, CONNECT TO SERVER and HOST & JOIN are primary; Combat Lab and Learn
+to Play are secondary, though Combat Lab keeps default focus. Prefer
 specific labels such as `EXIT TO LOBBY` or `APPLY APPEARANCE` over vague labels
 such as `OK`.
 
@@ -136,6 +140,10 @@ Use the following scan order for decision cards:
 The full graphical card preview owns exact per-stack and compounded statistics.
 Draft, scoreboard, and results should all use that same preview component.
 Keep a visible Inspect action or input hint next to compact card choices.
+
+Each stat's compact label is its full label with qualifiers dropped, using the
+cards' own vocabulary (`Max Hull` → `Hull`, `Thrust While Shielding` →
+`Shielded thrust`).
 
 Stat labels, units, and benefit polarity come from `StatMetadata` and its
 `CombatStatDescriptor` entries. Use the shared formatter for nominal modifiers,
