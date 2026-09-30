@@ -600,7 +600,7 @@ func _create_credits_overlay() -> void:
 	thank_you.add_theme_color_override("font_color", Color("f4fbff"))
 	content.add_child(thank_you)
 	_add_credit_block(content, "CREATED BY", "Graphite  ·  jbohack  ·  Champ")
-	_add_credit_block(content, "TESTERS", "Equip  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  AK-REX")
+	_add_credit_block(content, "TESTERS", "Equip  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  AK-REX  ·  Dakka  ·  Gremlin  ·  Trash Panda  ·  SkonSolo")
 	_add_credit_block(content, "SPECIAL THANKS", "ChatGPT  ·  Claude")
 	var repo_center := CenterContainer.new()
 	content.add_child(repo_center)
