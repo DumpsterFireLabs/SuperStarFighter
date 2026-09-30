@@ -145,7 +145,7 @@ func _enter_step(value: Step) -> void:
 			_label(choices, DesignTokens.TEXT_BODY_SIZE).text = ", ".join(changes)
 		choices.get_child(0).grab_focus()
 	retry_button.visible = step < Step.DRAFT
-	exit_button.text = "Return to lab" if step == Step.COMPLETE else "Skip to lab"
+	exit_button.text = "RETURN TO LAB" if step == Step.COMPLETE else "SKIP TO LAB"
 	if step == Step.COMPLETE:
 		exit_button.grab_focus()
 	refresh()

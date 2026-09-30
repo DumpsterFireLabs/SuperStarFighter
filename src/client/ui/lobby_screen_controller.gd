@@ -124,7 +124,7 @@ func _create_modal_blocker(blocker_name: String) -> ColorRect:
 func _create_lobby_panel() -> void:
 	lobby_panel = PanelContainer.new()
 	lobby_panel.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_panel.position = Vector2(-550.0, -340.0)
+	lobby_panel.position = Vector2(-550.0, -430.0)
 	lobby_panel.custom_minimum_size = Vector2(1100.0, 860.0)
 	lobby_panel.theme = interface_theme
 	lobby_panel.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.INTERACTIVE, 0.96))
