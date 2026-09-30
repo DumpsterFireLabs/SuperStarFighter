@@ -66,10 +66,10 @@ func create_ui() -> void:
 	draft_title.text = "CHOOSE YOUR UPGRADE"
 	draft_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	draft_title.add_theme_font_size_override("font_size", 34)
-	draft_title.add_theme_color_override("font_color", Color("d39cff"))
+	draft_title.theme_type_variation = &"ScreenTitle"
 	content.add_child(draft_title)
 	comparison_hint = Label.new()
-	comparison_hint.text = "YOUR BUILD · BEFORE → AFTER   |   Amber values show drawbacks"
+	comparison_hint.text = "YOUR BUILD · BEFORE → AFTER  ·  ▼ AMBER VALUES ARE DRAWBACKS"
 	comparison_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	comparison_hint.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	content.add_child(comparison_hint)
@@ -104,7 +104,7 @@ func create_ui() -> void:
 		rarity_label.offset_right = -10.0
 		rarity_label.offset_bottom = -10.0
 		rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		rarity_label.add_theme_font_size_override("font_size", 14)
+		rarity_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 		rarity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(rarity_label)
 		draft_rarity_labels.append(rarity_label)
@@ -119,7 +119,7 @@ func create_ui() -> void:
 	draft_bye_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	draft_bye_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	draft_bye_label.add_theme_font_size_override("font_size", 24)
-	draft_bye_label.add_theme_color_override("font_color", Color("fff36a"))
+	draft_bye_label.add_theme_color_override("font_color", DesignTokensScript.VICTORY)
 	draft_bye_label.visible = false
 	content.add_child(draft_bye_label)
 	draft_confirmation_row = HBoxContainer.new()
@@ -128,8 +128,8 @@ func create_ui() -> void:
 	draft_confirmation_row.visible = false
 	content.add_child(draft_confirmation_row)
 	draft_confirmation_label = Label.new()
-	draft_confirmation_label.add_theme_font_size_override("font_size", 18)
-	draft_confirmation_label.add_theme_color_override("font_color", Color("fff36a"))
+	draft_confirmation_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	draft_confirmation_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	draft_confirmation_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Give wrapping a valid width before the initially hidden row is laid out.
 	draft_confirmation_label.custom_minimum_size.x = 480.0
@@ -168,8 +168,8 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	choice_key.name = "ChoiceKey"
 	choice_key.text = "CHOICE %d" % (index + 1)
 	choice_key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	choice_key.add_theme_font_size_override("font_size", 13)
-	choice_key.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
+	choice_key.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	choice_key.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	column.add_child(choice_key)
 	var card_name := Label.new()
 	card_name.name = "CardName"
@@ -183,7 +183,7 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	category.name = "Category"
 	category.custom_minimum_size.y = 60.0
 	category.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	category.add_theme_font_size_override("font_size", 13)
+	category.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	column.add_child(category)
 	var rule := ColorRect.new()
 	rule.name = "Rule"
@@ -195,21 +195,21 @@ func _create_draft_card_content(button: Button, index: int) -> void:
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	description.custom_minimum_size.y = 54.0
-	description.add_theme_font_size_override("font_size", 16)
+	description.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	description.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	column.add_child(description)
 	var stack := Label.new()
 	stack.name = "Stack"
 	stack.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stack.add_theme_font_size_override("font_size", 15)
+	stack.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	stack.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	column.add_child(stack)
 	var state := Label.new()
 	state.name = "State"
 	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	state.add_theme_font_size_override("font_size", 14)
+	state.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	state.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
 	column.add_child(state)
 
@@ -288,7 +288,7 @@ func _set_inspected_card(index: int) -> void:
 	if inspect_button == null:
 		return
 	var card := (draft_buttons[index] as CardHoverButton).card_definition
-	inspect_button.text = "Inspect %s · I / Y" % card.display_name if card != null else "Inspect card · I / Y"
+	inspect_button.text = "INSPECT %s · I / Y" % card.display_name.to_upper() if card != null else "INSPECT CARD · I / Y"
 
 
 func select_draft_card(index: int) -> void:
@@ -311,12 +311,14 @@ func select_draft_card(index: int) -> void:
 		draft_confirmation_label.text += "  NO EFFECTIVE BENEFIT · CHECK DRAWBACKS"
 	elif button.has_limited_effect():
 		draft_confirmation_label.text += "  SOME STATS ARE AT THEIR LIMIT"
+	var cautioned: bool = not button.output_warning.is_empty() or button.no_effective_benefit or button.has_limited_effect()
+	draft_confirmation_label.add_theme_color_override("font_color", DesignTokensScript.WARNING if cautioned else DesignTokensScript.TEXT_PRIMARY)
 	draft_confirmation_row.visible = true
 	for button_index in draft_buttons.size():
 		var draft_button := draft_buttons[button_index]
 		if not draft_button.visible:
 			continue
-		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
+		var rarity_color: Color = draft_button.get_meta("rarity_color", DesignTokensScript.BRAND_CYAN)
 		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, button_index == index))
 		var state := draft_button.get_node("CardContent/Details/State") as Label
 		state.text = "PENDING" if button_index == index else ""
@@ -340,7 +342,7 @@ func _confirm_draft_card() -> void:
 	button.text += "\n\nSELECTED"
 	(button.get_node("CardContent/Details/State") as Label).text = "SELECTED  ✓"
 	(button.get_node("CardContent/Details/State") as Label).add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
-	var selected_color: Color = button.get_meta("rarity_color", Color("42e8ff"))
+	var selected_color: Color = button.get_meta("rarity_color", DesignTokensScript.BRAND_CYAN)
 	button.add_theme_stylebox_override("disabled", _draft_card_style(selected_color, true))
 	pending_draft_index = -1
 	draft_confirmation_row.visible = false
@@ -353,7 +355,7 @@ func cancel_draft_confirmation() -> void:
 	for draft_button in draft_buttons:
 		if not draft_button.visible or draft_button.disabled:
 			continue
-		var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
+		var rarity_color: Color = draft_button.get_meta("rarity_color", DesignTokensScript.BRAND_CYAN)
 		draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
 		(draft_button.get_node("CardContent/Details/State") as Label).text = ""
 	if previous_index >= 0 and previous_index < draft_buttons.size():
@@ -409,14 +411,10 @@ func _center_draft_panel() -> void:
 	draft_panel.position = (viewport_size - draft_panel.size * fit) * 0.5
 
 
-func _draft_category_color(category: int) -> Color:
-	match category:
-		CardDefinition.Category.SHIP:
-			return Color("38d9ff")
-		CardDefinition.Category.SHIELD:
-			return Color("ae7cff")
-		_:
-			return Color("ff4fd8")
+## Category is spelled out and drawn by the mechanic icon; rarity is the only
+## colour dimension on a card, so the category stays neutral.
+func _draft_category_color(_category: int) -> Color:
+	return DesignTokensScript.TEXT_SECONDARY
 
 
 func _draft_card_style(color: Color, emphasized: bool) -> StyleBoxFlat:
@@ -468,7 +466,7 @@ func recover_rejected_offer() -> void:
 			if draft_button.visible:
 				draft_button.disabled = false
 				draft_button.text = draft_button.text.trim_suffix("\n\nSELECTED")
-				var rarity_color: Color = draft_button.get_meta("rarity_color", Color("42e8ff"))
+				var rarity_color: Color = draft_button.get_meta("rarity_color", DesignTokensScript.BRAND_CYAN)
 				draft_button.add_theme_stylebox_override("normal", _draft_card_style(rarity_color, false))
 				(draft_button.get_node("CardContent/Details/State") as Label).text = ""
 		pending_draft_index = -1

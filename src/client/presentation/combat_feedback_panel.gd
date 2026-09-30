@@ -11,7 +11,10 @@ var _life_generation: int = -1
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(DesignTokens.BACKGROUND, 0.58)
+	# Opaque enough to read over busy combat; the recap text must not mix with ship labels.
+	style.bg_color = Color(DesignTokens.BACKGROUND, 0.9)
+	style.border_color = Color(DesignTokens.TEXT_MUTED, 0.4)
+	style.set_border_width_all(DesignTokens.BORDER_SUBTLE)
 	style.set_corner_radius_all(8)
 	style.content_margin_left = 10
 	style.content_margin_right = 10
@@ -20,9 +23,9 @@ func _ready() -> void:
 	add_theme_stylebox_override("panel", style)
 	var column := VBoxContainer.new()
 	add_child(column)
-	hit_label = _label(column, Color("62ff9b"))
-	block_label = _label(column, Color("fff36a"))
-	death_label = _label(column, Color("ff869d"))
+	hit_label = _label(column, DesignTokens.SUCCESS)
+	block_label = _label(column, DesignTokens.SHIELD)
+	death_label = _label(column, DesignTokens.DANGER)
 	clear_feedback()
 
 
@@ -30,7 +33,7 @@ func _label(parent: Node, color: Color) -> Label:
 	var result := Label.new()
 	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result.add_theme_font_size_override("font_size", 18)
+	result.add_theme_font_size_override("font_size", DesignTokens.TEXT_BODY_SIZE)
 	result.add_theme_color_override("font_color", color)
 	result.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 	result.add_theme_constant_override("shadow_offset_y", 1)

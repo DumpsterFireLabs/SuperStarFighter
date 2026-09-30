@@ -93,25 +93,21 @@ func create_ui() -> void:
 	var scoreboard_kicker := Label.new()
 	scoreboard_kicker.text = "✦  LIVE MATCH  ✦"
 	scoreboard_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_kicker.add_theme_font_size_override("font_size", 16)
-	scoreboard_kicker.add_theme_color_override("font_color", Color("ff8ee8"))
+	scoreboard_kicker.theme_type_variation = &"Kicker"
 	scoreboard_content.add_child(scoreboard_kicker)
 	scoreboard_label = Label.new()
 	scoreboard_label.text = "SCOREBOARD"
 	scoreboard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_label.add_theme_font_size_override("font_size", 38)
-	scoreboard_label.add_theme_color_override("font_color", Color("73f7ff"))
+	scoreboard_label.theme_type_variation = &"ScreenTitle"
 	scoreboard_content.add_child(scoreboard_label)
 	scoreboard_context_label = Label.new()
 	scoreboard_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_context_label.add_theme_font_size_override("font_size", 17)
-	scoreboard_context_label.add_theme_color_override("font_color", Color("aebbd4"))
+	scoreboard_context_label.theme_type_variation = &"HintLabel"
 	scoreboard_content.add_child(scoreboard_context_label)
 	scoreboard_media_label = Label.new()
 	scoreboard_media_label.name = "ScoreboardMedia"
 	scoreboard_media_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_media_label.add_theme_font_size_override("font_size", 16)
-	scoreboard_media_label.add_theme_color_override("font_color", Color("73f7ff"))
+	scoreboard_media_label.theme_type_variation = &"HintLabel"
 	scoreboard_content.add_child(scoreboard_media_label)
 	var scoreboard_heading := HBoxContainer.new()
 	scoreboard_heading.add_theme_constant_override("separation", 12)
@@ -135,8 +131,7 @@ func create_ui() -> void:
 	scoreboard_scroll.add_child(scoreboard_rows_container)
 	scoreboard_hint_label = Label.new()
 	scoreboard_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scoreboard_hint_label.add_theme_font_size_override("font_size", 15)
-	scoreboard_hint_label.add_theme_color_override("font_color", Color("fff36a"))
+	scoreboard_hint_label.theme_type_variation = &"HintLabel"
 	scoreboard_content.add_child(scoreboard_hint_label)
 	control_prompts_changed.emit()
 
@@ -156,10 +151,10 @@ func create_ui() -> void:
 	results_panel = PanelContainer.new()
 	results_panel.name = "ResultsScreen"
 	results_panel.set_anchors_preset(Control.PRESET_CENTER)
-	results_panel.position = Vector2(-560.0, -340.0)
-	results_panel.custom_minimum_size = Vector2(1120.0, 680.0)
+	results_panel.position = Vector2(-560.0, -430.0)
+	results_panel.custom_minimum_size = Vector2(1120.0, 860.0)
 	results_panel.theme = interface_theme
-	results_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.FOCUS, 0.96))
+	results_panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.VICTORY, 0.96))
 	results_panel.visible = true
 	win_overlay.add_child(results_panel)
 	var results_content := VBoxContainer.new()
@@ -168,18 +163,17 @@ func create_ui() -> void:
 	var results_kicker := Label.new()
 	results_kicker.text = "✦  MATCH COMPLETE  ✦"
 	results_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_kicker.add_theme_font_size_override("font_size", 18)
-	results_kicker.add_theme_color_override("font_color", Color("ff8ee8"))
+	results_kicker.theme_type_variation = &"Kicker"
 	results_content.add_child(results_kicker)
 	results_label = Label.new()
 	results_label.text = "VICTORY"
 	results_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	results_label.add_theme_font_size_override("font_size", 52)
-	results_label.add_theme_color_override("font_color", Color("fff36a"))
+	results_label.add_theme_color_override("font_color", DesignTokensScript.VICTORY)
 	results_content.add_child(results_label)
 	var champion_panel := PanelContainer.new()
 	champion_panel.custom_minimum_size.y = 92.0
-	champion_panel.add_theme_stylebox_override("panel", _results_row_style(Color("fff36a"), true))
+	champion_panel.add_theme_stylebox_override("panel", _results_row_style(DesignTokensScript.VICTORY, true))
 	results_content.add_child(champion_panel)
 	var champion_content := VBoxContainer.new()
 	champion_content.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -188,14 +182,13 @@ func create_ui() -> void:
 	var champion_kicker := Label.new()
 	champion_kicker.text = "SUPER STAR CHAMPION"
 	champion_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	champion_kicker.add_theme_font_size_override("font_size", 17)
-	champion_kicker.add_theme_color_override("font_color", Color("d6e2f2"))
+	champion_kicker.theme_type_variation = &"Kicker"
 	champion_content.add_child(champion_kicker)
 	results_winner_label = Label.new()
 	results_winner_label.text = "PILOT"
 	results_winner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	results_winner_label.add_theme_font_size_override("font_size", 34)
-	results_winner_label.add_theme_color_override("font_color", Color("fff36a"))
+	results_winner_label.add_theme_color_override("font_color", DesignTokensScript.VICTORY)
 	champion_content.add_child(results_winner_label)
 	var standings_heading := HBoxContainer.new()
 	standings_heading.add_theme_constant_override("separation", 12)
@@ -220,7 +213,7 @@ func create_ui() -> void:
 	results_action_note.text = RESULTS_ACTION_EXPLANATION
 	results_action_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	results_action_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	results_action_note.add_theme_font_size_override("font_size", 16)
+	results_action_note.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	results_content.add_child(results_action_note)
 	var results_actions := HBoxContainer.new()
 	results_actions.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -231,7 +224,7 @@ func create_ui() -> void:
 	results_rematch_button.text = "FRESH REMATCH · SAME RULES"
 	results_rematch_button.theme_type_variation = &"PrimaryButton"
 	results_rematch_button.custom_minimum_size = Vector2(290.0, 52.0)
-	results_rematch_button.add_theme_font_size_override("font_size", 17)
+	results_rematch_button.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	results_rematch_button.pressed.connect(_on_results_rematch_pressed)
 	results_actions.add_child(results_rematch_button)
 	results_extend_button = Button.new()
@@ -239,14 +232,14 @@ func create_ui() -> void:
 	results_extend_button.theme_type_variation = &"SecondaryButton"
 	results_extend_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	results_extend_button.custom_minimum_size = Vector2(270.0, 52.0)
-	results_extend_button.add_theme_font_size_override("font_size", 19)
+	results_extend_button.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	results_extend_button.pressed.connect(_on_results_extend_pressed)
 	results_actions.add_child(results_extend_button)
 	results_return_button = Button.new()
 	results_return_button.text = "EXIT TO LOBBY"
 	results_return_button.theme_type_variation = &"QuietButton"
 	results_return_button.custom_minimum_size = Vector2(230.0, 52.0)
-	results_return_button.add_theme_font_size_override("font_size", 19)
+	results_return_button.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	results_return_button.pressed.connect(_on_results_return_pressed)
 	results_actions.add_child(results_return_button)
 	results_admin_button = Button.new()
@@ -314,7 +307,7 @@ func _focus_first_card(parent: Node) -> bool:
 func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	var is_local := peer_id == bridge.local_peer_id
 	var team_id := _player_team(peer_id)
-	var accent := Color("fff36a") if is_local else GameModeRules.team_color(team_id) if team_id > 0 else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
+	var accent := _identity_color(peer_id, team_id)
 	var row_panel := PanelContainer.new()
 	row_panel.custom_minimum_size.y = 58.0
 	row_panel.set_meta("peer_id", peer_id)
@@ -324,32 +317,27 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	row_panel.add_child(row)
-	var player_label := Label.new()
-	player_label.text = "#%02d   %s%s%s" % [rank, _player_name(peer_id), "  ·  %s" % GameModeRules.team_name(team_id) if team_id > 0 else "", "  ★ YOU" if is_local else ""]
-	player_label.custom_minimum_size.x = 300.0
-	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	player_label.add_theme_font_size_override("font_size", 19 if is_local else 17)
-	player_label.add_theme_color_override("font_color", accent if is_local else Color("f4fbff"))
-	row.add_child(player_label)
+	# The local marker leads the name so truncation can never hide it.
+	_add_pilot_cell(row, "#%02d   %s%s" % [rank, "◆ " if is_local else "", _player_name(peer_id)], team_id, 300.0, DesignTokensScript.TEXT_PRIMARY)
 	var score := _result_score(peer_id)
 	var heats_label := Label.new()
 	heats_label.text = str(score.get("heat_wins", 0))
 	heats_label.custom_minimum_size.x = 90.0
 	heats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heats_label.add_theme_color_override("font_color", Color("73f7ff"))
+	heats_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(heats_label)
 	var rounds_label := Label.new()
 	rounds_label.text = str(score.get("round_wins", 0))
 	rounds_label.custom_minimum_size.x = 100.0
 	rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rounds_label.add_theme_color_override("font_color", Color("ff8ee8"))
+	rounds_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(rounds_label)
 	var kills_label := Label.new()
 	kills_label.name = "MatchKills"
 	kills_label.text = str(score.get("kills", 0))
 	kills_label.custom_minimum_size.x = 80.0
 	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kills_label.add_theme_color_override("font_color", Color("fff36a"))
+	kills_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(kills_label)
 	if int(latest_match_payload.get("game_mode", GameModeRules.Mode.DEATH_MATCH)) == GameModeRules.Mode.KING_OF_THE_HILL:
 		var hill_label := Label.new()
@@ -357,7 +345,7 @@ func _add_scoreboard_row(rank: int, peer_id: int) -> void:
 		hill_label.text = "%.1fs" % _hill_score(peer_id)
 		hill_label.custom_minimum_size.x = 100.0
 		hill_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hill_label.add_theme_color_override("font_color", Color("ffb45f"))
+		hill_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 		row.add_child(hill_label)
 	_add_result_build(row, peer_id, "ScoreboardBuildCards")
 
@@ -459,8 +447,8 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 	if build.is_empty():
 		var base_label := Label.new()
 		base_label.text = "BASE LOADOUT"
-		base_label.add_theme_font_size_override("font_size", 15)
-		base_label.add_theme_color_override("font_color", Color("8ba1c7"))
+		base_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+		base_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 		build_flow.add_child(base_label)
 		return
 	var card_ids := build.keys()
@@ -483,7 +471,7 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 		chip.text = "%s ×%d" % [card.display_name if card != null else String(card_id), stacks]
 		chip.set_meta("card_id", card_id)
 		chip.set_meta("stack_count", stacks)
-		chip.add_theme_font_size_override("font_size", 14)
+		chip.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 		if card != null:
 			var rarity_color := card.rarity_color()
 			chip.configure(card, stacks, CardDetailsText.tooltip(card, stacks))
@@ -498,7 +486,8 @@ func _add_result_build(parent: HBoxContainer, peer_id: int, container_name: Stri
 
 func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	var team_id := _player_team(peer_id)
-	var accent := Color("fff36a") if winner else GameModeRules.team_color(team_id) if team_id > 0 else (Color("42e8ff") if rank % 2 == 0 else Color("d39cff"))
+	var is_local := peer_id == bridge.local_peer_id
+	var accent := DesignTokensScript.VICTORY if winner else _identity_color(peer_id, team_id)
 	var row_panel := PanelContainer.new()
 	row_panel.custom_minimum_size.y = 58.0
 	row_panel.set_meta("peer_id", peer_id)
@@ -516,32 +505,26 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 	rank_label.text = "#%02d" % rank
 	rank_label.custom_minimum_size.x = 60.0
 	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rank_label.add_theme_font_size_override("font_size", 19)
+	rank_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	rank_label.add_theme_color_override("font_color", accent)
 	row.add_child(rank_label)
-	var player_label := Label.new()
-	player_label.text = "%s%s%s" % [_player_name(peer_id), "  ·  %s" % GameModeRules.team_name(team_id) if team_id > 0 else "", "  ★" if winner else ""]
-	player_label.custom_minimum_size.x = 230.0
-	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	player_label.add_theme_font_size_override("font_size", 20 if winner else 18)
-	player_label.add_theme_color_override("font_color", Color("fff36a") if winner else Color("f4fbff"))
-	row.add_child(player_label)
+	_add_pilot_cell(row, "%s%s%s" % ["★ " if winner else "", "◆ " if is_local else "", _player_name(peer_id)], team_id, 230.0, DesignTokensScript.VICTORY if winner else DesignTokensScript.TEXT_PRIMARY)
 	var score := _result_score(peer_id)
 	var score_label := Label.new()
 	score_label.name = "RoundWins"
 	score_label.text = str(int(score.get("round_wins", 0)))
 	score_label.custom_minimum_size.x = 150.0
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	score_label.add_theme_font_size_override("font_size", 16)
-	score_label.add_theme_color_override("font_color", Color("73f7ff"))
+	score_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	score_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(score_label)
 	var kills_label := Label.new()
 	kills_label.name = "MatchKills"
 	kills_label.text = str(int(score.get("kills", 0)))
 	kills_label.custom_minimum_size.x = 100.0
 	kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kills_label.add_theme_font_size_override("font_size", 16)
-	kills_label.add_theme_color_override("font_color", Color("fff36a"))
+	kills_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	kills_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(kills_label)
 	_add_result_build(row, peer_id)
 	var contribution := preload("res://src/client/ui/objective_contribution_text.gd").summary(latest_match_payload, peer_id)
@@ -549,8 +532,8 @@ func _add_result_row(rank: int, peer_id: int, winner: bool) -> void:
 		var contribution_label := Label.new()
 		contribution_label.name = "ObjectiveContribution"
 		contribution_label.text = contribution
-		contribution_label.add_theme_font_size_override("font_size", 16)
-		contribution_label.add_theme_color_override("font_color", Color("bdefff"))
+		contribution_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+		contribution_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 		contribution_label.tooltip_text = "Server-recorded contribution over the whole match. Contested time is separate from scoring control; carrier stops count enemy flag carriers eliminated."
 		row_content.add_child(contribution_label)
 
@@ -559,8 +542,8 @@ func _add_results_column_heading(parent: HBoxContainer, text_value: String, widt
 	var label := Label.new()
 	label.text = text_value
 	label.custom_minimum_size.x = width
-	label.add_theme_font_size_override("font_size", 14)
-	label.add_theme_color_override("font_color", Color("8ba1c7"))
+	label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	label.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 	if expand:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(label)
@@ -628,6 +611,37 @@ func _player_name(peer_id: int) -> String:
 		if int(player.get("peer_id", 0)) == peer_id:
 			return String(player.get("display_name", "Pilot"))
 	return "Pilot %d" % peer_id
+
+
+## Pilot name with the team on its own line, so neither is truncated to fit the other.
+func _add_pilot_cell(row: HBoxContainer, name_text: String, team_id: int, width: float, name_color: Color) -> void:
+	var cell := VBoxContainer.new()
+	cell.custom_minimum_size.x = width
+	cell.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.add_theme_constant_override("separation", 0)
+	row.add_child(cell)
+	var player_label := Label.new()
+	player_label.name = "PilotName"
+	player_label.text = name_text
+	player_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	player_label.add_theme_color_override("font_color", name_color)
+	cell.add_child(player_label)
+	if team_id > 0:
+		var team_label := Label.new()
+		team_label.name = "PilotTeam"
+		team_label.text = GameModeRules.team_name(team_id)
+		team_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id))
+		cell.add_child(team_label)
+
+
+## A pilot's identity colour: their team in team modes, otherwise their ship.
+func _identity_color(peer_id: int, team_id: int) -> Color:
+	if team_id > 0:
+		return GameModeRules.team_color(team_id)
+	for player in _lobby_state.get("players", []):
+		if int(player.get("peer_id", 0)) == peer_id:
+			return Color.from_string("#%s" % String(player.get("ship_color", "")), DesignTokensScript.INTERACTIVE)
+	return DesignTokensScript.INTERACTIVE
 
 
 func _player_team(peer_id: int) -> int:

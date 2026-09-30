@@ -6,9 +6,10 @@ const TutorialScript = preload("res://src/client/sandbox/combat_tutorial.gd")
 const AbilitySelection = preload("res://src/shared/combat/special_ability_selection.gd")
 const FeedbackPresentation = preload("res://src/client/presentation/combat_feedback_presentation.gd")
 const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
+const CombatHudPanelScript = preload("res://src/client/ui/combat_hud_panel.gd")
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const TARGET_COUNT: int = 5
-const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
+const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), DesignTokens.SUCCESS, Color("ffd95a")]
 const PRESET_NAMES: Array[String] = ["Base ship", "Rapid scatter", "Beam specialist", "Shield tank", "All abilities"]
 const LAB_MAP_IDS: Array[StringName] = [&"core_arena", &"solar_tide", &"wormhole"]
 const PRESET_BUILDS: Array[Dictionary] = [
@@ -33,7 +34,7 @@ var projectile_layer: ProjectileLayer
 var effects_layer: CombatEffectsLayer
 var arena: ArenaView
 var camera: Camera2D
-var status_label: Label
+var hud_panel: CombatHudPanelScript
 var feedback_label: Label
 var card_label: Label
 var help_label: Label
@@ -325,7 +326,7 @@ func _create_ships() -> void:
 	for index in TARGET_COUNT + 1:
 		var ship := CombatShipView.new()
 		var state := world.add_peer(index + 1)
-		ship.setup(index + 1, state.stats, state.position, Color("42e8ff") if index == 0 else TARGET_COLORS[index - 1], index == 0, "You" if index == 0 else "Target %d" % index)
+		ship.setup(index + 1, state.stats, state.position, DesignTokens.BRAND_CYAN if index == 0 else TARGET_COLORS[index - 1], index == 0, "You" if index == 0 else "Target %d" % index)
 		ship.combatant = state
 		# The shared world owns collisions; these nodes only draw its state.
 		ship.collision_layer = 0
@@ -360,19 +361,17 @@ func _create_hud() -> void:
 	hud_root.theme = DesignTokens.create_interface_theme()
 	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_canvas.add_child(hud_root)
-	status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", 18)
-	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud_root.add_child(status_label)
+	# The same framed HUD as online matches, so practice teaches the real layout.
+	hud_panel = CombatHudPanelScript.new()
+	hud_root.add_child(hud_panel)
 	feedback_label = Label.new()
 	feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	feedback_label.add_theme_font_size_override("font_size", 18)
-	feedback_label.add_theme_color_override("font_color", Color("ffd95a"))
+	feedback_label.add_theme_font_size_override("font_size", DesignTokens.TEXT_BODY_SIZE)
+	feedback_label.add_theme_color_override("font_color", DesignTokens.SUCCESS)
 	feedback_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_root.add_child(feedback_label)
 	editor_button = Button.new()
-	editor_button.text = "Enter range · F2"
+	editor_button.text = "ENTER RANGE · F2"
 	editor_button.theme_type_variation = &"PrimaryButton"
 	editor_button.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
 	editor_button.pressed.connect(func() -> void: set_editor_open(not editor_open))
@@ -398,7 +397,7 @@ func set_editor_open(value: bool) -> void:
 	editor_open = value
 	combat_input_armed = false
 	lab_panel.visible = value
-	editor_button.text = "Enter range · F2" if value else "Edit build · F2"
+	editor_button.text = "ENTER RANGE · F2" if value else "EDIT BUILD · F2"
 	# Release focused text/buttons before combat resumes. A click on the editor
 	# never becomes a held shot in the same input frame.
 	var focused := get_viewport().gui_get_focus_owner()
@@ -422,18 +421,26 @@ func _layout_hud() -> void:
 	hud_root.position = Vector2((viewport.x - safe_width) * 0.5 + 20.0, 16.0)
 	hud_root.scale = Vector2.ONE * hud_scale
 	hud_root.size = Vector2((safe_width - 40.0) / hud_scale, (viewport.y - 32.0) / hud_scale)
-	status_label.position = Vector2.ZERO
-	status_label.size = Vector2(hud_root.size.x, 62.0)
-	status_label.visible = not editor_open
+	hud_panel.position = Vector2.ZERO
+	hud_panel.set_width(minf(CombatHudPanelScript.WIDTH, hud_root.size.x))
+	hud_panel.visible = not editor_open
 	feedback_label.visible = not editor_open
-	editor_button.position = Vector2(0.0, 0.0 if editor_open else 68.0)
-	feedback_label.position = Vector2(260.0, 68.0)
-	feedback_label.size = Vector2(maxf(hud_root.size.x - 260.0, 100.0), 54.0)
-	var editor_top := 60.0 if editor_open else 132.0
+	var hud_bottom := hud_content_bottom()
+	editor_button.position = Vector2(0.0, 0.0 if editor_open else hud_bottom)
+	feedback_label.position = Vector2(hud_panel.size.x + 24.0, 0.0)
+	feedback_label.size = Vector2(maxf(hud_root.size.x - hud_panel.size.x - 24.0 - 440.0, 100.0), 54.0)
+	var editor_top := 60.0 if editor_open else hud_bottom + DesignTokens.CONTROL_HEIGHT + 16.0
 	lab_panel.position = Vector2(0.0, editor_top)
 	lab_panel.size = Vector2(minf(520.0, hud_root.size.x), maxf(hud_root.size.y - editor_top, 120.0))
 	if tutorial != null:
 		tutorial.layout()
+
+
+## Bottom of the framed HUD in hud_root space; practice layouts start below it.
+func hud_content_bottom() -> float:
+	if hud_panel == null or not hud_panel.visible:
+		return 0.0
+	return hud_panel.position.y + hud_panel.size.y + 8.0
 
 
 func start_tutorial() -> void:
@@ -479,7 +486,7 @@ func _cycle_special(direction: int) -> void:
 
 
 func _update_hud() -> void:
-	if status_label == null or player == null:
+	if hud_panel == null or player == null:
 		return
 	var state := player.combatant
 	var special_name := AbilitySelection.label(selected_special_slot)
@@ -501,7 +508,17 @@ func _update_hud() -> void:
 			special_name += " ACTIVE"
 		else:
 			special_name += " (%.1fs)" % cooldown if cooldown > 0.0 else " READY" if charges != 0 else " EMPTY"
-	status_label.text = "COMBAT LAB · %s · %s · HP %.0f/%.0f · Ammo %d/%d · Ability: %s\n%d shots · %d hull hits · %d blocked · %.1f damage / %.1fs = %.1f DPS" % ["PAUSED" if editor_open else "LIVE", ArenaLayout.display_name(world.map_id), state.health, state.stats.max_health, state.weapon.ammunition, state.stats.magazine_size, special_name, shots_fired, hull_hits, blocked_shots, measured_damage, measurement_seconds, measured_dps()]
+	var mode_label := "LEARN TO PLAY" if tutorial != null and tutorial.active else "COMBAT LAB"
+	hud_panel.match_status_label.text = "%s  ·  %s\n%s" % [mode_label, "PAUSED" if editor_open else "LIVE", ArenaLayout.display_name(world.map_id).to_upper()]
+	hud_panel.set_vitals(state.health, state.stats.max_health, state.shield.energy, state.stats.shield_capacity)
+	var loadout: PackedStringArray = ["AMMO %d/%d" % [state.weapon.ammunition, state.stats.magazine_size]]
+	if selected_special_slot >= 0:
+		loadout.append(special_name.to_upper())
+	hud_panel.resources_label.text = CombatHudPanelScript.resources_text(CombatHudPanelScript.vitals_text(state.health, state.stats.max_health, state.shield.energy, state.stats.shield_capacity), loadout)
+	hud_panel.set_hints("%d SHOTS  ·  %d HITS  ·  %d BLOCKED\n%.0f DAMAGE  ·  %.1f DPS" % [shots_fired, hull_hits, blocked_shots, measured_damage, measured_dps()])
+	hud_panel.fit_height()
+	if not editor_open:
+		editor_button.position.y = hud_content_bottom()
 	if toggle_status_label == null and hud_root != null:
 		toggle_status_label = action_latch.create_status_label(hud_root)
 	if toggle_status_label != null:

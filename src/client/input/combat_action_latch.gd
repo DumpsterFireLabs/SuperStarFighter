@@ -43,7 +43,7 @@ static func create_status_label(parent: Control) -> Label:
 	label.name = "ToggleStatus"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.add_theme_font_size_override("font_size", 21)
-	label.add_theme_color_override("font_color", Color("fff36a"))
+	label.add_theme_color_override("font_color", DesignTokens.TEXT_SECONDARY)
 	label.add_theme_color_override("font_outline_color", Color("02040d"))
 	label.add_theme_constant_override("outline_size", 6)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE

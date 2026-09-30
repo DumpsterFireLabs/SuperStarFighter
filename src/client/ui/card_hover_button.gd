@@ -140,6 +140,9 @@ func _update_draft_identity() -> void:
 		else:
 			after.text = String(row.text).trim_prefix("Unlock: ")
 		after.autowrap_mode = TextServer.AUTOWRAP_WORD
+		# Drawbacks carry a ▼ as well as amber, so the meaning never rests on colour alone.
+		if row.kind == &"drawback":
+			after.text = "▼ " + after.text
 		after.add_theme_color_override("font_color", DesignTokensScript.WARNING if row.kind == &"drawback" else DesignTokensScript.TEXT_PRIMARY)
 		group.add_child(after)
 	var note := Label.new()
@@ -153,8 +156,8 @@ func _update_draft_identity() -> void:
 		note_parts.append("+%d IN DETAILS" % omitted)
 	note.text = "\n".join(note_parts)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_font_size_override("font_size", 11)
-	note.add_theme_color_override("font_color", DesignTokensScript.WARNING)
+	note.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY if output_warning.is_empty() else DesignTokensScript.WARNING)
 	note.visible = not note.text.is_empty()
 	summary.add_child(note)
 	tooltip_text += "\nROLE: %s" % IdentityScript.role(card_definition)
@@ -215,17 +218,17 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	title.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	title_column.add_child(title)
 	var tier := Label.new()
-	tier.text = "%s  •  %s  •  %s TIER DROP" % [
+	tier.text = "%s  ·  %s  ·  %s TIER DROP" % [
 		card_definition.rarity_name().to_upper(),
 		card_definition.category_name().to_upper(),
 		card_definition.rarity_drop_chance_text(),
 	]
-	tier.add_theme_font_size_override("font_size", 13)
+	tier.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	tier.add_theme_color_override("font_color", rarity_color.lightened(0.18))
 	title_column.add_child(tier)
 	var role_label := Label.new()
 	role_label.text = IdentityScript.role(card_definition).to_upper()
-	role_label.add_theme_font_size_override("font_size", 13)
+	role_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	role_label.add_theme_color_override("font_color", category_color)
 	title_column.add_child(role_label)
 
@@ -234,7 +237,7 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	stack_badge.custom_minimum_size = Vector2(46.0, 34.0)
 	stack_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	stack_badge.add_theme_font_size_override("font_size", 18)
+	stack_badge.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	stack_badge.add_theme_color_override("font_color", rarity_color.lightened(0.25))
 	stack_badge.add_theme_stylebox_override("normal", _badge_style(rarity_color))
 	identity.add_child(stack_badge)
@@ -248,22 +251,22 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	description.text = card_definition.description
 	description.custom_minimum_size.x = 344.0
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.add_theme_font_size_override("font_size", 15)
+	description.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	description.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	content.add_child(description)
 
 	var effects_heading := Label.new()
 	effects_heading.text = "ACTUAL BUILD: BEFORE → AFTER" if not comparison_rows.is_empty() else "STACKED CARD EFFECTS"
-	effects_heading.add_theme_font_size_override("font_size", 12)
+	effects_heading.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	effects_heading.add_theme_color_override("font_color", DesignTokensScript.TEXT_MUTED)
 	content.add_child(effects_heading)
 	for effect in _effect_rows():
 		content.add_child(_effect_panel(effect, category_color))
 
 	var footer := Label.new()
-	footer.text = "%s  •  %d %s" % [footer_context, stack_count, "COPY" if stack_count == 1 else "COPIES"]
+	footer.text = "%s  ·  %d %s" % [footer_context, stack_count, "COPY" if stack_count == 1 else "COPIES"]
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.add_theme_font_size_override("font_size", 12)
+	footer.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	footer.add_theme_color_override("font_color", Color(rarity_color, 0.85))
 	content.add_child(footer)
 	return card
@@ -300,7 +303,7 @@ func _effect_rows() -> Array[Dictionary]:
 	elif card_definition.special_behavior_id == &"breakaway_thrusters":
 		rows.append({"name": "Escape System", "each": "Break-triggered thrust", "total": "ENABLED"})
 	if rows.is_empty():
-		rows.append({"name": "Special", "each": "Unique behavior", "total": "ACTIVE"})
+		rows.append({"name": "Special", "each": "Unique behaviour", "total": "ACTIVE"})
 	return rows
 
 
@@ -313,21 +316,21 @@ func _effect_panel(effect: Dictionary, accent: Color) -> PanelContainer:
 	var stat := Label.new()
 	stat.text = String(effect["name"])
 	stat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stat.add_theme_font_size_override("font_size", 14)
+	stat.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	stat.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	row.add_child(stat)
 	var each := Label.new()
 	each.text = String(effect["each"])
 	each.custom_minimum_size.x = 92.0
 	each.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	each.add_theme_font_size_override("font_size", 13)
+	each.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	each.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	row.add_child(each)
 	var total := Label.new()
 	total.text = String(effect["total"])
 	total.custom_minimum_size.x = 92.0
 	total.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	total.add_theme_font_size_override("font_size", 13)
+	total.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	total.add_theme_color_override("font_color", accent.lightened(0.18))
 	row.add_child(total)
 	return panel
@@ -379,14 +382,10 @@ func _effect_style(color: Color) -> StyleBoxFlat:
 	return style
 
 
-func _category_color(category: int) -> Color:
-	match category:
-		CardDefinition.Category.SHIP:
-			return Color("38d9ff")
-		CardDefinition.Category.SHIELD:
-			return Color("ae7cff")
-		_:
-			return Color("ff4fd8")
+## Category is spelled out and drawn by the mechanic icon; rarity is the only
+## colour dimension on a card, so the category stays neutral.
+func _category_color(_category: int) -> Color:
+	return DesignTokensScript.TEXT_SECONDARY
 
 
 func _stat_name(property_name: String) -> String:

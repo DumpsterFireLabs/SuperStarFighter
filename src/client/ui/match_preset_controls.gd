@@ -7,7 +7,7 @@ const MatchPresetsScript = preload("res://src/shared/lobby/match_presets.gd")
 static func create_picker(parent: VBoxContainer) -> OptionButton:
 	var label := Label.new()
 	label.text = "QUICK START PRESET"
-	label.add_theme_font_size_override("font_size", 16)
+	label.theme_type_variation = &"SectionHeading"
 	parent.add_child(label)
 	var picker := OptionButton.new()
 	picker.name = "MatchPreset"
@@ -25,7 +25,7 @@ static func create_note(parent: VBoxContainer) -> Label:
 	var note := Label.new()
 	note.text = description(0)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_font_size_override("font_size", 16)
+	note.add_theme_font_size_override("font_size", DesignTokens.TEXT_BODY_SIZE)
 	parent.add_child(note)
 	return note
 
