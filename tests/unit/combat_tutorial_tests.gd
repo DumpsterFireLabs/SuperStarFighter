@@ -95,7 +95,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	client.splash_screen.hide()
 	client.studio_splash.hide()
 	var entry := client.find_child("GuidedIntroductionButton", true, false) as Button
-	context.expect_true(entry != null and entry.text == "Learn to play", "main menu exposes an explicit guided introduction entry")
+	context.expect_true(entry != null and entry.text == "LEARN TO PLAY", "main menu exposes an explicit guided introduction entry")
 	if entry != null:
 		entry.pressed.emit()
 		context.expect_true(client.offline_sandbox.visible and client.offline_sandbox.tutorial.active, "main-menu lesson entry starts playable tutorial")

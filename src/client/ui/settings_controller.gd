@@ -116,7 +116,7 @@ func _create_settings_overlay(canvas: CanvasLayer) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	settings_panel.add_child(center)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(920.0, 690.0)
+	panel.custom_minimum_size = Vector2(920.0, 860.0)
 	panel.theme = interface_theme
 	panel.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	center.add_child(panel)
@@ -126,13 +126,12 @@ func _create_settings_overlay(canvas: CanvasLayer) -> void:
 	var title := Label.new()
 	title.text = "SETTINGS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color("d39cff"))
+	title.theme_type_variation = &"ScreenTitle"
 	content.add_child(title)
 	settings_tabs = TabContainer.new()
 	settings_tabs.get_tab_bar().focus_mode = Control.FOCUS_ALL
 	settings_tabs.get_tab_bar().gui_input.connect(NavigationScript.handle_tab_bar_input.bind(settings_tabs))
-	settings_tabs.custom_minimum_size = Vector2(860.0, 500.0)
+	settings_tabs.custom_minimum_size = Vector2(860.0, 670.0)
 	settings_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(settings_tabs)
 	_create_display_audio_settings_tab()
@@ -142,10 +141,10 @@ func _create_settings_overlay(canvas: CanvasLayer) -> void:
 	var saved_note := Label.new()
 	saved_note.text = "Settings and both control profiles save automatically."
 	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	saved_note.add_theme_color_override("font_color", Color("aebbd4"))
+	saved_note.theme_type_variation = &"HintLabel"
 	content.add_child(saved_note)
 	var back_button := Button.new()
-	back_button.text = "Back"
+	back_button.text = "CLOSE SETTINGS"
 	back_button.theme_type_variation = &"QuietButton"
 	back_button.custom_minimum_size.y = 52.0
 	back_button.pressed.connect(close_requested.emit)
@@ -166,7 +165,7 @@ func _create_accessibility_settings_tab() -> void:
 	scroll.add_child(tab)
 	var heading := Label.new()
 	heading.text = "COMBAT READABILITY & COMFORT"
-	heading.add_theme_font_size_override("font_size", 23)
+	heading.theme_type_variation = &"SectionHeading"
 	tab.add_child(heading)
 	var scale_row := HBoxContainer.new()
 	tab.add_child(scale_row)
@@ -275,8 +274,7 @@ func _create_display_audio_settings_tab() -> void:
 	scroll.add_child(tab)
 	var display_title := Label.new()
 	display_title.text = "DISPLAY"
-	display_title.add_theme_font_size_override("font_size", 23)
-	display_title.add_theme_color_override("font_color", Color("73f7ff"))
+	display_title.theme_type_variation = &"SectionHeading"
 	tab.add_child(display_title)
 	var mode_row := HBoxContainer.new()
 	mode_row.add_theme_constant_override("separation", 16)
@@ -310,13 +308,12 @@ func _create_display_audio_settings_tab() -> void:
 	resolution_row.add_child(resolution_control)
 	display_mode_note = Label.new()
 	display_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	display_mode_note.add_theme_color_override("font_color", Color("aebbd4"))
+	display_mode_note.theme_type_variation = &"HintLabel"
 	tab.add_child(display_mode_note)
 	_update_resolution_control_state()
 	var audio_title := Label.new()
 	audio_title.text = "AUDIO"
-	audio_title.add_theme_font_size_override("font_size", 23)
-	audio_title.add_theme_color_override("font_color", Color("73f7ff"))
+	audio_title.theme_type_variation = &"SectionHeading"
 	tab.add_child(audio_title)
 	_add_volume_setting(tab, "Master Volume", &"master", audio_director.master_volume_percent)
 	_add_volume_setting(tab, "Music Volume", &"music", audio_director.music_volume_percent)
@@ -367,7 +364,7 @@ func _create_controls_settings_tab() -> void:
 	flight_mode_control.item_selected.connect(_on_flight_mode_selected)
 	flight_mode_row.add_child(flight_mode_control)
 	controller_status_label = Label.new()
-	controller_status_label.add_theme_color_override("font_color", Color("aebbd4"))
+	controller_status_label.theme_type_variation = &"HintLabel"
 	controller_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tab.add_child(controller_status_label)
 	controller_deadzone_row = HBoxContainer.new()
@@ -392,7 +389,7 @@ func _create_controls_settings_tab() -> void:
 	controller_deadzone_slider.value_changed.connect(_on_controller_deadzone_changed)
 	binding_capture_status = Label.new()
 	binding_capture_status.text = "Select a binding, then press its replacement input."
-	binding_capture_status.add_theme_color_override("font_color", Color("fff36a"))
+	binding_capture_status.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	binding_capture_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tab.add_child(binding_capture_status)
 	var scroll := ScrollContainer.new()
@@ -407,7 +404,7 @@ func _create_controls_settings_tab() -> void:
 	binding_rows.add_theme_constant_override("v_separation", 6)
 	scroll.add_child(binding_rows)
 	var reset_button := Button.new()
-	reset_button.text = "Restore This Profile's Defaults"
+	reset_button.text = "RESTORE THIS PROFILE'S DEFAULTS"
 	reset_button.theme_type_variation = &"SecondaryButton"
 	reset_button.custom_minimum_size.y = 42.0
 	reset_button.pressed.connect(_on_restore_control_defaults)
@@ -469,6 +466,7 @@ func _begin_binding_capture(action: StringName) -> void:
 	binding_capture_seconds = 8.0
 	var prompt := "Press a controller button or move one axis fully" if input_profiles.uses_controller() else "Press a keyboard key or mouse button"
 	binding_capture_status.text = "%s for %s…" % [prompt, input_profiles.action_label(action)]
+	binding_capture_status.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
 	if binding_buttons.has(action):
 		(binding_buttons[action] as Button).text = "PRESS INPUT…"
 
@@ -478,8 +476,10 @@ func _complete_binding_capture(event: InputEvent) -> void:
 	var rebound: bool = input_profiles.rebind(action, event)
 	if rebound:
 		binding_capture_status.text = "%s is now %s." % [input_profiles.action_label(action), input_profiles.binding_text(action)]
+		binding_capture_status.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
 	else:
 		binding_capture_status.text = "That input is not valid for the selected profile."
+		binding_capture_status.add_theme_color_override("font_color", DesignTokensScript.WARNING)
 	binding_capture_action = &""
 	binding_capture_seconds = 0.0
 	if not rebound:
@@ -493,6 +493,7 @@ func _cancel_binding_capture() -> void:
 	binding_capture_seconds = 0.0
 	if binding_capture_status != null:
 		binding_capture_status.text = "Binding capture timed out. Nothing changed."
+		binding_capture_status.add_theme_color_override("font_color", DesignTokensScript.WARNING)
 	_rebuild_binding_rows()
 
 
@@ -500,6 +501,7 @@ func _on_restore_control_defaults() -> void:
 	_cancel_binding_capture()
 	input_profiles.restore_active_defaults()
 	binding_capture_status.text = "Restored the selected profile's default bindings."
+	binding_capture_status.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
 	_refresh_input_settings_ui()
 
 

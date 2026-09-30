@@ -38,7 +38,7 @@ static func tooltip(card: CardDefinition, stacks: int, stack_heading: String = "
 	elif card.special_behavior_id == &"breakaway_thrusters":
 		stat_lines.append("Escape System  Burst mobility after shield break or heavy hull damage")
 	if stat_lines.is_empty():
-		stat_lines.append("Special behavior described above")
+		stat_lines.append("Special behaviour described above")
 	lines.append_array(stat_lines)
 	if card.multiplicative_modifiers.has("drag") or card.additive_modifiers.has("drag"):
 		lines.append("Passive braking slows the ship when movement input is released.")

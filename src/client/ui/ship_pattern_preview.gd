@@ -5,7 +5,7 @@ const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd
 const ShipPatternGeometryScript = preload("res://src/client/presentation/ship_pattern_geometry.gd")
 const PREVIEW_SCALE: Vector2 = Vector2(52.0 / 29.0, 30.0 / 17.0)
 
-var ship_color: Color = Color("42e8ff")
+var ship_color: Color = DesignTokens.BRAND_CYAN
 var ship_pattern: StringName = ShipAppearanceScript.SOLID
 
 

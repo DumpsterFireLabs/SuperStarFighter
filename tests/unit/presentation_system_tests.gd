@@ -635,7 +635,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.splash_screen.visible = false
 	context.expect_true(client.standings_controller.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_controller.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_controller.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
-	context.expect_true(client.standings_controller.results_panel.custom_minimum_size.x <= 1280.0 and client.standings_controller.results_panel.custom_minimum_size.y <= 720.0, "results screen fits the 1280x720 acceptance viewport")
+	# Menus lay out on the 1920x1080 logical canvas (canvas_items + expand), which a 1280x720 window scales down.
+	context.expect_true(client.standings_controller.results_panel.custom_minimum_size.x <= 1280.0 and client.standings_controller.results_panel.custom_minimum_size.y <= 960.0, "results screen fits the 1280x720 acceptance viewport's logical canvas with margins")
 	var players: Array[Dictionary] = []
 	for index in 32:
 		players.append({"peer_id": index + 2, "display_name": "Pilot %02d" % (index + 1), "ship_color": ServerLobby.RANDOM_SHIP_COLORS[index % ServerLobby.RANDOM_SHIP_COLORS.size()], "spectator": false, "is_npc": false, "ready": true})
@@ -688,7 +689,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.bridge.session.local_peer_id = 2
 	client.connection_controller.lobby._rebuild_lobby_roster({"players": players, "leader_id": 2, "match_active": false}, true)
 	context.expect_false(client.connection_controller.lobby.start_button.disabled, "leader can launch once all humans are ready")
-	context.expect_equal(client.connection_controller.lobby.start_button.text, "Start Match", "ready multiplayer lobby uses ordinary start wording")
+	context.expect_equal(client.connection_controller.lobby.start_button.text, "START MATCH", "ready multiplayer lobby uses ordinary start wording")
 	var configurable_players: Array[Dictionary] = [
 		{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": false, "team_id": 1, "team_selection": 0},
 		{"peer_id": ServerLobby.NPC_PEER_ID_BASE + 1, "display_name": "NPC 01", "spectator": false, "is_npc": true, "npc_difficulty": NpcPilotController.Difficulty.SKILLED, "ready": true, "team_id": 2, "team_selection": 2},
@@ -721,15 +722,15 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._on_lobby_state(client.bridge.latest_lobby_state)
 	context.expect_true(client.connection_controller.lobby.team_count_row.visible, "Team Death Match reveals the team-count option")
 	context.expect_equal(int(client.connection_controller.lobby.team_count_control.value), 4, "team-count option reflects authoritative lobby state")
-	context.expect_true(client.connection_controller.lobby.start_button.disabled and client.connection_controller.lobby.start_button.text == "Configure All Teams", "host cannot launch until every configured team is populated")
+	context.expect_true(client.connection_controller.lobby.start_button.disabled and client.connection_controller.lobby.start_button.text == "CONFIGURE ALL TEAMS", "host cannot launch until every configured team is populated")
 	var solo_player: Array[Dictionary] = [{"peer_id": 2, "display_name": "Pilot 01", "spectator": false, "is_npc": false, "ready": true}]
 	client.bridge.session.latest_lobby_state = {"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": false, "match_active": false, "rounds_to_win": 3}
 	client._on_lobby_state(client.bridge.latest_lobby_state)
-	context.expect_true(client.connection_controller.lobby.start_button.disabled and client.connection_controller.lobby.start_button.text == "Enable NPCs to Start Solo", "solo human is directed to enable NPCs")
+	context.expect_true(client.connection_controller.lobby.start_button.disabled and client.connection_controller.lobby.start_button.text == "ENABLE NPCS TO START SOLO", "solo human is directed to enable NPCs")
 	client.bridge.session.latest_lobby_state = {"players": solo_player, "leader_id": 2, "player_limit": 4, "server_capacity": 32, "npc_count": 0, "ready_human_count": 1, "all_humans_ready": true, "npcs_enabled": true, "match_active": false, "rounds_to_win": 3}
 	client._on_lobby_state(client.bridge.latest_lobby_state)
 	context.expect_false(client.connection_controller.lobby.start_button.disabled, "ready solo human may start after enabling NPCs")
-	context.expect_equal(client.connection_controller.lobby.start_button.text, "Start Match with NPCs", "solo NPC launch uses descriptive wording")
+	context.expect_equal(client.connection_controller.lobby.start_button.text, "START MATCH WITH NPCS", "solo NPC launch uses descriptive wording")
 	client._on_match_event(&"STATE_CHANGED", 0, {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "builds": {2: {}}})
 	client.draft_controller.show_draft_offer({"offer_token": "test", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	var first_draft_card := client.draft_controller.draft_buttons[0] as Button

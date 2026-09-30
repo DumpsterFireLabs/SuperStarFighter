@@ -7,7 +7,7 @@ const SettingsStore = preload("res://src/client/settings_store.gd")
 const Appearance = preload("res://src/shared/models/ship_appearance.gd")
 var settings_path: String
 var random_color: bool = true
-var ship_color: Color = Color("42e8ff")
+var ship_color: Color = DesignTokens.BRAND_CYAN
 var ship_pattern: StringName = Appearance.SOLID
 var _pending_key: String = ""
 var _pending_password: String = ""

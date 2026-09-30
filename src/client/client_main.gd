@@ -304,7 +304,7 @@ func _create_match_ui() -> void:
 	match_label = Label.new()
 	match_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	match_label.add_theme_font_size_override("font_size", 24)
-	match_label.add_theme_color_override("font_color", Color("73f7ff"))
+	match_label.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
 	match_panel.add_child(match_label)
 
 	heat_intro_panel = PanelContainer.new()
@@ -314,7 +314,7 @@ func _create_match_ui() -> void:
 	heat_intro_panel.custom_minimum_size = Vector2(600.0, 250.0)
 	heat_intro_panel.theme = interface_theme
 	heat_intro_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	heat_intro_panel.add_theme_stylebox_override("panel", _heat_intro_style())
+	heat_intro_panel.add_theme_stylebox_override("panel", _heat_intro_style(DesignTokensScript.WARNING))
 	heat_intro_panel.visible = false
 	connection_controller.connection_canvas.add_child(heat_intro_panel)
 	var heat_intro_content := VBoxContainer.new()
@@ -323,18 +323,17 @@ func _create_match_ui() -> void:
 	heat_intro_panel.add_child(heat_intro_content)
 	heat_intro_kicker = Label.new()
 	heat_intro_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heat_intro_kicker.add_theme_font_size_override("font_size", 18)
-	heat_intro_kicker.add_theme_color_override("font_color", Color("d39cff"))
+	heat_intro_kicker.theme_type_variation = &"Kicker"
 	heat_intro_content.add_child(heat_intro_kicker)
 	heat_intro_title = Label.new()
 	heat_intro_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heat_intro_title.add_theme_font_size_override("font_size", 72)
-	heat_intro_title.add_theme_color_override("font_color", Color("fff36a"))
+	heat_intro_title.add_theme_color_override("font_color", DesignTokensScript.WARNING)
 	heat_intro_content.add_child(heat_intro_title)
 	heat_intro_subtitle = Label.new()
 	heat_intro_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heat_intro_subtitle.add_theme_font_size_override("font_size", 20)
-	heat_intro_subtitle.add_theme_color_override("font_color", Color("bdeeff"))
+	heat_intro_subtitle.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	heat_intro_subtitle.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	heat_intro_content.add_child(heat_intro_subtitle)
 
 	draft_controller.configure(bridge, audio_director, card_catalog, interface_theme, connection_controller.connection_canvas, _draft_context)
@@ -358,49 +357,49 @@ func _create_pause_overlay() -> void:
 	pause_title = Label.new()
 	pause_title.text = "PILOT MENU"
 	pause_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pause_title.add_theme_font_size_override("font_size", 38)
-	pause_title.add_theme_color_override("font_color", Color("ff8ee8"))
+	pause_title.theme_type_variation = &"ScreenTitle"
 	content.add_child(pause_title)
 	pause_note = Label.new()
 	pause_note.text = "Online combat continues while this menu is open."
 	pause_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pause_note.add_theme_color_override("font_color", Color("aebbd4"))
+	pause_note.theme_type_variation = &"HintLabel"
 	content.add_child(pause_note)
 	global_pause_button = Button.new()
 	global_pause_button.name = "GlobalPauseButton"
 	global_pause_button.custom_minimum_size.y = 58.0
-	global_pause_button.theme_type_variation = &"PrimaryButton"
+	# Resume is the one primary action here; pausing everyone is an alternate.
+	global_pause_button.theme_type_variation = &"SecondaryButton"
 	global_pause_button.visible = false
 	global_pause_button.pressed.connect(_toggle_global_pause)
 	content.add_child(global_pause_button)
 	pause_resume_button = Button.new()
-	pause_resume_button.text = "Resume"
+	pause_resume_button.text = "RESUME"
 	pause_resume_button.theme_type_variation = &"PrimaryButton"
 	pause_resume_button.custom_minimum_size.y = 58.0
 	pause_resume_button.pressed.connect(_hide_pause_overlay)
 	content.add_child(pause_resume_button)
 	var settings_button := Button.new()
-	settings_button.text = "Settings"
+	settings_button.text = "SETTINGS"
 	settings_button.theme_type_variation = &"SecondaryButton"
 	settings_button.custom_minimum_size.y = 58.0
 	settings_button.pressed.connect(_show_settings.bind(true))
 	content.add_child(settings_button)
 	var admin_button := Button.new()
 	admin_button.name = "PauseAdminButton"
-	admin_button.text = "Server Admin"
+	admin_button.text = "SERVER ADMIN"
 	admin_button.theme_type_variation = &"SecondaryButton"
 	admin_button.custom_minimum_size.y = 58.0
 	admin_button.pressed.connect(_show_admin)
 	content.add_child(admin_button)
 	pause_disconnect_button = Button.new()
 	pause_disconnect_button.name = "PauseDisconnectButton"
-	pause_disconnect_button.text = "Disconnect / Return to Menu"
+	pause_disconnect_button.text = "DISCONNECT / RETURN TO MENU"
 	pause_disconnect_button.theme_type_variation = &"DangerButton"
 	pause_disconnect_button.custom_minimum_size.y = 58.0
 	pause_disconnect_button.pressed.connect(_return_from_pause)
 	content.add_child(pause_disconnect_button)
 	var quit_button := Button.new()
-	quit_button.text = "Quit Game"
+	quit_button.text = "QUIT GAME"
 	quit_button.theme_type_variation = &"DangerButton"
 	quit_button.custom_minimum_size.y = 58.0
 	quit_button.pressed.connect(get_tree().quit)
@@ -412,7 +411,7 @@ func _create_pause_overlay() -> void:
 	global_pause_notice.name = "GlobalPauseNotice"
 	global_pause_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	global_pause_notice.add_theme_font_size_override("font_size", 26)
-	global_pause_notice.add_theme_color_override("font_color", Color("fff36a"))
+	global_pause_notice.add_theme_color_override("font_color", DesignTokensScript.WARNING)
 	global_pause_notice.add_theme_color_override("font_outline_color", Color("02040d"))
 	global_pause_notice.add_theme_constant_override("outline_size", 10)
 	global_pause_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -441,11 +440,11 @@ func _update_global_pause_ui() -> void:
 	var paused := network_world.match_paused
 	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
 	global_pause_button.visible = _can_toggle_global_pause()
-	global_pause_button.text = "Resume Match for Everyone" if paused else "Pause Match for Everyone"
+	global_pause_button.text = "RESUME MATCH FOR EVERYONE" if paused else "PAUSE MATCH FOR EVERYONE"
 	var binding: String = input_profiles.binding_text(&"global_pause")
 	if binding != "Unbound":
 		global_pause_button.text += " · " + binding
-	pause_resume_button.text = "Close Menu" if paused else "Resume"
+	pause_resume_button.text = "CLOSE MENU" if paused else "RESUME"
 	pause_note.text = "Match and timers are paused for everyone." if paused else "Online combat continues while this menu is open."
 	global_pause_notice.visible = paused
 	var resume_hint := "%s to resume for everyone." % binding if binding != "Unbound" else "Open the pilot menu to resume for everyone."
@@ -573,7 +572,7 @@ func _create_credits_overlay() -> void:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(960.0, 610.0)
 	panel.theme = interface_theme
-	panel.add_theme_stylebox_override("panel", _panel_style(Color("ff8a3d"), 0.98))
+	panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	center.add_child(panel)
 	var content := VBoxContainer.new()
 	content.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -582,22 +581,21 @@ func _create_credits_overlay() -> void:
 	var kicker := Label.new()
 	kicker.text = "✦  DUMPSTER FIRE LABS PRESENTS  ✦"
 	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kicker.add_theme_font_size_override("font_size", 17)
-	kicker.add_theme_color_override("font_color", Color("ffb45f"))
+	kicker.theme_type_variation = &"Kicker"
 	content.add_child(kicker)
 	var title := Label.new()
 	title.text = "THANKS FOR PLAYING!"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
-	title.add_theme_color_override("font_color", Color("fff1bf"))
+	title.theme_type_variation = &"ScreenTitle"
 	content.add_child(title)
 	var thank_you := Label.new()
 	thank_you.text = "To everyone who stepped into the arena—thank you for giving the game a shot.\nI set out to make the kind of game I’d have a blast playing with friends, whether at a LAN party or online.\nI hope you had as much fun playing—and testing—it as I did making it!"
 	thank_you.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	thank_you.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	thank_you.custom_minimum_size = Vector2(900.0, 0.0)
-	thank_you.add_theme_font_size_override("font_size", 18)
-	thank_you.add_theme_color_override("font_color", Color("f4fbff"))
+	thank_you.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	thank_you.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	content.add_child(thank_you)
 	_add_credit_block(content, "CREATED BY", "Graphite  ·  jbohack  ·  Champ")
 	_add_credit_block(content, "TESTERS", "Equip  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  AK-REX  ·  Dakka  ·  Gremlin  ·  Trash Panda  ·  SkonSolo")
@@ -608,10 +606,10 @@ func _create_credits_overlay() -> void:
 	repo_link.text = "github.com/DumpsterFireLabs/SuperStarFighter"
 	repo_link.uri = "https://github.com/DumpsterFireLabs/SuperStarFighter"
 	repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
-	repo_link.add_theme_font_size_override("font_size", 18)
-	repo_link.add_theme_color_override("font_color", Color("73f7ff"))
-	repo_link.add_theme_color_override("font_hover_color", Color("fff1bf"))
-	repo_link.add_theme_color_override("font_focus_color", Color("fff1bf"))
+	repo_link.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	repo_link.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
+	repo_link.add_theme_color_override("font_hover_color", DesignTokensScript.FOCUS)
+	repo_link.add_theme_color_override("font_focus_color", DesignTokensScript.FOCUS)
 	# ON_HOVER only reacts to the mouse, so keyboard and controller focus underline explicitly.
 	repo_link.focus_entered.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ALWAYS)
 	repo_link.focus_exited.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER)
@@ -633,8 +631,7 @@ func _add_credit_block(parent: VBoxContainer, role: String, names: String) -> vo
 	var role_label := Label.new()
 	role_label.text = role
 	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_label.add_theme_font_size_override("font_size", 15)
-	role_label.add_theme_color_override("font_color", Color("73f7ff"))
+	role_label.theme_type_variation = &"Kicker"
 	block.add_child(role_label)
 	var names_label := Label.new()
 	names_label.text = names
@@ -642,7 +639,7 @@ func _add_credit_block(parent: VBoxContainer, role: String, names: String) -> vo
 	names_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	names_label.custom_minimum_size = Vector2(650.0, 0.0)
 	names_label.add_theme_font_size_override("font_size", 24)
-	names_label.add_theme_color_override("font_color", Color("f4fbff"))
+	names_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	block.add_child(names_label)
 
 
@@ -718,7 +715,7 @@ func _create_splash_screen() -> void:
 	var studio_skip := Label.new()
 	studio_skip.text = "PRESS ANY INPUT TO CONTINUE"
 	studio_skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	studio_skip.add_theme_font_size_override("font_size", 16)
+	studio_skip.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	studio_skip.add_theme_color_override("font_color", Color("7ee0bd"))
 	studio_content.add_child(studio_skip)
 	game_splash = Control.new()
@@ -738,19 +735,19 @@ func _create_splash_screen() -> void:
 	title.text = "SUPER STAR FIGHTER"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 68)
-	title.add_theme_color_override("font_color", Color("f4fbff"))
+	title.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
 	content.add_child(title)
 	var flare := Label.new()
 	flare.text = "✦  POWER UP · OUTGUN · OUTLAST  ✦"
 	flare.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	flare.add_theme_font_size_override("font_size", 28)
-	flare.add_theme_color_override("font_color", Color("ff4fd8"))
+	flare.add_theme_color_override("font_color", DesignTokensScript.BRAND_MAGENTA)
 	content.add_child(flare)
 	var skip := Label.new()
 	skip.text = "PRESS ANY INPUT TO START"
 	skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	skip.add_theme_font_size_override("font_size", 18)
-	skip.add_theme_color_override("font_color", Color("73f7ff"))
+	skip.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	skip.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
 	content.add_child(skip)
 	studio_content.modulate = Color(1, 1, 1, 0)
 	studio_content.scale = Vector2(0.88, 0.88)
@@ -1206,13 +1203,14 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 	if state_name == "COUNTDOWN":
 		heat_intro_panel.visible = true
 		heat_intro_panel.modulate.a = 1.0
-		heat_intro_kicker.text = "%s  //  ROUND %d  //  HEAT %d" % [
+		heat_intro_kicker.text = "%s  ·  ROUND %d  ·  HEAT %d" % [
 			String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 			int(latest_match_payload.get("round_number", 0)),
 			int(latest_match_payload.get("heat_number", 0)),
 		]
 		var beginning := seconds_left <= HEAT_BEGIN_LEAD_SECONDS + 0.0001
 		heat_intro_title.text = "BEGIN" if beginning else "READY"
+		_set_heat_intro_accent(DesignTokensScript.SUCCESS if beginning else DesignTokensScript.WARNING)
 		if beginning:
 			heat_intro_subtitle.text = "WEAPONS ENGAGING"
 		else:
@@ -1230,12 +1228,13 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 		if elapsed < HEAT_BEGIN_FADE_SECONDS:
 			heat_intro_panel.visible = true
 			heat_intro_panel.modulate.a = 1.0 - clampf(elapsed / HEAT_BEGIN_FADE_SECONDS, 0.0, 1.0)
-			heat_intro_kicker.text = "%s  //  ROUND %d  //  HEAT %d" % [
+			heat_intro_kicker.text = "%s  ·  ROUND %d  ·  HEAT %d" % [
 				String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper(),
 				int(latest_match_payload.get("round_number", 0)),
 				int(latest_match_payload.get("heat_number", 0)),
 			]
 			heat_intro_title.text = "BEGIN"
+			_set_heat_intro_accent(DesignTokensScript.SUCCESS)
 			heat_intro_subtitle.text = "WEAPONS HOT  ·  %s" % _mode_objective_prompt().to_upper()
 			return
 	heat_intro_panel.visible = false
@@ -1250,8 +1249,6 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	var map_label := String(latest_match_payload.get("map_name", ArenaLayout.display_name())).to_upper()
 	var round_heat := "ROUND %d / HEAT %d" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))]
 	var local_team := network_world.team_for_peer(bridge.local_peer_id) if bridge != null else 0
-	if local_team > 0:
-		round_heat = "R%d / H%d · T%d ○ALLY ◇ENEMY" % [int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0)), local_team]
 	var detail_parts := PackedStringArray()
 	var objective_status := ""
 	if state_name == "ACTIVE_HEAT":
@@ -1272,13 +1269,20 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 		"%s  ·  %s" % [state_label, mode_label],
 		"%s  ·  %s" % [map_label, round_heat],
 	])
+	# Team identity gets its own line (with the world-marker legend) instead of
+	# being compressed into the round line, where it wrapped mid-token.
+	var team_line := "%s  ·  ○ ALLY  ◇ ENEMY" % GameModeRules.team_name(local_team) if local_team > 0 else ""
+	if not team_line.is_empty():
+		lines.append(team_line)
 	if state_name == "ACTIVE_HEAT" and network_world.hud_camera.uses_compact_hud():
 		var short_modes := ["DM", "TEAM DM", "HILL", "CTF", "TEAM CTF"]
 		var mode := clampi(int(latest_match_payload.get("game_mode", 0)), 0, short_modes.size() - 1)
 		lines = PackedStringArray([
-			"%s · R%d / H%d%s" % [short_modes[mode], int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0)), " · T%d" % local_team if local_team > 0 else ""],
+			"%s  ·  R%d / H%d" % [short_modes[mode], int(latest_match_payload.get("round_number", 0)), int(latest_match_payload.get("heat_number", 0))],
 			map_label,
 		])
+		if local_team > 0:
+			lines.append(GameModeRules.team_name(local_team))
 	if not detail_parts.is_empty():
 		lines.append("  ·  ".join(detail_parts))
 	if not objective_status.is_empty():
@@ -1474,13 +1478,19 @@ func _panel_style(accent: Color, opacity: float) -> StyleBoxFlat:
 	return DesignTokensScript.panel_style(accent, opacity)
 
 
-func _heat_intro_style() -> StyleBoxFlat:
+## Countdown READY reads as caution (amber); BEGIN reads as go (green).
+func _set_heat_intro_accent(accent: Color) -> void:
+	heat_intro_title.add_theme_color_override("font_color", accent)
+	heat_intro_panel.add_theme_stylebox_override("panel", _heat_intro_style(accent))
+
+
+func _heat_intro_style(accent: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("050b1de8")
-	style.border_color = Color("fff36a")
+	style.border_color = accent
 	style.set_border_width_all(4)
 	style.set_corner_radius_all(22)
-	style.shadow_color = Color("42e8ff55")
+	style.shadow_color = Color(accent, 0.33)
 	style.shadow_size = 22
 	style.content_margin_left = 28.0
 	style.content_margin_right = 28.0
@@ -1490,7 +1500,8 @@ func _heat_intro_style() -> StyleBoxFlat:
 
 
 func _on_rejected(reason: StringName, message: String) -> void:
-	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck the server settings, then try again." % message, true)
+	# Joiners cannot change server settings; point them at what they control.
+	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck your details or choose another server, then try again." % message, true)
 	if reason == NetworkProtocol.REJECT_INVALID_PASSWORD:
 		connection_controller.focus_password()
 

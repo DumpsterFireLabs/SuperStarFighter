@@ -15,7 +15,8 @@ local override.
    action. Secondary, quiet, and destructive actions must not compete with it.
 2. **Meaning before decoration.** Cyan means interactive or navigational,
    magenta supports secondary actions and headings, green means success or
-   readiness, amber means focus or warning, and red means danger.
+   readiness, amber means warning, red means danger, and white means focus.
+   Gold is reserved for victory and the Legendary rarity.
 3. **Rarity is domain data.** Card rarity colours belong to cards, drops, and
    build chips. They do not define generic button or navigation states.
 4. **State is never colour-only.** Pair colour with copy, a symbol, position,
@@ -38,13 +39,41 @@ Use the named constants in `DesignTokens`; do not duplicate their hex values.
 | `TEXT_MUTED` | Metadata and tertiary hints |
 | `TEXT_DISABLED` | Unavailable controls and inactive states |
 | `INTERACTIVE` | Default controls and navigation |
-| `FOCUS` | Keyboard/controller focus and current decision |
+| `FOCUS` | Keyboard/controller focus (white, so it never reads as a rarity, team or pilot colour) |
+| `VICTORY` | Winners, champions and the round-winner bye; never focus or "you" |
 | `SUCCESS` | Ready, confirmed, healthy, or positive state |
 | `WARNING` | Time pressure and recoverable caution |
 | `DANGER` | Destructive or disconnect actions |
 
 Health, shield, team, and card-rarity colours are separate domain roles. They
 may appear beside semantic UI colours, but should not replace them.
+
+A pilot's **identity colour** is their team colour in team modes and their ship
+colour otherwise. Scoreboard, results, lobby and kill-feed rows use it. The local
+pilot is marked with `◆` before the name, never with a different hue. Rarity is
+the only colour dimension on a card: the card category stays neutral and is
+carried by its text and mechanic icon.
+
+## Text roles
+
+Labels take a theme variation instead of local size and colour overrides:
+
+| Variation | Use |
+| --- | --- |
+| `ScreenTitle` | One per surface (cyan, title size); hero titles may raise the size |
+| `Kicker` | Short magenta line above a title, or a credits role |
+| `SectionHeading` | ALL CAPS group heading inside a panel (magenta, section size) |
+| `HintLabel` | Supporting copy, status and control hints (secondary text) |
+
+Panel frames follow the surface: `INTERACTIVE` for primary screens (menu, lobby,
+scoreboard, HUD), `BRAND_MAGENTA` for modal layers (settings, match setup, ship
+customisation, pilot menu, credits), and `VICTORY` for results.
+
+## Copy
+
+- Action buttons and tabs are ALL CAPS; toggles, body copy and hints are sentence case.
+- Separate inline facts with ` · `. Do not use `•`, `//` or `|`.
+- Use British spelling (`colour`, `customise`, `behaviour`).
 
 ## Action hierarchy
 
@@ -67,9 +96,9 @@ such as `OK`.
 
 - Every operable control must be reachable by keyboard and controller.
 - The first sensible action receives focus whenever a surface opens.
-- Focus uses the shared amber outline with restrained glow and no fill, preserving
+- Focus uses the shared white outline with restrained glow and no fill, preserving
   the action's semantic accent. Hover follows that accent.
-- Rarity cards keep their rarity fill and border while focus adds an amber
+- Rarity cards keep their rarity fill and border while focus adds a white
   outer decision cue.
 - Compact build chips remain focusable so their detailed previews are not a
   mouse-only feature.
@@ -126,6 +155,11 @@ Combat status follows a similarly stable order:
 Prefer explicit labels (`ROUND 2 / HEAT 3`) over compressed notation when the
 space is available.
 
+Online matches, the Combat Lab and Learn to Play all use `CombatHudPanel`, so the
+HUD a pilot practises with is the one they fight with. Hull and shield share one
+line and ammunition and abilities another, so values never wrap away from their
+labels. Drawback values carry `▼` as well as amber.
+
 ## Layout and responsive behavior
 
 - Center decision panels inside the available safe area.
@@ -144,8 +178,8 @@ space is available.
 Combat Lab and Learn to Play use the shared theme, including list selections,
 checkboxes, tabs, padded buttons, and quiet panels. Lab content is grouped into
 Build, Targets, and Stats; Enter Range is its primary action. Kill-feed event
-verbs remain complete while long pilot names may truncate. A local-player marker
-adds emphasis without borrowing the amber focus treatment.
+verbs remain complete while long pilot names may truncate. The `◆` local-player
+marker leads the name so truncation never hides it.
 
 ## Review checklist
 
@@ -174,7 +208,13 @@ Run:
 
 `ArenaStaticLayer` uses station panel seams, cargo ribs, crystal facets, thermal vents, and stone fractures. Numbered material callouts identify landmarks. Material marks sit on actual solid cover with continuous outer collision boundaries; they must not imply traversable holes or new hazards. Static commands remain cached.
 
-`AccessibleInterface` applies a 21 logical-pixel minimum to interface text (about 14 physical pixels at 720p under the current canvas scale). Deliberately hidden native labels under custom card content are exempt. Wrapped card bodies and footers, a centered taller draft panel, and scrollable settings/rosters accommodate the larger text. High contrast strengthens text and surface boundaries without replacing team shapes or card rarity labels. This is an implementation floor, not human readability or formal contrast-conformance acceptance; those checks remain in the review's player-validation work.
+Menus lay out on a 1920 × 1080 logical canvas (`canvas_items` stretch with
+`expand`), so a 1280 × 720 window shows the same layout scaled down; size panels
+against the logical canvas rather than the physical window.
+
+`AccessibleInterface` applies a 21 logical-pixel minimum to interface text (about 14 physical pixels at 720p under the current canvas scale). Deliberately hidden native labels under custom card content are exempt. Wrapped card bodies and footers, a centered taller draft panel, and scrollable settings/rosters accommodate the larger text. High contrast strengthens text and surface boundaries without replacing team shapes or card rarity labels. Because the floor always applies, never declare an interface size below
+`TEXT_BODY_SIZE`: a smaller value is silently raised and hides wrapping from review.
+This is an implementation floor, not human readability or formal contrast-conformance acceptance; those checks remain in the review's player-validation work.
 
 ## Competitive canvas
 
