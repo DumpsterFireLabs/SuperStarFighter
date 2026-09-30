@@ -184,10 +184,11 @@ func _sync_presentation(before: Dictionary) -> void:
 		ship.velocity = state.velocity
 		ship.set_movement_field_strength(ArenaMovementSystem.influence_at(state.position, world.map_id))
 		if previous.alive and not state.alive:
-			ship.set_eliminated()
+			var crush_center := ArenaLayout.crushing_horizon(state.position, world.map_id)
+			ship.set_eliminated(crush_center)
 			var killer := int(kills.get(peer_id, 0))
 			eliminations.append({"killer_id": killer, "victim_id": peer_id, "reason": "combat" if killer > 0 else "environment"})
-			if not bool(accessibility.get("reduced_flashes", false)):
+			if not crush_center.is_finite() and not bool(accessibility.get("reduced_flashes", false)):
 				effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == 1)
 		elif state.health < float(previous.health) and not bool(accessibility.get("reduced_flashes", false)):
 			ship.flash_damage()

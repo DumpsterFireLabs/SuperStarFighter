@@ -463,17 +463,15 @@ func _overtime_center() -> Vector2:
 
 
 func _overtime_minimum_radius() -> float:
-	# Keep a navigable final orbit outside the solid stellar surface.
-	if current_map_id == &"solar_crucible" and not GameModeRules.uses_hill(lobby.config.game_mode) and not GameModeRules.uses_flag(lobby.config.game_mode):
-		return 340.0
 	if GameModeRules.uses_hill(lobby.config.game_mode):
 		return GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
 	if GameModeRules.uses_flag(lobby.config.game_mode):
-		var radius := GameConstants.OVERTIME_MINIMUM_RADIUS
+		var radius := ArenaLayout.overtime_minimum_radius(current_map_id)
 		for zone in _capture_zones_cache.values():
 			radius = maxf(radius, _overtime_center().distance_to(zone as Vector2) + GameModeRules.OBJECTIVE_ZONE_RADIUS)
 		return minf(radius, OvertimeSystem.initial_radius(_overtime_center()))
-	return GameConstants.OVERTIME_MINIMUM_RADIUS
+	# Maps with a central hazard keep a navigable final orbit around it.
+	return ArenaLayout.overtime_minimum_radius(current_map_id)
 
 
 func heat_end_tick() -> int:

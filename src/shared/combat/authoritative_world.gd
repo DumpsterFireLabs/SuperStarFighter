@@ -5,6 +5,7 @@ const ProjectileSimulation = preload("res://src/shared/combat/projectile_simulat
 
 const CombatSpatialIndexScript = preload("res://src/shared/combat/combat_spatial_index.gd")
 const CombatFeedbackBufferScript = preload("res://src/shared/combat/combat_feedback_buffer.gd")
+const EVENT_HORIZON_CREDIT_SECONDS: float = 3.0
 
 var server_tick: int = 0
 var simulation_paused: bool = false
@@ -20,6 +21,7 @@ var _effect_geometry_mask := 0
 var _cargo_projectile_geometry := preload("res://src/shared/arena/projectile_geometry_references.gd").new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var movement_fields: Array[ArenaMovementField] = []
+var event_horizons: Array[ArenaMovementField] = []
 var team_assignments: Dictionary = {}
 var _next_projectile_id: int = 1
 var _spawned_since_batch: Array[ProjectileState] = []
@@ -140,6 +142,8 @@ func step(
 		combatant.velocity = motion.velocity
 		if actions & CombatantState.ACTION_SHOT:
 			_spawn_shot(combatant)
+	for peer_id in _resolve_event_horizons(peer_ids):
+		projectile_registry.schedule_owner_cleanup(peer_id)
 	var movement_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for peer_id in _resolve_ship_overlaps(peer_ids):
 		projectile_registry.schedule_owner_cleanup(peer_id)
@@ -218,6 +222,7 @@ func set_map_id(value: StringName) -> void:
 	map_id = ArenaLayout.normalized_map_id(value)
 	arena_effects.reset(map_id, arena_effects.settings)
 	movement_fields = ArenaLayout.movement_fields(map_id)
+	event_horizons = ArenaLayout.event_horizons(map_id)
 	# These dictionaries reference immutable entries owned by ArenaCollisionSystem's
 	# shared geometry cache. Detach from them instead of clearing the cache entry.
 	_projectile_geometry_normal = {}
@@ -801,6 +806,27 @@ func _append_ram_damage(
 
 func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
 	ProjectileSimulation._apply_projectile_knockback(self, target, projectile, factor)
+
+
+## Ships touching an event horizon are crushed through shields, grace and
+## overtime. The last pilot to hit them shortly before gets the kill.
+func _resolve_event_horizons(peer_ids: Array[int]) -> Array[int]:
+	if event_horizons.is_empty():
+		return []
+	var credit_ticks := roundi(EVENT_HORIZON_CREDIT_SECONDS * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	var events: Array[Dictionary] = []
+	for peer_id in peer_ids:
+		var combatant := combatants[peer_id] as CombatantState
+		if not combatant.alive:
+			continue
+		for field in event_horizons:
+			if field.crushes(combatant.position, GameConstants.SHIP_COLLISION_RADIUS):
+				events.append({
+					"target_id": peer_id, "damage": combatant.health, "source": "event_horizon",
+					"mechanic": "event_horizon", "attacker_id": recent_hostile_attacker(peer_id, credit_ticks),
+				})
+				break
+	return _resolve_damage_events(events)
 
 
 func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:

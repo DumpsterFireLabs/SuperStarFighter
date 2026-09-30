@@ -33,12 +33,10 @@ func _draw() -> void:
 	for resource in ArenaLayout.movement_fields(map_id):
 		var field := resource as ArenaMovementField
 		if field != null:
-			if map_id == &"solar_crucible":
-				_draw_sun(field)
-			elif field.gravity_acceleration > 0.0:
-				_draw_wormhole(field)
-			else:
-				_draw_annular_field(field)
+			match field.visual_style:
+				&"star": _draw_sun(field)
+				&"black_hole": _draw_wormhole(field)
+				_: _draw_annular_field(field)
 
 
 func _draw_annular_field(field: ArenaMovementField) -> void:
@@ -82,7 +80,11 @@ func _draw_annular_field(field: ArenaMovementField) -> void:
 
 func _draw_sun(field: ArenaMovementField) -> void:
 	var center := field.center
+	# The star is the solid circle obstacle sharing the field's center.
 	var radius := 130.0
+	for circle in ArenaLayout.circle_obstacles(map_id):
+		if (circle.center as Vector2).is_equal_approx(center):
+			radius = float(circle.radius)
 	for layer in range(8, 0, -1):
 		draw_circle(center, radius + float(layer) * 8.0, Color(1.0, 0.35, 0.04, 0.025))
 	draw_circle(center, radius, Color("ff8e24"))
@@ -102,7 +104,7 @@ func _draw_sun(field: ArenaMovementField) -> void:
 func _draw_wormhole(field: ArenaMovementField) -> void:
 	var amber := Color("ff9b28")
 	var gold := Color("fff1a3") if high_contrast else Color("ffdb73")
-	var rim_radius := 108.0
+	var rim_radius := field.event_horizon_radius if field.event_horizon_radius > 0.0 else 108.0
 	# Faint infalling rings reveal the pull without filling the combat area.
 	for ring in 7:
 		var phase := fposmod(float(ring) / 7.0 - animation_time * 0.075, 1.0)

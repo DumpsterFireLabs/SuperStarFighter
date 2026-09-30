@@ -54,6 +54,21 @@ var feather_width: float:
 		return _values[&"feather_width"]
 	set(_value):
 		pass
+var event_horizon_radius: float:
+	get:
+		return _values[&"event_horizon_radius"]
+	set(_value):
+		pass
+var visual_style: StringName:
+	get:
+		return _values[&"visual_style"]
+	set(_value):
+		pass
+var prompt: String:
+	get:
+		return _values[&"prompt"]
+	set(_value):
+		pass
 
 
 func _init(source: ArenaMovementFieldDefinition) -> void:
@@ -68,6 +83,9 @@ func _init(source: ArenaMovementFieldDefinition) -> void:
 		&"maximum_speed_multiplier": source.maximum_speed_multiplier,
 		&"flow_input_strength": source.flow_input_strength,
 		&"feather_width": source.feather_width,
+		&"event_horizon_radius": source.event_horizon_radius,
+		&"visual_style": source.visual_style,
+		&"prompt": source.prompt,
 	}
 	_values.make_read_only()
 
@@ -77,10 +95,10 @@ func influence_at(position: Vector2) -> float:
 		return 0.0
 	var distance := position.distance_to(center)
 	if gravity_acceleration > 0.0:
-		if field_id == &"solar_crucible_gravity" and distance >= outer_radius:
+		if distance >= outer_radius:
 			return 0.0
-		# Softened inverse-square gravity: finite at the traversable throat.
-		var falloff := _smooth_unit((outer_radius - distance) / feather_width) if field_id == &"solar_crucible_gravity" else 1.0
+		# Softened inverse-square gravity, feathered to zero at the drawn edge.
+		var falloff := _smooth_unit((outer_radius - distance) / feather_width)
 		return falloff / (1.0 + pow(distance / 180.0, 2.0))
 	if distance <= inner_radius or distance >= outer_radius:
 		return 0.0
@@ -99,11 +117,20 @@ func flow_direction_at(position: Vector2) -> Vector2:
 	return Vector2(-normalized.y, normalized.x) if clockwise else Vector2(normalized.y, -normalized.x)
 
 
+func is_gravity() -> bool:
+	return gravity_acceleration > 0.0
+
+
+## True once a ship of this radius touches the event horizon.
+func crushes(position: Vector2, radius: float) -> bool:
+	return event_horizon_radius > 0.0 and position.is_finite() and position.distance_to(center) <= event_horizon_radius + radius
+
+
 func mechanic_prompt() -> String:
-	if field_id == &"solar_crucible_gravity":
-		return "SOLAR CRUCIBLE · SHIELD FLARES · AVOID THE SURFACE"
+	if not prompt.is_empty():
+		return prompt
 	if gravity_acceleration > 0.0:
-		return "WORMHOLE · GRAVITY INCREASES INWARD"
+		return "%s · GRAVITY INCREASES INWARD" % display_name.to_upper()
 	return "%s · %s" % [display_name.to_upper(), "CLOCKWISE" if clockwise else "COUNTERCLOCKWISE"]
 
 

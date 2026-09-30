@@ -2,6 +2,7 @@ extends RefCounted
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	_validate_event_horizon(context)
 	var gravity := ArenaLayout.movement_fields(&"wormhole")[0]
 	context.expect_true(ArenaLayout.cover_rectangles(&"wormhole").is_empty() and ArenaLayout.circle_obstacles(&"wormhole").is_empty(), "Wormhole is an open arena")
 	context.expect_true(gravity.influence_at(gravity.center + Vector2(100, 0)) > gravity.influence_at(gravity.center + Vector2(600, 0)), "gravity increases toward the throat")
@@ -150,3 +151,84 @@ static func run(context: TestContext, parent: Node) -> void:
 	arena.set_map_id(&"core_arena")
 	context.expect_false(arena.movement_field_layer.is_processing(), "animation work stops on maps without movement fields")
 	arena.free()
+
+
+static func _validate_event_horizon(context: TestContext) -> void:
+	var hole := ArenaLayout.movement_fields(&"wormhole")[0]
+	var rim := hole.event_horizon_radius + GameConstants.SHIP_COLLISION_RADIUS
+	context.expect_approx(hole.event_horizon_radius, 108.0, "Wormhole horizon matches the drawn rim")
+	context.expect_equal(hole.visual_style, &"black_hole", "Wormhole draws as a black hole")
+	context.expect_approx(hole.influence_at(hole.center + Vector2.RIGHT * (hole.outer_radius + 1.0)), 0.0, "Wormhole gravity ends at its drawn outer ring")
+	context.expect_approx(ArenaMovementSystem.influence_at(hole.center + Vector2.RIGHT * 300.0, &"wormhole"), 0.0, "gravity wells do not trigger the current wake")
+	var current := ArenaLayout.movement_fields(&"solar_tide")[0]
+	context.expect_true(ArenaMovementSystem.influence_at(current.center + Vector2.UP * ((current.inner_radius + current.outer_radius) * 0.5), &"solar_tide") > 0.0, "currents still trigger the wake")
+	context.expect_equal(ArenaLayout.crushing_horizon(hole.center + Vector2.RIGHT * rim, &"wormhole"), hole.center, "touching the rim is a crush")
+	context.expect_false(ArenaLayout.crushing_horizon(hole.center + Vector2.RIGHT * (rim + 1.0), &"wormhole").is_finite(), "just outside the rim is safe")
+	context.expect_false(ArenaLayout.crushing_horizon(ArenaLayout.center(&"solar_crucible"), &"solar_crucible").is_finite(), "the star has no event horizon")
+
+	var world := AuthoritativeWorld.new()
+	world.set_map_id(&"wormhole")
+	var victim := world.add_peer(40)
+	var hunter := world.add_peer(41)
+	hunter.position = hole.center + Vector2(0, 600)
+	victim.position = hole.center + Vector2.RIGHT * (rim - 2.0)
+	victim.shield.active = true
+	world.step(1.0 / 60.0)
+	context.expect_false(victim.alive, "touching the event horizon crushes a shielded ship")
+	var feedback := str(world.drain_combat_feedback())
+	context.expect_true(feedback.contains("event_horizon"), "crush death names the event horizon")
+	context.expect_empty(world.drain_kill_events(), "an unassisted fall credits nobody")
+	world.respawn_peer(40, victim.stats, hole.center + Vector2(0, -600))
+	world.record_hostile_hit(40, 41)
+	victim.position = hole.center + Vector2.LEFT * (rim - 2.0)
+	world.step(1.0 / 60.0)
+	var kills := world.drain_kill_events()
+	context.expect_true(kills.size() == 1 and int(kills[0].killer_id) == 41, "the last recent attacker gets the crush kill")
+	world.respawn_peer(40, victim.stats, hole.center + Vector2(0, -600))
+	world.record_hostile_hit(40, 41)
+	world.server_tick += roundi((AuthoritativeWorld.EVENT_HORIZON_CREDIT_SECONDS + 1.0) * GameConstants.PHYSICS_TICKS_PER_SECOND)
+	victim.position = hole.center + Vector2.LEFT * (rim - 2.0)
+	world.step(1.0 / 60.0)
+	context.expect_empty(world.drain_kill_events(), "stale hits do not earn crush credit")
+	context.expect_true(hunter.alive, "ships outside the horizon survive")
+
+	var swallow_world := AuthoritativeWorld.new()
+	swallow_world.set_map_id(&"wormhole")
+	swallow_world.add_peer(42).position = hole.center + Vector2(0, 700)
+	var doomed := ProjectileState.create(920, 42, 1, hole.center + Vector2(0, -100), PI * 0.5, CombatStats.create_base())
+	var doomed_missile := ProjectileState.create_missile(921, 42, hole.center + Vector2(-100, 0), 0.0)
+	swallow_world.projectile_registry.add(doomed)
+	swallow_world.projectile_registry.add(doomed_missile)
+	swallow_world.step(1.0 / 60.0)
+	context.expect_true(swallow_world.projectile_registry.get_projectile(920) == null and swallow_world.projectile_registry.get_projectile(921) == null, "shots and missiles vanish past the event horizon")
+
+	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"wormhole"), 420.0, "Wormhole overtime stops well outside the hole")
+	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"core_arena"), GameConstants.OVERTIME_MINIMUM_RADIUS, "maps without hazards keep the default overtime radius")
+	var hazard_margin := hole.event_horizon_radius + GameModeRules.OBJECTIVE_ZONE_RADIUS + GameModeRules.OBJECTIVE_HAZARD_CLEARANCE
+	context.expect_true(GameModeRules.objective_spawn(&"wormhole").distance_to(hole.center) >= hazard_margin - 0.01, "the neutral flag spawns clear of the hole")
+	for round_number in range(1, 9):
+		context.expect_true(GameModeRules.objective_spawn(&"wormhole", round_number).distance_to(hole.center) >= hazard_margin - 0.01, "every hill spawns clear of the hole")
+	var respawn_world := AuthoritativeWorld.new()
+	respawn_world.set_map_id(&"wormhole")
+	respawn_world.add_peer(43)
+	var late_overtime := RespawnPlacement.choose(respawn_world, 43, hole.center, hole.center, 420.0)
+	context.expect_true(late_overtime.is_finite() and late_overtime.distance_to(hole.center) >= hole.event_horizon_radius + RespawnPlacement.HAZARD_CLEARANCE, "late-overtime respawns land outside the hole's grip")
+	var steering := NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 200.0, &"wormhole")
+	context.expect_true(steering.x > 0.3, "NPC pilots steer away from the event horizon")
+	context.expect_true(NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 600.0, &"wormhole").is_zero_approx(), "NPC pilots ignore the hole from a safe distance")
+	context.expect_true(NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 380.0, &"wormhole", Vector2.LEFT * 480.0).x > 0.0, "NPC pilots brake early when diving toward the hole")
+	var detour := NpcObjectiveNavigation.plan_route(hole.center + Vector2.LEFT * 1200.0, hole.center + Vector2.RIGHT * 1200.0, &"wormhole")
+	var closest := INF
+	var from := hole.center + Vector2.LEFT * 1200.0
+	for point in detour:
+		closest = minf(closest, Geometry2D.get_closest_point_to_segment(hole.center, from, point).distance_to(hole.center))
+		from = point
+	context.expect_true(closest > hole.event_horizon_radius + NpcPilotController.HAZARD_AVOIDANCE_MARGIN, "NPC objective routes orbit the hole instead of crossing it")
+
+	var bad_field := ArenaMovementFieldDefinition.new()
+	bad_field.field_id = &"bad_current"
+	bad_field.display_name = "Bad"
+	bad_field.center = ArenaLayout.center()
+	bad_field.outer_radius = 300.0
+	bad_field.event_horizon_radius = 50.0
+	context.expect_true(Array(bad_field.validation_errors(ArenaLayout.arena_rect())).has("Only gravity fields can have an event horizon."), "currents cannot have an event horizon")

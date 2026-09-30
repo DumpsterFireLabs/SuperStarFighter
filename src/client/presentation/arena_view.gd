@@ -273,9 +273,10 @@ func _draw_effects() -> void:
 	if enabled & ArenaEffectRules.SOLAR:
 		var center := effect_state.get("pulse_center", Vector2.ZERO) as Vector2
 		if bool(effect_state.get("warning", false)):
-			if map_id != &"solar_crucible": _draw_solar_shelter(center)
+			_draw_solar_shelter(center)
 			draw_arc(center, 250, 0, TAU, 80, ink, 5)
-			var prompt := "SOLAR FLARE: FACE STAR + SHIELD" if map_id == &"solar_crucible" else "SOLAR PULSE: COVER OR SHIELD"
+			var prompt := ArenaLayout.pulse_prompt(map_id)
+			if prompt.is_empty(): prompt = "SOLAR PULSE: COVER OR SHIELD"
 			draw_string(font, center + Vector2(-190, -270), prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
 		var radius := float(effect_state.get("pulse_radius", -1.0))
 		if radius >= 0.0:

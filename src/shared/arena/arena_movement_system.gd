@@ -44,6 +44,8 @@ static func step_input_with_fields(
 	return actions
 
 
+## Strength of the flowing currents at a point, which drives the ship wake.
+## Gravity wells have their own visuals and do not count as currents.
 static func influence_at(
 	position: Vector2,
 	map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
@@ -51,20 +53,25 @@ static func influence_at(
 	var influence := 0.0
 	for resource in ArenaLayout.movement_fields(map_id):
 		var field := resource as ArenaMovementField
-		if field != null:
+		if field != null and not field.is_gravity():
 			influence = maxf(influence, field.influence_at(position))
 	return influence
 
 
-static func bend_projectile(projectile: ProjectileState, delta: float, map_id: StringName) -> void:
+## Bends a projectile through gravity wells. Returns true once it has fallen
+## past an event horizon and should be removed.
+static func bend_projectile(projectile: ProjectileState, delta: float, map_id: StringName) -> bool:
 	if projectile.is_mine:
-		return
+		return false
 	for field in ArenaLayout.movement_fields(map_id):
 		if field.gravity_acceleration <= 0.0:
 			continue
+		if field.crushes(projectile.position, 0.0):
+			return true
 		var acceleration := field.flow_direction_at(projectile.position) * field.gravity_acceleration * field.influence_at(projectile.position)
 		var speed := projectile.velocity.length()
 		projectile.velocity += acceleration * maxf(delta, 0.0) * (0.35 if projectile.is_beam else 1.0)
 		# Lensing changes the direction of light, preserving its travel speed.
 		if projectile.is_beam and speed > 0.0:
 			projectile.velocity = projectile.velocity.normalized() * speed
+	return false

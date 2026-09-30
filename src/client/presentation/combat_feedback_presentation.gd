@@ -66,6 +66,7 @@ static func source_name(source: String) -> String:
 		"overtime": return "OVERTIME"
 		"solar_pulse": return "SOLAR PULSE"
 		"star_contact": return "STAR CONTACT"
+		"event_horizon": return "EVENT HORIZON"
 	return "COMBAT DAMAGE"
 
 
@@ -77,6 +78,7 @@ static func mechanic_text(mechanic: String) -> String:
 		"blast_ignores_shield": return "Mine blasts bypass shields"
 		"ram_contact": return "Shield Ram contact damage"
 		"rebound_contact": return "Rebound Shield radius damage"
+		"event_horizon": return "Crushed by the wormhole"
 	return ""
 
 

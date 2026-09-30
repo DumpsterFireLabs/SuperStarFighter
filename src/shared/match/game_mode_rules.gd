@@ -51,6 +51,9 @@ const CROWDED_HILL_MIN_PLAYERS: int = 8
 const CROWDED_HILL_OVERTIME_SECONDS: float = 30.0
 const OBJECTIVE_ZONE_RADIUS: float = 125.0
 const HILL_OVERTIME_MINIMUM_RADIUS: float = OBJECTIVE_ZONE_RADIUS + 50.0
+# Extra space between an objective zone's edge and an event horizon, so holding
+# the zone never means fighting the strongest gravity.
+const OBJECTIVE_HAZARD_CLEARANCE: float = 100.0
 const FLAG_PICKUP_RADIUS: float = 42.0
 const FLAG_RESET_SECONDS: float = 8.0
 const OBJECTIVE_RESPAWN_SECONDS: float = 5.0
@@ -135,16 +138,23 @@ static func capture_zone(mode: int, team_id: int, map_id: StringName) -> Vector2
 
 
 static func _nearest_clear_zone(desired: Vector2, map_id: StringName) -> Vector2:
-	var clearance_margin := OBJECTIVE_ZONE_RADIUS - GameConstants.SHIP_COLLISION_RADIUS
-	if ArenaCollisionSystem.is_ship_position_clear(desired, map_id, clearance_margin):
+	if _is_zone_clear(desired, map_id):
 		return desired
 	for ring in range(1, 9):
 		var distance := float(ring) * 90.0
 		for sample in 24:
 			var candidate := desired + Vector2.from_angle(TAU * float(sample) / 24.0) * distance
-			if ArenaCollisionSystem.is_ship_position_clear(candidate, map_id, clearance_margin):
+			if _is_zone_clear(candidate, map_id):
 				return candidate
 	for anchor in ArenaLayout.spawn_anchors(map_id):
-		if ArenaCollisionSystem.is_ship_position_clear(anchor, map_id, clearance_margin):
+		if _is_zone_clear(anchor, map_id):
 			return anchor
 	return desired
+
+
+static func _is_zone_clear(position: Vector2, map_id: StringName) -> bool:
+	var clearance_margin := OBJECTIVE_ZONE_RADIUS - GameConstants.SHIP_COLLISION_RADIUS
+	return (
+		ArenaCollisionSystem.is_ship_position_clear(position, map_id, clearance_margin)
+		and ArenaLayout.is_clear_of_hazards(position, OBJECTIVE_ZONE_RADIUS + OBJECTIVE_HAZARD_CLEARANCE, map_id)
+	)
