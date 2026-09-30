@@ -2,11 +2,21 @@
 
 Enable effects in **Match Setup → Arena Rules → Arena effects**. Only the lobby leader can change these settings before a match; changes clear human readiness. Guests see the same settings. Defaults are Off. The Chaos preset chooses Map signature; the other presets restore Off.
 
-- **Off:** the normal static arenas.
+- **Off:** disables optional effects. Solar Crucible always retains its defining hazards.
 - **Map signature:** solar pulses on Twin Suns, destructible cargo on Dead Freight, and blast doors on Switchyard.
 - **Custom:** individually allow those effects on their compatible maps. Other maps retain their existing behaviour, including Solar Tide's movement field.
 - **Event frequency:** Low / Normal / High use 24 / 18 / 12 second cycles for pulses and doors.
 - **Hazard strength:** Gentle / Standard / Brutal deal 8 / 16 / 28 solar damage. Cargo durability stays fixed and doors never inflict damage.
+
+## Solar Crucible
+
+Solar Crucible joins the built-in round rotation with 32 clear spawns and a solid central star. Its hazards remain active even when optional arena effects are Off.
+
+- After three seconds of opening grace, a three-second visual warning and alarm precede the first expanding flare. Subsequent flares launch 12–20 seconds apart, randomized by the server each heat. Event frequency does not change this range.
+- Face the star and shield when the wave arrives. Each wave hits a life once and passes through cover. Hazard strength selects 8 / 16 / 28 damage (Standard: 16).
+- Touching the star causes 12 hull damage and a small outward impulse, at most once per second. Shields do not block surface burns. Respawn grace protects against both burns and flares for three seconds.
+- Localized gravity reaches 650 pixels from the center, with one quarter of Wormhole's gravity acceleration and a smooth outer fade. Normal thrust can overcome it. The shared gravity system also gently curves projectiles.
+- Burns and flares stop five seconds before overtime. The solid star and gentle pull remain; elimination modes retain a 340-pixel final safe radius so ships can orbit the surface.
 
 ## Solar pulses — Twin Suns
 
@@ -28,7 +38,7 @@ An occupied door waits with its warning visible until the ship clears its footpr
 
 Terrain restores and schedules restart each heat. Global pause freezes effects. Five seconds before overtime begins, pulses stop, all doors open, and remaining breakable cargo retracts. This safe state persists through overtime. All effects use the server's heat clock; cosmetic pulse interpolation stops during pause.
 
-Server state includes cargo health, open terrain, warning phases, and pulse position. Reliable updates arrive at up to 10 Hz, with immediate terrain-mask changes. A full state is included in match-state payloads for late spectators. Ship prediction, authoritative collision, projectile rendering, respawn checks, and NPC route caches all use the same terrain mask without mutating shared map resources. Network protocol is 37; clients and servers must use matching builds.
+Server state includes cargo health, open terrain, warning phases, and pulse position. Reliable updates arrive at up to 10 Hz, with immediate terrain-mask changes. A full state is included in match-state payloads for late spectators. Ship prediction, authoritative collision, projectile rendering, respawn checks, and NPC route caches all use the same terrain mask without mutating shared map resources. Network protocol is 49; clients and servers must use matching builds.
 
 ## Verification
 

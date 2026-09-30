@@ -18,7 +18,7 @@ static func run(context: TestContext) -> void:
 static func _validate_arena(context: TestContext) -> void:
 	var anchors := ArenaLayout.spawn_anchors()
 	context.expect_equal(anchors.size(), 32, "arena exposes exactly 32 spawn anchors")
-	context.expect_equal(ArenaLayout.map_ids().size(), 11, "arena registry exposes all eleven built-in maps")
+	context.expect_equal(ArenaLayout.map_ids().size(), 12, "arena registry exposes all twelve built-in maps")
 	context.expect_empty(ArenaLayout.validate(), "every built-in map satisfies layout constraints")
 	context.expect_equal(ArenaLayout.cover_rectangles().size(), 4, "arena contains four cover islands")
 	context.expect_equal(ArenaLayout.central_octagon().size(), 8, "central obstacle is octagonal")
@@ -34,7 +34,7 @@ static func _validate_arena(context: TestContext) -> void:
 		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.capture_zone(GameModeRules.Mode.CAPTURE_THE_FLAG, 0, map_id), map_id, objective_margin), "%s provides a clear neutral flag extraction zone" % map_id)
 		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.capture_zone(GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, 1, map_id), map_id, objective_margin), "%s provides a clear Cyan flag base" % map_id)
 		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(GameModeRules.capture_zone(GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, 2, map_id), map_id, objective_margin), "%s provides a clear Magenta flag base" % map_id)
-	context.expect_equal(topology_signatures.size(), 11, "all eleven maps have mechanically distinct obstacle topologies")
+	context.expect_equal(topology_signatures.size(), 12, "all twelve maps have mechanically distinct obstacle topologies")
 	var twin_collision := ArenaCollisionSystem.move_ship(Vector2(860.0, 900.0), Vector2(100.0, 0.0), 0.2, &"twin_suns")
 	context.expect_true((twin_collision.position as Vector2).x <= 865.001, "selected Twin Suns geometry blocks ships at its western reactor")
 	context.expect_false(ArenaCollisionSystem.projectile_obstacle_normal(Vector2(1600.0, 300.0), 5.0, &"riftline").is_zero_approx(), "selected Riftline geometry blocks projectiles at its divider")

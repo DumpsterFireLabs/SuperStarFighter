@@ -463,6 +463,9 @@ func _overtime_center() -> Vector2:
 
 
 func _overtime_minimum_radius() -> float:
+	# Keep a navigable final orbit outside the solid stellar surface.
+	if current_map_id == &"solar_crucible" and not GameModeRules.uses_hill(lobby.config.game_mode) and not GameModeRules.uses_flag(lobby.config.game_mode):
+		return 340.0
 	if GameModeRules.uses_hill(lobby.config.game_mode):
 		return GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
 	if GameModeRules.uses_flag(lobby.config.game_mode):

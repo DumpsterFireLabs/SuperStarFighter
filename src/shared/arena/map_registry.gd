@@ -15,6 +15,7 @@ const DEFINITIONS: Array[Resource] = [
 	preload("res://resources/maps/solar_tide.tres"),
 	preload("res://resources/maps/relay_zero.tres"),
 	preload("res://resources/maps/wormhole.tres"),
+	preload("res://resources/maps/solar_crucible.tres"),
  ]
 static var _entries: Dictionary = {}
 static var _ids: Array[StringName] = []

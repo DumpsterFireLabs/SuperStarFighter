@@ -77,8 +77,11 @@ func influence_at(position: Vector2) -> float:
 		return 0.0
 	var distance := position.distance_to(center)
 	if gravity_acceleration > 0.0:
+		if field_id == &"solar_crucible_gravity" and distance >= outer_radius:
+			return 0.0
 		# Softened inverse-square gravity: finite at the traversable throat.
-		return 1.0 / (1.0 + pow(distance / 180.0, 2.0))
+		var falloff := _smooth_unit((outer_radius - distance) / feather_width) if field_id == &"solar_crucible_gravity" else 1.0
+		return falloff / (1.0 + pow(distance / 180.0, 2.0))
 	if distance <= inner_radius or distance >= outer_radius:
 		return 0.0
 	var inner_strength := _smooth_unit((distance - inner_radius) / feather_width)
@@ -97,6 +100,8 @@ func flow_direction_at(position: Vector2) -> Vector2:
 
 
 func mechanic_prompt() -> String:
+	if field_id == &"solar_crucible_gravity":
+		return "SOLAR CRUCIBLE · SHIELD FLARES · AVOID THE SURFACE"
 	if gravity_acceleration > 0.0:
 		return "WORMHOLE · GRAVITY INCREASES INWARD"
 	return "%s · %s" % [display_name.to_upper(), "CLOCKWISE" if clockwise else "COUNTERCLOCKWISE"]

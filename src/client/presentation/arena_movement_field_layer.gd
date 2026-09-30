@@ -33,7 +33,9 @@ func _draw() -> void:
 	for resource in ArenaLayout.movement_fields(map_id):
 		var field := resource as ArenaMovementField
 		if field != null:
-			if field.gravity_acceleration > 0.0:
+			if map_id == &"solar_crucible":
+				_draw_sun(field)
+			elif field.gravity_acceleration > 0.0:
 				_draw_wormhole(field)
 			else:
 				_draw_annular_field(field)
@@ -76,6 +78,25 @@ func _draw_annular_field(field: ArenaMovementField) -> void:
 		22,
 		Color(flow_color, 1.0 if high_contrast else 0.78)
 	)
+
+
+func _draw_sun(field: ArenaMovementField) -> void:
+	var center := field.center
+	var radius := 130.0
+	for layer in range(8, 0, -1):
+		draw_circle(center, radius + float(layer) * 8.0, Color(1.0, 0.35, 0.04, 0.025))
+	draw_circle(center, radius, Color("ff8e24"))
+	draw_circle(center, radius - 12.0, Color("ffd36a"))
+	draw_circle(center, radius - 29.0, Color("fff2b5"))
+	for index in 12:
+		var angle := TAU * float(index) / 12.0 + animation_time * 0.08
+		var direction := Vector2.from_angle(angle)
+		var reach := 12.0 + 8.0 * sin(animation_time * 2.0 + float(index))
+		draw_line(center + direction * radius, center + direction * (radius + reach), Color("ffb542"), 4.0, true)
+	for ring in 3:
+		var phase := fposmod(float(ring) / 3.0 - animation_time * 0.06, 1.0)
+		draw_arc(center, lerpf(180.0, field.outer_radius, phase), 0.0, TAU, 96, Color(1.0, 0.65, 0.25, (1.0 - phase) * 0.12), 2.0, true)
+	draw_string(ThemeDB.fallback_font, center + Vector2(-128, 210), "STAR CONTACT BURNS", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffd36a"))
 
 
 func _draw_wormhole(field: ArenaMovementField) -> void:

@@ -804,3 +804,8 @@ Hosting offers **Duel (2)**, **Skirmish (4)**, **Team objective (8)**, and **Cha
 Results distinguish three actions: **Fresh rematch · same rules** resets cards, scores, and objectives while retaining current participants, teams, and rules; **Play 5 more rounds** retains builds and scores; **Exit to lobby** allows rule changes and lets waiting spectators enter the next match. Only the host controls these actions. Objective results report hill control/contest time or flag captures, carrier stops, carrying time, and pickups. These contributions describe play and do not award extra score.
 
 Accessibility settings include high contrast and independent toggle options for fire and shield, alongside HUD scale and reduced effects. Toggle once to start, again to stop; the HUD displays each latched state. Menus, death, and session changes clear toggles and require release before another activation. Default hold behavior remains available. The settings list scrolls and follows keyboard/controller focus.
+
+
+### Solar Crucible
+
+Solar Crucible has a solid central star that gently pulls nearby ships inward. Touching its surface deals 12 damage through shields, with a one-second cooldown and a small outward nudge. When the flare warning sounds, face the star and raise your shield as the expanding ring reaches you. Flares recur at random 12–20 second intervals and deal 16 damage at Standard hazard strength. These hazards are always active on this map, even with optional arena effects Off; burns and flares stop before overtime.

@@ -65,6 +65,7 @@ static func source_name(source: String) -> String:
 		"rebound_shield": return "REBOUND SHIELD"
 		"overtime": return "OVERTIME"
 		"solar_pulse": return "SOLAR PULSE"
+		"star_contact": return "STAR CONTACT"
 	return "COMBAT DAMAGE"
 
 
