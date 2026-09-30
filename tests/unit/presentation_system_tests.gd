@@ -553,8 +553,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		"Graphite" in credits_text and "Champ" in credits_text and "Equip" in credits_text
 		and "jbohack" in credits_text and "KingRat" in credits_text and "DoomGuy" in credits_text
 		and "Adam" in credits_text and "WhackyJacky" in credits_text and "Hipu" in credits_text
-		and "Krusty Dave" in credits_text
-		and "ChatGPT" in credits_text,
+		and "Krusty Dave" in credits_text and "AK-REX" in credits_text
+		and "ChatGPT" in credits_text and "Claude" in credits_text,
 		"credits screen includes every requested contributor"
 	)
 	var repo_links: Array[Node] = client.credits_panel.find_children("*", "LinkButton", true, false)
