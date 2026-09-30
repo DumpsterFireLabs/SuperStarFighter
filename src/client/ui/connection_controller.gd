@@ -82,7 +82,7 @@ func create_ui(configuration: Dictionary) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	connection_screen.add_child(center)
 	connection_form_panel = PanelContainer.new()
-	connection_form_panel.custom_minimum_size = Vector2(780.0, 690.0)
+	connection_form_panel.custom_minimum_size = Vector2(780.0, 860.0)
 	connection_form_panel.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.INTERACTIVE, 0.96))
 	center.add_child(connection_form_panel)
 	var content := VBoxContainer.new()
@@ -91,21 +91,20 @@ func create_ui(configuration: Dictionary) -> void:
 	var title := Label.new()
 	title.text = "✦ SUPER STAR FIGHTER ✦"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", Color("42e8ff"))
+	title.theme_type_variation = &"ScreenTitle"
 	title.add_theme_font_size_override("font_size", 48)
 	content.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "POWER UP · OUTGUN · OUTLAST"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_color_override("font_color", Color("d39cff"))
+	subtitle.theme_type_variation = &"Kicker"
 	subtitle.add_theme_font_size_override("font_size", 25)
 	content.add_child(subtitle)
 	version_label = Label.new()
 	version_label.name = "VersionLabel"
 	version_label.text = "%s  ·  VERSION %s" % [GameConstants.RELEASE_LABEL, GameConstants.GAME_VERSION]
 	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	version_label.add_theme_color_override("font_color", Color("73f7ff"))
-	version_label.add_theme_font_size_override("font_size", 15)
+	version_label.theme_type_variation = &"HintLabel"
 	content.add_child(version_label)
 	name_field = _add_labeled_field(content, "Display name", "Pilot")
 	name_field.max_length = 16
@@ -126,13 +125,13 @@ func create_ui(configuration: Dictionary) -> void:
 	content.add_child(buttons)
 	var lesson_button := Button.new()
 	lesson_button.name = "GuidedIntroductionButton"
-	lesson_button.text = "Learn to play"
+	lesson_button.text = "LEARN TO PLAY"
 	lesson_button.theme_type_variation = &"SecondaryButton"
 	lesson_button.custom_minimum_size.y = 54.0
 	lesson_button.pressed.connect(tutorial_requested.emit)
 	buttons.add_child(lesson_button)
 	var offline_button := Button.new()
-	offline_button.text = "Combat Lab"
+	offline_button.text = "COMBAT LAB"
 	offline_button.tooltip_text = "Offline combat lab: freely experiment with builds and targets."
 	offline_button.theme_type_variation = &"PrimaryButton"
 	offline_button.custom_minimum_size.y = 54.0
@@ -140,20 +139,20 @@ func create_ui(configuration: Dictionary) -> void:
 	buttons.add_child(offline_button)
 	connection_primary_button = offline_button
 	var settings_button := Button.new()
-	settings_button.text = "Settings"
+	settings_button.text = "SETTINGS"
 	settings_button.theme_type_variation = &"QuietButton"
 	settings_button.custom_minimum_size.y = 54.0
 	settings_button.pressed.connect(settings_requested.emit)
 	buttons.add_child(settings_button)
 	credits_button = Button.new()
 	credits_button.name = "CreditsButton"
-	credits_button.text = "Credits"
+	credits_button.text = "CREDITS"
 	credits_button.theme_type_variation = &"QuietButton"
 	credits_button.custom_minimum_size.y = 54.0
 	credits_button.pressed.connect(credits_requested.emit)
 	buttons.add_child(credits_button)
 	var quit_button := Button.new()
-	quit_button.text = "Quit"
+	quit_button.text = "QUIT"
 	quit_button.theme_type_variation = &"DangerButton"
 	quit_button.custom_minimum_size = Vector2(80.0, 54.0)
 	quit_button.pressed.connect(get_tree().quit)
@@ -162,7 +161,7 @@ func create_ui(configuration: Dictionary) -> void:
 	connection_status.text = "Browse local servers, host instantly, or connect directly by address."
 	connection_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	connection_status.add_theme_color_override("font_color", Color("aebbd4"))
+	connection_status.theme_type_variation = &"HintLabel"
 	content.add_child(connection_status)
 	lobby.configure(bridge, interface_theme, connection_canvas, preferences)
 	lobby.create_ui()
@@ -179,7 +178,7 @@ func _create_lan_join_tab() -> void:
 	var hint := Label.new()
 	hint.text = "Servers on your local network"
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hint.add_theme_color_override("font_color", Color("aebbd4"))
+	hint.theme_type_variation = &"HintLabel"
 	controls.add_child(hint)
 	lan_refresh_button = Button.new()
 	lan_refresh_button.text = "REFRESH"
@@ -429,7 +428,7 @@ func _rebuild_lan_server_list() -> void:
 		var empty_label := Label.new()
 		empty_label.text = "SEARCHING…\nStart a server on this network or use Direct Connect."
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.add_theme_color_override("font_color", Color("8ba1c7"))
+		empty_label.theme_type_variation = &"HintLabel"
 		lan_servers_container.add_child(empty_label)
 		return
 	for server in _lan_servers:
@@ -457,22 +456,23 @@ func _add_lan_server_row(server: Dictionary) -> void:
 	var name_label := Label.new()
 	name_label.text = String(server.get("server_name", "LOCAL SERVER"))
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name_label.add_theme_font_size_override("font_size", 18)
-	name_label.add_theme_color_override("font_color", Color("42e8ff") if compatible else Color("ff7994"))
+	name_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
+	name_label.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN if compatible else DesignTokensScript.DANGER)
 	identity.add_child(name_label)
 	var detail_label := Label.new()
 	var state_text := "IN MATCH" if bool(server.get("match_active", false)) else "LOBBY"
-	detail_label.text = "%s:%d  ·  LOCKED  ·  %d HUMAN + %d NPC / %d  ·  %s  ·  %d ms" % [
-		server.get("address", ""), server.get("game_port", 0), server.get("human_count", 0),
+	var password_required := bool(server.get("password_required", true))
+	detail_label.text = "%s:%d  ·  %s%d HUMAN + %d NPC / %d  ·  %s  ·  %d ms" % [
+		server.get("address", ""), server.get("game_port", 0), "PASSWORD  ·  " if password_required else "", server.get("human_count", 0),
 		server.get("npc_count", 0), server.get("player_limit", 0), state_text, server.get("ping_ms", 0),
 	]
-	detail_label.add_theme_font_size_override("font_size", 16)
+	detail_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail_label.add_theme_color_override("font_color", Color("aebbd4"))
+	detail_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	identity.add_child(detail_label)
 	var join_button := Button.new()
-	join_button.text = ("JOIN" if not remembered_password.is_empty() else "JOIN LOCKED…") if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
-	join_button.tooltip_text = "Join using the saved password." if not remembered_password.is_empty() else "Enter this locked server's password on the next screen, then connect."
+	join_button.text = "JOIN" if compatible else "VERSION %d" % int(server.get("protocol_version", 0))
+	join_button.tooltip_text = "Join using the saved password." if not remembered_password.is_empty() else "Enter this server's password on the next screen, then connect." if password_required else "Join this server."
 	join_button.theme_type_variation = &"PrimaryButton" if compatible else &"QuietButton"
 	join_button.disabled = not compatible
 	join_button.custom_minimum_size = Vector2(175.0, 46.0)
@@ -498,7 +498,7 @@ func show_connected(peer_id: int) -> void:
 	connection_form_panel.visible = false
 	lobby.set_presented(true)
 	connection_status.text = "Connected as peer %d." % peer_id
-	connection_status.add_theme_color_override("font_color", Color("62ff9b"))
+	connection_status.add_theme_color_override("font_color", DesignTokensScript.SUCCESS)
 	lobby.submit_appearance()
 	lobby.focus_ready()
 
@@ -558,7 +558,7 @@ func reset_connection(message: String, is_error: bool = false) -> void:
 	connection_form_panel.show()
 	lobby.reset_session()
 	connection_status.text = message
-	connection_status.add_theme_color_override("font_color", Color("ff7994") if is_error else Color("aebbd4"))
+	connection_status.add_theme_color_override("font_color", DesignTokensScript.DANGER if is_error else DesignTokensScript.TEXT_SECONDARY)
 
 
 func render_lobby(state: Dictionary) -> void:

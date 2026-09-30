@@ -37,7 +37,7 @@ func _ready() -> void:
 	hint.add_theme_color_override("font_color", DesignTokens.TEXT_SECONDARY)
 	column.add_child(hint)
 	close_button = Button.new()
-	close_button.text = "Close details"
+	close_button.text = "CLOSE DETAILS"
 	close_button.theme_type_variation = &"QuietButton"
 	close_button.pressed.connect(close)
 	column.add_child(close_button)

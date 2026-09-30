@@ -44,16 +44,16 @@ func configure(sandbox: Node, hud: Control) -> void:
 	content.add_theme_constant_override("separation", 8)
 	scroll.add_child(content)
 	title = _label(content, DesignTokens.TEXT_SECTION_SIZE)
-	instructions = _label(content, 16)
-	progress = _label(content, 16)
+	instructions = _label(content, DesignTokens.TEXT_BODY_SIZE)
+	progress = _label(content, DesignTokens.TEXT_BODY_SIZE)
 	choices = VBoxContainer.new()
 	content.add_child(choices)
 	var actions := HFlowContainer.new()
 	layout_root.add_child(actions)
-	retry_button = _button(actions, "Retry step", retry_step)
+	retry_button = _button(actions, "RETRY STEP", retry_step)
 	retry_button.theme_type_variation = &"SecondaryButton"
-	restart_button = _button(actions, "Restart lesson", start)
-	exit_button = _button(actions, "Skip to lab", stop)
+	restart_button = _button(actions, "RESTART LESSON", start)
+	exit_button = _button(actions, "SKIP TO LAB", stop)
 	panel.hide()
 
 
@@ -142,10 +142,10 @@ func _enter_step(value: Step) -> void:
 			for row in StatSystem.compare_pick_typed(lab.build, card, lab.catalog):
 				changes.append("%s %.2f → %.2f" % [String(row.property).replace("_", " "), row.before, row.after])
 			_button(choices, card.display_name, choose_card.bind(card_id))
-			_label(choices, 15).text = ", ".join(changes)
+			_label(choices, DesignTokens.TEXT_BODY_SIZE).text = ", ".join(changes)
 		choices.get_child(0).grab_focus()
 	retry_button.visible = step < Step.DRAFT
-	exit_button.text = "Return to lab" if step == Step.COMPLETE else "Skip to lab"
+	exit_button.text = "RETURN TO LAB" if step == Step.COMPLETE else "SKIP TO LAB"
 	if step == Step.COMPLETE:
 		exit_button.grab_focus()
 	refresh()
@@ -222,6 +222,7 @@ func refresh() -> void:
 func layout() -> void:
 	if panel == null:
 		return
+	# The instructions share the right edge with the kill feed, not the left-hand HUD.
 	panel.size = Vector2(minf(540.0, lab.hud_root.size.x * 0.44), minf(460.0, maxf(lab.hud_root.size.y - 132.0, 120.0)))
 	panel.position = Vector2(lab.hud_root.size.x - panel.size.x, maxf(132.0, lab.hud_root.size.y - panel.size.y))
 	frame_practice()
@@ -231,7 +232,7 @@ func practice_screen_rect() -> Rect2:
 	# The instruction column and top resource strip never share the firing lane.
 	var viewport_size: Vector2 = lab.get_viewport_rect().size
 	var panel_rect := panel.get_global_rect()
-	var top: float = lab.hud_root.global_position.y + 112.0 * lab.hud_root.scale.y
+	var top: float = lab.hud_root.global_position.y + lab.hud_content_bottom() * lab.hud_root.scale.y
 	return Rect2(Vector2(24.0, top), Vector2(maxf(panel_rect.position.x - 48.0, 120.0), maxf(viewport_size.y - top - 24.0, 120.0)))
 
 
@@ -261,6 +262,8 @@ func _binding(action: StringName, fallback: String) -> String:
 func _label(parent: Node, font_size: int) -> Label:
 	var result := Label.new()
 	result.add_theme_font_size_override("font_size", font_size)
+	if font_size >= DesignTokens.TEXT_SECTION_SIZE:
+		result.theme_type_variation = &"SectionHeading"
 	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(result)
 	return result

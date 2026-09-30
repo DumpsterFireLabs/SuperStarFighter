@@ -30,7 +30,7 @@ func configure(sandbox: OfflineSandbox) -> void:
 	var heading := HBoxContainer.new()
 	layout.add_child(heading)
 	_label(heading, "COMBAT LAB", DesignTokens.TEXT_SECTION_SIZE)
-	_button(heading, "Learn to play", lab.start_tutorial)
+	_button(heading, "LEARN TO PLAY", lab.start_tutorial)
 	var tabs := TabContainer.new()
 	tabs.name = "LabTabs"
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -68,9 +68,9 @@ func configure(sandbox: OfflineSandbox) -> void:
 	var card_actions := HBoxContainer.new()
 	layout.add_child(card_actions)
 	tabs.tab_changed.connect(func(index: int) -> void: card_actions.visible = index in [0, 3])
-	add_button = _button(card_actions, "+ Stack", lab._grant_selected_card)
-	remove_button = _button(card_actions, "− Stack", lab.remove_selected_card)
-	var inspect := _button(card_actions, "Details", func() -> void: tabs.current_tab = 3)
+	add_button = _button(card_actions, "+ STACK", lab._grant_selected_card)
+	remove_button = _button(card_actions, "− STACK", lab.remove_selected_card)
+	var inspect := _button(card_actions, "DETAILS", func() -> void: tabs.current_tab = 3)
 	inspect.name = "InspectCard"
 	content = _tab(tabs, "Targets")
 	_label(content, "TARGETS", DesignTokens.TEXT_SECTION_SIZE)
@@ -91,17 +91,17 @@ func configure(sandbox: OfflineSandbox) -> void:
 		control.value_changed.connect(func(_value: float) -> void: _targets_changed())
 	for control in [shield_control, fire_control, move_control]:
 		control.toggled.connect(func(_value: bool) -> void: _targets_changed())
-	_button(content, "Reset encounter · Y", lab._reset_combatants)
+	_button(content, "RESET ENCOUNTER · Y", lab._reset_combatants)
 	content = _tab(tabs, "Stats")
 	_label(content, "BUILD & MEASUREMENTS", DesignTokens.TEXT_SECTION_SIZE)
-	_button(content, "Clear build", func() -> void: lab.load_preset(0)).theme_type_variation = &"DangerButton"
+	_button(content, "CLEAR BUILD", func() -> void: lab.load_preset(0)).theme_type_variation = &"DangerButton"
 	build_label = _label(content, "", DesignTokens.TEXT_BODY_SIZE)
 	stats_label = _label(content, "", DesignTokens.TEXT_BODY_SIZE)
-	_button(content, "Reset measurements", lab.reset_measurements)
+	_button(content, "RESET MEASUREMENTS", lab.reset_measurements)
 	telemetry_label = _label(content, "", 16)
 	help_label = _label(content, "", 15)
 	content = _tab(tabs, "Card")
-	_button(content, "Back to cards", func() -> void: tabs.current_tab = 0; cards.grab_focus())
+	_button(content, "BACK TO CARDS", func() -> void: tabs.current_tab = 0; cards.grab_focus())
 	card_description = _label(content, "", 16)
 	card_description.name = "CardDescription"
 	_refresh_cards("")
@@ -216,6 +216,8 @@ func _label(parent: Node, value: String, font_size: int) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.add_theme_font_size_override("font_size", font_size)
+	if font_size >= DesignTokens.TEXT_SECTION_SIZE:
+		label.theme_type_variation = &"SectionHeading"
 	parent.add_child(label)
 	return label
 

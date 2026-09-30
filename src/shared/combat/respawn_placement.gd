@@ -3,6 +3,8 @@ extends RefCounted
 
 const SHIP_CLEARANCE: float = 60.0
 const ENEMY_CLEARANCE: float = 650.0
+# Keeps respawns outside the pull a shielding ship cannot thrust against.
+const HAZARD_CLEARANCE: float = 200.0
 const THREAT_LOOKAHEAD_SECONDS: float = CombatSpatialIndex.RESPAWN_THREAT_LOOKAHEAD_SECONDS
 
 
@@ -11,7 +13,11 @@ static func choose(world: AuthoritativeWorld, peer_id: int, preferred: Vector2, 
 	candidates.append_array(ArenaLayout.spawn_anchors(world.map_id))
 	# Spawn anchors alone are often all outside late overtime. Sample the safe
 	# interior as well, in a fixed order so identical worlds choose identically.
-	for fraction in [0.25, 0.5, 0.8]:
+	var fractions := [0.25, 0.5, 0.8]
+	# A central hazard excludes the inner samples; keep an outer ring available.
+	if not ArenaLayout.is_clear_of_hazards(safe_center, HAZARD_CLEARANCE, world.map_id):
+		fractions.append(0.95)
+	for fraction in fractions:
 		for sample in 16:
 			candidates.append(safe_center + Vector2.from_angle(TAU * sample / 16.0) * maxf(safe_radius - GameConstants.SHIP_COLLISION_RADIUS, 0.0) * fraction)
 	var best := Vector2.INF
@@ -20,6 +26,8 @@ static func choose(world: AuthoritativeWorld, peer_id: int, preferred: Vector2, 
 		if candidate.distance_to(safe_center) + GameConstants.SHIP_COLLISION_RADIUS > safe_radius:
 			continue
 		if not ArenaCollisionSystem.is_ship_position_clear(candidate, world.map_id, 0.0, world.arena_effects.hidden_cover):
+			continue
+		if not ArenaLayout.is_clear_of_hazards(candidate, HAZARD_CLEARANCE, world.map_id):
 			continue
 		var score := candidate.distance_to(preferred) * 0.05
 		var occupied := false

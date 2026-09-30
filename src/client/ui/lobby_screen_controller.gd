@@ -58,8 +58,8 @@ var ship_pattern_control: OptionButton
 var ship_pattern_preview
 var apply_ship_color_button: Button
 var start_button: Button
-var preferred_ship_color: Color = Color("42e8ff")
-var pending_ship_color: Color = Color("42e8ff")
+var preferred_ship_color: Color = DesignTokensScript.BRAND_CYAN
+var pending_ship_color: Color = DesignTokensScript.BRAND_CYAN
 var preferred_ship_pattern: StringName = ShipAppearanceScript.SOLID
 var pending_ship_pattern: StringName = ShipAppearanceScript.SOLID
 var random_ship_color: bool = true
@@ -124,8 +124,8 @@ func _create_modal_blocker(blocker_name: String) -> ColorRect:
 func _create_lobby_panel() -> void:
 	lobby_panel = PanelContainer.new()
 	lobby_panel.set_anchors_preset(Control.PRESET_CENTER)
-	lobby_panel.position = Vector2(-550.0, -340.0)
-	lobby_panel.custom_minimum_size = Vector2(1100.0, 680.0)
+	lobby_panel.position = Vector2(-550.0, -430.0)
+	lobby_panel.custom_minimum_size = Vector2(1100.0, 860.0)
 	lobby_panel.theme = interface_theme
 	lobby_panel.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.INTERACTIVE, 0.96))
 	lobby_panel.visible = false
@@ -136,24 +136,22 @@ func _create_lobby_panel() -> void:
 	var title := Label.new()
 	title.text = "✦  ONLINE LOBBY  ✦"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", Color("42e8ff"))
-	title.add_theme_font_size_override("font_size", 28)
+	title.theme_type_variation = &"ScreenTitle"
 	content.add_child(title)
 	lobby_label = Label.new()
 	lobby_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lobby_label.add_theme_font_size_override("font_size", 20)
-	lobby_label.add_theme_color_override("font_color", Color("aebbd4"))
+	lobby_label.theme_type_variation = &"HintLabel"
 	content.add_child(lobby_label)
 	lobby_rules_label = Label.new()
 	lobby_rules_label.name = "LobbyRulesSummary"
 	lobby_rules_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lobby_rules_label.add_theme_font_size_override("font_size", 16)
+	lobby_rules_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	content.add_child(lobby_rules_label)
 	lobby_readiness_label = Label.new()
 	lobby_readiness_label.name = "LobbyReadinessSummary"
 	lobby_readiness_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lobby_readiness_label.custom_minimum_size.x = 1040.0
-	lobby_readiness_label.add_theme_font_size_override("font_size", 16)
+	lobby_readiness_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	content.add_child(lobby_readiness_label)
 	var player_scroll := ScrollContainer.new()
 	lobby_roster_scroll = player_scroll
@@ -187,7 +185,7 @@ func _create_lobby_panel() -> void:
 	ready_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	launch_actions.add_child(ready_button)
 	start_button = Button.new()
-	start_button.text = "Start Match"
+	start_button.text = "START MATCH"
 	start_button.theme_type_variation = &"PrimaryButton"
 	start_button.custom_minimum_size.y = 54.0
 	start_button.pressed.connect(bridge.send_start_match)
@@ -200,7 +198,7 @@ func _create_lobby_panel() -> void:
 	lobby_actions.add_child(lobby_options_button)
 	lobby_settings_button = Button.new()
 	lobby_settings_button.name = "LobbySettingsButton"
-	lobby_settings_button.text = "Settings"
+	lobby_settings_button.text = "SETTINGS"
 	lobby_settings_button.theme_type_variation = &"SecondaryButton"
 	lobby_settings_button.custom_minimum_size.y = 54.0
 	lobby_settings_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -209,7 +207,7 @@ func _create_lobby_panel() -> void:
 	lobby_actions.add_child(lobby_settings_button)
 	var admin_button := Button.new()
 	admin_button.name = "LobbyAdminButton"
-	admin_button.text = "Admin"
+	admin_button.text = "ADMIN"
 	admin_button.theme_type_variation = &"SecondaryButton"
 	admin_button.custom_minimum_size.y = 54.0
 	admin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -217,7 +215,7 @@ func _create_lobby_panel() -> void:
 	lobby_actions.add_child(admin_button)
 	lobby_disconnect_button = Button.new()
 	lobby_disconnect_button.name = "LobbyDisconnectButton"
-	lobby_disconnect_button.text = "Disconnect"
+	lobby_disconnect_button.text = "DISCONNECT"
 	lobby_disconnect_button.theme_type_variation = &"DangerButton"
 	lobby_disconnect_button.custom_minimum_size.y = 54.0
 	lobby_disconnect_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -243,8 +241,7 @@ func _create_lobby_options_popup() -> void:
 	var title := Label.new()
 	title.text = "MATCH SETUP"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_TITLE_SIZE)
-	title.add_theme_color_override("font_color", DesignTokensScript.BRAND_MAGENTA)
+	title.theme_type_variation = &"ScreenTitle"
 	outer.add_child(title)
 	lobby_options_status = _setup_note(outer, "Changes apply immediately. Pilots must ready up again after rule changes.")
 	lobby_options_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -262,7 +259,7 @@ func _create_lobby_options_popup() -> void:
 	lobby_preset_note.text = "Start with a preset, then adjust Match, Pilots, and Arena Rules."
 	lobby_preset_note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	lobby_preset_control.item_selected.connect(_on_lobby_preset_selected)
-	_setup_heading(match_content, "Mode & victory")
+	_setup_heading(match_content, "MODE & VICTORY")
 	var mode_row := HBoxContainer.new()
 	mode_row.add_theme_constant_override("separation", 14)
 	match_content.add_child(mode_row)
@@ -314,7 +311,7 @@ func _create_lobby_options_popup() -> void:
 	rounds_control.value_changed.connect(_on_rounds_changed)
 	rounds_row.add_child(rounds_control)
 	lobby_host_controls = _setup_tab("PILOTS")
-	_setup_heading(lobby_host_controls, "Lobby size")
+	_setup_heading(lobby_host_controls, "LOBBY SIZE")
 	_setup_note(lobby_host_controls, "The player limit includes human pilots and NPCs.")
 	var limit_row := HBoxContainer.new()
 	lobby_host_controls.add_child(limit_row)
@@ -351,7 +348,7 @@ func _create_lobby_options_popup() -> void:
 	npc_difficulty_row.add_child(npc_all_difficulty_control)
 	_setup_note(lobby_host_controls, "You can adjust individual NPC difficulties and team assignments in the lobby roster.")
 	var rules_content := _setup_tab("ARENA RULES")
-	_setup_heading(rules_content, "Round pacing")
+	_setup_heading(rules_content, "ROUND PACING")
 	var overtime_row := HBoxContainer.new()
 	overtime_row.add_theme_constant_override("separation", 14)
 	rules_content.add_child(overtime_row)
@@ -368,11 +365,11 @@ func _create_lobby_options_popup() -> void:
 	overtime_start_control.custom_minimum_size = Vector2(190.0, 48.0)
 	overtime_start_control.value_changed.connect(_on_overtime_start_changed)
 	overtime_row.add_child(overtime_start_control)
-	_setup_heading(rules_content, "Arena effects")
+	_setup_heading(rules_content, "ARENA EFFECTS")
 	arena_effect_controls = ArenaEffectControls.new()
 	rules_content.add_child(arena_effect_controls)
 	arena_effect_controls.settings_changed.connect(bridge.send_arena_effects)
-	_setup_heading(rules_content, "Powerups")
+	_setup_heading(rules_content, "POWERUPS")
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Enable powerup drops"
 	powerups_button.theme_type_variation = &"SettingToggle"
@@ -403,7 +400,7 @@ func _create_lobby_options_popup() -> void:
 	powerups_permanent_button.toggled.connect(_on_powerups_permanent_toggled)
 	rules_content.add_child(powerups_permanent_button)
 	_setup_note(rules_content, "Drops grant Rare-or-better cards. By default, collected cards last until the heat ends.")
-	_setup_heading(rules_content, "Competitive view")
+	_setup_heading(rules_content, "COMPETITIVE VIEW")
 	competitive_view_control = CheckButton.new()
 	competitive_view_control.name = "CompetitiveView"
 	competitive_view_control.theme_type_variation = &"SettingToggle"
@@ -440,8 +437,7 @@ func _setup_heading(parent: VBoxContainer, heading: String) -> void:
 	parent.add_child(HSeparator.new())
 	var label := Label.new()
 	label.text = heading
-	label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_SECTION_SIZE)
-	label.add_theme_color_override("font_color", DesignTokensScript.BRAND_MAGENTA)
+	label.theme_type_variation = &"SectionHeading"
 	parent.add_child(label)
 
 
@@ -476,23 +472,22 @@ func _create_ship_color_popup() -> void:
 	ship_color_popup.position = Vector2(-350.0, -330.0)
 	ship_color_popup.custom_minimum_size = Vector2(700.0, 660.0)
 	ship_color_popup.theme = interface_theme
-	ship_color_popup.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.INTERACTIVE, 0.99))
+	ship_color_popup.add_theme_stylebox_override("panel", DesignTokensScript.panel_style(DesignTokensScript.BRAND_MAGENTA, 0.99))
 	ship_color_popup.visible = false
 	connection_canvas.add_child(ship_color_popup)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 12)
 	ship_color_popup.add_child(content)
 	var title := Label.new()
-	title.text = "CUSTOMIZE YOUR SHIP"
+	title.text = "CUSTOMISE YOUR SHIP"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", Color("73f7ff"))
+	title.theme_type_variation = &"ScreenTitle"
 	content.add_child(title)
 	var note := Label.new()
 	note.text = "Combine any colour with a hull pattern, then apply your appearance."
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_color_override("font_color", Color("aebbd4"))
+	note.theme_type_variation = &"HintLabel"
 	content.add_child(note)
 	var appearance_row := HBoxContainer.new()
 	appearance_row.add_theme_constant_override("separation", 18)
@@ -505,7 +500,7 @@ func _create_ship_color_popup() -> void:
 	appearance_row.add_child(pattern_column)
 	var pattern_label := Label.new()
 	pattern_label.text = "HULL PATTERN"
-	pattern_label.add_theme_color_override("font_color", Color("e8f5ff"))
+	pattern_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 	pattern_column.add_child(pattern_label)
 	ship_pattern_control = OptionButton.new()
 	ship_pattern_control.custom_minimum_size.y = 48.0
@@ -649,17 +644,17 @@ func render_lobby(state: Dictionary) -> void:
 	start_button.disabled = not settings_editable or not can_supply_opponent or not bool(state.get("all_humans_ready", false)) or not team_setup_valid
 	var human_count := total_count - npc_count
 	if not is_leader:
-		start_button.text = "Waiting for Lobby Leader"
+		start_button.text = "WAITING FOR LOBBY LEADER"
 	elif not team_setup_valid:
-		start_button.text = "Configure All Teams"
+		start_button.text = "CONFIGURE ALL TEAMS"
 	elif not bool(state.get("all_humans_ready", false)):
-		start_button.text = "Waiting for Players to Ready"
+		start_button.text = "WAITING FOR PLAYERS TO READY"
 	elif human_count == 1 and not bool(state.get("npcs_enabled", false)):
-		start_button.text = "Enable NPCs to Start Solo"
+		start_button.text = "ENABLE NPCS TO START SOLO"
 	elif human_count == 1:
-		start_button.text = "Start Match with NPCs"
+		start_button.text = "START MATCH WITH NPCS"
 	else:
-		start_button.text = "Start Match"
+		start_button.text = "START MATCH"
 	start_button.tooltip_text = team_setup_error if not team_setup_valid else "Every connected human must ready up first." if not bool(state.get("all_humans_ready", false)) else "NPCs fill open seats before launch." if bool(state.get("npcs_enabled", false)) else "Launch the configured match."
 	if get_viewport().gui_get_focus_owner() == null:
 		ready_button.grab_focus()
@@ -684,13 +679,13 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		lobby_roster.add_child(row)
 		var color_swatch := Button.new()
 		color_swatch.name = "ShipColor"
-		var swatch_color := Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), Color("42e8ff"))
+		var swatch_color := Color.from_string("#%s" % String(player.get("ship_color", "42e8ff")), DesignTokensScript.BRAND_CYAN)
 		var swatch_pattern := ShipAppearanceScript.normalized_pattern(String(player.get("ship_pattern", ShipAppearanceScript.SOLID)))
 		if swatch_pattern.is_empty():
 			swatch_pattern = ShipAppearanceScript.SOLID
 		color_swatch.text = ShipAppearanceScript.swatch_symbol(swatch_pattern)
 		color_swatch.add_theme_color_override("font_color", Color.WHITE)
-		color_swatch.add_theme_font_size_override("font_size", 16)
+		color_swatch.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 		color_swatch.custom_minimum_size = Vector2(34.0, 34.0)
 		color_swatch.add_theme_stylebox_override("normal", _ship_color_swatch_style(swatch_color, false))
 		color_swatch.add_theme_stylebox_override("hover", _ship_color_swatch_style(swatch_color, true))
@@ -700,23 +695,24 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 		var can_choose_color: bool = peer_id == bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false))
 		color_swatch.disabled = not can_choose_color
 		color_swatch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_choose_color else Control.CURSOR_ARROW
-		color_swatch.tooltip_text = "Click to customize your ship" if can_choose_color else "%s hull pattern" % ShipAppearanceScript.display_name(swatch_pattern)
+		color_swatch.tooltip_text = "Click to customise your ship" if can_choose_color else "%s hull pattern" % ShipAppearanceScript.display_name(swatch_pattern)
 		if can_choose_color:
 			color_swatch.pressed.connect(_show_ship_color_popup)
 		row.add_child(color_swatch)
 		var name_label := Label.new()
-		name_label.text = String(player.get("display_name", "Pilot"))
+		name_label.text = ("◆ " if peer_id == bridge.local_peer_id else "") + String(player.get("display_name", "Pilot"))
 		name_label.custom_minimum_size.x = 180.0 if team_mode else 280.0
 		name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.add_theme_color_override("font_color", Color("fff36a") if peer_id == int(state.get("leader_id", 0)) else Color("e8f5ff"))
+		# The role column already names the host; ◆ marks you, as in the kill feed and scoreboard.
+		name_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
 		row.add_child(name_label)
 		var role_label := Label.new()
 		var team_id := int(player.get("team_id", 0))
 		var role_name := ("ADMIN" if bool(state.get("leader_is_admin", false)) else "HOST") if peer_id == int(state.get("leader_id", 0)) else "NPC" if is_npc else "PILOT"
 		role_label.text = role_name if team_mode else "%s · %s" % [role_name, GameModeRules.team_name(team_id)] if team_id > 0 else role_name
 		role_label.custom_minimum_size.x = 80.0 if team_mode else 170.0 if team_id > 0 else 90.0
-		role_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id) if team_id > 0 else Color("d39cff"))
+		role_label.add_theme_color_override("font_color", GameModeRules.team_color(team_id) if team_id > 0 else DesignTokensScript.BRAND_MAGENTA)
 		row.add_child(role_label)
 		if team_mode:
 			var team_control := OptionButton.new()
@@ -748,7 +744,7 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 			var status_label := Label.new()
 			status_label.text = "READY" if is_ready else "NOT READY"
 			status_label.custom_minimum_size.x = 125.0
-			status_label.add_theme_color_override("font_color", Color("62ff9b") if is_ready else Color("ff7994"))
+			status_label.add_theme_color_override("font_color", DesignTokensScript.SUCCESS if is_ready else DesignTokensScript.WARNING)
 			row.add_child(status_label)
 		if is_leader and peer_id != bridge.local_peer_id and not is_npc and not bool(state.get("match_active", false)):
 			var eject_button := Button.new()

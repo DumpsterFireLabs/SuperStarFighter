@@ -6,6 +6,10 @@
 
 **Related documents:** [Product plan](./plan.md) · [Specification](./spec.md) · [Implementation milestones](./milestones.md)
 
+## Solar Crucible addition
+
+The current roster also includes Solar Crucible: a central solid star, randomized shield-blockable flare waves, contact burns, and localized gravity at 25% of Wormhole strength. Its hazards are intrinsic to the map. See [Arena effects](../ARENA_EFFECTS.md#solar-crucible) for timing and damage rules. The ten-map plan below preserves the original expansion scope.
+
 ## 1. Outcome
 
 Super Star Fighter has a ten-map static roster. The existing 3200×1800 arena remains the neutral competitive benchmark; nine additional arenas introduce materially different sightlines, routing, cover, and weapon interactions without changing the core ship or card rules.

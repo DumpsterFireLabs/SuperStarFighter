@@ -4,7 +4,7 @@ extends RefCounted
 static func run(context: TestContext) -> void:
 	var baseline: Array = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/map_layout_baseline.json"))
 	context.expect_true(MapRegistry.validation_errors().is_empty(), "all authored map resources validate before registry publication")
-	context.expect_equal(ArenaLayout.map_ids().size(), baseline.size(), "resource registry preserves map roster size")
+	context.expect_equal(ArenaLayout.map_ids().size(), baseline.size() + 2, "resource registry includes Wormhole and Solar Crucible")
 	for row in baseline:
 		var id := StringName(row.id)
 		context.expect_equal(ArenaLayout.display_name(id), row.name, "map display identity preserved")

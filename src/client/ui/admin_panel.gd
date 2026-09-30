@@ -65,7 +65,7 @@ func create_ui(canvas: CanvasLayer, theme: Theme) -> void:
 	var title := Label.new()
 	title.text = "SERVER ADMINISTRATION"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 27)
+	title.theme_type_variation = &"ScreenTitle"
 	body.add_child(title)
 	var note := Label.new()
 	note.text = "Connected players can unlock server controls with the separate admin password. The server checks every command."

@@ -1,6 +1,7 @@
 extends RefCounted
 
 static func run(context: TestContext, parent: Node) -> void:
+	_validate_solar_crucible(context)
 	var options := ArenaEffectRules.DEFAULT.duplicate()
 	context.expect_true(ArenaEffectRules.valid(options), "default arena settings validate")
 	context.expect_equal(ArenaEffectRules.enabled(options, &"twin_suns"), 0, "effects default off")
@@ -146,7 +147,7 @@ static func _validate_combat(context: TestContext, options: Dictionary) -> void:
 	context.expect_true(CombatFeedbackPresentation.death_text({"source": "solar_pulse"}, 2).contains("SOLAR PULSE"), "death explanation names the arena hazard")
 
 static func _validate_match_lifecycle(context: TestContext, options: Dictionary) -> void:
-	for selected_map in [&"twin_suns", &"dead_freight", &"switchyard"]:
+	for selected_map in [&"twin_suns", &"dead_freight", &"switchyard", &"solar_crucible"]:
 		for mode in range(5):
 			var config := MatchConfig.new()
 			config.arena_effects = options.duplicate()
@@ -183,3 +184,64 @@ static func _validate_match_lifecycle(context: TestContext, options: Dictionary)
 			world.server_tick = match_coordinator.machine.state_entered_tick + 55 * 60
 			match_coordinator.step(1.0 / 60.0)
 			context.expect_true(world.arena_effects.safe, "every mode enters effect-safe overtime warning")
+
+
+static func _validate_solar_crucible(context: TestContext) -> void:
+	var effects := ArenaEffectState.new()
+	effects.reset(&"solar_crucible", ArenaEffectRules.DEFAULT)
+	context.expect_equal(effects.enabled, ArenaEffectRules.SOLAR, "Crucible hazards are intrinsic with optional effects off")
+	var star := Vector2(1600, 900)
+	var ship := CombatantState.create(2, CombatStats.create_base(), star + Vector2(150, 0))
+	ship.shield.active = true
+	ship.aim_angle = PI
+	context.expect_empty(effects.step(2, 60, {2: ship}), "star contact respects opening grace")
+	var hits := effects.step(3, 60, {2: ship})
+	context.expect_true(hits.size() == 1 and hits[0].source == "star_contact" and hits[0].damage == 12.0, "star burns through active shields")
+	context.expect_true(ship.velocity.x > 0.0, "contact nudges outward")
+	context.expect_empty(effects.step(3.5, 60, {2: ship}), "contact damage has cooldown")
+	context.expect_equal(effects.step(4.1, 60, {2: ship}).size(), 1, "remaining on star burns again after cooldown")
+	effects.protect_respawn(2)
+	context.expect_empty(effects.step(5.5, 60, {2: ship}), "respawn grace also blocks contact burns")
+	effects.reset(&"solar_crucible", ArenaEffectRules.DEFAULT)
+	ship.position = star + Vector2(600, 0)
+	ship.shield.active = false
+	context.expect_empty(effects.step(5.99, 60, {2: ship}), "three second warning deals no flare damage")
+	context.expect_true(effects.warning, "flare warning is replicated")
+	context.expect_empty(effects.step(6.5, 60, {2: ship}), "wave cannot hit before reaching ship")
+	context.expect_equal(effects.step(7, 60, {2: ship}).size(), 1, "wave damages exposed ship when it arrives")
+	context.expect_empty(effects.step(8, 60, {2: ship}), "wave damages each life once")
+	effects.reset(&"solar_crucible", ArenaEffectRules.DEFAULT)
+	ship.shield.reset(ship.stats)
+	ship.shield.active = true
+	context.expect_empty(effects.step(7, 60, {2: ship}), "inward shield blocks flare")
+	effects.reset(&"solar_crucible", ArenaEffectRules.DEFAULT)
+	ship.aim_angle = 0.0
+	context.expect_equal(effects.step(7, 60, {2: ship}).size(), 1, "outward shield does not block flare")
+	effects._flare_rng.seed = 42
+	var intervals := {}
+	for index in 8:
+		var gap := effects._next_flare_start - effects._flare_start
+		context.expect_true(gap >= 12.0 and gap <= 20.0, "random flare interval stays within recovery bounds")
+		intervals[snappedf(gap, 0.001)] = true
+		effects.step(effects._next_flare_start, 1000, {})
+		context.expect_true(effects.warning, "each randomized flare starts with a warning")
+	context.expect_true(intervals.size() > 1, "flare intervals vary")
+	effects.reset(&"solar_crucible", ArenaEffectRules.DEFAULT)
+	ship.position = star + Vector2(150, 0)
+	context.expect_empty(effects.step(55, 60, {2: ship}), "overtime disables burns and flares")
+	var sun_gravity := ArenaLayout.movement_fields(&"solar_crucible")[0]
+	var hole_gravity := ArenaLayout.movement_fields(&"wormhole")[0]
+	context.expect_approx(sun_gravity.gravity_acceleration, hole_gravity.gravity_acceleration * 0.25, "solar gravity is one quarter of black hole strength")
+	context.expect_approx(sun_gravity.influence_at(star + Vector2(700, 0)), 0.0, "solar gravity stays localized")
+	ship.velocity = Vector2.ZERO
+	ship.shield.active = false
+	ArenaMovementSystem.step_input(ship, PlayerInputFrame.new(1, 1, Vector2(0, -1), 0), 1.0 / 60.0, &"solar_crucible")
+	context.expect_true(ship.velocity.x > 0.0, "normal thrust escapes surface gravity")
+	var world := AuthoritativeWorld.new()
+	world.set_map_id(&"solar_crucible")
+	var victim := world.add_peer(2)
+	victim.position = star + Vector2(150, 0)
+	victim.health = 1
+	world.step_arena_effects(4, 60)
+	context.expect_true(not victim.alive, "contact burn resolves authoritative lethal damage")
+	context.expect_true(str(world.drain_combat_feedback()).contains("star_contact"), "contact death names its hazard")

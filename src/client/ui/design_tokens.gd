@@ -18,7 +18,10 @@ const TEXT_DISABLED: Color = Color("687894")
 const BRAND_CYAN: Color = Color("42e8ff")
 const BRAND_MAGENTA: Color = Color("d39cff")
 const INTERACTIVE: Color = Color("38d9ff")
-const FOCUS: Color = Color("fff36a")
+# Focus is white so it never reads as a rarity, team, or pilot colour.
+const FOCUS: Color = Color("ffffff")
+# Gold celebrates winners and champions. It is not a focus or local-player cue.
+const VICTORY: Color = Color("fff36a")
 const SUCCESS: Color = Color("62ff9b")
 const WARNING: Color = Color("ffbe55")
 const DANGER: Color = Color("ff5f7f")
@@ -72,6 +75,12 @@ static func create_interface_theme() -> Theme:
 	theme.set_color(&"font_uneditable_color", &"LineEdit", TEXT_DISABLED)
 	theme.set_color(&"caret_color", &"LineEdit", INTERACTIVE)
 	theme.set_color(&"selection_color", &"LineEdit", Color(INTERACTIVE, 0.34))
+
+	# Text roles. Screens pick a role instead of styling labels locally.
+	_register_label_variation(theme, &"ScreenTitle", BRAND_CYAN, TEXT_TITLE_SIZE)
+	_register_label_variation(theme, &"Kicker", BRAND_MAGENTA, TEXT_BODY_SIZE)
+	_register_label_variation(theme, &"SectionHeading", BRAND_MAGENTA, TEXT_SECTION_SIZE)
+	_register_label_variation(theme, &"HintLabel", TEXT_SECONDARY, TEXT_BODY_SIZE)
 
 	_configure_tabs(theme)
 	_configure_slider(theme)
@@ -132,6 +141,12 @@ static func quiet_panel_style() -> StyleBoxFlat:
 	style.shadow_size = 0
 	style.set_content_margin_all(SPACE_MEDIUM)
 	return style
+
+
+static func _register_label_variation(theme: Theme, variation: StringName, color: Color, font_size: int) -> void:
+	theme.set_type_variation(variation, &"Label")
+	theme.set_color(&"font_color", variation, color)
+	theme.set_font_size(&"font_size", variation, font_size)
 
 
 static func _register_button_variation(theme: Theme, variation: StringName, accent: Color, fill_alpha: float) -> void:

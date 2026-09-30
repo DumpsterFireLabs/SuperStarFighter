@@ -18,6 +18,10 @@ const BLOCKED_LOOP_RESET_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND
 const FULL_MAP_ACQUISITION_RANGE: float = 4000.0
 const CLOSE_CONTACT_ESCAPE_DISTANCE: float = GameConstants.SHIP_COLLISION_RADIUS * 2.0 + 48.0
 const MAX_PROJECTILE_THREAT_CANDIDATES: int = 48
+# Covers the band where a shielding ship can no longer out-thrust Wormhole gravity.
+const HAZARD_AVOIDANCE_MARGIN: float = 200.0
+# Inward speed is projected this far ahead so fast dives start braking early.
+const HAZARD_LOOKAHEAD_SECONDS: float = 0.45
 const DIFFICULTY_PROFILES := {
 	Difficulty.PASSIVE: {
 		"reaction_ticks": 36, "aim_error_degrees": 24.0, "lead_seconds": 0.0,
@@ -96,7 +100,7 @@ func submit_inputs(
 			world.server_tick + reaction_ticks
 		)
 		var overtime_center := ArenaLayout.center(world.map_id)
-		var overtime_minimum_radius := GameConstants.OVERTIME_MINIMUM_RADIUS
+		var overtime_minimum_radius := ArenaLayout.overtime_minimum_radius(world.map_id)
 		if objective_state != null and GameModeRules.uses_hill(objective_state.mode):
 			overtime_center = objective_state.position
 			overtime_minimum_radius = GameModeRules.HILL_OVERTIME_MINIMUM_RADIUS
@@ -111,9 +115,12 @@ func submit_inputs(
 		var target := _objective_target(world, combatant, objective_state)
 		if target == null:
 			target = _nearest_target(world, combatant, maxf(float(profile.awareness_range), FULL_MAP_ACQUISITION_RANGE))
+		var hazard := hazard_steering(combatant.position, world.map_id, combatant.velocity)
 		if target == null:
 			_blocked_engagements.erase(peer_id)
 			var idle_steering := (zone_steering + objective_steering).limit_length(1.0)
+			if not hazard.is_zero_approx():
+				idle_steering = (hazard + idle_steering * 0.2).limit_length(1.0)
 			_submit_decision(
 				world,
 				peer_id,
@@ -203,9 +210,12 @@ func submit_inputs(
 			tactical_movement = (
 				tactical_movement + evasion * float(profile.dodge_strength)
 			).limit_length(1.0)
+		if not hazard.is_zero_approx():
+			tactical_movement = (hazard + tactical_movement * 0.2).limit_length(1.0)
 		var movement := _world_to_ship_input(tactical_movement, aim_angle)
 		var shield_phase := float(posmod(world.server_tick + peer_id, 180)) / 180.0
-		var shielding := not escaping_close_contact and distance < float(profile.shield_range) and (
+		# Shields cut thrust, which a pilot fighting gravity cannot spare.
+		var shielding := hazard.is_zero_approx() and not escaping_close_contact and distance < float(profile.shield_range) and (
 			bool(projectile_threat.get("imminent", false)) or shield_phase < float(profile.shield_duty)
 		)
 		if world.arena_effects.warning or world.arena_effects.pulse_radius >= 0.0:
@@ -447,6 +457,20 @@ func _note_clear_engagement(peer_id: int, server_tick: int) -> void:
 		return
 	if server_tick - int(state.get("last_blocked_tick", server_tick)) >= BLOCKED_LOOP_RESET_TICKS:
 		_blocked_engagements.erase(peer_id)
+
+
+## Outward steering near an event horizon, before gravity outpaces thrust.
+static func hazard_steering(position: Vector2, map_id: StringName, velocity: Vector2 = Vector2.ZERO) -> Vector2:
+	for field in ArenaLayout.event_horizons(map_id):
+		var offset := position - field.center
+		var distance := offset.length()
+		var outward := offset / distance if distance > 0.001 else Vector2.RIGHT
+		var projected := distance - maxf(-velocity.dot(outward), 0.0) * HAZARD_LOOKAHEAD_SECONDS
+		var danger_radius := field.event_horizon_radius + HAZARD_AVOIDANCE_MARGIN
+		if projected >= danger_radius:
+			continue
+		return outward * clampf((danger_radius - projected) / HAZARD_AVOIDANCE_MARGIN * 2.0, 0.35, 1.0)
+	return Vector2.ZERO
 
 
 static func overtime_steering(

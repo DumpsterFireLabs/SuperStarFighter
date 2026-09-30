@@ -21,6 +21,10 @@ var door_warning_mask := 0
 var _pulse_cycle := -1
 var _hit_lives: Dictionary = {}
 var _grace_until: Dictionary = {}
+var _contact_until: Dictionary = {}
+var _flare_rng := RandomNumberGenerator.new()
+var _flare_start := 3.0
+var _next_flare_start := 0.0
 
 func reset(selected_map: StringName, options: Dictionary) -> void:
 	map_id = selected_map
@@ -37,6 +41,10 @@ func reset(selected_map: StringName, options: Dictionary) -> void:
 	_pulse_cycle = -1
 	_hit_lives.clear()
 	_grace_until.clear()
+	_contact_until.clear()
+	_flare_rng.randomize()
+	_flare_start = 3.0
+	_next_flare_start = _flare_start + _random_pulse_gap()
 	if enabled & ArenaEffectRules.CARGO:
 		for index in ArenaLayout.cover_rectangles(map_id).size(): cargo_health[index] = CARGO_HEALTH
 	if enabled & ArenaEffectRules.DOORS: hidden_cover = DOOR_MASK
@@ -56,6 +64,8 @@ func step(seconds: float, overtime_seconds: float, combatants: Dictionary) -> Ar
 		if enabled & ArenaEffectRules.DOORS: hidden_cover = DOOR_MASK
 		if enabled & ArenaEffectRules.CARGO: hidden_cover = (1 << ArenaLayout.cover_rectangles(map_id).size()) - 1
 		return events
+	if ArenaLayout.contact_damage(map_id) > 0.0 and elapsed >= 3.0:
+		_step_star_contact(combatants, events)
 	if enabled & ArenaEffectRules.DOORS:
 		var phase := fmod(elapsed, ArenaEffectRules.interval(settings))
 		var cycle := int(elapsed / ArenaEffectRules.interval(settings))
@@ -78,6 +88,12 @@ func step(seconds: float, overtime_seconds: float, combatants: Dictionary) -> Ar
 	var interval := ArenaEffectRules.interval(settings)
 	var cycle := int((elapsed - 3.0) / interval)
 	var phase := fmod(elapsed - 3.0, interval)
+	if _has_random_pulses():
+		while elapsed >= _next_flare_start:
+			_flare_start = _next_flare_start
+			_next_flare_start += _random_pulse_gap()
+		cycle = int(_flare_start * 1000.0)
+		phase = elapsed - _flare_start
 	var circles := ArenaLayout.circle_obstacles(map_id)
 	if circles.is_empty(): return events
 	var source := circles[cycle % circles.size()]
@@ -105,6 +121,29 @@ func step(seconds: float, overtime_seconds: float, combatants: Dictionary) -> Ar
 		ship.velocity = (ship.velocity + direction * 150.0).limit_length(maxf(ship.velocity.length(), ship.stats.max_speed))
 		events.append({"target_id": ship.peer_id, "damage": ArenaEffectRules.damage(settings), "source": "solar_pulse"})
 	return events
+
+func _has_random_pulses() -> bool:
+	return not ArenaLayout.pulse_interval_range(map_id).is_zero_approx()
+
+func _random_pulse_gap() -> float:
+	var gaps := ArenaLayout.pulse_interval_range(map_id)
+	return _flare_rng.randf_range(gaps.x, gaps.y) if _has_random_pulses() else 0.0
+
+func _step_star_contact(combatants: Dictionary, events: Array[Dictionary]) -> void:
+	var damage := ArenaLayout.contact_damage(map_id)
+	for value in combatants.values():
+		var ship := value as CombatantState
+		if not ship.alive or elapsed < float(_grace_until.get(ship.peer_id, 0.0)): continue
+		if elapsed < float(_contact_until.get(ship.peer_id, 0.0)): continue
+		for star in ArenaLayout.circle_obstacles(map_id):
+			var offset := ship.position - Vector2(star.center)
+			# Collision already places ships just outside the solid surface.
+			if offset.length() > float(star.radius) + GameConstants.SHIP_COLLISION_RADIUS + 2.0: continue
+			_contact_until[ship.peer_id] = elapsed + 1.0
+			var outward := offset.normalized() if not offset.is_zero_approx() else Vector2.RIGHT
+			ship.velocity += outward * 180.0
+			events.append({"target_id": ship.peer_id, "damage": damage, "source": "star_contact"})
+			break
 
 func damage_cover(position: Vector2, radius: float, damage: float) -> bool:
 	if not (enabled & ArenaEffectRules.CARGO) or safe or not is_finite(damage) or damage <= 0.0: return false

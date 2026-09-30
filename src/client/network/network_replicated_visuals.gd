@@ -10,6 +10,7 @@ const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const PROJECTILE_COLLISION_ITERATIONS: int = 16
 const COLLISION_SURFACE_EPSILON: float = 0.35
+const CRUSH_DETECTION_TOLERANCE: float = 16.0
 
 const ViewContext = preload("res://src/client/network/client_view_context.gd")
 var context: ViewContext
@@ -213,7 +214,7 @@ func _apply_snapshot_resources(ship: CombatShipView, state: Dictionary) -> void:
 	ship.combatant.weapon.ammunition = state.ammunition
 	ship.combatant.alive = state.alive
 	if not state.alive and was_alive:
-		ship.set_eliminated()
+		ship.set_eliminated(_crushing_horizon(ship.combatant.position))
 	if state.alive or was_alive:
 		ship.queue_redraw()
 
@@ -276,6 +277,11 @@ func _update_remote_ships() -> void:
 			ship.queue_redraw()
 
 
+func _crushing_horizon(position: Vector2) -> Vector2:
+	# Snapshots trail the authority slightly, so accept a small margin.
+	return ArenaLayout.crushing_horizon(position, arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID, CRUSH_DETECTION_TOLERANCE)
+
+
 func _step_projectile_visuals(delta: float) -> void:
 	update_combat_priorities()
 	var map_id := arena.map_id if arena != null else ArenaLayout.DEFAULT_MAP_ID
@@ -310,6 +316,14 @@ func _step_projectile_visuals(delta: float) -> void:
 				arena.hidden_cover if arena != null else 0
 			) and absf(projectile.velocity.angle_to(target.combatant.position - projectile.position)) <= GameConstants.MISSILE_GUIDANCE_HALF_ANGLE:
 				projectile.steer_missile_toward(target.combatant.position, safe_delta)
+		if ArenaMovementSystem.bend_projectile(projectile, safe_delta, map_id):
+			# Swallowed by an event horizon. Missiles still wait for authority.
+			if projectile.is_missile:
+				projectile.lifetime_remaining = 0.0
+				projectile.velocity = Vector2.ZERO
+				continue
+			authoritative_projectiles.remove(projectile.projectile_id)
+			continue
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			# Guided ordnance is retired by authority. A local expiry or wall
@@ -475,7 +489,8 @@ func _handle_snapshot_feedback(peer_id: int, state: Dictionary, ship: CombatShip
 	if not bool(previous.get("breakaway_active", false)) and bool(state.get("breakaway_active", false)):
 		context.presentation_event.emit(&"breakaway", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
 	if bool(previous.get("alive", true)) and not bool(state.get("alive", true)):
-		if effects_layer != null:
+		# A crushed ship is pulled into the singularity instead of exploding.
+		if effects_layer != null and not _crushing_horizon(state.position).is_finite():
 			effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == context.local_peer_id)
 		context.presentation_event.emit(&"elimination", {"peer_id": peer_id, "server_tick": context.latest_server_tick})
 		if peer_id == context.local_peer_id:

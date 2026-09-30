@@ -275,7 +275,9 @@ func _draw_effects() -> void:
 		if bool(effect_state.get("warning", false)):
 			_draw_solar_shelter(center)
 			draw_arc(center, 250, 0, TAU, 80, ink, 5)
-			draw_string(font, center + Vector2(-170, -270), "SOLAR PULSE: COVER OR SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
+			var prompt := ArenaLayout.pulse_prompt(map_id)
+			if prompt.is_empty(): prompt = "SOLAR PULSE: COVER OR SHIELD"
+			draw_string(font, center + Vector2(-190, -270), prompt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
 		var radius := float(effect_state.get("pulse_radius", -1.0))
 		if radius >= 0.0:
 			radius += minf(_effect_visual_age, 0.15) * ArenaEffectState.PULSE_SPEED

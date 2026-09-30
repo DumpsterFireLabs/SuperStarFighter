@@ -32,7 +32,7 @@ func capture() -> void:
 	canvas.add_child(arena)
 	options.mode = ArenaEffectRules.SIGNATURE
 	var effects := ArenaEffectState.new()
-	for id in [&"twin_suns", &"dead_freight", &"switchyard"]:
+	for id in [&"twin_suns", &"dead_freight", &"switchyard", &"solar_crucible"]:
 		arena.set_map_id(id)
 		effects.reset(id, options)
 		effects.step(4, 60, {})
@@ -41,10 +41,10 @@ func capture() -> void:
 			effects.damage_cover(Vector2(2135, 550), 4, 120)
 		arena.set_effect_state(effects.snapshot())
 		await save(String(id))
-		if id == &"twin_suns":
+		if id == &"twin_suns" or id == &"solar_crucible":
 			effects.step(7, 60, {})
 			arena.set_effect_state(effects.snapshot())
-			await save("solar_wave")
+			await save("solar_crucible_wave" if id == &"solar_crucible" else "solar_wave")
 	canvas.free()
 	print("ARENA_CAPTURE_OK")
 	quit()

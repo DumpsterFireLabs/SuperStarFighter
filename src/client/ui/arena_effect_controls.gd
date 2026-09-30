@@ -17,7 +17,7 @@ func _ready() -> void:
 		selector.custom_minimum_size = Vector2(190, 42)
 		for choice in entry[2]: selector.add_item(choice)
 		selector.item_selected.connect(func(_index: int) -> void: _changed())
-		if entry[0] == "frequency": selector.tooltip_text = "Changes the interval between solar pulses and door cycles. Cargo has fixed durability."
+		if entry[0] == "frequency": selector.tooltip_text = "Changes Twin Suns pulse and door intervals. Solar Crucible always uses random 12-20 second intervals."
 		if entry[0] == "strength": selector.tooltip_text = "Solar pulse damage: Gentle 8, Standard 16, Brutal 28. Doors never crush ships."
 		selectors[entry[0]] = selector
 		row.add_child(selector)
@@ -30,7 +30,7 @@ func _ready() -> void:
 		toggles.append(toggle)
 		add_child(toggle)
 	var note := Label.new()
-	note.text = "Effects run on compatible maps. Terrain resets each heat.\nPulses stop and doors open before overtime."
+	note.text = "Optional effects run on compatible maps. Solar Crucible hazards are always active.\nPulses stop and doors open before overtime."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(note)
 

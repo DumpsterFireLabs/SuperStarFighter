@@ -6,6 +6,7 @@ extends RefCounted
 const AccessibilityPreferencesScript = preload("res://src/client/presentation/accessibility_preferences.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const KillFeedScript = preload("res://src/client/ui/kill_feed.gd")
+const CombatHudPanelScript = preload("res://src/client/ui/combat_hud_panel.gd")
 
 const ViewContext = preload("res://src/client/network/client_view_context.gd")
 var context: ViewContext
@@ -17,7 +18,7 @@ var camera: Camera2D:
 	get: return context.camera
 	set(value): context.camera = value
 var diagnostics_label: Label
-var hud_panel: PanelContainer
+var hud_panel: CombatHudPanelScript
 var hud_root: Control
 var match_status_label: Label
 var resources_label: Label
@@ -122,42 +123,23 @@ func _create_camera_and_hud() -> void:
 	hud_root.name = "HUDSafeArea"
 	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(hud_root)
-	hud_panel = PanelContainer.new()
-	hud_panel.position = Vector2(16.0, 16.0)
-	hud_panel.custom_minimum_size = Vector2(430.0, 148.0)
-	hud_panel.add_theme_stylebox_override("panel", _hud_panel_style())
-	hud_panel.visible = false
-	hud_root.add_child(hud_panel)
-	var hud_content := VBoxContainer.new()
-	hud_content.add_theme_constant_override("separation", 3)
-	hud_panel.add_child(hud_content)
-	match_status_label = Label.new()
-	match_status_label.custom_minimum_size.x = 390.0
-	match_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	match_status_label.add_theme_font_size_override("font_size", 15)
-	match_status_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
-	hud_content.add_child(match_status_label)
-	resources_label = Label.new()
-	resources_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	resources_label.add_theme_font_size_override("font_size", 17)
-	resources_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
-	hud_content.add_child(resources_label)
-	health_bar = _make_resource_bar(DesignTokensScript.HEALTH)
-	hud_content.add_child(health_bar)
-	shield_bar = _make_resource_bar(DesignTokensScript.SHIELD)
-	hud_content.add_child(shield_bar)
-	combat_status_label = Label.new()
-	combat_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	combat_status_label.add_theme_font_size_override("font_size", 14)
-	combat_status_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
-	hud_content.add_child(combat_status_label)
+	var combat_hud := CombatHudPanelScript.new()
+	combat_hud.position = Vector2(16.0, 16.0)
+	combat_hud.visible = false
+	hud_root.add_child(combat_hud)
+	hud_panel = combat_hud
+	match_status_label = combat_hud.match_status_label
+	resources_label = combat_hud.resources_label
+	health_bar = combat_hud.health_bar
+	shield_bar = combat_hud.shield_bar
+	combat_status_label = combat_hud.combat_status_label
 	spectator_label = Label.new()
 	spectator_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	spectator_label.position = Vector2(-360.0, -92.0)
 	spectator_label.custom_minimum_size = Vector2(720.0, 64.0)
 	spectator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	spectator_label.add_theme_font_size_override("font_size", 24)
-	spectator_label.add_theme_color_override("font_color", DesignTokensScript.FOCUS)
+	spectator_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
 	hud_root.add_child(spectator_label)
 	kill_feed = KillFeedScript.new()
 	kill_feed.name = "KillFeed"
@@ -168,7 +150,7 @@ func _create_camera_and_hud() -> void:
 	diagnostics_label.custom_minimum_size = Vector2(600.0, 96.0)
 	diagnostics_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	diagnostics_label.add_theme_color_override("font_color", DesignTokensScript.INTERACTIVE)
-	diagnostics_label.add_theme_font_size_override("font_size", 16)
+	diagnostics_label.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
 	diagnostics_label.visible = false
 	hud_root.add_child(diagnostics_label)
 	var feedback_anchor := VBoxContainer.new()
@@ -210,10 +192,7 @@ func _layout_accessible_hud() -> void:
 	# Keep essential resources at the viewport edge even when other HUD
 	# elements use the centered safe area on ultrawide displays.
 	hud_panel.position = Vector2(16.0 - safe_rect.position.x / hud_scale, 16.0)
-	var panel_width := minf(430.0, maxf(240.0, hud_root.size.x - 420.0 - 56.0))
-	hud_panel.custom_minimum_size.x = panel_width
-	hud_panel.size.x = panel_width
-	match_status_label.custom_minimum_size.x = maxf(panel_width - 40.0, 100.0)
+	hud_panel.set_width(minf(CombatHudPanelScript.WIDTH, maxf(240.0, hud_root.size.x - 420.0 - 56.0)))
 	spectator_label.custom_minimum_size.x = minf(720.0, hud_root.size.x - 32.0)
 	spectator_label.size.x = spectator_label.custom_minimum_size.x
 	spectator_label.position.x = (hud_root.size.x - spectator_label.size.x) * 0.5
@@ -234,38 +213,35 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 	var combat_status := "%s network diagnostics · Hold %s scoreboard" % [diagnostics_hint, scoreboard_hint]
 	if visuals.ships.has(context.local_peer_id):
 		var local_ship := visuals.ships[context.local_peer_id] as CombatShipView
-		health_bar.max_value = local_prediction.local_stats.max_health
-		health_bar.value = local_ship.combatant.health
-		shield_bar.max_value = local_prediction.local_stats.shield_capacity
-		shield_bar.value = local_ship.combatant.shield.energy
-		resources = "HULL %.0f/%.0f   SHIELD %.0f/%.0f   AMMO %d/%d" % [local_ship.combatant.health, local_prediction.local_stats.max_health, local_ship.combatant.shield.energy, local_prediction.local_stats.shield_capacity, local_ship.combatant.weapon.ammunition, local_prediction.local_stats.magazine_size]
-		if compact:
-			resources = "HULL %.0f · SHIELD %.0f\nAMMO %d/%d" % [local_ship.combatant.health, local_ship.combatant.shield.energy, local_ship.combatant.weapon.ammunition, local_prediction.local_stats.magazine_size]
+		hud_panel.set_vitals(local_ship.combatant.health, local_prediction.local_stats.max_health, local_ship.combatant.shield.energy, local_prediction.local_stats.shield_capacity)
+		var vitals := CombatHudPanelScript.vitals_text(local_ship.combatant.health, local_prediction.local_stats.max_health, local_ship.combatant.shield.energy, local_prediction.local_stats.shield_capacity, compact)
+		var loadout: PackedStringArray = ["AMMO %d/%d" % [local_ship.combatant.weapon.ammunition, local_prediction.local_stats.magazine_size]]
 		if local_prediction.local_stats.mine_layer_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MINE):
 			var mine_status := "%d" % local_prediction.local_mine_charges_remaining
 			if local_prediction.local_mine_cooldown_remaining > 0.05:
 				mine_status += " (%.1fs)" % local_prediction.local_mine_cooldown_remaining
-			resources += "   MINES %s" % mine_status
+			loadout.append("MINES %s" % mine_status)
 		if local_prediction.local_stats.missile_launcher_enabled and (not compact or selected == SpecialAbilitySelection.Slot.MISSILE):
 			var missile_status := "%d" % local_prediction.local_missile_charges_remaining
 			if local_prediction.local_missile_cooldown_remaining > 0.05:
 				missile_status += " (%.1fs)" % local_prediction.local_missile_cooldown_remaining
-			resources += "   MISSILES %s" % missile_status
+			loadout.append("MISSILES %s" % missile_status)
 		if local_prediction.local_stats.drone_bay_enabled and (not compact or selected == SpecialAbilitySelection.Slot.DRONE):
 			var drone_status := "%d" % local_prediction.local_drone_charges_remaining
 			if local_prediction.local_drone_cooldown_remaining > 0.05:
 				drone_status += " (%.1fs)" % local_prediction.local_drone_cooldown_remaining
-			resources += "   DRONES %s" % drone_status
+			loadout.append("DRONES %s" % drone_status)
 		if local_prediction.local_stats.cloak_enabled and (not compact or selected == SpecialAbilitySelection.Slot.CLOAK or local_prediction.local_cloak_remaining > 0.0):
 			var cloak_status := "ACTIVE" if local_prediction.local_cloak_remaining > 0.0 else "READY"
 			if local_prediction.local_cloak_remaining <= 0.0 and local_prediction.local_cloak_cooldown_remaining > 0.05:
 				cloak_status = "%.1fs" % local_prediction.local_cloak_cooldown_remaining
-			resources += "   CLOAK %s" % cloak_status
+			loadout.append("CLOAK %s" % cloak_status)
 		if local_prediction.local_stats.kinetic_vent_enabled:
-			resources += "   VENT %.0f/%.0f" % [local_prediction.local_kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE]
+			loadout.append("VENT %.0f/%.0f" % [local_prediction.local_kinetic_vent_charge, GameConstants.KINETIC_VENT_MAXIMUM_CHARGE])
 		if local_prediction.local_stats.breakaway_thrusters_enabled:
 			var breakaway_status := "ACTIVE" if local_prediction.local_breakaway_remaining > 0.0 else ("%.1fs" % local_prediction.local_breakaway_cooldown_remaining if local_prediction.local_breakaway_cooldown_remaining > 0.05 else "READY")
-			resources += "   BREAKAWAY %s" % breakaway_status
+			loadout.append("BREAKAWAY %s" % breakaway_status)
+		resources = CombatHudPanelScript.resources_text(vitals, loadout)
 		var reload_hint: String = context.input_profiles.binding_text(&"manual_reload") if context.input_profiles != null else "R"
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
 		# Controls remain discoverable in countdown and pause/settings. During
@@ -296,8 +272,8 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 		else:
 			spectator_label.visible = false
 	resources_label.text = resources
-	combat_status_label.text = combat_status.strip_edges()
-	combat_status_label.visible = not combat_status_label.text.is_empty()
+	hud_panel.set_hints(combat_status)
+	hud_panel.fit_height()
 	if toggle_status_label == null and hud_root != null:
 		toggle_status_label = local_prediction.action_latch.create_status_label(hud_root)
 	if toggle_status_label != null:
@@ -474,33 +450,6 @@ func _unshaken_mouse_world_position() -> Vector2:
 		return context.surface.get_canvas_transform().affine_inverse() * gameplay_mouse_position()
 	var screen_offset := gameplay_mouse_position() - context.surface.get_viewport_rect().size * 0.5
 	return camera.position + Vector2(screen_offset.x / camera.zoom.x, screen_offset.y / camera.zoom.y)
-
-
-func _make_resource_bar(color: Color) -> ProgressBar:
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(390.0, 12.0)
-	bar.show_percentage = false
-	bar.add_theme_stylebox_override("background", _flat_style(DesignTokensScript.SURFACE_MUTED, Color("31466c"), 1))
-	bar.add_theme_stylebox_override("fill", _flat_style(Color(color.darkened(0.45), 0.94), color, 1))
-	return bar
-
-
-func _hud_panel_style() -> StyleBoxFlat:
-	var style := _flat_style(Color(DesignTokensScript.SURFACE, 0.9), Color(DesignTokensScript.INTERACTIVE, 0.75), 2)
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_top = 9.0
-	style.content_margin_bottom = 9.0
-	return style
-
-
-func _flat_style(background: Color, border: Color, width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(width)
-	style.set_corner_radius_all(10)
-	return style
 
 
 func _update_competitive_view() -> void:

@@ -4,7 +4,10 @@ extends RefCounted
 const CLEARANCE := GameConstants.SHIP_COLLISION_RADIUS + 18.0
 const ROUTE_REFRESH_TICKS := 60
 const MAX_PLANS_PER_TICK := 2
+# Routes stay just outside NpcPilotController's hazard avoidance band.
+const HAZARD_ROUTE_MARGIN := NpcPilotController.HAZARD_AVOIDANCE_MARGIN + 10.0
 static var _graphs: Dictionary = {}
+static var _circles: Dictionary = {}
 var _routes: Dictionary = {}
 var _budget_tick := -1
 var _plans_this_tick := 0
@@ -51,11 +54,24 @@ func steering(peer_id: int, from: Vector2, destination: Vector2, map_id: StringN
 	return (points[0] - from).limit_length(220.0) / 220.0
 
 
+## Solid circles plus a keep-out ring around each event horizon, so routes
+## orbit a black hole instead of diving through it.
+static func _navigation_circles(map_id: StringName) -> Array[Dictionary]:
+	if _circles.has(map_id):
+		return _circles[map_id]
+	var circles: Array[Dictionary] = ArenaLayout.circle_obstacles(map_id).duplicate()
+	for field in ArenaLayout.event_horizons(map_id):
+		circles.append({"center": field.center, "radius": field.event_horizon_radius + HAZARD_ROUTE_MARGIN})
+	circles.make_read_only()
+	_circles[map_id] = circles
+	return circles
+
+
 static func segment_clear(from: Vector2, to: Vector2, map_id: StringName, clearance: float = CLEARANCE - 2.0, hidden_cover: int = 0) -> bool:
 	for rectangle in ArenaCollisionSystem.cover_rectangles(map_id, hidden_cover):
 		if NpcPilotController._segment_intersects_rect(from, to, rectangle.grow(clearance)):
 			return false
-	for circle in ArenaLayout.circle_obstacles(map_id):
+	for circle in _navigation_circles(map_id):
 		if NpcPilotController._segment_intersects_circle(from, to, circle.center, float(circle.radius) + clearance):
 			return false
 	return true
@@ -67,7 +83,7 @@ static func _point_clear(point: Vector2, map_id: StringName, hidden_cover: int =
 	for rectangle in ArenaCollisionSystem.cover_rectangles(map_id, hidden_cover):
 		if rectangle.grow(CLEARANCE - 2.0).has_point(point):
 			return false
-	for circle in ArenaLayout.circle_obstacles(map_id):
+	for circle in _navigation_circles(map_id):
 		if point.distance_to(circle.center) <= float(circle.radius) + CLEARANCE - 2.0:
 			return false
 	return true
@@ -83,7 +99,7 @@ static func _graph(map_id: StringName, hidden_cover: int = 0) -> Dictionary:
 		for corner in [expanded.position, Vector2(expanded.end.x, expanded.position.y), expanded.end, Vector2(expanded.position.x, expanded.end.y)]:
 			if _point_clear(corner, map_id, hidden_cover):
 				points.append(corner)
-	for circle in ArenaLayout.circle_obstacles(map_id):
+	for circle in _navigation_circles(map_id):
 		var radius := (float(circle.radius) + CLEARANCE) / cos(PI / 12.0)
 		for index in 12:
 			var point: Vector2 = circle.center + Vector2.from_angle(TAU * float(index) / 12.0) * radius
