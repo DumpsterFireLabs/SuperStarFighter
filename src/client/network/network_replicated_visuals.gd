@@ -291,6 +291,7 @@ func _step_projectile_visuals(delta: float) -> void:
 				arena.hidden_cover if arena != null else 0
 			) and absf(projectile.velocity.angle_to(target.combatant.position - projectile.position)) <= GameConstants.MISSILE_GUIDANCE_HALF_ANGLE:
 				projectile.steer_missile_toward(target.combatant.position, safe_delta)
+		ArenaMovementSystem.bend_projectile(projectile, safe_delta, map_id)
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
 			# Guided ordnance is retired by authority. A local expiry or wall

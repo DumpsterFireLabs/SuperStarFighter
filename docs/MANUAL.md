@@ -463,9 +463,11 @@ Ships slide against arena walls, map obstacles, and other ships. Base ship colli
 
 Shots cannot spawn through a wall when the ship's nose is pressed against it.
 
-The built-in rotation contains Core Arena, Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, and Relay Zero. The server shuffles all ten from the match seed without repeats. Every heat—including tied replays—stays on the round's current map. Winning the round advances the next round to the next map in that deck.
+The built-in rotation contains Core Arena, Riftline, Prism Array, Twin Suns, Dead Freight, Longwave Array, Broken Orbit, Switchyard, Solar Tide, Relay Zero, and Wormhole. The server shuffles all eleven from the match seed without repeats. Every heat—including tied replays—stays on the round's current map. Winning the round advances the next round to the next map in that deck.
 
 The active map appears in the countdown banner, combat HUD, and live scoreboard. Its synchronized ID controls server collision, projectiles, NPC sightlines/flanking, spawn assignment, overtime navigation, and client presentation.
+
+**Wormhole** is an open arena with a traversable gravity well at its center. Gravity grows stronger toward the throat, pulling ships, bullets, and missiles inward. Beams bend more gently and retain their speed. Deployed mines remain anchored. Infalling rings and a luminous central rim mark the well. Select Wormhole in the Build Lab Targets tab to try it directly.
 
 Solar Tide contains **Solar Current**, the bright clockwise stream around its central sun. Follow the moving arrows for a modest speed advantage, or steer across and out of the marked band normally. The current does not cause damage, disable controls, affect shields, or bend projectiles. The countdown names its direction, and high-contrast mode strengthens both edges of the stream.
 
@@ -655,7 +657,7 @@ Use **Retry step** to reset the current combat exercise, **Restart lesson** to b
 
 The editor groups controls into **Build**, **Targets**, and **Stats** tabs. In Build, search cards by name, description, or rarity, then select a result to inspect its description and actual before/after stat changes. **+ Stack** adds the selected card, **− Stack** removes one stack, and **Clear build** restores the base ship. Stack actions remain visible beneath the scrolling Build content. Stats lists owned cards, derived hull/movement/weapon/shield/ability values, and measurements. Scrolling content follows keyboard/controller focus.
 
-The preset menu contains **Base ship**, **Rapid scatter**, **Beam specialist**, **Shield tank**, and **All abilities**. Further edits turn a preset into a custom build. The Targets tab can switch between **Core Arena** and **Solar Tide · Solar Current trial** so the current can be evaluated without waiting for online map rotation. The target controls select one through five targets, 10–600 hull HP, and a distance of 160–900 pixels. You can enable target shields, return fire, and strafing independently. With a controller, D-pad left / right changes a focused numeric target control.
+The preset menu contains **Base ship**, **Rapid scatter**, **Beam specialist**, **Shield tank**, and **All abilities**. Further edits turn a preset into a custom build. The Targets tab can switch between **Core Arena**, **Solar Tide · Solar Current trial**, and **Wormhole** so the movement fields can be evaluated without waiting for online map rotation. The target controls select one through five targets, 10–600 hull HP, and a distance of 160–900 pixels. You can enable target shields, return fire, and strafing independently. With a controller, D-pad left / right changes a focused numeric target control.
 
 Build and target changes reset the encounter, restoring health, ammunition, and ability resources and clearing projectiles and measurements. **Reset encounter** does the same without changing your build or target setup. **Reset measurements** clears only the counters. Targets stay destroyed until the encounter is reset; they do not silently heal or respawn. The default setup is one stationary, unshielded 100-HP target at 420 pixels.
 

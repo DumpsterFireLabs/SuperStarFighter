@@ -2,6 +2,50 @@ extends RefCounted
 
 
 static func run(context: TestContext, parent: Node) -> void:
+	var gravity := ArenaLayout.movement_fields(&"wormhole")[0]
+	context.expect_true(ArenaLayout.cover_rectangles(&"wormhole").is_empty() and ArenaLayout.circle_obstacles(&"wormhole").is_empty(), "Wormhole is an open arena")
+	context.expect_true(gravity.influence_at(gravity.center + Vector2(100, 0)) > gravity.influence_at(gravity.center + Vector2(600, 0)), "gravity increases toward the throat")
+	context.expect_equal(gravity.flow_direction_at(gravity.center + Vector2(100, 0)), Vector2.LEFT, "gravity pulls inward")
+	context.expect_true(gravity.influence_at(gravity.center) == 1.0 and gravity.flow_direction_at(gravity.center).is_finite(), "wormhole center remains finite")
+	var falling := CombatantState.create(95, CombatStats.create_base(), gravity.center + Vector2(150, 0))
+	ArenaMovementSystem.step_input(falling, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0), 1.0 / 60.0, &"wormhole")
+	context.expect_true(falling.velocity.x < 0.0, "gravity pulls an idle ship")
+	var shot := ProjectileState.create(900, 95, 1, gravity.center + Vector2(0, -150), 0.0, CombatStats.create_base())
+	var beam := ProjectileState.create(901, 95, 1, shot.position, 0.0, CombatStats.create_base())
+	beam.is_beam = true
+	var light_speed := beam.velocity.length()
+	ArenaMovementSystem.bend_projectile(shot, 1.0 / 60.0, &"wormhole")
+	ArenaMovementSystem.bend_projectile(beam, 1.0 / 60.0, &"wormhole")
+	context.expect_true(shot.velocity.y > beam.velocity.y and beam.velocity.y > 0.0, "both weapon paths bend inward with weaker lensing for beams")
+	context.expect_approx(beam.velocity.length(), light_speed, "lensing preserves beam speed")
+	var gravity_state := falling.prediction_state()
+	gravity_state.position = falling.position
+	gravity_state.velocity = falling.velocity
+	var gravity_frame := PlayerInputFrame.new(2, 2, Vector2(0, -1), 0.0)
+	var gravity_prediction := ClientPredictionBuffer.new()
+	gravity_prediction.reset_to_snapshot(gravity_state, falling.stats)
+	gravity_prediction.predict(gravity_frame, falling.stats, 1.0 / 60.0, &"wormhole")
+	var gravity_world := AuthoritativeWorld.new()
+	gravity_world.set_map_id(&"wormhole")
+	var authoritative_falling := gravity_world.add_peer(95, falling.stats)
+	authoritative_falling.restore_prediction_state(gravity_state, falling.stats)
+	gravity_world.submit_input(95, gravity_frame)
+	gravity_world.step(1.0 / 60.0)
+	context.expect_approx(gravity_prediction.predicted_position.distance_to(authoritative_falling.position), 0.0, "wormhole prediction matches authority")
+	var weapon_world := AuthoritativeWorld.new()
+	weapon_world.set_map_id(&"wormhole")
+	var origin := gravity.center + Vector2(0, -200)
+	var bullet := ProjectileState.create(910, 95, 1, origin, 0.0, falling.stats)
+	var beam_stats := CombatStats.create_base()
+	beam_stats.beam_weapon = true
+	var light := ProjectileState.create(911, 95, 1, origin, 0.0, beam_stats)
+	var missile := ProjectileState.create_missile(912, 95, origin, 0.0)
+	for projectile in [bullet, light, missile]:
+		weapon_world.projectile_registry.add(projectile)
+	weapon_world.step(1.0 / 60.0)
+	for projectile in [bullet, light, missile]:
+		context.expect_true(projectile.position.y > origin.y, "authoritative weapon travel bends toward the wormhole")
+	context.expect_true(light.velocity.angle() < bullet.velocity.angle(), "actual beam travel bends more gently than a bullet")
 	var fields := ArenaLayout.movement_fields(&"solar_tide")
 	context.expect_equal(fields.size(), 1, "Solar Tide publishes one signature movement field")
 	context.expect_true(fields.is_read_only(), "shared movement-field roster is immutable")

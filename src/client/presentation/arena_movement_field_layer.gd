@@ -33,7 +33,10 @@ func _draw() -> void:
 	for resource in ArenaLayout.movement_fields(map_id):
 		var field := resource as ArenaMovementField
 		if field != null:
-			_draw_annular_field(field)
+			if field.gravity_acceleration > 0.0:
+				_draw_wormhole(field)
+			else:
+				_draw_annular_field(field)
 
 
 func _draw_annular_field(field: ArenaMovementField) -> void:
@@ -73,3 +76,39 @@ func _draw_annular_field(field: ArenaMovementField) -> void:
 		22,
 		Color(flow_color, 1.0 if high_contrast else 0.78)
 	)
+
+
+func _draw_wormhole(field: ArenaMovementField) -> void:
+	var amber := Color("ff9b28")
+	var gold := Color("fff1a3") if high_contrast else Color("ffdb73")
+	var rim_radius := 108.0
+	# Faint infalling rings reveal the pull without filling the combat area.
+	for ring in 7:
+		var phase := fposmod(float(ring) / 7.0 - animation_time * 0.075, 1.0)
+		var radius := lerpf(rim_radius + 24.0, field.outer_radius, phase * phase)
+		draw_arc(field.center, radius, 0.0, TAU, 128, Color(amber, (1.0 - phase) * 0.12), 2.0, true)
+	# Layered translucent bands create a warm halo without a bloom dependency.
+	for layer in range(12, 0, -1):
+		var spread := float(layer)
+		draw_arc(field.center, rim_radius + spread * 2.2, 0.0, TAU, 160,
+			Color("ff6418", 0.018 + (12.0 - spread) * 0.002), spread * 8.0, true)
+	for arm in 6:
+		var points := PackedVector2Array()
+		for step in 81:
+			var t := float(step) / 80.0
+			var angle := TAU * float(arm) / 6.0 + t * 3.8 + animation_time * 0.22
+			points.append(field.center + Vector2.from_angle(angle) * lerpf(rim_radius + 9.0, 305.0, t * t))
+		draw_polyline(points, Color(amber, 0.18), 2.0, true)
+	# Uneven orbiting bands suggest hot matter circling the black silhouette.
+	for band in 5:
+		var radius := rim_radius + float(band) * 4.5
+		var start := animation_time * (0.34 + float(band) * 0.06) + float(band) * 1.7
+		draw_arc(field.center, radius, start, start + TAU * 0.78, 128,
+			Color(amber.lerp(gold, 1.0 - float(band) / 5.0), 0.65 - float(band) * 0.09), 4.5, true)
+	draw_circle(field.center, rim_radius - 3.0, Color("010103"))
+	draw_arc(field.center, rim_radius, 0.0, TAU, 160, Color("ff841f"), 8.0, true)
+	draw_arc(field.center, rim_radius - 1.0, 0.0, TAU, 160, gold, 3.0, true)
+	var hotspot := animation_time * 0.38
+	draw_arc(field.center, rim_radius, hotspot, hotspot + 1.4, 48, Color("fff4c4"), 4.0, true)
+	draw_string(ThemeDB.fallback_font, field.center + Vector2(-280.0, -365.0),
+		field.mechanic_prompt(), HORIZONTAL_ALIGNMENT_CENTER, 560.0, 22, gold)

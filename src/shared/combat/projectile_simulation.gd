@@ -87,11 +87,13 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 		if candidate == null or candidate.is_mine:
 			continue
 		if not candidate.is_missile:
+			ArenaMovementSystem.bend_projectile(candidate, safe_delta, map_id)
 			shot_ids.append(projectile_id)
 			continue
 		missile_ids.append(projectile_id)
 		var guidance_started := Time.get_ticks_usec() if profiling else 0
 		_step_missile_guidance(world, candidate, safe_delta)
+		ArenaMovementSystem.bend_projectile(candidate, safe_delta, map_id)
 		if profiling:
 			world.last_projectile_profile_usec.guidance += Time.get_ticks_usec() - guidance_started
 		if candidate.lifetime_remaining <= safe_delta:

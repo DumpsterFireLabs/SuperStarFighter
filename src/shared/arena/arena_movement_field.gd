@@ -44,6 +44,11 @@ var flow_input_strength: float:
 		return _values[&"flow_input_strength"]
 	set(_value):
 		pass
+var gravity_acceleration: float:
+	get:
+		return _values[&"gravity_acceleration"]
+	set(_value):
+		pass
 var feather_width: float:
 	get:
 		return _values[&"feather_width"]
@@ -53,6 +58,7 @@ var feather_width: float:
 
 func _init(source: ArenaMovementFieldDefinition) -> void:
 	_values = {
+		&"gravity_acceleration": source.gravity_acceleration,
 		&"field_id": source.field_id,
 		&"display_name": source.display_name,
 		&"center": source.center,
@@ -70,6 +76,9 @@ func influence_at(position: Vector2) -> float:
 	if not position.is_finite():
 		return 0.0
 	var distance := position.distance_to(center)
+	if gravity_acceleration > 0.0:
+		# Softened inverse-square gravity: finite at the traversable throat.
+		return 1.0 / (1.0 + pow(distance / 180.0, 2.0))
 	if distance <= inner_radius or distance >= outer_radius:
 		return 0.0
 	var inner_strength := _smooth_unit((distance - inner_radius) / feather_width)
@@ -82,10 +91,14 @@ func flow_direction_at(position: Vector2) -> Vector2:
 	if radial.is_zero_approx() or not radial.is_finite():
 		return Vector2.ZERO
 	var normalized := radial.normalized()
+	if gravity_acceleration > 0.0:
+		return -normalized
 	return Vector2(-normalized.y, normalized.x) if clockwise else Vector2(normalized.y, -normalized.x)
 
 
 func mechanic_prompt() -> String:
+	if gravity_acceleration > 0.0:
+		return "WORMHOLE · GRAVITY INCREASES INWARD"
 	return "%s · %s" % [display_name.to_upper(), "CLOCKWISE" if clockwise else "COUNTERCLOCKWISE"]
 
 
