@@ -45,7 +45,7 @@ func is_valid() -> bool:
 		sequence >= 0
 		and client_tick >= 0
 		and special_sequence >= 0 and special_sequence <= 0xffffffff
-		and special_slot >= -1 and special_slot <= SpecialAbilitySelection.Slot.CLOAK
+		and special_slot >= -1 and special_slot <= SpecialAbilitySelection.Slot.DRONE
 		and (shield_press_sequence == -1 or (shield_press_sequence >= 0 and shield_press_sequence <= 0xffffffff and ((sequence - shield_press_sequence) & 0xffffffff) <= GameConstants.SHIELD_PRESS_RETENTION_TICKS))
 		and is_finite(movement.x)
 		and is_finite(movement.y)

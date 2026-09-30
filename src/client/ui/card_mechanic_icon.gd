@@ -44,6 +44,9 @@ func _draw() -> void:
 		&"missile":
 			_path([Vector2(-9, 7), Vector2(3, -8), Vector2(10, -10), Vector2(8, -3), Vector2(-7, 9), Vector2(-9, 7)])
 			draw_line(Vector2(-8, 1), Vector2(-12, 5), accent, 2, true)
+		&"drone":
+			for offset in [Vector2(-6, -5), Vector2(6, -5), Vector2(0, 7)]:
+				_path([offset + Vector2(0, -4), offset + Vector2(4, 3), offset + Vector2(-4, 3), offset + Vector2(0, -4)])
 		&"cloak":
 			_path([Vector2(-12, 0), Vector2(-5, -6), Vector2(5, -6), Vector2(12, 0), Vector2(5, 6), Vector2(-5, 6), Vector2(-12, 0)])
 			draw_line(Vector2(-10, 10), Vector2(10, -10), accent, 2, true)

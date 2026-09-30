@@ -271,20 +271,20 @@ func record_payload(category: String, count: int) -> void:
 func _projectiles_for_correction(world: AuthoritativeWorld, complete_snapshot: bool) -> Array[ProjectileState]:
 	var active: Array[ProjectileState] = []
 	if complete_snapshot:
-		active = world.active_projectiles()
+		active = AuthoritativeWorld.replicated_only(world.active_projectiles())
 	else:
 		var window := world.projectile_registry.projectile_window(
 			_projectile_correction_cursor,
 			PARTIAL_PROJECTILE_CORRECTION_COUNT
 		)
-		active = window.projectiles as Array[ProjectileState]
+		active = AuthoritativeWorld.replicated_only(window.projectiles as Array[ProjectileState])
 		_projectile_correction_cursor = int(window.next_slot)
-		# Guided flight needs every correction even during heavy ordinary fire.
+		# Guided flight and escort drones need every correction even during heavy ordinary fire.
 		var included_ids: Dictionary = {}
 		for projectile in active:
 			included_ids[projectile.projectile_id] = true
 		for projectile in world.active_projectiles():
-			if projectile.is_missile and not included_ids.has(projectile.projectile_id):
+			if (projectile.is_missile or projectile.is_drone) and AuthoritativeWorld.is_replicated(projectile) and not included_ids.has(projectile.projectile_id):
 				active.append(projectile)
 	return active
 

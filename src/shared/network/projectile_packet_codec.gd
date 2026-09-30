@@ -129,7 +129,7 @@ static func decode_batch(bytes: PackedByteArray) -> Dictionary:
 	for index in spawn_count:
 		if ByteCodec.read_u32(bytes, offset) == ProjectileRegistry.REMOVED_ID:
 			return _error("Projectile ID zero is reserved.")
-		if (ByteCodec.read_u8(bytes, offset + 26) & 0xf0) != 0:
+		if (ByteCodec.read_u8(bytes, offset + 26) & 0xc0) != 0:
 			return _error("Projectile packet contains unsupported presentation flags.")
 		spawned.append(_read_projectile(bytes, offset))
 		offset += PROJECTILE_RECORD_SIZE
@@ -172,7 +172,8 @@ static func _write_projectile(bytes: PackedByteArray, offset: int, projectile: P
 	bytes.encode_u16(offset + 16, (roundi(clampf(projectile.velocity.x, -4095.0, 4095.0) * VELOCITY_SCALE)) & 0xffff)
 	bytes.encode_u16(offset + 18, (roundi(clampf(projectile.velocity.y, -4095.0, 4095.0) * VELOCITY_SCALE)) & 0xffff)
 	bytes.encode_u16(offset + 20, (roundi(clampf(projectile.damage, 0.0, 655.35) * DAMAGE_SCALE)) & 0xffff)
-	bytes[offset + 22] = (clampi(projectile.remaining_pierces, 0, 255)) & 0xff
+	# Drones never pierce; the byte carries their formation slot instead.
+	bytes[offset + 22] = (clampi(projectile.drone_slot if projectile.is_drone else projectile.remaining_pierces, 0, 255)) & 0xff
 	bytes[offset + 23] = (clampi(projectile.remaining_ricochets, 0, 255)) & 0xff
 	var serialized_lifetime := projectile.mine_activation_remaining if projectile.is_mine else projectile.lifetime_remaining
 	bytes.encode_u16(offset + 24, (roundi(clampf(serialized_lifetime, 0.0, 65.535) * LIFETIME_SCALE)) & 0xffff)
@@ -185,6 +186,10 @@ static func _write_projectile(bytes: PackedByteArray, offset: int, projectile: P
 		flags |= 4
 	if projectile.is_missile:
 		flags |= 8
+	if projectile.is_drone:
+		flags |= 16
+	if projectile.is_drone_bolt:
+		flags |= 32
 	bytes[offset + 26] = (flags) & 0xff
 	bytes.encode_u32(offset + 27, (projectile.missile_target_id) & 0xffffffff)
 
@@ -204,6 +209,8 @@ static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileS
 	projectile.is_mine = (flags & 2) != 0
 	projectile.has_rebounded = (flags & 4) != 0
 	projectile.is_missile = (flags & 8) != 0
+	projectile.is_drone = (flags & 16) != 0
+	projectile.is_drone_bolt = (flags & 32) != 0
 	projectile.missile_target_id = ByteCodec.read_u32(bytes, offset + 27)
 	if projectile.is_mine:
 		projectile.radius = GameConstants.MINE_RADIUS
@@ -211,6 +218,12 @@ static func _read_projectile(bytes: PackedByteArray, offset: int) -> ProjectileS
 		projectile.lifetime_remaining = INF
 	elif projectile.is_missile:
 		projectile.radius = GameConstants.MISSILE_RADIUS
+	elif projectile.is_drone:
+		projectile.radius = GameConstants.DRONE_RADIUS
+		projectile.drone_slot = projectile.remaining_pierces
+		projectile.remaining_pierces = 0
+	elif projectile.is_drone_bolt:
+		projectile.radius = GameConstants.DRONE_BOLT_RADIUS
 	return projectile
 
 

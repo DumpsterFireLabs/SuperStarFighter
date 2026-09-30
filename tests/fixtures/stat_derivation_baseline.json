@@ -1,2042 +1,2057 @@
 [
   {
-    "hash": "06546aada3e407cee2a037da1cb4339ed24495c4f0fbf88d46259bb0dc9ab776",
+    "hash": "518394502cbc93d74186fe5b676318b55f1671350422a9a9aaf82bb90b3e7d74",
     "id": "hunter_missiles",
     "stacks": 1
   },
   {
-    "hash": "e2a289f88ec767832861dce5215b845037c9ad04aa89e8cb7e756db03e20012a",
+    "hash": "e51665ac880090ca8a140d40c86b14840a9ccd32055a202ccc1c07bc7535ed8b",
     "id": "hunter_missiles",
     "stacks": 3
   },
   {
-    "hash": "54291580cd4ace905766dd600bc19738ab17fa23c5fea2bb55c5acf5b66c4821",
+    "hash": "292a8fd4f4dac86b3f0fc8a4821d7906a24402c85af91381067cbeff3927c720",
     "id": "hunter_missiles",
     "stacks": 20
   },
   {
-    "hash": "a04f856099ef6218b4dc909ff3e91db10b03783eef3214dceb927cd3a968b252",
+    "hash": "d1b3189e0e6ba87ffc3294ba6f7b7d14aee97b88f50c8a77c7c0fd5c6d7ed67f",
     "id": "rebound_shields",
     "stacks": 1
   },
   {
-    "hash": "f893970154349c7c4e64511eccc98687968bbecf5e7afbd25a730421e7c01458",
+    "hash": "843705175945798688a4da75b7bc121621f9ab237c327dbb8ff971550ec05145",
     "id": "rebound_shields",
     "stacks": 3
   },
   {
-    "hash": "0a1523047c6bf30c2923391b781f4c74661686cfae2fa0f145589721bfa566bf",
+    "hash": "1f4607994319c2baf9e49d117acfad496167927c1c3aaafc89b13fef6a676059",
     "id": "rebound_shields",
     "stacks": 20
   },
   {
-    "hash": "8ec90f560142660be17cd983789d13f8bcfcf5d48a90fa8978b4be7a54ab279f",
+    "hash": "d5b13cb07fbf3e59c45708f9d6b8554cbb58747092f62e89e9d09a639f9134ce",
     "id": "nosferatu_shield",
     "stacks": 1
   },
   {
-    "hash": "2e49b568bac03ee907e841654777066bf7ad99dae30cec430178d72c338c7974",
+    "hash": "e3b5bc8fc11802592441b3c55b547eef26d9a3daabec26fc81d9c7ca0e8a5b19",
     "id": "nosferatu_shield",
     "stacks": 3
   },
   {
-    "hash": "7b3db5540830b4a8200146c7b16d8ec92168de5902ec2bfd21d0001609459ce6",
+    "hash": "6120657f8cc512167ea3c709c58f6f899c00f02aaa423a4fb071e6f0cd2bea70",
     "id": "nosferatu_shield",
     "stacks": 20
   },
   {
-    "hash": "9bce9774d4b34137d24543fa214a44884ef439681599f51c8ec9b7a38e619e6c",
+    "hash": "da22122ba6e1265292f98562072e39135f7a2ebd7395716e8517f95a8931c2ce",
     "id": "repulsor_payload",
     "stacks": 1
   },
   {
-    "hash": "930ba59be34bbb64ce78673bff458fb6f7443723ba6054d1e8e6033f78ec6e08",
+    "hash": "72a8d4e5e0854f98bb97b13870fea4a31782b3102cd4cde29422d167bd469c04",
     "id": "repulsor_payload",
     "stacks": 3
   },
   {
-    "hash": "25006b153045c52e415301e43f0fa7744b7e084f257fb1ecc4db8c48baa96849",
+    "hash": "c47324d1f2b46181ae2ea4326182925eae84d9f666b7d4a7d466a3b040917de8",
     "id": "repulsor_payload",
     "stacks": 20
   },
   {
-    "hash": "9115875a69b179e600d9fec677d7b70be40c964fa4b1ae250a287dfe1c861963",
+    "hash": "479c2b7c87c7416f0bb80fc1004305556641c29b0a35779413641c9f59336be5",
     "id": "concussion_rounds",
     "stacks": 1
   },
   {
-    "hash": "dbc29c0671ae9aa2f8a80576e5073710b55e6b9634a57ae421f4f00f877ca858",
+    "hash": "43f25295a41418c7d833962d85c5a5d35f53586b8895d87d7431d12756682c69",
     "id": "concussion_rounds",
     "stacks": 3
   },
   {
-    "hash": "6865d49227d43ddae859e30c175d492680b8666e44efd2a7506f154ffc23e8ea",
+    "hash": "7340f853b923cafebad8ab96d8838164db3cab1eb9fd297b643b78e8eca51681",
     "id": "concussion_rounds",
     "stacks": 20
   },
   {
-    "hash": "9ab23236c28ca804b3e91e560330e268f2ac04cf0311f17dfb3f119b725b168e",
+    "hash": "bb810af7ba68b606ee8c7a0618093c596cac39ea829c3d299a17226fc929ae6e",
     "id": "ramming_shields",
     "stacks": 1
   },
   {
-    "hash": "f810b23dc4a0a68dea48195b9dcfdfc7350a2eff433cbdd1e867178df6b1020f",
+    "hash": "7fddcee973c81f053a64baca76c70d76c103a933a7fb76be512e590d9f3ac413",
     "id": "ramming_shields",
     "stacks": 3
   },
   {
-    "hash": "d36c26f0f669bdf27dc5c3f4767fafe1b2afef9004a353950eb1202c2a408f5b",
+    "hash": "ffdba2576d46cd2cb79e60ce4dbbfa96434ffbd58890b02ee881d41fcdcfbf4c",
     "id": "ramming_shields",
     "stacks": 20
   },
   {
-    "hash": "3243e77dad7ea45790e882a556158c4f7c626fa04b8b0c647a6eef4db3bbe456",
+    "hash": "4e0552fcb8a414ae521748677473d269cfd587ef73710990209870c92ff88454",
     "id": "supernova_array",
     "stacks": 1
   },
   {
-    "hash": "05dd1584f1c06527c70dca04e9d217e5fbfe9bb394b08acec0d37ac468f8e08d",
+    "hash": "181d9b2326e27cf1dd270d699b915d657ed1f9caca28b450b3c7514e72042a92",
     "id": "supernova_array",
     "stacks": 3
   },
   {
-    "hash": "23475a918e3ed546b0f33315a7ef0a8ce167f5f0d0b0adbc5982ab4e55ccccfc",
+    "hash": "e3a6e83d980487e97749f9a4349e9de49c6c8498ecd08a5d4f56d431e8a6faaf",
     "id": "supernova_array",
     "stacks": 20
   },
   {
-    "hash": "99bfb1041df02e93197c6a284d72b7e8e068d867627eafd5af401c49271ec6b0",
+    "hash": "4d58d901aeba30aab2005ea9addd25fa7b36d935ebcb40de38db5b58634fa76c",
     "id": "storm_of_one",
     "stacks": 1
   },
   {
-    "hash": "afbcaa38440e2b7edcfad311b4fb0aa8413c08ee1161a58717e366ae0a34e0d7",
+    "hash": "8687590f6fb4f66e3f36f12e8a0a27046176b9a800dca5de7366e45a5f573a04",
     "id": "storm_of_one",
     "stacks": 3
   },
   {
-    "hash": "a02a699bec758b559deee97b9b7afd6a2b9641b07c295dc0031dd7c554ecf426",
+    "hash": "8ef91aac705576ee2bce29554d196ce390a51cef9902299b473da13f84fd9b29",
     "id": "storm_of_one",
     "stacks": 20
   },
   {
-    "hash": "6df9069e891d4607ae7b5e6c7ef46eb3418b0621e7d68210a318ec8677327869",
+    "hash": "defe1401dd87bf804177ea791e8a57e5656f19282bbf01fd848c88fe07f32fb3",
     "id": "horizon_round",
     "stacks": 1
   },
   {
-    "hash": "6e8a155b2f7b19f744c964f602972fb60dbf05274d9a3af52bce61983e5c5e2a",
+    "hash": "70caeb1d6bb7453aa3bd6f547238aac8f3b3e972bd0a88b125d40c12242eda8f",
     "id": "horizon_round",
     "stacks": 3
   },
   {
-    "hash": "1d129f64d009ffa32a308005efeebd0be147ba0f73d096765ff5d9186c2c1560",
+    "hash": "28582b2fdd83975f48f14b38ed35447584a5fd87708c6995501ad95889fecfb8",
     "id": "horizon_round",
     "stacks": 20
   },
   {
-    "hash": "bb912504691784b09a4630cbc78d088f0fe2180e8f06f37431ec8e0816069f3d",
+    "hash": "f20d152f9adcf599e7831f6cb6c5c03b38a6fe7705e8e471c20889ddd88aefe2",
     "id": "impossible_magazine",
     "stacks": 1
   },
   {
-    "hash": "91334a651ed1ccbbc44bbf071a5226d628a51b4d597a5f7cc9dd3837bbc5f45d",
+    "hash": "64cbcbf0f0bf89e75620fbc02e32c758025bba3f138894e6d7b57eb103b035cd",
     "id": "impossible_magazine",
     "stacks": 3
   },
   {
-    "hash": "9c504964236f2fadd9ee0f38c76d28eac7d873fca052a5933fb90306b8a3eccb",
+    "hash": "7ed383f5947ba6a35712c2a376edc9efcab4f677c28c1f7ca5aef8b33a3396b3",
     "id": "impossible_magazine",
     "stacks": 20
   },
   {
-    "hash": "60a1ab57385a9135f6835543f02ee42b530e270d551c6a102bc106b8d182d4f1",
+    "hash": "9ec077c800ca270ddefe4ac9934b953fc9edec4979f43f5225a9f27773f5adcc",
     "id": "annihilator_shell",
     "stacks": 1
   },
   {
-    "hash": "6c9d8a495490e9e77b2c5b4ef98b0fb593320a059a07f889ce03938a3aab10a8",
+    "hash": "32bda79605c1ae122b5cc9af709972233cf54f11d779ba3c3740556b71ca1880",
     "id": "annihilator_shell",
     "stacks": 3
   },
   {
-    "hash": "f8247af538b6a523be16dce3bb4d44c156238458c7eb8f4c4104b80ad27e84d6",
+    "hash": "90d11d02926eac0294dc15989eb8116aa96170c575f5ac8f0080c5dd99a17cc2",
     "id": "annihilator_shell",
     "stacks": 20
   },
   {
-    "hash": "909fa2421d3fce8206bb1b7006ef3eaab0923dde4b792e90b1b7d58099bf72a9",
+    "hash": "b39552eaac25a3a74861e13dddb790bcd47733bdb565cc4216f759786a84f5d9",
     "id": "needle_storm",
     "stacks": 1
   },
   {
-    "hash": "867758361c00f878d8bd93164cef7cf944baae34d132d4926d8a4778751b0523",
+    "hash": "327252721fcb5f920aacfcb12cad5faf68122e2ddbab76346a13c347500e3028",
     "id": "needle_storm",
     "stacks": 3
   },
   {
-    "hash": "41f3b40e4ee7b08fcc0f3a3523179dcadd6172f56b7ca434003ee9b70c263787",
+    "hash": "648fec38bbd1c4c1dea5194afe87bac82d125820fd54e715652c2e8fb30a7863",
     "id": "needle_storm",
     "stacks": 20
   },
   {
-    "hash": "8a5ef021e68d46136ca886dec7f648eb19b9ab49f927ab088706978c44ea9536",
+    "hash": "cb0a0f88da4690c2b5862d32573048e02c0a7495caa708b1cedfa67d308373da",
     "id": "chain_ricochet",
     "stacks": 1
   },
   {
-    "hash": "18fbaf80eb03c450997b383c771c1f96f8933ddff53f286673c85e4db22ace42",
+    "hash": "6a67c274ff71880fa99268c5f1263eb3f1422101053f39bec2290fbe706a7f26",
     "id": "chain_ricochet",
     "stacks": 3
   },
   {
-    "hash": "8db295cb7110f38b8ebb11b35520a7128e2afb65c1602631d1727b9c4d7a5b5b",
+    "hash": "29acf43dfd44703f2a7ab71290b246f72e24911d40b3afe3c181e66ed445767b",
     "id": "chain_ricochet",
     "stacks": 20
   },
   {
-    "hash": "77c3d0a82c0f9322806e330ee06e42c46a97d2dc38b2f2ac9a2a8bd18d0dbae8",
+    "hash": "e4dfaef726f8297e3d400dcdecc1b96139ca9c642fd08e4b4be5a2a0bea4e16d",
     "id": "orbital_rounds",
     "stacks": 1
   },
   {
-    "hash": "9c4ffd3d2e588f0cd77b2d99ecf247c6e1328a6d5475c139d175aaf7f639efd7",
+    "hash": "3fed6866b3185aa0cd2f47db0c0125e2844706dfdd5c9d7ed0e150325fca812e",
     "id": "orbital_rounds",
     "stacks": 3
   },
   {
-    "hash": "3941acd3da7e0ec5318b60b2349a97db4838c1b72b0e09e9a30775671d0d82af",
+    "hash": "844fbb1044b9b565900b3ad66b54398d003913502e76ff65f9c6e73bb0522016",
     "id": "orbital_rounds",
     "stacks": 20
   },
   {
-    "hash": "551436d108d0d1d97e292c6d298f9f82ac5ab8fd6c2d90ecab5a65217fa39a83",
+    "hash": "8979d7d24e3ce459078704eb10656d8a8e85f01d7a492c803b4a692d39bf8aaa",
     "id": "deadeye_calibration",
     "stacks": 1
   },
   {
-    "hash": "9fe4758a26b6c43f24afef909a14c700dbf66c2dd9fe52b6252cd5094802463b",
+    "hash": "9027f3f23838ff3d96cafa5a536b47ebec2b7ba6f86b7d6afaa1e83fe1a2f3e3",
     "id": "deadeye_calibration",
     "stacks": 3
   },
   {
-    "hash": "b3fda81c42b920eeb7ef24b54ce7ebb7c63c8a17ab0dac12b55b0f2ed0025554",
+    "hash": "79e5ef04ac8d2c03cfc2c4cbb85cfcd8b3a22b7152e7e8e035fd42bfbe91cc84",
     "id": "deadeye_calibration",
     "stacks": 20
   },
   {
-    "hash": "4ab64ef2bd72b98cd4a6bee5809c17d7509526b6fad231cb44b84b704ba97e40",
+    "hash": "779e8e8c78dd93f7212c01abb96255b3bf2f18cf09ee0b9bc66b05c3b7589e1b",
     "id": "sustained_barrage",
     "stacks": 1
   },
   {
-    "hash": "111edf1ba60a614c5b7d6dfd7aff6ae291b079181e4d4fc49f3d8c430d39ef02",
+    "hash": "65c5d271fd465d4bab922fa0602788363d540e3df6d4933ac86261a1fa34979e",
     "id": "sustained_barrage",
     "stacks": 3
   },
   {
-    "hash": "11810da509ca7d631cb2e69b35aa5c2c8c978b889a8ce322351d4e1033047ff6",
+    "hash": "0654b648f1ad68fbfbf5e85d171c7597a93bdc405a7ffee224436e0c15168e9c",
     "id": "sustained_barrage",
     "stacks": 20
   },
   {
-    "hash": "8741e941dd593402ec2149e9b36351536a0e6f7feba1a492e558247a14e22128",
+    "hash": "9028c9c651f19d707a10533dbb5eae473d3c930052adf503117a6b562a1e1a51",
     "id": "overpressure_chamber",
     "stacks": 1
   },
   {
-    "hash": "ec3411a3307e6c1a57d165d696a67b10586e9d3ef67adbddb0d769f7f0ce89e9",
+    "hash": "bf94663f6c1f8211f8fa71fdeb593fc56382ec444d6284a722fee837fd7cd89d",
     "id": "overpressure_chamber",
     "stacks": 3
   },
   {
-    "hash": "a871522be9d87e3d3f51bc190f1494f9c28a1c603ba30fb85ec8e0464b9bb3b6",
+    "hash": "c18a1f74553623644af283f70bcea84668aba5ec72c6d5b2d7905835c40a5b46",
     "id": "overpressure_chamber",
     "stacks": 20
   },
   {
-    "hash": "fae7828b2e06398dffd49dfadcea08df41cc78812d6bf44bae1de2ed5126bc00",
+    "hash": "f00dc7245bf7e9c760dbd002097af8a70c16c1101d3c1322a352bd1d08f2809f",
     "id": "flechette_payload",
     "stacks": 1
   },
   {
-    "hash": "4b77539ddfa5c182ec5de83c570992f58ba41882311fa2bedb788aa36c836285",
+    "hash": "e85ddb3381bf5d30383eea60e8945a9274d0ec2aae17cf9487589b77f342d457",
     "id": "flechette_payload",
     "stacks": 3
   },
   {
-    "hash": "051a1b2d4ffc6fc0004a13feade407fd858199c9c76f25f3961e78e34ab51ff8",
+    "hash": "feb4fdacaaa2d4b14a2a5f82d583e76aa2b76d5f9a89b917bb426088aa0e42f2",
     "id": "flechette_payload",
     "stacks": 20
   },
   {
-    "hash": "cf861a157ed1c5058953d375c9680494b34e9040cef66dc80e2dbbcef4f61e20",
+    "hash": "8e66d904a3d87372ccca4bcfa45263885a78160b1c656fcd774d3e26dd6eb83c",
     "id": "bank_shot",
     "stacks": 1
   },
   {
-    "hash": "b46500ad515d4f59b992d088b4185fa2ee67edd9bfc3544f85f974272c51d713",
+    "hash": "51e40da8dff9f9cfeb5977649b7f0d94ceb13fea013d2cc48ad9e8de94b3157d",
     "id": "bank_shot",
     "stacks": 3
   },
   {
-    "hash": "344dc8abd05e17ec821612552d850c028f9083ee4a5cf4d60978f55896b06720",
+    "hash": "084799e8bfc0a8b40cabf9b4ed093752e00bd9cc9baca24faf5e7080b6d0c016",
     "id": "bank_shot",
     "stacks": 20
   },
   {
-    "hash": "38ba951800eefbf62947f5002fffa100d74bf9433376effd88145f329ecaebd9",
+    "hash": "81b41d57037fa6837ff23e17655dba67a88740b9dc9ff2a389f401f293d2d829",
     "id": "impact_lens",
     "stacks": 1
   },
   {
-    "hash": "6d9122f327b7f6e77ec051d55ed92236dc45842ad452bcc69abcbeb94009e877",
+    "hash": "f01563f7b3ad8ab67e90469470921514d80c68c28ab3898c9eb6ade8f2df53de",
     "id": "impact_lens",
     "stacks": 3
   },
   {
-    "hash": "2ef7ac1aa0bd446d63e4fe696a8d6ca5ab4fd7762a5cd3174b913d7b1af0b67a",
+    "hash": "4e0ffa08915d176c4d46f68dc18b9e6aaf8393f84a9692a6ef8d633e98b34237",
     "id": "impact_lens",
     "stacks": 20
   },
   {
-    "hash": "8eb443db28edaee96d6b208ef66b04b6dfcd564f73bfa70ebda31a3b08800806",
+    "hash": "c8a05d7f26854ff41b9e4bcb894d9ddaa85904454ed72fddf119b08c212b49b8",
     "id": "rangefinder",
     "stacks": 1
   },
   {
-    "hash": "4c4b37e0fb4195c657566f39b8799a0c04b7a35382533b12911d69ab73926f5d",
+    "hash": "8d4f360a344484335658aa52bc3945daaaccf0141bedd89657f7ad79dece975c",
     "id": "rangefinder",
     "stacks": 3
   },
   {
-    "hash": "16b3f33240f52b4dc81aba21aa1014e311eb3c252f9f1743c930233980521769",
+    "hash": "d6d9ae8f3c59415ed96fbb83fd827a734d5c7ab4bec5a175f3f078c5a09b37cf",
     "id": "rangefinder",
     "stacks": 20
   },
   {
-    "hash": "7ac6af13ed74ba735c34c9e70739cbb64cf5abaf1915a9761848503f6ea2a8ed",
+    "hash": "d218f8c9c5462a409538dd62c4708698dc3629f0d13a0e4279ac3f93d88eb6d4",
     "id": "hot_load",
     "stacks": 1
   },
   {
-    "hash": "b22d72a7fb1d707d1f96a6a199b1f0127a4fcc8095c82e78ca96ccb7d91c3d7e",
+    "hash": "b02b57381c0ea18355e5407c59f7d7ab27563f3b45ca0b722ba58d624561e892",
     "id": "hot_load",
     "stacks": 3
   },
   {
-    "hash": "71895d9d357cc450c57aee889484cd60c39791c04f6571462d294d8b08ba10ca",
+    "hash": "49262e97297062157d056d6837186381c63f15b5e53f523de5476ba3cdc88a97",
     "id": "hot_load",
     "stacks": 20
   },
   {
-    "hash": "6f83127836b7cb11b8fdc9219aaeb88916519d391803d7cf3183d4d2e4969e34",
+    "hash": "cf5ce30d487ca6709276dcd431df26c0f2fabc7465f765623ad6be067234e668",
     "id": "drum_spring",
     "stacks": 1
   },
   {
-    "hash": "fb4c79fa498089a02bd4049cb12c8765a0266779c0399cd3af608b3a6b51f524",
+    "hash": "edc56f5e74947d6748f6ccad2409203bdcb4d9cdf42c5b80f08dcec3e02e623e",
     "id": "drum_spring",
     "stacks": 3
   },
   {
-    "hash": "4c44418cc30d703a9b5d91c2623d60bc0ac78c4531045113723f3ae87ace9246",
+    "hash": "df473a300a18c63d22b3011002b5c5ce8fb14f2422aefdc8e9f5b744131be97c",
     "id": "drum_spring",
     "stacks": 20
   },
   {
-    "hash": "eb64ac8a15fe3a68081a585651ba489253b803ff44a9d4b92082de0d58c4c8d1",
+    "hash": "b0c6a738b4454163c7033735e0c50e92a150ae9bcc202ec74b50996c75b7dcbc",
     "id": "tight_bore",
     "stacks": 1
   },
   {
-    "hash": "eb64ac8a15fe3a68081a585651ba489253b803ff44a9d4b92082de0d58c4c8d1",
+    "hash": "b0c6a738b4454163c7033735e0c50e92a150ae9bcc202ec74b50996c75b7dcbc",
     "id": "tight_bore",
     "stacks": 3
   },
   {
-    "hash": "eb64ac8a15fe3a68081a585651ba489253b803ff44a9d4b92082de0d58c4c8d1",
+    "hash": "b0c6a738b4454163c7033735e0c50e92a150ae9bcc202ec74b50996c75b7dcbc",
     "id": "tight_bore",
     "stacks": 20
   },
   {
-    "hash": "cf766c923ba9cdc4788c4f305a2d450c391669c71895e0a00cfff1debfb4cdd0",
+    "hash": "d9e7a6edf549ff1912414f3d520c915d444d60fb1fd474ce30c62273173f1fc1",
     "id": "short_fuse_payload",
     "stacks": 1
   },
   {
-    "hash": "c7960d32d054fe25a3c0a9d1f1d03c1ae6d4653144e3f1ecb0cfa31293413b2d",
+    "hash": "cf93003c8b058c2a0b3acba800447fb0dbfedfd3939ae0780a47e960bc1f18be",
     "id": "short_fuse_payload",
     "stacks": 3
   },
   {
-    "hash": "6f426fa9f141a5eb5bde9614620c6ce2951e6a8afb077711739f1b179baceabb",
+    "hash": "2990b99931762029d03506a2f1ad622355d2665632a596dfb116d7dffe17841f",
     "id": "short_fuse_payload",
     "stacks": 20
   },
   {
-    "hash": "df72b0b7c928b503ac35738e501643cd1ce6f97c0de9946a0b70d5ea511cb06f",
+    "hash": "10ffc2750ba89a6552330334cd0667c7e4b1adb25e1b814f3152dfdf0f74f445",
     "id": "long_fuse_rounds",
     "stacks": 1
   },
   {
-    "hash": "8b102a4860d9d86f90c8b06e8f32db49a1eab130b980db4743eca5d2f043db52",
+    "hash": "cdc9bd1709c6f7bbd54c102dc6fd77cd336c17c05c5e17757f73173e99ecd88e",
     "id": "long_fuse_rounds",
     "stacks": 3
   },
   {
-    "hash": "2a5a3deedc89061d17e78dc63f65f67cc2cefda12f41433ffa95fb5db7c050a0",
+    "hash": "0c9cd8a40f0e846cd7e258e86df0ffc215477f8aad8bf880d883715c74a8fa14",
     "id": "long_fuse_rounds",
     "stacks": 20
   },
   {
-    "hash": "0e346fb1c452fa67a8b13fcf98fdf8f58a70bb021458143912b59657806ab323",
+    "hash": "401636ada3590614bb213b4053eea8a0a405204ea48fa549d558e6cf95a9a6ee",
     "id": "worldbreaker_prow",
     "stacks": 1
   },
   {
-    "hash": "8d447c8c316d72f149a4ab92c2affc1ce7c176df5c3afc34de35bf5b7afd7e73",
+    "hash": "01241f2f913beec97a09a0d68fe8eb6cf485fe4b574057a003435e9dcde55289",
     "id": "worldbreaker_prow",
     "stacks": 3
   },
   {
-    "hash": "3333d377a61e6a728fef1d08138ac99ca6102712e84f6d2aca1902e34c9501ec",
+    "hash": "fc6eb55fd3dc2303ae89626f1ed20c22cfc9f83e048689113f26387d3267fb3a",
     "id": "worldbreaker_prow",
     "stacks": 20
   },
   {
-    "hash": "cbbb2639ea3c698d1cb2dd789d8f86f45c4c4d3a97dbdc5bf8555b2524b31736",
+    "hash": "bf26f56da04ee3f20b1e376e93d50ba915777d07f207aacc35f2285ca86bb87e",
     "id": "sundering_aegis",
     "stacks": 1
   },
   {
-    "hash": "246c81cbf39eccc32fa4353baf85f2b8b2961a721bb0998dca17aebbf31bc9e1",
+    "hash": "16e7ecd56ef6aa858abed272b343ea92a510c7a1290d8ef680034376a5b85df5",
     "id": "sundering_aegis",
     "stacks": 3
   },
   {
-    "hash": "6bceb8d51ececdc0f0e24d2dcfb8a4e1909d8afc1dc6d5a81df7018b0ed47796",
+    "hash": "c796c75195f47df3771d1cae47894ebc8ad2fcafe2a0f51c08d0742b2b3b1591",
     "id": "sundering_aegis",
     "stacks": 20
   },
   {
-    "hash": "da23ad345bf6cec282e10b7920d0b952ff57e65123ebbc410c3700560da04fd7",
+    "hash": "e6a0c266c1a42dc025541570670c81adbb5050835c71a6d4054e224dbe546244",
     "id": "breach_vector",
     "stacks": 1
   },
   {
-    "hash": "819de73aada6837175850eab9fc19f78f66523b45e97901ffcb5bea2d4e3af31",
+    "hash": "dafb0256f8984d9c1f523afc49b83c6dac8b38f139e06c49397d8f46b7f3ca86",
     "id": "breach_vector",
     "stacks": 3
   },
   {
-    "hash": "348cc40a7079a58297fca4088e8b48fdb64fa4e49d29ae1cac19ec2fef8ccc77",
+    "hash": "6573adb400da260aac258df0241ffe18ff02caaf4702448a31cf620dd9eeb7a2",
     "id": "breach_vector",
     "stacks": 20
   },
   {
-    "hash": "3c902721df6ae56f8292ab5b548c77c1b210e53a9884ccd6162a9652ccbadb8a",
+    "hash": "a5d40d62f468552c31558e05d9373b78846964a9c9773de853b35e2a849cb209",
     "id": "impact_capacitor",
     "stacks": 1
   },
   {
-    "hash": "a26d138d39e081a968532808962ff85dc409a2d1ddb88e333f61dc4a8191a1d3",
+    "hash": "086966b689b3d01e770bc4c36b6ce2e517198fda9238ef8aaf4e4c7c3c0aaf7d",
     "id": "impact_capacitor",
     "stacks": 3
   },
   {
-    "hash": "9a17a9496d021164f59464e636bac24838b2d5faea9e384fde36d85d7765683e",
+    "hash": "1fc5850381f61a7f6c3cdaf56479e2a6e4f227dc6d123d7d3409f91a17e1df14",
     "id": "impact_capacitor",
     "stacks": 20
   },
   {
-    "hash": "3cda349536b202f6d092981182c9593917ac771d0751df7b2b1d9009b187feeb",
+    "hash": "5da35d9752cc3ca7797a47ab262e2b3f5a8146e531309edff631dac7d283e87f",
     "id": "kinetic_prow",
     "stacks": 1
   },
   {
-    "hash": "b9b7688e814584c040eec49d831926d9c0e25b40de64c3870e461f824122e58d",
+    "hash": "8b3eb163b6cf9eea208686fb0d0de77232985d1cd8ad6fe4d7c3fe29c1abe87a",
     "id": "kinetic_prow",
     "stacks": 3
   },
   {
-    "hash": "4691c9df649a448f1d44a6ad387965efbb595a8a90104808caffe430323a48e7",
+    "hash": "a09fb52b542dd2600e933084f3385476574bdd32cc2f4fa176456ebd422c728a",
     "id": "kinetic_prow",
     "stacks": 20
   },
   {
-    "hash": "76227eebdb8a41ad8354d176de4c25cdd87944cc23438165356d386db333cdcd",
+    "hash": "d0daf85b63a12117f1aeb71bf27b33060fe7e957618b586448c05d1de4910a3f",
     "id": "absolute_barrier",
     "stacks": 1
   },
   {
-    "hash": "33fcc644f17e021098592f98c80dd9f1b1259e0c6d8f29942741731e1831d7c0",
+    "hash": "f01f324f7276290e8a90449b045120250666cadaa0ee8c6ae0d0a50218e3f278",
     "id": "absolute_barrier",
     "stacks": 3
   },
   {
-    "hash": "149c19f611622c5a238339ad9f01d08d711027126b20bf311bf248bb861e1cb8",
+    "hash": "db79cd04ec58a52270d6b63ed3bf1e2372f159343a4025ca5d4c8e753c4f60b5",
     "id": "absolute_barrier",
     "stacks": 20
   },
   {
-    "hash": "6bb7527a78914c184b1ae3814fb42df28c60f5551891395f52e29d64b2fe1703",
+    "hash": "c5f5f5722b64ab86d76e565a0760a6265386752e8aa956f5efe56fee1538be2e",
     "id": "instant_recovery",
     "stacks": 1
   },
   {
-    "hash": "b4e52078a8fcab2bd174cfcf7f8dfdfc6056a393d70faea20f29ddfb111430e1",
+    "hash": "71b5ffc3c084a05ff46dcac6f18e232e88477957e0f754ec37b213256ff99c93",
     "id": "instant_recovery",
     "stacks": 3
   },
   {
-    "hash": "7a2462349cb55165c726182df5832f413e5320a8b856868114550fc2fad6e092",
+    "hash": "b4e7d7e8b8991e31510b0ae736338cc00e8bca1501fbc810bfef879359318d3e",
     "id": "instant_recovery",
     "stacks": 20
   },
   {
-    "hash": "7f565b7c250641b14ad5366a2356cfb537f826a11bf5488f313d85fe4030ab44",
+    "hash": "bcffb0fdcaff0e462e6048a69150fb38a67f15d6c763197d8818bdc62ed96356",
     "id": "inviolable_front",
     "stacks": 1
   },
   {
-    "hash": "f280a87cb310ef991050cc5f6ca5b3e341a01ec54e86288f2258f7ad7e1a92a2",
+    "hash": "4eae436f40e0b3f222994011948515f645180e5691a14fdfe237dfa2ef55f5da",
     "id": "inviolable_front",
     "stacks": 3
   },
   {
-    "hash": "b98e83a83011111509be89fb5da4950c321db87565342cf656e092efd77f712b",
+    "hash": "05c101aab685b7c74ae0051e5f003cbde3fa07222fb221ee0b31859bfef5717d",
     "id": "inviolable_front",
     "stacks": 20
   },
   {
-    "hash": "284a189bb6417a94ac42089647a483a635d31f572bbf7b605a599c03edc6a5ea",
+    "hash": "9cbe71cc54994100c73ad9599b5a6d49ac3237b4480f68878d79738684736ebd",
     "id": "perpetual_field",
     "stacks": 1
   },
   {
-    "hash": "73a6bab31f14569abbfdd156881cbbfbd6183c63431498ba216212a0e3fc6f2b",
+    "hash": "193bea8fc3d0ffe2d359dc0d71680af5bf9aff7f5fc86a8b42cc44f1c5e35704",
     "id": "perpetual_field",
     "stacks": 3
   },
   {
-    "hash": "f0784b329db703e56270493bdcb5c9d58e72c2cec986c91e78e6c26c35b1a17b",
+    "hash": "dbb36bd1563ad76ab722fa60b51504ced146f27709aa49d6108e26c6a78c8d30",
     "id": "perpetual_field",
     "stacks": 20
   },
   {
-    "hash": "6fd60089ad1530e29e60e4d003a0d8e434c16e8a411d9450d6de94110afee629",
+    "hash": "9803c449b49fe11ba9e0e4f43e09ed961accc907aaa1d0eb691ae7b9529c45dc",
     "id": "stellar_aegis",
     "stacks": 1
   },
   {
-    "hash": "796fdd1627b20ea3dffa8b99acece878851802900f778480cb89587cdd39158c",
+    "hash": "8fbdf59d5d395b158b22ed7e3d8f3833c1cab7719fd9450b1c3e7047f3f69f8d",
     "id": "stellar_aegis",
     "stacks": 3
   },
   {
-    "hash": "7635d8d69949f963a19c0f032fa3e9b8b7196cdf477318f25161bd135f1d6239",
+    "hash": "816f90f7980eb233eb36af2413677b5176ed3aba0a418f1cb468e81c7a006e1a",
     "id": "stellar_aegis",
     "stacks": 20
   },
   {
-    "hash": "cf9365450ca6eee62e16ab376055b0295cafe88d7ab9f2e406e01fbafa2c3c4e",
+    "hash": "776dc46bbff6bc92883f36b5e191d404c40cf2d2b7d3999cdda91fa3b1495694",
     "id": "second_wind",
     "stacks": 1
   },
   {
-    "hash": "122d5dec398bc2e6c82fb7ed65d885b560a8943aa84df90cae44192a3c942352",
+    "hash": "d152fed888413d0cc04731a04444603386950a1805633e821c5c8ece1b6d1828",
     "id": "second_wind",
     "stacks": 3
   },
   {
-    "hash": "7bd9dcd959517887996c646d9ac88597c003f084f42e51dbb81bdde6709d6de4",
+    "hash": "f2c4a56aa8b2edbdc8e217d80f43dec905cae67dfd373a70f3287e7c88eef596",
     "id": "second_wind",
     "stacks": 20
   },
   {
-    "hash": "17c243c6b1e2c1538346dccac8ead0ecd7b155531efaeb3a346705975012bff7",
+    "hash": "7dea9fb3838e5c525d88a420b2066759729093b673f996a2573bad64eac7384a",
     "id": "cascade_barrier",
     "stacks": 1
   },
   {
-    "hash": "2c304d46563b04189ea206d291d01e9911a6b66065b38c7159aa017cffd9d92a",
+    "hash": "414dde392e32d481817a34bf3fa70c0229aad56a94a3bafbd0867cdf3093c60f",
     "id": "cascade_barrier",
     "stacks": 3
   },
   {
-    "hash": "fd60fd1e26b2d721094490259c01044465185c7130b252f709a9a7f6847307f1",
+    "hash": "5cafbe152fd4ef0d3fab0339314f7ee6182ba32d7ce43a4dcae57053c2678201",
     "id": "cascade_barrier",
     "stacks": 20
   },
   {
-    "hash": "d96f4d84ea19d0df6294c2d06ee065d67c4271c29a7a85bfc8d7a51873e57e6e",
+    "hash": "98456cf6c7a3c3e8ecaba1736e08cef8dcab3f7a9a1d873647f8ee4f5792ac44",
     "id": "vacuum_insulation",
     "stacks": 1
   },
   {
-    "hash": "c1cd064e45fa647cdc76cb475822eebd5e2a2688cbd3e1cd959a69b5baa99299",
+    "hash": "630d807364febd92dd818f5ea3cd1356975f91f1d3d5f06698f198a114dbbdc2",
     "id": "vacuum_insulation",
     "stacks": 3
   },
   {
-    "hash": "310a70a683bf0079b8f8ee95ad447ed78ceb9e702fbae87876364e9c89e71d4e",
+    "hash": "3346e53b7e7392dd0b5089d60b5fb40ec7044f06463d130646389b0ff6f45370",
     "id": "vacuum_insulation",
     "stacks": 20
   },
   {
-    "hash": "4206105ad25a7a690eff895822ff5acf15e6921ba16365e6a6ddfcfc4d755871",
+    "hash": "90d7223ebce6318e6c1e1f6a103f3dd7540a7fc989ae5ccc9822ae6556f3cf57",
     "id": "mobile_bulwark",
     "stacks": 1
   },
   {
-    "hash": "09ffe11828b0a446e49a57e57a7ca9df8f281706e7dcb3dc22132bb6980be2ae",
+    "hash": "db8403178fd6d6c11067d6a22e3b686454af3e8c70a78f17b2837857670fe2da",
     "id": "mobile_bulwark",
     "stacks": 3
   },
   {
-    "hash": "bdb0d28acbc357a29aa692471e522ebf1a1ac95b36c57c9408175f9d448459f8",
+    "hash": "e558bd0a4f5993a08b55c7d7d3de20c2f51601b8ca64cbaf353664b925ffbfab",
     "id": "mobile_bulwark",
     "stacks": 20
   },
   {
-    "hash": "92c7c3a836bec91371efdbc152870aa1d87a0ada86cd4fcf95f96ff775861fd2",
+    "hash": "4b310a092f7c8292e72c17042155b152c452c92062b550a8b1d022e79bb7f56a",
     "id": "duelist_aegis",
     "stacks": 1
   },
   {
-    "hash": "5de1333af867d28280db95a42aa64586fa2882021e8948388693d9f3afa39d3b",
+    "hash": "a73410bd97355bcc2f9bb83d21ccca85d6e76e41cfd4afd03c536b6ed93645b3",
     "id": "duelist_aegis",
     "stacks": 3
   },
   {
-    "hash": "77faf11d3879a9bbffaae2b5ba23cc3f8e8cdc8bb6fb82df0c2469f392e6a1a4",
+    "hash": "5c20d029235f3a2166428e7b078e7b06d5d5f2ce36973f0716771d555c96c701",
     "id": "duelist_aegis",
     "stacks": 20
   },
   {
-    "hash": "fb5d6fe9ecbfd85eea9e3be0fa1c0b57ebc047222a0f076bf3fa7383397744e7",
+    "hash": "f37a046f728a1f16f2dad5c4197da1d9c019addc581c934d209b86d179f9e3e2",
     "id": "resilient_grid",
     "stacks": 1
   },
   {
-    "hash": "91931c7080586e2a2626323239ecb37d2d0a327d85c400c212e9821e45573e7c",
+    "hash": "b9987489cd97b49b99e6031117148be1b8d13cb9dd8ec7e7a931343724dd35d2",
     "id": "resilient_grid",
     "stacks": 3
   },
   {
-    "hash": "a4c502e9d524d1b1ea86783c2c9acb276f10ed07368bce313babdd422959f49c",
+    "hash": "286ee5dc269f2fb023c53c221233baa66f09771aed05ee6a662d5c62b184772a",
     "id": "resilient_grid",
     "stacks": 20
   },
   {
-    "hash": "ae5e7d65a212b5e72f95580bf61e0e40f15bfced831d020e6d44ad758eed7341",
+    "hash": "2b85d991c3f0bbdd28ac766d98bdf2ffa0a348eb6ca2fba031dbaab5ff44805b",
     "id": "flash_recharger",
     "stacks": 1
   },
   {
-    "hash": "3464049557e8cdf8f934249e02bd3e10f5a7fd6edeaa8b58836069367e68c172",
+    "hash": "3e16f093b8ca8465f8bb8bb51ab591a286a2486fab3ac9446d7fd7f54b12801e",
     "id": "flash_recharger",
     "stacks": 3
   },
   {
-    "hash": "5218eb19921ee9da56640f7455d4b9792ddb2b00306f307c534338b7e4e3524d",
+    "hash": "491a9c97cc8f981931dca79c3cf44fb4bf72f1a3acbcb5cb0cfb9390838eac05",
     "id": "flash_recharger",
     "stacks": 20
   },
   {
-    "hash": "8c8628bdcaf94416851e8e3ac50f8c07db332ba23029096c33d40ef48ac20dec",
+    "hash": "2bed3de9066cb05ac4122911091cf550984d922452d850cb024d914697918705",
     "id": "deep_reserves",
     "stacks": 1
   },
   {
-    "hash": "78a7c54225b77e1ab45d97d91bc47bc6d21c038ab0b91d5673d97f14b189f677",
+    "hash": "5c13c51c693d6f6998bfe58f94bae2b5d11b053b44aaab728fbcf9e4752bd344",
     "id": "deep_reserves",
     "stacks": 3
   },
   {
-    "hash": "79aaf1b28b23b44d19f07d023ca4792d99fdac56bb7106432f78cbae2618f72c",
+    "hash": "4b1916b6364f8e4c54f87f402e96445875f23ff9108908c40c7e1914e2f694f0",
     "id": "deep_reserves",
     "stacks": 20
   },
   {
-    "hash": "496f7d76672649ea5cc1854f78b8da009a669c39b4b4225d6079eee68a25a710",
+    "hash": "355507e140f736cffa1a5cb3e852bfc1dc021098510fd763a44cf1a4bbb0c922",
     "id": "broadside_field",
     "stacks": 1
   },
   {
-    "hash": "18baccd0896777cd14d455cfb61bbcad84488b5e271e2650a8e3fcbeeed61606",
+    "hash": "0d78a5ce2808aa6ddf818d465d3b7d98f5cf7302160e96ddaca0db2bc677c7bf",
     "id": "broadside_field",
     "stacks": 3
   },
   {
-    "hash": "043d2d23680140d4810c28c8a0dfac45c5316782bcdbff72da82ca47aaa53138",
+    "hash": "1a5ff5df61eb9895843207422496da1bad36533a5bb5812c0599a68a09d044c9",
     "id": "broadside_field",
     "stacks": 20
   },
   {
-    "hash": "3bc17db86dbe4f14a6d96efd0da67a2260c37bcbc75e55ee848a0c7291a34832",
+    "hash": "3b792affc66953644bc3f7a2ef63bb64ac88b48d7677407897bfdff06a276eeb",
     "id": "pursuit_screen",
     "stacks": 1
   },
   {
-    "hash": "e7c690e13fa98da06470d2d1ff1e4af5647bee0d9c5d70c4a74e03d2b55a740e",
+    "hash": "331556996ba070f06cb7d706842bc08ebeab937f41f203a8705f7f00a60d574f",
     "id": "pursuit_screen",
     "stacks": 3
   },
   {
-    "hash": "78a0fa7080ae7a35b308b4c351d4b3b5db1fbc93a0a1fc2317274b666b9f3ae0",
+    "hash": "0b92d6365d94ad2c15d60490843a2874a13174fcc928685e8677f8c16ef4b1da",
     "id": "pursuit_screen",
     "stacks": 20
   },
   {
-    "hash": "6909128cf67afab599617939c6ca82aae5603fb47622e305e7c339d5727fd448",
+    "hash": "f19d758849aa21b6e2bcf03ce9f43788d3e1187ae32fb13d2a20fedaeb26880b",
     "id": "kinetic_converter",
     "stacks": 1
   },
   {
-    "hash": "7abb7148d1805e2671dcc22dc8c110630d8bfe12aa920d401ce69482c1f49842",
+    "hash": "68839ae5499d34d9e05cb7dcb7b7abed1b18f85f77287d51984768cbd8a45afa",
     "id": "kinetic_converter",
     "stacks": 3
   },
   {
-    "hash": "001dba888d599daba1908ecd56aa177e1b6c9e459e5b6a917cfa87329a8a0fde",
+    "hash": "04a211625364325a4e296a695a40b7e594f0fed5eacc3b44ed261b6680e585df",
     "id": "kinetic_converter",
     "stacks": 20
   },
   {
-    "hash": "a067a6afd9007832a032962c7dd75b3147ad7562a2996e0cff4c060467fd9eb1",
+    "hash": "985a7726664b31b5fc8c419960cf73bfa5bec063001dd4e1aa95f808d4c0bcfc",
     "id": "recovery_switch",
     "stacks": 1
   },
   {
-    "hash": "7af9a6f9927b1bee6bf0cb37b61a33928b12fa5d073b63dcc32fbd31226c0605",
+    "hash": "b8aee67dd3e43e90841f17d250738a8298a6f545fb73db32eb908323cde23b99",
     "id": "recovery_switch",
     "stacks": 3
   },
   {
-    "hash": "9df752a0c2c26795b752d1b0f0622835f0285919c8813b7203b213191c7a38a5",
+    "hash": "c5d8e901f444d260106e6695720da9a24d79cb67f016b86152bad8e90a111879",
     "id": "recovery_switch",
     "stacks": 20
   },
   {
-    "hash": "438b75d5e62f43d9798cb767335832654fa2ba5797b59667efd54fa7452d5631",
+    "hash": "9810289ab9192e02811b5c24f1436be4a322255f08ad50cf7314676d1f6630e7",
     "id": "compact_deflector",
     "stacks": 1
   },
   {
-    "hash": "c2f5af62200b84ca916d9dbf3b885ed6f2c9352a0a0292cc3071ad495a99145e",
+    "hash": "7157c081d3c6756c9dc80d981f06010a117c19666acf3545b304e94bea59eac7",
     "id": "compact_deflector",
     "stacks": 3
   },
   {
-    "hash": "e1bf6800fdd07f3a182db5c4be50c60cf150e627346f49cacb6f62ec1c1c816f",
+    "hash": "934b9fcf24e5a3e85981db1eb905fca65bd9cc41f75d956bf78ed23616035569",
     "id": "compact_deflector",
     "stacks": 20
   },
   {
-    "hash": "277788191988876ba73c23b53e6bea326f7cc16f37bc7769007e78f88343a9fb",
+    "hash": "abec07dc9a9840cc82de7a2aae46305fae44c71602d23c5dd612aac75d8f8775",
     "id": "low_loss_coils",
     "stacks": 1
   },
   {
-    "hash": "cbda46a1e1fff363e79ce58037bec259a0921344709d176ade35ad861e41781c",
+    "hash": "7c41e9e55653dedae2d81f9ab9bd1410350b6d10d2cca9c2e13327107f91accd",
     "id": "low_loss_coils",
     "stacks": 3
   },
   {
-    "hash": "1d4191681f759eb6a2d8a7c087363e3beb8ea4645939739197e63365d5227e4a",
+    "hash": "405f1799d29c74f9b47a692d92eba02cf10596a158f307376ba2e33ce1d10a0d",
     "id": "low_loss_coils",
     "stacks": 20
   },
   {
-    "hash": "87d7acfb61a8bdce7c0bd0091f83cddacc741000e007a9790c777fbb1326fae2",
+    "hash": "f13fdd774fede49192791965aaf4fd82b5e0e9b0838c36a54b5edb1e52a00295",
     "id": "pulse_capacitor",
     "stacks": 1
   },
   {
-    "hash": "9ed6ccabd1b78b672c7e77b30585837a0f20d9afe2e543e5a3d4c0192a11b1b7",
+    "hash": "960e467c2537c426ca2df5af2da5d8f776b5b8074cf3a0a2d9159019c1b4404d",
     "id": "pulse_capacitor",
     "stacks": 3
   },
   {
-    "hash": "8c054fc81c832b57f67070d1a739b8885ebd7138570b392d81b952bd6b8ae599",
+    "hash": "e2af6c1e379b0331fd6724d9b5f9cb6f58047c2e8ad22bfeb8d27f3d25f85c6c",
     "id": "pulse_capacitor",
     "stacks": 20
   },
   {
-    "hash": "e5ef2703b8f74465dd79128bcbed02f063559927891b766b7347ea5efb4aeb6b",
+    "hash": "65fa2521556fdf8699847861119473328c9170c9ec71f34b61149e3d7fbd5d5c",
     "id": "transcendent_chassis",
     "stacks": 1
   },
   {
-    "hash": "980a29ec943afaff48c1b97f6e85d035b6397cd27b9e0ea3f3a0020f09e151bc",
+    "hash": "32afdaaefa1c4718f846c4ab35bbc987aec41e69350e63fb8543237546ede48e",
     "id": "transcendent_chassis",
     "stacks": 3
   },
   {
-    "hash": "a354777cd32edb29cbcd1a95d850c7f1da189a898de16315b71a2f0c96e76f0c",
+    "hash": "bcebd34d5045945456a5d2569a70cd5f6280327252a09814e73aed5c423d3342",
     "id": "transcendent_chassis",
     "stacks": 20
   },
   {
-    "hash": "d3fd5a07497b321203fbe91bccc874f1ec087a3e08bc9400ee90815e7129a40e",
+    "hash": "1f26b350783e64282f11e1db6a02e1b222552699df0705359cbebeca51416d19",
     "id": "ouroboros_hull",
     "stacks": 1
   },
   {
-    "hash": "981ef254d32f48674375c82a84f7cf22cf4072b5b4e0459a7e038f6b79ca4364",
+    "hash": "eeaf24dc5e46f47ab05f2e0ef1da0335dc51db8faabe7b3f6be1df93358f645d",
     "id": "ouroboros_hull",
     "stacks": 3
   },
   {
-    "hash": "9fe727f299bb965037fe05157bf1cd277682fae638089fe35c5cf9c46c39ec9f",
+    "hash": "e9111c31ea29bfc6c8c4eb8b0f6389de82bcc6d52dba84d91a7e09dd0e098d54",
     "id": "ouroboros_hull",
     "stacks": 20
   },
   {
-    "hash": "ae4b8cc66f1bae2f49f70d5c8f94fe8ea159b558dd887e24bd153de9995e0572",
+    "hash": "e6eca205e0aefcf466e4958900aeca8dcc52499d03315bc11a14810b1a2e4ae9",
     "id": "lightspeed_frame",
     "stacks": 1
   },
   {
-    "hash": "29e2e59daef9eefd689744ae6347e3b13ee2758d5c29c666ec4fdbde76c74cd5",
+    "hash": "8d46e59fba668d019833d7db7a9354d9663539153f568fbab63930d0de7b8dd6",
     "id": "lightspeed_frame",
     "stacks": 3
   },
   {
-    "hash": "778ced2a5229b37cb5389fc0c68abb6fc9dbd0620e8998f614c7cdd7ed2fdd65",
+    "hash": "63602491ab4984dd62a0bedc91d866af50bf5534f236eeec06b1b6ea84bd29b9",
     "id": "lightspeed_frame",
     "stacks": 20
   },
   {
-    "hash": "3029e36e6b54ccd91e59a61dd6aa2447bc117bbb73d3b189eb0549337210124a",
+    "hash": "f4f2cf41a2a489ed34b051bb97ac5bddeb0ce233950c882e9eb9aad16ce6867f",
     "id": "immortal_lattice",
     "stacks": 1
   },
   {
-    "hash": "40fead621d2f4961f7c9cdd917aa72f9f7c0456729fa48a859191afee3457990",
+    "hash": "097e87efed477d8f774e9eaceb753a0c08d0eb24b04dcdeec89844e22b781e15",
     "id": "immortal_lattice",
     "stacks": 3
   },
   {
-    "hash": "d48a2783e3da88b734156e1a5aafbe7edc59ecf90517cb748741485db9b03265",
+    "hash": "23a893c78d16d93bd857d7d6d7b6a0039e7b68b9018531e3c6903d5923f842b9",
     "id": "immortal_lattice",
     "stacks": 20
   },
   {
-    "hash": "ac1a53f520b5aa21a6c524be0097872e0827efe4f70077fd93a3654b2b91b585",
+    "hash": "84f6be87fd73d29a6f101846e3f923b28c491f911b69bbcec82f39ba0f1210ac",
     "id": "warpshell",
     "stacks": 1
   },
   {
-    "hash": "eec4bcc851217bec0d28abe22495d7af0ad2dc5abbcc949e75ebf4312293b571",
+    "hash": "b3fcdc0ffe96755028fb4480d1619b26081bda2cb375f66aed8f956bc94b331a",
     "id": "warpshell",
     "stacks": 3
   },
   {
-    "hash": "ee7cb8af812b69a17032d6b41f4054885bb29495c5231bc19bce2dc6bc89e341",
+    "hash": "2b53523ccd7e997eba295f4fb6be91a966a566ea4f398efbaf75534140ef6f95",
     "id": "warpshell",
     "stacks": 20
   },
   {
-    "hash": "e339890985019044be49eb76c65ef558afaeb32600e27f382e9bde053a9ac96e",
+    "hash": "f58364e83fbeb45fef5031c0420cdb8fd047ff5671d6e8594bdfc91130c1c6ae",
     "id": "phase_brakes",
     "stacks": 1
   },
   {
-    "hash": "53618088861b4ce0456641573d3037ff4ab21b09530754fa72f0b247a079035d",
+    "hash": "3c8785e5c16d84b1d5b06831bf914adb3b7a5de4a1a6b6bcb44a2a2eec00e7ab",
     "id": "phase_brakes",
     "stacks": 3
   },
   {
-    "hash": "4902b26fee11cdd15f1168c49f5bf3c35c45b11eaac6bc2eabb529209bc45afa",
+    "hash": "038fd51871bdaee48299ea5260dce86bd7f5639beae67fef0dea50f7ffef7a48",
     "id": "phase_brakes",
     "stacks": 20
   },
   {
-    "hash": "a98a8b79970cf3a621ad24d649849ed5e8ee0adfb68b33e79a5d94391849d4bc",
+    "hash": "0c4aa3a325307ba34d933380127ede10db9d6c5b8b297a3df933ec5d48d483c0",
     "id": "recursive_nanites",
     "stacks": 1
   },
   {
-    "hash": "b4421f94d022940fe71db09c53b00513767b3420770ebf88242a7e58908d7e10",
+    "hash": "764fb90b65a31b8ce2b20c2cf8dac9cdb89ca844b933b4b82a2b1f3f3fc7127b",
     "id": "recursive_nanites",
     "stacks": 3
   },
   {
-    "hash": "cef7dad38ddd33c832469df6b606eff6fe514b2f338fff247b7591f91c2d4147",
+    "hash": "99259f62ad60051b0a42ec9f68bdfd9805a4b9a1ae990bd564b6c891772a527e",
     "id": "recursive_nanites",
     "stacks": 20
   },
   {
-    "hash": "43b84ef9c4d7d0e96a55bd15224d4d66cf61f585659a12f131aea7d5c9633ea5",
+    "hash": "4e29101ba59cdc90b2367119b5b37696381b0627906e4171ec46674bed92283c",
     "id": "comet_drive",
     "stacks": 1
   },
   {
-    "hash": "1bba7e5400e210a2880c484a77a3f2324de8bf9dc468b58fd089ad964ba184cf",
+    "hash": "7dd6c2a7eec96d28911308446c5270dc80454501dc47eeb4954d5d63f08fa072",
     "id": "comet_drive",
     "stacks": 3
   },
   {
-    "hash": "838de26a3a8926034972f46ca2e4d78b625bb9ee5f8bc4ac6db8aba94e7f7403",
+    "hash": "16a5adc5b09dce07686dc10ddb5b5727e0e99395f89f9f6c4822a125a8fddf47",
     "id": "comet_drive",
     "stacks": 20
   },
   {
-    "hash": "2dae216e4da201ba27995842ca30eaaba0cb6a54123139299d52c6bb73ae2c39",
+    "hash": "fa24bf1ca27dd4e0f2433510b450a96e134fd8f7b2de8595be03f5eb697d50d7",
     "id": "juggernaut_frame",
     "stacks": 1
   },
   {
-    "hash": "09c3c02ede27ffa610bd3cef69d6fd863ed33d22e4ee524e7c8cd301c74d6ec6",
+    "hash": "27d527688e481b863f76e41f9baf6b50068d88881640453cdd1d719df192ad7c",
     "id": "juggernaut_frame",
     "stacks": 3
   },
   {
-    "hash": "0793e37d358f60b42b6f25cd3c55ecb0c0a116d1282bc36eb3de3ab6a0e36ba1",
+    "hash": "c006c7b0f6ff33cc0d56e386e903502da65f8ad41da5bb1dba540588813843bb",
     "id": "juggernaut_frame",
     "stacks": 20
   },
   {
-    "hash": "38738bea561cfb200eb55ff1c26fcd091badb836a0e4f4eabd862dd7d691f0d2",
+    "hash": "225a8ef8ac8a611136c2b4fd66994fe003c30238f6d909d6eb43b420a5e1ebbe",
     "id": "pursuit_engine",
     "stacks": 1
   },
   {
-    "hash": "c160f416c22d9adc3e7e8d3edbabfdd4a0c32ce1392504c02bc0fa3cf7676b83",
+    "hash": "a9c2c83bf9127b7e4ffbb1772141948287a1b50d496a4d616731fd20d32d75c6",
     "id": "pursuit_engine",
     "stacks": 3
   },
   {
-    "hash": "7a157e92443e00904c6a9ed1a926c29d7b582b30f68760e2b85a31d891ba4d2d",
+    "hash": "de09dfa3f1a4535d92c2fd0d37b5f89bcd0109b36b4795a50683690ae7d7cfb4",
     "id": "pursuit_engine",
     "stacks": 20
   },
   {
-    "hash": "59e0e043b433c686b6f3b518536538c376c30997b1d145c2631c352f712d9e51",
+    "hash": "d5cc4eb06fbd80358d4e40238dea3f8e9c32ff2f2f0c7ba7964682922a83fc84",
     "id": "repair_gel",
     "stacks": 1
   },
   {
-    "hash": "4c5472ac65bc6ef9852f16dabdaf99e3f02dad34faac041fd30add5cd556b2fe",
+    "hash": "7b558e6f05be83aa7a2603ef37ad6ce749611a4240da1e29c8bf9b7d19b4ffce",
     "id": "repair_gel",
     "stacks": 3
   },
   {
-    "hash": "3444ca7b51f63aa591256caafc8fcfd7087bdef914cfb597dd49cd0d269a0a33",
+    "hash": "9794e15d6a122eb84e648010dd5595c4f05bbcae35f5119f6725d57070f2976a",
     "id": "repair_gel",
     "stacks": 20
   },
   {
-    "hash": "c4b03cb845f0fd9991211c29f85f3b9c6abf6cbaabd234a70d88044601ac7c7f",
+    "hash": "2e9bd22bd04200dfb8b78532190e5643757a00e61a47bf059c6cdcb104fa7529",
     "id": "adaptive_chassis",
     "stacks": 1
   },
   {
-    "hash": "ab784fda3943323f2e3c79c78e5bcdb9f063ae5acdda5ac7b51794a3df74eaf6",
+    "hash": "91192ca0f1305dea9f0dbe0d78b627991c933f1984486df6a591624de96be2a5",
     "id": "adaptive_chassis",
     "stacks": 3
   },
   {
-    "hash": "61a2c18a26b8e6bc3bc15b9cef9d7800beadfc9bfc87c47a6e85e39af77fa22c",
+    "hash": "ed98eefcd2b294140e695ea61b1cbcc774125db4e53fa5826c996c87ab332122",
     "id": "adaptive_chassis",
     "stacks": 20
   },
   {
-    "hash": "e207a7450ea51d9b24c2824657509391bd32c2b9359da0bfde2c7deb1e07a77a",
+    "hash": "d86315c45bfd792fcda2237e338a694182fec5e392646031305ff314dacd6980",
     "id": "damage_control",
     "stacks": 1
   },
   {
-    "hash": "f0e8dad5dde8ac1b238940f72d2df62d1ca81e9cb1d401ad5913c6bd47a5ef05",
+    "hash": "0df5cb0879d7677582f9b79ad3256b7031ea462b8db48ef590033f8b9ae6e861",
     "id": "damage_control",
     "stacks": 3
   },
   {
-    "hash": "b2889e550d410fb28e453659567ed4889db35ca9da176c17d9aa65b573422a84",
+    "hash": "50b4dd832001bb76f1b1de223f2ce997bc867577ce66d3e9e72a3daee479cce1",
     "id": "damage_control",
     "stacks": 20
   },
   {
-    "hash": "b2a0521700a8902a7eab24b1099dffe8e1d126827976ce53cfb769e9b2ed41cf",
+    "hash": "dc994c9ba44603c4bce93bf44c06fe6aaf8442cc49e691545ba230da82000cb8",
     "id": "shielded_drive",
     "stacks": 1
   },
   {
-    "hash": "d6536bf6227360c7082d912395134ccc75b90a14c283ce238d2de6b8ab71063a",
+    "hash": "5312bf630cd890edea8f1045966b7d03baca2b7e92874cd11cac6c2abc116970",
     "id": "shielded_drive",
     "stacks": 3
   },
   {
-    "hash": "087fe0f9fdcb46102c493d66192501d3fea9b4eb4804e644ff92c336df6baa9d",
+    "hash": "df32ccfa93b07ccc8523a763bb6c0f4a4329f2893deaac1bf42d26ec2d3c5b7d",
     "id": "shielded_drive",
     "stacks": 20
   },
   {
-    "hash": "2897f112727dcd1f013bb246658828d8c6e9be06e838aa3140bb2c973b55ce22",
+    "hash": "31644dfb66b652dd06eb1a61315feba365d37f6f186c04ce412af5e3f1341bc2",
     "id": "braking_foils",
     "stacks": 1
   },
   {
-    "hash": "0222ec749ad2c7bab8e6857e76248b5ca02b0ee68e5bf347076ab48f86a71e9a",
+    "hash": "029a6ff443bb3e7ab7c681e37501592d3ea9228a6eda43a51279880a61469225",
     "id": "braking_foils",
     "stacks": 3
   },
   {
-    "hash": "23230fe6b96409c5bc2d65850beb00de91c3a454dfb4eebb78f86072d95dd3e9",
+    "hash": "abc645457e7b570d81ed71c8586ec5d9a209fa95ebdd65dd0de94435f8280f29",
     "id": "braking_foils",
     "stacks": 20
   },
   {
-    "hash": "c1e3c353ee8ea086119373d52ef110135a5759f8847c04798207e697dfa37361",
+    "hash": "137092db2fb4caf9459da1a1d34a949cd38f1de2ad5bffa1b3266ee320d2e426",
     "id": "sprint_reactor",
     "stacks": 1
   },
   {
-    "hash": "6816c2a166bdd0a9ee9f7c9ae57354253d3cb94776ae449978357a65888cfca0",
+    "hash": "42b47262e22f37a2b4b75168022aef4153133d9f3df9eab67fba5829b3f54782",
     "id": "sprint_reactor",
     "stacks": 3
   },
   {
-    "hash": "70aa9583eee40e44207cb2e3e7b2c46c404a0a922c64d6d57cfbeac72ab66b95",
+    "hash": "53f2e51e9b687207931ae63aa019c571ca6a94be0ac4f2b2b121bdc7e889d8a5",
     "id": "sprint_reactor",
     "stacks": 20
   },
   {
-    "hash": "b0d69126b2a09ae1f9ef68d4be1be3a3cf8de3c077508a46711779dbb48e5001",
+    "hash": "938708200c494c8bf05cc8ea7137857bd0e008361dad8ef38d3b8799177dc891",
     "id": "scar_tissue",
     "stacks": 1
   },
   {
-    "hash": "204d34a65a13d3b1b2e00d61786ef611972e1c68a80e81926e3434c421fd06c2",
+    "hash": "c7ca2a2bc362f5470719790c8c062579a424eda562fb762d0d1b01f30e98b8e4",
     "id": "scar_tissue",
     "stacks": 3
   },
   {
-    "hash": "1e8346fd10073506b349a22a8d875c5d9d0bb81eb4faabd27a3dd90035e2581e",
+    "hash": "02dc7a10e42dcab0f3f11228baba87f314337c950bcc91f9415a0dfae508d338",
     "id": "scar_tissue",
     "stacks": 20
   },
   {
-    "hash": "ff5d69a3e1235b3e15c325aac69374e43cee285bdf56d3abe98490b4300dc11d",
+    "hash": "1edf719f77a4f23812e0a95fee4ba42f303bb6c9d360a8dbcbd554211ce11456",
     "id": "combat_gyros",
     "stacks": 1
   },
   {
-    "hash": "5abeb1f006903cfe738754b4727656a91dfdc4c193039a89d3abcb49c67ab683",
+    "hash": "53917c7fb800a3649f1723834173f4a47321b46a7c25e329e3240c02a18b9d37",
     "id": "combat_gyros",
     "stacks": 3
   },
   {
-    "hash": "0e8d7e9ad1e4b34b70d1f0b62ee12979fc129773d903f59406ef50c4d9c5c867",
+    "hash": "0e969e834047b2f8b3f2516cd642a9591ce76dc035b47af0d0d3cdd20cdeef30",
     "id": "combat_gyros",
     "stacks": 20
   },
   {
-    "hash": "1c9bfea429b39a4b203330d418d720067685411eec112b52c9521769c75d3de5",
+    "hash": "140c7a664af21de2765e5d181cb09c6eb971c5baf440739585f181920574395b",
     "id": "vectored_nozzles",
     "stacks": 1
   },
   {
-    "hash": "89739c4bae73f8799ee7bae8eafd4963f62c1585b0cc0b77f30068e93c469f18",
+    "hash": "11e1ab152883d0a0ea4f02c8188fd6b800fbae247562b1e35fbaae59e5ee810b",
     "id": "vectored_nozzles",
     "stacks": 3
   },
   {
-    "hash": "796de45e22bec2eb84ddb2c28cc4cc9f2813b1c53ecc2058d809fa9dc832c325",
+    "hash": "dffb08249490924c08af95c6c474362956a97576565c345d4231c76ffa0cd68f",
     "id": "vectored_nozzles",
     "stacks": 20
   },
   {
-    "hash": "f38e7b17bcd83e2908a0b7405cb79227cbe66ad3d4ddce5b1908454d8bf887c7",
+    "hash": "c188994e5acb2ddf6380736d3451f1019ff3e4dfa7135dc20fea209fbfe865c8",
     "id": "lightweight_frame",
     "stacks": 1
   },
   {
-    "hash": "569ba4646f1d9e6d61ad15bb5e22dc77068208d539e3e15a14decfacae13627b",
+    "hash": "e2963b01e6308b22a7c7e560414cf34eb043abdcda5c272de9cfcaebd7975fa4",
     "id": "lightweight_frame",
     "stacks": 3
   },
   {
-    "hash": "eee010187d4dd6cb3352ca48f65588f9b5a2f6e67c5b22292d6b55673025fc9a",
+    "hash": "e6c9c07ae069bc51507ba76b47a703c4b067fb1f84ad09c403083e101471f4b2",
     "id": "lightweight_frame",
     "stacks": 20
   },
   {
-    "hash": "970e47fba57d228f8b0989440448316aa230ec177c39071409c881e053c9013a",
+    "hash": "354c8d499eb2864cd97d327a59580bb2d3f71f084e6ab12c508b96567af1862a",
     "id": "reality_shredder",
     "stacks": 1
   },
   {
-    "hash": "aee3e79cdca7323eec26954d7ba70f44b848a3fb756e374ef3117e6caa2f178e",
+    "hash": "4db20ce946bef94daa5e3654c0154a03800c6aab68480935119ae60540ecf2cf",
     "id": "reality_shredder",
     "stacks": 3
   },
   {
-    "hash": "681c695f1e4d6e6ebd7e624ffb728e04fe9168bcf878a4c8d096eebe39918061",
+    "hash": "c69df5d63177407edf95a1390ba2d7fc82a6b730bd5daa4f78497416d78392b0",
     "id": "reality_shredder",
     "stacks": 20
   },
   {
-    "hash": "cf952322c28669b36e567f1e64da9e7a9a1519ba925ffe597bf5197c9a37ad76",
+    "hash": "97846fe22aee18b79170436477a63b45356cc3e234d4896b1d7c1ff31a7f3183",
     "id": "singularity_lance",
     "stacks": 1
   },
   {
-    "hash": "cbb83d2df07fe1c9d2cbafb79302ce9fcf19a2f4aa0bb37171cbba8fe8d9a140",
+    "hash": "c0d7f7e3ca22801753f43b97f0b4c9184712071ee5d405f9e5347e58d67563d0",
     "id": "singularity_lance",
     "stacks": 3
   },
   {
-    "hash": "8682ddc34dff9cce9d639791a60604d7eb2bef8499482da52da9a3e6116571b6",
+    "hash": "87626b0aefd04155f6ebc77074b0b0f72217f07c009f43ed07272f548ce0b9e4",
     "id": "singularity_lance",
     "stacks": 20
   },
   {
-    "hash": "072002a36a87b4d8aa3500e9253ff185264a4bf4a4ea5c936c71f53694c1fc6a",
+    "hash": "5e526f7daf5adb613bb96e34b36316eb47b3d6df44b887d9c4f30e14103d60e9",
     "id": "causality_cannon",
     "stacks": 1
   },
   {
-    "hash": "5f67c158fde7d58a9c5e1d176c6dbf193d3655c5fabfc3803c4c2f2078e4539a",
+    "hash": "254f94271245f5cf94c5139fee540c99615b8c2640989692d08f722efe6f24d7",
     "id": "causality_cannon",
     "stacks": 3
   },
   {
-    "hash": "565359f687a5346a9cf8c53b7993d9ed16ab0e7e40a7ebd6b608bb1904e3d118",
+    "hash": "ae28722c3c84304c71d8894e5506775468afe906245ab8958671f5f7c622223e",
     "id": "causality_cannon",
     "stacks": 20
   },
   {
-    "hash": "35cd801adcb42e5ebf8035547a89812398265e6c95fb3fc78b91f0a7da0a71ad",
+    "hash": "115eae452b7e3247034824ec252f632875d27ba763d233e86af268bc825a55a2",
     "id": "sunbeam_core",
     "stacks": 1
   },
   {
-    "hash": "81a8feccad7465e7d0abcbca66f832eb445221a66a0d5d0caac890cc9d174972",
+    "hash": "b5d38e7b24676495c6c17e540fe18a4133a12e2637392ff39eb0892409d0b51c",
     "id": "sunbeam_core",
     "stacks": 3
   },
   {
-    "hash": "bdbe40bd7e4674c5ca1189d131bd2fc29d6f180fba26830ee8f7ee32ae862091",
+    "hash": "8ca1b5122e4e66a89fe98e2aa2f62245b3858a2110805e25f73e0d0269bdf107",
     "id": "sunbeam_core",
     "stacks": 20
   },
   {
-    "hash": "7d512701d984ac7523a82d6fa72a77e9866d53a700cb463b44c568e633a8affe",
+    "hash": "f1e5a0d3b5c4c8477af403dfde75f7ec5f33af5562e254bfb9b9189f8c0c4e02",
     "id": "trident_array",
     "stacks": 1
   },
   {
-    "hash": "59d9168550f8700875a3f4c210aaf6b32ea5bbaec90e48bce2360b40a8a22b4b",
+    "hash": "5dafbe777c827523d1d55c7bc8342f3b801f7b77d61e218916e1c14dedbd9198",
     "id": "trident_array",
     "stacks": 3
   },
   {
-    "hash": "eb75982b9d0df9682196bd314d1ca8200bfe8ea2aee50c60607abdab0acc0d1d",
+    "hash": "2c91f39a4314ce2ea6917bb26607340f8938232a555fd674036015a3ea875386",
     "id": "trident_array",
     "stacks": 20
   },
   {
-    "hash": "12a2acf8ee535033947e75c3d742bbdaafb8b84f82ea0c95498a30772c3629e6",
+    "hash": "ed89336bc1e87b49d67cb3445899dfa08a28fcf441ab9f65035eb072add45497",
     "id": "accelerator_coil",
     "stacks": 1
   },
   {
-    "hash": "40136753c208a05477aebe1211ab0b8ab835895152dd65e14773659a07ab3f94",
+    "hash": "bc074f2b7fb973a95c57ad4a22e62affebb312bb04b4d373654126c024506dcb",
     "id": "accelerator_coil",
     "stacks": 3
   },
   {
-    "hash": "a2b80e0bdfaf5301125e656a66a69f4fa718d863aff4a5c5a3c9ea9a96079210",
+    "hash": "cd12f28a2e84eff6a75ded97ca5eed99c8088632b2196de5d64350d114799df9",
     "id": "accelerator_coil",
     "stacks": 20
   },
   {
-    "hash": "07a246447fc4700e8a3fc383ea755b39e565f989719f590fcc49dbfa38f7789a",
+    "hash": "c871e2c19c6f797b5c09da2cf5b79c34933500f5186b1ed042d9c61452bbe8b6",
     "id": "cycling_servo",
     "stacks": 1
   },
   {
-    "hash": "74b4f01f801197747f9a2f423c793757741dc528673fafac05f0c99d0d545950",
+    "hash": "34eaf9d53223ec7ec98e7c294f1c71a262a40915189df9c88bfd693325541638",
     "id": "cycling_servo",
     "stacks": 3
   },
   {
-    "hash": "2e161f89167cdca115aaadaa243365e8685f000f3514f5c08febcfb63bb92048",
+    "hash": "76618f47bd56b152a1afbb614626c4cc05baebcbf31b44e536b8e9a2413e6c6e",
     "id": "cycling_servo",
     "stacks": 20
   },
   {
-    "hash": "52fe7b753f6b30405dcf2a82f74bd8a3942afd760879b2f82a1e4201260d16cc",
+    "hash": "2366b71bb55a46a23d011f0fb75d5f08fbb22e96d8d165c389cd5e106a319c33",
     "id": "hollow_points",
     "stacks": 1
   },
   {
-    "hash": "a5fce4c3a74707076db2af33c90317a0021313da6c3695bb23fe61b6110dd84c",
+    "hash": "89e0f6043e5a605e11831a25ff7eb3d3a4e3ace120eb8742683ca0d494982157",
     "id": "hollow_points",
     "stacks": 3
   },
   {
-    "hash": "785c1f74cecc2939a7386686aded1bd2af53d43fa439de38ca45e01e49c85312",
+    "hash": "5f2eb3daa81943b699cdd90e0b8ddd156e7ce3882f8cff0cd67173ad003e0e30",
     "id": "hollow_points",
     "stacks": 20
   },
   {
-    "hash": "eec6661e917498914cac5b43afe9885105708131ee2739494ceb1531aac80d45",
+    "hash": "81c0936e8dc5d17ba3fadc486e91fdcf1ba9e2c002eaf9fd65b317f43a3bd8f2",
     "id": "shield_siphon",
     "stacks": 1
   },
   {
-    "hash": "286935c1e41cc68b952f1462e31b8174ae8e8d5c5808ac6258360c922817b687",
+    "hash": "ee7618b63ecc39c80fa35090a9761da273b7d15c15cd216ad3009e8a04f6f24e",
     "id": "shield_siphon",
     "stacks": 3
   },
   {
-    "hash": "c6f79db378afd280a291dbc4b1a324aca72e70ac4fef5a5946bd1914aea19914",
+    "hash": "06ce07c3c00b139607f151c136411ef0371ab7f93b0c180859686c019d9f85cf",
     "id": "shield_siphon",
     "stacks": 20
   },
   {
-    "hash": "2e15f598781029766dba7ce781d4a244d79c299e11716698592ed7c61bb968ee",
+    "hash": "a89a1d4d5f58f1539d9e206852a5cf716bad0b00737084de8f5cae6bd39afbdf",
     "id": "infinite_refraction",
     "stacks": 1
   },
   {
-    "hash": "0401366e7bbed2aabf3283d4324dc99591d7637b64094531c085253e5f4ff000",
+    "hash": "059a648b0847718d9cbdcb36b268a23444c220c3c0f34b38360c552f3d039dea",
     "id": "infinite_refraction",
     "stacks": 3
   },
   {
-    "hash": "c5da3b568bf3bf01a9d1d429c9ab38c1c180b2c9b4ed4770b9bb4a23f5c0cc4e",
+    "hash": "f04bd5989dd42c24a8608035b7b37e2db3b4da4d215e70c56065e121f297a15e",
     "id": "infinite_refraction",
     "stacks": 20
   },
   {
-    "hash": "a3871d71e95462c75f34e733caae66fa5f65713b9f98144a95a789bc1e6e7556",
+    "hash": "63a1da45a6ba02db29072dbcc879b8301450daaf559c7e97e1b9ab3a537c82fb",
     "id": "chronal_shield",
     "stacks": 1
   },
   {
-    "hash": "ff5ef86eeedad8bef2c7c1a60a0e83ac3f213cb9890a5d3dcccd66abed495795",
+    "hash": "81055d3b9835668854fb8fbd0045f3fba15cb4394a9518f541ca0d9f767ea53b",
     "id": "chronal_shield",
     "stacks": 3
   },
   {
-    "hash": "8ef3ff7f98fa94868c4a5f15a2510c250f94744dd34372561c626d6b40afbc09",
+    "hash": "098d27279d7dc571853f1643826556de20041ef1f3755bf733fd38e781d66aa5",
     "id": "chronal_shield",
     "stacks": 20
   },
   {
-    "hash": "abca86b9da10e9f12768f0d4654f2c7b0a15f1f091c346a3a1cddafc7436f7a5",
+    "hash": "8f49d35ddb92c5ff3fcb77ebbeaedb8d27a18603c25fb9c07ba639c24564436b",
     "id": "solar_barrier",
     "stacks": 1
   },
   {
-    "hash": "a3362722f5edcca991637b8a7ab0451fc0ae78991552d2b47844aeb0c7c2b34b",
+    "hash": "88317415446a26973a885abecf5f63ca9168bdb64ed1dbf28d7531bc65585f7f",
     "id": "solar_barrier",
     "stacks": 3
   },
   {
-    "hash": "f44d2f55765454e72cf50dc3d35b51ac1ee8381c2b80d89e8199b2789879e0a0",
+    "hash": "14324083fb91a703140f37e8124567f46a47eb453f31a9796daeeb0bdbc17c74",
     "id": "solar_barrier",
     "stacks": 20
   },
   {
-    "hash": "d11bc2cc7ba36a20ea47b3d76436f4055d323c2ed7a904036a1918ba97ec6ca3",
+    "hash": "60b7289aeaaa2ae27dd93ce99d80a681fb4042d270e0f18e7e9366d3917da605",
     "id": "aegis_matrix",
     "stacks": 1
   },
   {
-    "hash": "983b30e6b347e77159fe4ae4ad7b166470cf0ddd9f29cf9ddba099b529ff6252",
+    "hash": "9ed92fc3a3caf00c1916d0988335193c9f6fbaf65ae28f9e8420719563fb665d",
     "id": "aegis_matrix",
     "stacks": 3
   },
   {
-    "hash": "93ebe43104ad5a2064990f463ed95433a1dc06a64e97c2787b94cbe65a93a74a",
+    "hash": "1a9f27d34b85c2d41ff15cc590edbff741b8c7a493367582c6940b6834802139",
     "id": "aegis_matrix",
     "stacks": 20
   },
   {
-    "hash": "f48bab7fdd10c34f3745e0cf7becb3ca1cd118b28ed86a45f8699d517b845df8",
+    "hash": "0f80ce9e8f38f1fba861b193c7dcb621bf623f164e8a0b09cfa1d059988850be",
     "id": "focused_deflector",
     "stacks": 1
   },
   {
-    "hash": "6e467f7033ed2fd9088a49ec7e6bb43a91e44a7db547c75d6a227df1d59eca3d",
+    "hash": "89e81924a94e76f994a39fcce9e9fe0388f612a2ce35cc5ce530a318fddefcb5",
     "id": "focused_deflector",
     "stacks": 3
   },
   {
-    "hash": "fcd0b6f8257278679c289b4a45e47d32e59a9d2e2815d345d69729e29431fb3d",
+    "hash": "4e248adeed4213349148f65e558aab94a635356147db68ff309ccd551e073464",
     "id": "focused_deflector",
     "stacks": 20
   },
   {
-    "hash": "767adb78acbcbe2959615dadfe45a90ccc7d699f0d716a4af7493e110d6bb9b0",
+    "hash": "d84e18af2b1531f8e2a9427ed0efa7eec332529d883673893da8227a78849cbd",
     "id": "regenerative_coils",
     "stacks": 1
   },
   {
-    "hash": "439a7ae8139b48977bdc5ff343591f9ff740b4ac4ee48babfe84b60dc1f68940",
+    "hash": "127dcf5b59e88c780795b58e773f60789f8af90a9ae7e186c526144ac8015fd0",
     "id": "regenerative_coils",
     "stacks": 3
   },
   {
-    "hash": "97bca1a80dc330ba26a02cd22c20169a32a84b09f14477495d81f0d2f0db9d39",
+    "hash": "16f95f97e3f9dc900f1688414e13f3bec310c5b7d91f8dc0e9d7418d7e000b41",
     "id": "regenerative_coils",
     "stacks": 20
   },
   {
-    "hash": "4bfeacf7c2ea30621175b1967939c5fcf289401ecd15993e738d629692c36c2a",
+    "hash": "2e42b78c91bb38e45a41e522b4f163977fa7b5d0787d4ddeb7f4b6734fda01fc",
     "id": "reserve_cell",
     "stacks": 1
   },
   {
-    "hash": "c444d7937e8c055017602f8f5f2e738b01efe93a5e86d20fec68ba1ed878cca5",
+    "hash": "9c85ae92eb4685f0463ddb1b868892f440bbb42908891c3459b01ce06c737c53",
     "id": "reserve_cell",
     "stacks": 3
   },
   {
-    "hash": "7b3606819bd0a679a2f3fbcb8950106fc05c7bf3a49bb29ca154d7dbebe9fedd",
+    "hash": "ab1aad5c13ad348e5010fcf101ebd716a173addfb9d70dbe57a7e5167d1bbed2",
     "id": "reserve_cell",
     "stacks": 20
   },
   {
-    "hash": "820d44245b7679e706620a525abd0b7d70e0f3186d3efc8ef821227c1c693741",
+    "hash": "d9c06062f0508e7b3a93dffbfaf4956d46ca5851bbb06508555c98f753ed4ebc",
     "id": "impossible_engine",
     "stacks": 1
   },
   {
-    "hash": "aa430b4185dabd86f0a923ef03ccb66f0db6ed77d197f13a81dfb39de08f4d16",
+    "hash": "e581d23ee7d07cc38f87d37c6ee9421d6076035e664899800e3462645e126af8",
     "id": "impossible_engine",
     "stacks": 3
   },
   {
-    "hash": "2ba6e2cb8c48016bb3dc51c833958887aa66a68c7702f1d39b7e3bbadff7c230",
+    "hash": "ed2cbc74820807dd0cc8ed10a67014b31b43a055189f5d14fee097e3e0b18618",
     "id": "impossible_engine",
     "stacks": 20
   },
   {
-    "hash": "922c4b41ba3ccaff9cea41b7f8f81876257e4a5b369267a2872c4b9bca26d830",
+    "hash": "b15aedd347f6bfbf7dd0806b28bdbd504d818cba567052bd7eff3ebc29fd18a8",
     "id": "quantum_reconstruction",
     "stacks": 1
   },
   {
-    "hash": "f7b6f7548077236ba371e01310f51716d6718d91451cca1a5080ee368b8396d7",
+    "hash": "c81b8fc4608498074901317381f2ce9c7124c9433cdec4bd2d06daa335fa1640",
     "id": "quantum_reconstruction",
     "stacks": 3
   },
   {
-    "hash": "3567e2455d172f2ac845f1ed2a0a5074aac2094a555ec6209aefdb21e0e6ecc6",
+    "hash": "383b74e68c8c362075708ddf05284c1f875e2a04230b88176025bfd9712da765",
     "id": "quantum_reconstruction",
     "stacks": 20
   },
   {
-    "hash": "96878174e4387846e7b88e2fcd7495580f484b6d798932795083337c47594c9a",
+    "hash": "5d81961eea4f5101e4954d1237541ca85473236f8089555be195026bbacdcb12",
     "id": "event_horizon_drive",
     "stacks": 1
   },
   {
-    "hash": "37214a3c5e5ab0869a3762d896825e58496f9706b7dff2ee2de81c7ecf16cd87",
+    "hash": "fe8ef94f928fef0b4bb477c18d806715fb1154c19c6769eb121e716de54a8904",
     "id": "event_horizon_drive",
     "stacks": 3
   },
   {
-    "hash": "bebab3d6dcb54fe9639e8ed298c9c8bb38e8425b8e6afa91c2eedabcac53d49a",
+    "hash": "d26ebdfb6b5833ba0627536faa23e71caaf86c1fa8b79b79b08d0385d9a24d66",
     "id": "event_horizon_drive",
     "stacks": 20
   },
   {
-    "hash": "6f8fa476bace5a3c1d295d6bd6acf870c076dfc6df383e9ad39d765906eb8d3f",
+    "hash": "41df45966994ed830772d2032c0e43798d4c7e8561bb27ac285bcd7acc48e699",
     "id": "starheart_reactor",
     "stacks": 1
   },
   {
-    "hash": "f20f3e86696193595a2812aef14389d9822b6f4ef5cd29e0489f2ea5b227e170",
+    "hash": "96826e7e53a0f3ef9d6dd3898f665371fbbca55f3d4c1f3c7663c3b928094765",
     "id": "starheart_reactor",
     "stacks": 3
   },
   {
-    "hash": "160097137c9ef65f6ac9bdb24bec43024a8769374c67147d48d63bf830530384",
+    "hash": "c0efbf46ffa25343f5634a4e4dac2eb5e4556015da76072a1b8e1359a1a98540",
     "id": "starheart_reactor",
     "stacks": 20
   },
   {
-    "hash": "be1bc1ac06a2a364a06316fbb183aa12a9ae7a32017002982e5242cc3df46bc2",
+    "hash": "ca04d19cd7fed059dd05dfda50bf7dffa4d2e5ed0eca2c0798c89defef337d76",
     "id": "phoenix_chassis",
     "stacks": 1
   },
   {
-    "hash": "d53ad2c38b60babf8a834140f0d5d2feaf9bfb2cfd1a29d5c8f18d05adb7de4a",
+    "hash": "b152247eb38696845b66629c1fc61023bc9b4f68dd02a5e032806a96edcc8e39",
     "id": "phoenix_chassis",
     "stacks": 3
   },
   {
-    "hash": "b68052d74ed23a1641211ab4d25224df043eec755ee1bbc580bbb78722f6d2f2",
+    "hash": "5f579faaba8aee9322fc7b6594367884d3f6ccceaaf4e35087ca75e2716b4841",
     "id": "phoenix_chassis",
     "stacks": 20
   },
   {
-    "hash": "b02984c07a0114901e8b29c0cdb59bb7f23458ed45fd37d00e776c50ae524687",
+    "hash": "b863497c1461afb6bd555e9aa94b39d2a2a1bed837a2ac87d0e65b9c9b19cb72",
     "id": "gyroscopic_core",
     "stacks": 1
   },
   {
-    "hash": "8b10148c226cdfd15351854fc054d86fa0248462d0302197d657a718037d3a73",
+    "hash": "c19a6e9f1819c99e175bb9b2cefd1cb593bcccc90892dcfa96b7fe93eda8f2b3",
     "id": "gyroscopic_core",
     "stacks": 3
   },
   {
-    "hash": "1787e85cbca05999dafb44d2d227630e955dba4e9c6f530b1eec70b5fbbc1a01",
+    "hash": "41487ce6fa6343e0b5d6896e0d24216af4588a62d97b4d1409e86877c4979cfd",
     "id": "gyroscopic_core",
     "stacks": 20
   },
   {
-    "hash": "fd020ce4ae7bb8e9efba8c3b59e064c3db217c4c5e639ab105731a264fc9e541",
+    "hash": "2f1303160922f17189b78d9d964473461725c9a0b4c620f8784ce92f4b73370e",
     "id": "plasma_thrusters",
     "stacks": 1
   },
   {
-    "hash": "2718a45c4ec77c218935e4df66698794718e232d3682cc4d3b0e1331b3af960e",
+    "hash": "ed000490dd3a42dbda484a557c8f7ed4767def7db1d277286c45bb7c6c967050",
     "id": "plasma_thrusters",
     "stacks": 3
   },
   {
-    "hash": "d81da540d1e8c21eae3eccae96a4d48bf31ef0e4c38eab4e49b82adfa89e1dea",
+    "hash": "2e2d4f3511a4b454961980ddab39a2ee61b89d37d36006bbd8f2ecda413c0759",
     "id": "plasma_thrusters",
     "stacks": 20
   },
   {
-    "hash": "c0ef4e440a41416fe249d71dab7dab072811170f3e19547da64f258628af10aa",
+    "hash": "85354f548619774ca48e58d7587f425b4eea9a22bba33893062065520afd80bf",
     "id": "ablative_shell",
     "stacks": 1
   },
   {
-    "hash": "6226c86074773360cbecb7b7b3046e1192ed5974846c309fb70cf78ee910362c",
+    "hash": "97fff10add5b4d39af5622ae180b8a2145f94a89c8689efe7e00b14f0c56734c",
     "id": "ablative_shell",
     "stacks": 3
   },
   {
-    "hash": "f43af6ac8300337088e7bf23275bebd5855709b516cfbda126232bbf6ef00608",
+    "hash": "87a5ef946ca954b7ff8c7418cde72234dffda9e30113e2917a1b1750e5734565",
     "id": "ablative_shell",
     "stacks": 20
   },
   {
-    "hash": "4a6ed0f81c070e914a36ad564609e1c10c26b1a49d07dbb469d94aeaaa78c6fd",
+    "hash": "e48f85019da4b6b041fe04c39f0b88a085dd9d495baf67975e9fef744bc8b545",
     "id": "zero_point_loader",
     "stacks": 1
   },
   {
-    "hash": "05e09931d8258deb7555fc200d56dfbbd119cbb6825d9a943fd299af0727b60f",
+    "hash": "42395393504ec0003c40f865ea1ae0edd6d47180a858dc4df36020940e7b5cd9",
     "id": "zero_point_loader",
     "stacks": 3
   },
   {
-    "hash": "2618967d36271c034b4f90a0e9b3a6b7653bf9e7597887f9543801804e14e5bc",
+    "hash": "f95e5a69bdebfdbb60e2b529ae87e8c5c7a2da6b693ea6b3867f715d02969bea",
     "id": "zero_point_loader",
     "stacks": 20
   },
   {
-    "hash": "0b00b4bd510ac789369fb8bd117057e1776ef8bd124719309bea6bd494582ce7",
+    "hash": "b55eafa6ed759b70a56da661c9bcce7502be09cc169e6f9ae6ca778761175b02",
     "id": "endless_belt",
     "stacks": 1
   },
   {
-    "hash": "a6a597e84f8620c89f1044b4cd951ce8880723d7b688d705ea7f86ecccd550c1",
+    "hash": "2fe1d60c605c53bb0416683b4a7662b9e68dd311ad55f9b1c68611cd531458da",
     "id": "endless_belt",
     "stacks": 3
   },
   {
-    "hash": "b3b8691fbd27a09e1f01a20ebe13a30b46c0285a565f383e5704dce4f9ebe7b4",
+    "hash": "71bc50eb2613ec0f931f91bcf112c11222492f79d674b00084919ff036f8f5be",
     "id": "endless_belt",
     "stacks": 20
   },
   {
-    "hash": "d5e389a8357cc9f48de7b41e8a641a4efa5e7fed4bb8ea992c9d8d7849495354",
+    "hash": "7fb74b30861eb2532a78c8396c06b5ee34bf90a75624480c3cc318a303c42f04",
     "id": "micro_barrage",
     "stacks": 1
   },
   {
-    "hash": "c7e70a3645fcaf42070c02cd70b16e942ed7e906a1178f62ac0a6835216d070b",
+    "hash": "2c52f8410f076c608d1a7a1de139f781873c4152cd1455160f5617eb08405508",
     "id": "micro_barrage",
     "stacks": 3
   },
   {
-    "hash": "a984f4c4b9b4c35f24387edd72515ee96b989551c3db42e18f75093d4c61ff1e",
+    "hash": "f172f86ad02f63a2b5611783eda93ef653850469c7ee9b675339e240ab8e2324",
     "id": "micro_barrage",
     "stacks": 20
   },
   {
-    "hash": "e197a61adb29c70f71c3dcceecb8a155a51b901a1036e9caca4a00a357c9a107",
+    "hash": "f1bf0bdc2f07729ddcc7bb190d0d3f2f94bcf6b03e52b5adc6a20288e2cc3c9a",
     "id": "siege_cannon",
     "stacks": 1
   },
   {
-    "hash": "6bc29196358f7173c0a2805d30c85d239af3c132e292fa8538e5c572167bb7c0",
+    "hash": "dee6b63510817c63923231c7efa24ede3cee19f7f064786b0a343566a1f21987",
     "id": "siege_cannon",
     "stacks": 3
   },
   {
-    "hash": "fdb2d9e8392e5cb84e8aaa4ecbcfd1ce0eb00f60480751bee0c251c58c3c0c51",
+    "hash": "ca12bbc0b8ae8de3ec43ed4e4f8c67de5519db23c4fbb55ab5f668fab32fa90f",
     "id": "siege_cannon",
     "stacks": 20
   },
   {
-    "hash": "de3f7641aa22f2dabf1fbd8b2cea351de86096feeb569cab8cc17189603d0783",
+    "hash": "6839edccfd597fd8da3cd4869adc2ce6c034511c03a3a426748fda1e88a80be2",
     "id": "laser_repeater",
     "stacks": 1
   },
   {
-    "hash": "71d4c85ace4d6142a5e3377936bd83ed03d1fea1f713985acfafce420cbcc107",
+    "hash": "c0eeb7d434f2f04ea31e737b724982731e541a7cd0e5db2ef5c4e41f02644f63",
     "id": "laser_repeater",
     "stacks": 3
   },
   {
-    "hash": "a8ead7888b4fce899e29e1098cf3c50afbdd39ddcc49dc15ae51cfb90a23cbe7",
+    "hash": "b1cd56489f5e0e4bb4f8e7adb00dd88679f080c4fd477798ab7cfebd5189f0eb",
     "id": "laser_repeater",
     "stacks": 20
   },
   {
-    "hash": "30f88ee906bd77669811eace9dffe48d79f8d1619bc50c70ccbc3aa5d6297de4",
+    "hash": "a50848722559d7be7f5ed7ed648b23e71eff22a44963a96909563e63a7e3b4a7",
     "id": "prismatic_lance",
     "stacks": 1
   },
   {
-    "hash": "4f0fdf4b466a56a4cf5c264f8e6541f08d69c6644ab70a655114a63d94080355",
+    "hash": "18d8fd5886b78415acc901dcc468897bed4d461c468591a9cb7658e770d00a26",
     "id": "prismatic_lance",
     "stacks": 3
   },
   {
-    "hash": "62e7f3b77229178863e1ac3559e9f6b3b7c0928dbb8c8f607b6f1fb16428f735",
+    "hash": "389c5da52a709940603a0cb99de904559b5138333f8dd495665feb2fb836d83b",
     "id": "prismatic_lance",
     "stacks": 20
   },
   {
-    "hash": "5c1a28f758645b45397848ae9dfd7357c44dceea148a03b5a49411aad4286ea3",
+    "hash": "dd34fd3ea2d17634e1924507eb01b4ee170578c88fd5d906cc70a61c6a52b1f8",
     "id": "beam_emitter",
     "stacks": 1
   },
   {
-    "hash": "136c77cad3b60251354facd60a4353c0fa24088c461d75b7676834de4a72a531",
+    "hash": "b01118fd340d8f6ed1e8db5e415d8e0f0e49fecc7f252c4a4b35f81e7d71beae",
     "id": "beam_emitter",
     "stacks": 3
   },
   {
-    "hash": "811760b27cde12c0e193e7cc47ed214fc543af83088fa7632af15d57ccd13e3a",
+    "hash": "efc35fb256355fa76457d28cafdf28b54c541e7808b38323a8b858e48f6c2ade",
     "id": "beam_emitter",
     "stacks": 20
   },
   {
-    "hash": "fc1ad8b8908376b9657ab9ae37cd25ecde9fd0b9ddcd707bb9ade60abaab8c71",
+    "hash": "10b510702fd2dc9628702a9457e9f7567cc1d06aabb360c91e658d1154062395",
     "id": "scatter_array",
     "stacks": 1
   },
   {
-    "hash": "7c261a902a16872ed31cb09d58aeeaf4969ebb4568b77e2ccd3614c95baeab75",
+    "hash": "d49a91a107fd91bf518139b8822f3c3f0fdb21d08ec514b79e8a669cd893083f",
     "id": "scatter_array",
     "stacks": 3
   },
   {
-    "hash": "1a910314dc85ea1706aa320865b960cc705b0e2b4b6bd6f6120ac41e53c056d2",
+    "hash": "2b50bc015a7f7744fe78584ceed9dc6f41d111b86f7d35a06ff2fff698ecc0cf",
     "id": "scatter_array",
     "stacks": 20
   },
   {
-    "hash": "2a0f347d96ab65fb3da95c31c487f84cdd80e60609acbc5060b8ffd1f5639721",
+    "hash": "1b0b5986bec590996e26bf336b81bd53dddcc3d57050206533cd189ea810c2d1",
     "id": "omnidirectional_field",
     "stacks": 1
   },
   {
-    "hash": "c03ed5731e422c861d3c3260585d5cd71f02816510a9a1b37c496924c0a6307b",
+    "hash": "0d69d1be429ef8e5648fb625761434cff77bd1d70109981060edfe824e3aed08",
     "id": "omnidirectional_field",
     "stacks": 3
   },
   {
-    "hash": "aa5bf053180e00c3711291daebd1b604775b4ae8cb6c26cb9ab4edf89c7fd6b6",
+    "hash": "1695fe35858139fc331a16decf73c9b6cd4985644dfbc4d72ef3577fd1aaef39",
     "id": "omnidirectional_field",
     "stacks": 20
   },
   {
-    "hash": "2ebb98f7dd22db72541099e329b0ca23881ed15d24dfa2c5be201bb4b210556d",
+    "hash": "1b6402b688e98fa51ef0466197bea080d410a9f6ad244609358456d9cdcc61c2",
     "id": "fortress_emitter",
     "stacks": 1
   },
   {
-    "hash": "33bb8817746e29301016dcca745a752438bbe8eac7f1e5a14a37601f9f79a1de",
+    "hash": "eb00c097278e5a2f5cbb4d5d5d032f31dbcef3ffd764c0f224cc879c9f284ec3",
     "id": "fortress_emitter",
     "stacks": 3
   },
   {
-    "hash": "1b1069494e148ace8647672d9d9f23e96d08c8c498c968589cf0e02dbe4686ea",
+    "hash": "12d838d1664cff7cb0e225cb20710907f540a2b14df1b8e59212b43e52345ff8",
     "id": "fortress_emitter",
     "stacks": 20
   },
   {
-    "hash": "974518b58454e0f9fefdbc70a2c018f6c8d3ede3c90ce36eae82063a429dc974",
+    "hash": "25ce4a09bf2aefbf4023b93ebcbd1b11280472845076b8ce7097030a74146def",
     "id": "mirror_field",
     "stacks": 1
   },
   {
-    "hash": "25cfe75e395fef10d35cfaaad197a4792bbd73ac18cd95e658d543e52b2cf22e",
+    "hash": "f0697b4ae57d7aca9b9485f6ece8a25d1c141401458fdcbc48fb91aef87dd011",
     "id": "mirror_field",
     "stacks": 3
   },
   {
-    "hash": "2ed6c365ae73b5ffc83a591e20896d57eaced4f609e355f6bf34afe7372c9f70",
+    "hash": "883f26cdc09b384d9fb2bdf34e5fcd57b40062eca92b3690440a2f73a7e2c100",
     "id": "mirror_field",
     "stacks": 20
   },
   {
-    "hash": "2a87f3cb43c9fabbba38557ce48eb109d4501524ed5a328c786c82b9bb109e23",
+    "hash": "70bfe37ec29ec5f0b28fdf1500fb7eb90844b9a1671ac2d26d70a2bc5bf58917",
     "id": "flux_reservoir",
     "stacks": 1
   },
   {
-    "hash": "9d63ef35e37c51565cc22d8734d2750fa473c528cffa1ffbce5a01ac73446903",
+    "hash": "6d4ed7b697aa73efca27f110f82eec91042bf6079cb38e7f7e098c8e4d1a09ea",
     "id": "flux_reservoir",
     "stacks": 3
   },
   {
-    "hash": "fe27b92093ea69600d68c55e2a4cd842e42fde4c5b378184d584551e76e1f533",
+    "hash": "ca0395d49bccf27d697acd9b34ee090fddc7cb70f27e2d4e42e9dfb7db6a3e25",
     "id": "flux_reservoir",
     "stacks": 20
   },
   {
-    "hash": "3a421a34f8b8270bd875856728b57a88bb0d9fef64e056577b7fabf9caa9f877",
+    "hash": "c25d8b99d563434398c08bdd91743741c2046fdd5bc083c32e847c3f405fa10c",
     "id": "breakaway_thrusters",
     "stacks": 1
   },
   {
-    "hash": "6e411881943b39dbca69e13a98e905b467178060a085d794234d77a5e2215822",
+    "hash": "9b871fcd2364fd138fd4a48e649a5c9560543d319944965e21c53ae53bd06d21",
     "id": "breakaway_thrusters",
     "stacks": 3
   },
   {
-    "hash": "5a33dd64c2939ef6478a4728301f98afae2d0893380dbb390136122c202cdb61",
+    "hash": "f433e1651c90932aae78d8c4e8f2ab586e814e177b6da34ca06e57b9852a531a",
     "id": "breakaway_thrusters",
     "stacks": 20
   },
   {
-    "hash": "ecb9039c8dd0525b0bd69946091dfe34d51a7cb18f982e58f0e186c0846e83e8",
+    "hash": "36bb8f10739d0ae896ce078bc676cf54e58e040b41a0fe8c3b18c5d79d5f6509",
     "id": "kinetic_vent",
     "stacks": 1
   },
   {
-    "hash": "e89e483db786d53797dd1979413180cbd7a1f592e02dd69ca2f4211859f22e73",
+    "hash": "30f43736a0de7bbb1adde96089630f3a60b96e373bffa245cf889201e1248250",
     "id": "kinetic_vent",
     "stacks": 3
   },
   {
-    "hash": "569cb9a16831899d133c9a93a887ca383f3bf4e396d0acf9736e05868175693e",
+    "hash": "82a83ccb698b8a3f41a6b8c42953b4a12f3e5719dcaaa13495e9abd107056640",
     "id": "kinetic_vent",
     "stacks": 20
   },
   {
-    "hash": "3c2630c84bb01b91eb4fbb63091879620d65516aa9751c22f24b7c6ec60b80dd",
+    "hash": "b516a0820399c4eda7e60f6ba4499b5aae36eacf19e15912cec88f898334f099",
     "id": "cloak",
     "stacks": 1
   },
   {
-    "hash": "bc9cd5c71dad540b86b2016c60f3e30ca92d829e578459599f6506189623d39a",
+    "hash": "57484f3fe71cc8f7314f3ade69b6990a11d38267619b25daf1abb36240dfc4a3",
     "id": "cloak",
     "stacks": 3
   },
   {
-    "hash": "e0dea02470d03a5cfdc55e20b4a9f2725ba3eae0af70690599a254eb65243b1b",
+    "hash": "344141d0402b495165b535362b1d9c7646a869b363468d9d230b122235852310",
     "id": "cloak",
     "stacks": 20
   },
   {
-    "hash": "2b1e6e0ea0c51736b3f6704b5d8d5d1c8177c5c3a090e7b4866003d330b51a15",
+    "hash": "91c28ab246cd2d76d437918345194d12bdde0dc09bf9f7dfd49695897233eba9",
     "id": "mine_layer",
     "stacks": 1
   },
   {
-    "hash": "40f995d4b8796e7df941b80973cea1e32ab1f0e5ac06157cb3ae06427dec1227",
+    "hash": "d612b4201f74c0071e9f3b34d9300efdaa889afc1295ffc8e0317cd8b60671af",
     "id": "mine_layer",
     "stacks": 3
   },
   {
-    "hash": "7582ac4a47ded822e2865500f793fe7b4c9f85d755fab974d7460a64c110b052",
+    "hash": "c1a8c2526528aaa69c87a9c1b27c9ac083f860da03b8a76171e3202b2c39a4b7",
     "id": "mine_layer",
     "stacks": 20
   },
   {
-    "hash": "d62c872f6c2dc4dd9e37d75ecaf38c2f015e37bc430964b41e8128fbaec70721",
+    "hash": "f1b4622968a58f8dd89bf90fb5eb956b2fa040e8835f3dfdf7d3d5a26f8b36a0",
     "id": "afterburner",
     "stacks": 1
   },
   {
-    "hash": "fb7e9adeb412a1bdde7dd80dfa5a1740239c3f76b5c4f8e3ce50b502316dadde",
+    "hash": "7d0ee07ce68e227f6de031da56e3b1de3d4cc3869cf3dad8ddb8d73f2ce50ac3",
     "id": "afterburner",
     "stacks": 3
   },
   {
-    "hash": "0ca0b2a0b2c8b79aee9c2234909f8e4db68599807f5ae46b274b180595ba78ba",
+    "hash": "b6c5aab1c329f3014a7d5e02fbf36c0c1bfd74fe2940f8273e969dd06f84da63",
     "id": "afterburner",
     "stacks": 20
   },
   {
-    "hash": "2267b88ec8ce48b6d537395d43e8a08def32ee48cc376f43a6907d1cf943a2d9",
+    "hash": "06348b1811a63486eed2f8c6491b9210dc49c79d82ede7bf51a79a9ef7950330",
     "id": "auto_repair",
     "stacks": 1
   },
   {
-    "hash": "ca6c6815e6eaf131f9e462e1d9559f8c5dd1e68c78c44a5ac7178fd36f784a02",
+    "hash": "a0afe9020ac4a93176e11d37c9f4f43cbce9ded8994c45fef0a1a64f89ce09cc",
     "id": "auto_repair",
     "stacks": 3
   },
   {
-    "hash": "4968eed2873ec458e422fcc6faa9fc16899069732d691f5659dcd4adda0cfd55",
+    "hash": "7bcbd3cdf2c474ed200d016c86f0214369c72c88045b9b50b4a5bf4813592195",
     "id": "auto_repair",
     "stacks": 20
   },
   {
-    "hash": "67bfc585c727e8aedc040c4467f06e1b6efc578b6751518f3b2cd52dfa0b81b2",
+    "hash": "4b19fdbb3371173ebac45cb1baff25807e9570e337142bc592ab747d09c62616",
     "id": "inertial_dampers",
     "stacks": 1
   },
   {
-    "hash": "2316341fbffc28a6bb06cd10c1384df2d958a97c915740f4047ee3f91d7f1b34",
+    "hash": "5147a1531821974506f368eed6f8d7a4d049632fd2790709711204c4212ba857",
     "id": "inertial_dampers",
     "stacks": 3
   },
   {
-    "hash": "5b388b51e97969184ff297f0bb5d6ecd4d89dd5c92a4b36a71d4609fea9ea546",
+    "hash": "d85828c7d2ec41547d17e72f5c12956062138404947ef245b67376f1cfd625d7",
     "id": "inertial_dampers",
     "stacks": 20
   },
   {
-    "hash": "e8a5da29b8760e9d84d6ba5a19e3d1cf6c873890bd71497218b89289b98f20f1",
+    "hash": "1a9388c3556fb0dcbbfb99ca3ce60d952b2aba3f53dcad2082f94882d5494608",
     "id": "wide_emitter",
     "stacks": 1
   },
   {
-    "hash": "d929d06386945672ae63aa90796964af99dab50cb912c6d37c0e7b56b2679496",
+    "hash": "fb2cb96ae84e0ebc3099614ef41cd9fe83f9f6c5a55d393b5464b7249b7fb7c8",
     "id": "wide_emitter",
     "stacks": 3
   },
   {
-    "hash": "db48a7a50e5ed829827808fcd20e61b07e4b6cdad8ed8b6d7cafc0806c6d8d55",
+    "hash": "5e78262f1c19b9dff6cbef6a375cf692578cb638198716d4bdec2103a1c1888b",
     "id": "wide_emitter",
     "stacks": 20
   },
   {
-    "hash": "fa56c5f5c33c046014a49dfd65ef85f35e072b04c93cb1f651719af1c071c82d",
+    "hash": "318e9f25edd1341a07f94a88e51c2ce765c5c6d7185717f922e2689d63e41b2d",
     "id": "kinetic_plating",
     "stacks": 1
   },
   {
-    "hash": "4a3ddf00c39623da23c9e5f9ec932cb38ff523d9d1221b0a0179d692610a3fdb",
+    "hash": "219db943c1438d405bd3a90543723896b6ff6cf9e3688203036d6791ef046c48",
     "id": "kinetic_plating",
     "stacks": 3
   },
   {
-    "hash": "02bcd39d2e927ad5b6f4c3e2638c61750e7f78b3261069ad36a247216c271f80",
+    "hash": "d47057b88cc9f14b6db841ddacbfe5a3cea0075111d9625bd32e3f2a1edb7eec",
     "id": "kinetic_plating",
     "stacks": 20
   },
   {
-    "hash": "dae7353ee97c0a8e05b92598dfd7c5362278886cbcedb9d8b52e8508fc97eddb",
+    "hash": "580b2feb1d4c74380d84ed71bd5d9fc710e23e9ec6a3854f53ccd89f01f4ddc2",
     "id": "phase_thrusters",
     "stacks": 1
   },
   {
-    "hash": "36cf6ec16b40cee0b13d716ad83ffc6909e3dec35bbe35b1229be4d26858a44e",
+    "hash": "bba696d7c702cb18c992b08619350b109df2833c4d31fa783aa6023d1ca1b119",
     "id": "phase_thrusters",
     "stacks": 3
   },
   {
-    "hash": "e239fbf7bb2acb541cd95be26b0805e9d6f2a5b338f92a4b32e37c41c92bea3b",
+    "hash": "8272bebfd78e8be1e52f8b9eebca269622fa4a37228b7ef43a261e9e795da67c",
     "id": "phase_thrusters",
     "stacks": 20
   },
   {
-    "hash": "d8e83374d96256b702b928a87e59229abaea1097423b276f8cd1caf88dda4a9a",
+    "hash": "887614ae8f30f2761b7f18a0e73a27989017cbd367bdc34869907b5753378566",
     "id": "vector_jets",
     "stacks": 1
   },
   {
-    "hash": "ce651acec967cd0a20a8d69f72f29f0defeb90c672f5dc0681b86d645623b051",
+    "hash": "a9c59d109eb93e39c85ab989d70868bab3b9b76e3fcabea5274fd94eeefc3a66",
     "id": "vector_jets",
     "stacks": 3
   },
   {
-    "hash": "4c46dafefd55a776b57c2e358503867ceaff03c1c662ab2ecc5aff5bdae5a8e2",
+    "hash": "92423de92ae0b7566d2c85c893394e1ea36e306ffa9ade500e502aaa0e95b4ad",
     "id": "vector_jets",
     "stacks": 20
   },
   {
-    "hash": "49ac9827655bc26070a52cf84f61aa9166b46a99d8556a8fe1adbebbdd66dd90",
+    "hash": "4762d6e1e48d842ac29581d8afc3a969d6741332c547ab82d139d3575f18a32e",
     "id": "twin_shot",
     "stacks": 1
   },
   {
-    "hash": "be4be7c3ab61c58d45c6933704ed34d7b32acd307cad5d48aa2c64f726c67b6b",
+    "hash": "e8abec067960bde8b5297201c6ec066a541cf799764256bf675a99713cb5f1aa",
     "id": "twin_shot",
     "stacks": 3
   },
   {
-    "hash": "cf19c0f801cf32a54171ea2a066fd3edd2cc92e400029834808cb0d222f229f9",
+    "hash": "0f76e84d9d94c16e11d57aabdb34576e7345470025f0df5eb00fbaeb74c1df5d",
     "id": "twin_shot",
     "stacks": 20
   },
   {
-    "hash": "9cb940a3d8abb4fd2f77843d840faac4de8fae75d994dd34ba00eb967d8ef77b",
+    "hash": "d3a9a12fa6bf1dfbbf66123d07b2e14e54354669469ec16b1c73477c9a495ab6",
     "id": "rapid_cycling",
     "stacks": 1
   },
   {
-    "hash": "b88abe946acda1320f24d689b19d6c7e01658a2e78edc8d902bfc4deeae5add9",
+    "hash": "2eba07cc40931a9a785c4074b290c7c5765be215bc47388f01eafa5c27a7e421",
     "id": "rapid_cycling",
     "stacks": 3
   },
   {
-    "hash": "8fbac037f894c8690e7fd13e49a837e4840a8d61d7bd710602570b313700be3c",
+    "hash": "ff60af18168a1ce6fc171dfde928439ab096a4b043a58265bc81729403504bba",
     "id": "rapid_cycling",
     "stacks": 20
   },
   {
-    "hash": "9731f19a3cf6f65a0dc8f80b713df1cf9d07dc817b59bc1dd055169b02697494",
+    "hash": "7f112ae5aa126607656719ed4a929b8c3369e86d71e0da2060e5e722db5fdb88",
     "id": "reinforced_hull",
     "stacks": 1
   },
   {
-    "hash": "e0b21411abfd9de5082e90dd0e80f9b5a77e1ad132d4c34719ae54f2d8c52881",
+    "hash": "6cbc28942ecc446c7077a8cb36e41e046a8e0ff6d0f3eba42836d1f7e1610b51",
     "id": "reinforced_hull",
     "stacks": 3
   },
   {
-    "hash": "c3894cd63444e40eed362e91d672b20baa40854a8429fa3cd0550ef714ae49c3",
+    "hash": "919f06abadb25f81d2b0434be244e14e843d632f245f307d1a6d9ffe77ee9ad3",
     "id": "reinforced_hull",
     "stacks": 20
   },
   {
-    "hash": "0eb2ae5b6a1e547526a1a547f3eb86e1f64da9fc2efacde0cf3458d6452c7827",
+    "hash": "d75cefa7175ccdbed761f018cb23cfc5cdc4fad2bf81ff4be303978395c8bb6c",
     "id": "ricochet_rounds",
     "stacks": 1
   },
   {
-    "hash": "bbce2bbb685ba47b37ab0b485cf881babf36e232b6797ca413efd8f6fd9a0505",
+    "hash": "54476c540e5dcf7d0fdd6a31e06f1c3c2a207b60d52533343f37eb77bcdfceed",
     "id": "ricochet_rounds",
     "stacks": 3
   },
   {
-    "hash": "418a5ee52854abef311e158a010ce562be1a4932dcd1aeacc32762898d579b86",
+    "hash": "896a39fa1f0a8c18ae39a00657255daa5bedceec02555d94e099104db654626d",
     "id": "ricochet_rounds",
     "stacks": 20
   },
   {
-    "hash": "9d70b36300b30b45f123dd840e1d1ccf492e9112a3f2e76358c3d021164697b6",
+    "hash": "b66b76e6d9fb8020dc23281f56854f9ed3a9367acbee943ec7cc242798ce47ed",
     "id": "rail_accelerant",
     "stacks": 1
   },
   {
-    "hash": "998f10d755bccf1ecd06e5811870a50b513a29f0824f1366703c70437ded2aba",
+    "hash": "d4b978dc3e32960c6c0ba732c414a5820c709fb4a162f133bb9a35927930e21a",
     "id": "rail_accelerant",
     "stacks": 3
   },
   {
-    "hash": "f8ed7d33ecccbaa7016be961f0028fcdac4a5d7f3b9980c1fd5472d641f8ee8e",
+    "hash": "4c3fceb4a9eab005af46d006a6fa663c6ffcbb550069e763bfdf8ba0f6506a84",
     "id": "rail_accelerant",
     "stacks": 20
   },
   {
-    "hash": "bfa73143200394396100638c810a756360087347134c124c11cdea932e9f272a",
+    "hash": "61fc74862987922289eda41957b2cfc4b3cde70112b6c5851754400ae6bf85db",
     "id": "quick_loader",
     "stacks": 1
   },
   {
-    "hash": "da9583f28688130473faea436c80370794a8726ae9c5b2cb181e24ace865510a",
+    "hash": "f651d9bb8272763a7da1f72217ac7e7fe7abca277cdc46ee61259f2827488980",
     "id": "quick_loader",
     "stacks": 3
   },
   {
-    "hash": "44994125aeee0f75fac9b6ccfffb05d78a5a86bc5d0ee83b053a71af4fa6d4a1",
+    "hash": "2afc0fe7f00110316102cfdb5691b5a6e4d15461556d981e734b2d15bc21aff1",
     "id": "quick_loader",
     "stacks": 20
   },
   {
-    "hash": "0d96292467eb65b3d29fd0bb6051dad4f4f16a2190af930991b89c00ae90c3f7",
+    "hash": "736ce2e8ff6c319bc47010dfc50d9820aac2c0dfe28f0998095bd289b8ae053a",
     "id": "quick_charge",
     "stacks": 1
   },
   {
-    "hash": "4b9cb57b4c672d1b0f8e29db71bc228ce9bcf07dd04083c9812ff326b0103382",
+    "hash": "075c771fe006d453c8a9b1f5ba6f22ce14efe3cd6fe522706c39fd6d8e9560b8",
     "id": "quick_charge",
     "stacks": 3
   },
   {
-    "hash": "0bca172e8dc3f7f6a624996bef53b2e8d8c76d64a14cf6c1d576ddb5c12798e2",
+    "hash": "e21a4b9c30c1cc451e12908fc4ca54a0fc4f52316993d71e6b97e4bb39009b75",
     "id": "quick_charge",
     "stacks": 20
   },
   {
-    "hash": "a2eedce6ee8200f7f4be975588f68f288a1562e550fd2e9001dff785043e52ab",
+    "hash": "ff0c13133cf2ac0c6abdad0d49b7cf9a49c30238457c879c755c0e0d75dcd926",
     "id": "piercing_rounds",
     "stacks": 1
   },
   {
-    "hash": "42bc69bd438991a817680d194d680694bab790c1fbb3f2cd2b0b061e25d9a7cd",
+    "hash": "f0e8a66d2f0523500550c7cc75a1686f21817aeb09e44844ab7cb60189d5ccc8",
     "id": "piercing_rounds",
     "stacks": 3
   },
   {
-    "hash": "9a1f901d3d80b1156225e7b9842550ae7d9e4765628769e2729ff0709eb27169",
+    "hash": "8f0f679d58ea48a0d8209f1c6e9adfcc33d150c65030e8f9a92402c2653f69be",
     "id": "piercing_rounds",
     "stacks": 20
   },
   {
-    "hash": "07e287da276266ebeb1bf88eb87e545740cab4b036079f22109f7260224035a3",
+    "hash": "0e6d549541dfa778dff8fb492cb30c32c710797b591bb1642f4755b648148b02",
     "id": "overcharged_thrusters",
     "stacks": 1
   },
   {
-    "hash": "84f46f34f9f7a5aff200b483d4e6f2368874506d6200c917848fce99bdd8b337",
+    "hash": "79a2236969e9fbc3f2314766b189ce9dcd6f0110acbf9781b0b30e8c578e77e9",
     "id": "overcharged_thrusters",
     "stacks": 3
   },
   {
-    "hash": "9d8ea443acae2be0bc9ea2fe1060258ff4131d238fff6fd0ea191dff8064d544",
+    "hash": "c90246ea865acbb1bf6098d435e4406e2b66555a5eea1cac62c44d420c920f86",
     "id": "overcharged_thrusters",
     "stacks": 20
   },
   {
-    "hash": "750d0a410bb70cd73d2b6d8db28094af629f9bb14d7b18a72d1b58ae68e4efa3",
+    "hash": "bf6cc52e905c1b13f87ded862fd72b101c708dac25289bb1f640427ad58f94ff",
     "id": "heavy_rounds",
     "stacks": 1
   },
   {
-    "hash": "3c1b8b74b05f089a05aa22fa70bddf6a732391fcfe0c64956c84f75db753d2b7",
+    "hash": "9be2a0e4a382da4d4fbdd74bebb12293ebfa6930fe256c6533d5a2dbfaed031e",
     "id": "heavy_rounds",
     "stacks": 3
   },
   {
-    "hash": "f1a0fc89c70b8ab47aa39d320b366a1178907f2c10a7e18371aa6e33108ed3cf",
+    "hash": "792273c0274302ef9e59008302a2d5adb9c62a736672a20eaf6e378b55365fc8",
     "id": "heavy_rounds",
     "stacks": 20
   },
   {
-    "hash": "e1f94db19cea30455707b448c018fa28c67cd00d2a817d2a1481b37e45abce06",
+    "hash": "e3643c2bd0879b8ebc52c7a87a286062210d2401c0877f3b16db18c7185b02b1",
     "id": "efficient_field",
     "stacks": 1
   },
   {
-    "hash": "eb9208fccb4d1a32d893c781fa48c0bd419bce3f6d2db147ab290fbb2ab720cd",
+    "hash": "3c83631fa85409a7244f72cba61c7c0b31bee2ab7f002151963b47dbe1f92f0a",
     "id": "efficient_field",
     "stacks": 3
   },
   {
-    "hash": "e0b52d48f42618ec8b7ed7d4eb1c4cc0a23464f4e4fab3da8bdb5a1c18d978e8",
+    "hash": "eccf86b37edb9eae2dd4d77f12f5f8fac638908434c047e85785ba569c53a05e",
     "id": "efficient_field",
     "stacks": 20
   },
   {
-    "hash": "6981799c9a6158bdcf0316de3bf3d708ec11b464569b9ed844045317573fbab5",
+    "hash": "b93892432dc60fcc624ecfba80b2ea969b39de6250361977bdc28acce6b68a61",
     "id": "extended_magazine",
     "stacks": 1
   },
   {
-    "hash": "206321a570f2209010917c0c5434e3616727bf8ef34fe3587ceba51a86456d9e",
+    "hash": "214eca0c84670469c971de10e7aeef9655ed9b443fa8f995e4916bd07dedcc33",
     "id": "extended_magazine",
     "stacks": 3
   },
   {
-    "hash": "8363d068f18cb5bb17baf885d0ca2570b92f2308e82b24a052642962cec61915",
+    "hash": "1f91e1c3b5d2e079c64ae5d928ace18c34bf0280598a9c4247b19302b112b364",
     "id": "extended_magazine",
     "stacks": 20
   },
   {
-    "hash": "530e51bc395760a1e7bb0a09b6a2776638e8ad9cc7840f58aa02e38f71dd75a5",
+    "hash": "d462d15b4508099e887c1d2672b68df27e1714d0ee65188ebcccd02c4c158ff3",
     "id": "capacitor_bank",
     "stacks": 1
   },
   {
-    "hash": "706af87c8bc4db42da01d20231f429d8c298ba87db193449e757e7507a545613",
+    "hash": "519f407d9267f2b06e13af378348d3982c161c99574e721717376418d4e8d6ab",
     "id": "capacitor_bank",
     "stacks": 3
   },
   {
-    "hash": "a776b5c90897e172cba589f5866e9163f993b752b995f5a5536b88308c6289d4",
+    "hash": "0cd2968f07592de49c6bb36d2a171753f646cf3c86dff934506b48dbfa6211cb",
     "id": "capacitor_bank",
     "stacks": 20
   },
   {
-    "hash": "38595504242db1a8810a42433bcf682ef4a75d20068d1c6b272c126fb10cddb3",
+    "hash": "188addef68db26f75054141495b9c072a077b161dfd4f20477073ac33851e772",
     "id": "reactive_barrier",
     "stacks": 1
   },
   {
-    "hash": "b8278214d33df4db57a342581a2df4645be760d1f366c1938022468c30131e10",
+    "hash": "4df4d19ed29b27b2b58404fe146931f621ec764eb0c1171e52d00620172f397a",
     "id": "reactive_barrier",
     "stacks": 3
   },
   {
-    "hash": "fb0a80250c325025b1d1161e50d560d13ee87833a7045b80cc53d90f8db87f27",
+    "hash": "a497d32a41ae81a97180aaee6af2f804f7fa8e396529824f7eed5ac723819521",
     "id": "reactive_barrier",
     "stacks": 20
   },
   {
-    "hash": "868946613b28116fd280830269bf894595b53402b979a353c9e3374352711019",
+    "hash": "a458e60e7f42e8285fe18a839dda96811f8bd44c95e72b8358047f962091ca86",
     "id": "glass_reactor",
     "stacks": 1
   },
   {
-    "hash": "80d2e2d16c35d4ea28931cdef2a2071413d6e565867c6ba02fa8d2855dd60949",
+    "hash": "6106259a9b7bdf5a9f7c2f856ddaba92842a6db4bc134c9fb72784bf5683dd89",
     "id": "glass_reactor",
     "stacks": 3
   },
   {
-    "hash": "ae8c8cbb9161aef909b3b54b2e7719003a0c8848a83866a6d859d6367461be12",
+    "hash": "c38ca63dacf32483f217d47962f3afa433452b3f7826e4884408d85df4c554a3",
     "id": "glass_reactor",
     "stacks": 20
   },
   {
-    "hash": "b1c8531a629bea255a5a5419c732c83d7b8d831fbd53f8f3e147866071100ae3",
+    "hash": "1c8e993d78ff0a5a5678264d502a1cb4635cc7041fc0324a8c8b7d2eb4735ff3",
     "id": "emergency_bulkheads",
     "stacks": 1
   },
   {
-    "hash": "2aea7306b11619d45691b009aca40a80de8a33b598e88678aec3c61af0607efc",
+    "hash": "578d99b4bc2e04be8ad100267b8cd2e8c92d03348cf8490de4c36934ff93bd2d",
     "id": "emergency_bulkheads",
     "stacks": 3
   },
   {
-    "hash": "28ec7340e84c0ea3e089e6dfedcafb5c4badd4188e653d4fb37c1073aafd67bf",
+    "hash": "0b3bfce988964755eb93ca95ac6029be98b7be9b32347dd8b2608a9f2991c4ed",
     "id": "emergency_bulkheads",
     "stacks": 20
   },
   {
-    "hash": "df71393f91c5fc49e14b3b983cc8c2e1d9e35fd65cd033504ea915e9dae53ce3",
+    "hash": "c18a1739dd108ea3e8b4cd7135c04bfe744fd4698a8d49c11ad72c9135f939b6",
     "id": "blink_capacitor",
     "stacks": 1
   },
   {
-    "hash": "8a409d682d49255c1767b0b20a48c9f7ec9de022f159e0d8503e61752669ba80",
+    "hash": "bc968fb3dd8ce51c61be3d15d910342a5363cef5b95f53d4d6e6345d0b3c9bd4",
     "id": "blink_capacitor",
     "stacks": 3
   },
   {
-    "hash": "0b09ee586a753f1e041c7c12dd0c95a405d2532308310430294c4ef17fe0c287",
+    "hash": "a53eccedf12d8e7c86f103080221cf395789de028cef2b2f27c25a2694f79de0",
     "id": "blink_capacitor",
     "stacks": 20
   },
   {
-    "hash": "b1b66224e5d6dc229a1d502f412889f5c092c41d9df9aa0784cddd8f5d9ed88d",
+    "hash": "bb55cedb74f01e2a4a25623077784a564c36ff0e9091686ac7eb9eb8205c0290",
     "id": "nanite_reservoir",
     "stacks": 1
   },
   {
-    "hash": "2fce52a53eeb2b3df9a075921fc598454149c1ec466b7279beb126f458061410",
+    "hash": "d1449b08fa9d27359e0d1afd6963f6cc999ce1e5b47cf4a2f7addf6f926706b2",
     "id": "nanite_reservoir",
     "stacks": 3
   },
   {
-    "hash": "cac60bda2851dac40d2ecee32c0e46e6092b98d5d666b70588f4b6fef52ae23d",
+    "hash": "f04ad801ec357fc1fa94c577542d610fd78537c8d765b5ade571e58c0ae3ac0e",
     "id": "nanite_reservoir",
+    "stacks": 20
+  },
+  {
+    "hash": "b1608eab40c9e42981d0c9fe062327de422fe4abdd62e54172164da9934eed4b",
+    "id": "escort_wing",
+    "stacks": 1
+  },
+  {
+    "hash": "8de507f16e488df0c5dc9249200f8315eaf83d451f4aa787d72a54ff669806a7",
+    "id": "escort_wing",
+    "stacks": 3
+  },
+  {
+    "hash": "121dfec69db739b84e732938cc4328647dee770e4ec472757d44a817bbc3f729",
+    "id": "escort_wing",
     "stacks": 20
   }
 ]

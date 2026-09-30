@@ -86,6 +86,21 @@ const MISSILE_ACQUISITION_HALF_ANGLE: float = deg_to_rad(35.0)
 const MISSILE_GUIDANCE_HALF_ANGLE: float = deg_to_rad(70.0)
 const MISSILE_TURN_RATE: float = deg_to_rad(90.0)
 
+const DRONE_WING_SIZE: int = 4
+const DRONE_COOLDOWN_SECONDS: float = 8.0
+const DRONE_LIFETIME_SECONDS: float = 20.0
+const DRONE_HEALTH: float = 25.0
+const DRONE_RADIUS: float = 10.0
+const DRONE_MAX_SPEED: float = 820.0
+const DRONE_FOLLOW_GAIN: float = 6.0
+const DRONE_FORMATION_DISTANCE: float = 72.0
+const DRONE_TARGET_RANGE: float = 520.0
+const DRONE_FIRE_INTERVAL_SECONDS: float = 1.0
+const DRONE_BOLT_DAMAGE: float = 4.0
+const DRONE_BOLT_SPEED: float = 850.0
+const DRONE_BOLT_LIFETIME_SECONDS: float = 0.7
+const DRONE_BOLT_RADIUS: float = 3.5
+
 const CLOAK_DURATION_SECONDS: float = 5.0
 const CLOAK_ATTACK_DELAY_SECONDS: float = 0.1
 const CLOAK_COOLDOWN_SECONDS: float = 30.0

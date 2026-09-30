@@ -9,7 +9,7 @@ const SPECIAL_FLAGS := {
 	&"afterburner": &"afterburner_enabled", &"mine_layer": &"mine_layer_enabled",
 	&"missile_launcher": &"missile_launcher_enabled", &"cloak": &"cloak_enabled",
 	&"rebound_shield": &"rebound_shield_enabled", &"kinetic_vent": &"kinetic_vent_enabled",
-	&"breakaway_thrusters": &"breakaway_thrusters_enabled",
+	&"breakaway_thrusters": &"breakaway_thrusters_enabled", &"drone_bay": &"drone_bay_enabled",
 }
 const DEFINITIONS := {
 	&"max_health": ["Max Health", "Hull", "", 10.0, 600.0, false, 1],
@@ -52,6 +52,7 @@ const DEFINITIONS := {
 	&"ricochet_count": ["Ricochet Count", "Bounces", "", 0, 12, true, 1],
 	&"mine_capacity": ["Mine Capacity", "Mine charges", "", 0, 1000, true, 1],
 	&"missile_capacity": ["Missile Capacity", "Missile charges", "", 0, 1000, true, 1],
+	&"drone_capacity": ["Drone Wings", "Drone wings", "", 0, 1000, true, 1],
 	&"cloak_capacity": ["Cloak Stacks", "Cloak stacks", "", 0, 1000, true, 1],
 }
 static var _descriptors: Dictionary = {}

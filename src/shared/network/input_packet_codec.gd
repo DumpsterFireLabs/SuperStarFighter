@@ -51,7 +51,7 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	if action_bits & ~NetworkProtocol.ACTION_MASK:
 		return _error("Input packet contains unsupported action bits.")
 	var slot := ByteCodec.read_u8(bytes, 20)
-	if slot > SpecialAbilitySelection.Slot.CLOAK and slot != 255:
+	if slot > SpecialAbilitySelection.Slot.DRONE and slot != 255:
 		return _error("Input packet contains an invalid special slot.")
 	var frame := PlayerInputFrame.new(
 		ByteCodec.read_u32(bytes, 1),

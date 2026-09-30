@@ -231,6 +231,7 @@ static func _apply_updated_stats(combatant: CombatantState, updated_stats: Comba
 	var ammunition_gain := maxi(updated_stats.magazine_size - previous.magazine_size, 0)
 	var mine_charge_gain := maxi(updated_stats.mine_capacity - previous.mine_capacity, 0)
 	var missile_charge_gain := maxi(updated_stats.missile_capacity - previous.missile_capacity, 0)
+	var drone_charge_gain := maxi(updated_stats.drone_capacity - previous.drone_capacity, 0)
 	var cloak_charge_gain := maxi(updated_stats.cloak_capacity - previous.cloak_capacity, 0)
 	combatant.stats = updated_stats.duplicate_stats()
 	combatant.health = clampf(combatant.health + health_gain, 0.0, combatant.stats.max_health)
@@ -243,6 +244,10 @@ static func _apply_updated_stats(combatant: CombatantState, updated_stats: Comba
 	combatant.missile_charges_remaining = mini(
 		combatant.missile_charges_remaining + missile_charge_gain,
 		combatant.stats.missile_capacity
+	)
+	combatant.drone_charges_remaining = mini(
+		combatant.drone_charges_remaining + drone_charge_gain,
+		combatant.stats.drone_capacity
 	)
 	combatant.cloak_charges_remaining = mini(
 		combatant.cloak_charges_remaining + cloak_charge_gain,

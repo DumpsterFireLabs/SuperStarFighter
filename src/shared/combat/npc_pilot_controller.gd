@@ -242,8 +242,21 @@ func submit_inputs(
 			and not combatant.is_cloaked()
 			and (combatant.health_fraction() <= 0.55 or distance > float(profile.preferred_max) * 1.5)
 		)
-		var special := afterburner_special or mine_special or missile_special or cloak_special
-		var slot := 3 if cloak_special else (0 if afterburner_special else (2 if missile_special else 1))
+		var drone_special := (
+			combatant.stats.drone_bay_enabled
+			and float(profile.fire_duty) > 0.0
+			and combatant.drone_charges_remaining > 0
+			and combatant.drone_cooldown_remaining <= 0.0
+			and distance <= GameConstants.DRONE_TARGET_RANGE * 1.3
+		)
+		var special := afterburner_special or mine_special or missile_special or cloak_special or drone_special
+		var slot := (
+			SpecialAbilitySelection.Slot.CLOAK if cloak_special
+			else SpecialAbilitySelection.Slot.AFTERBURNER if afterburner_special
+			else SpecialAbilitySelection.Slot.MISSILE if missile_special
+			else SpecialAbilitySelection.Slot.DRONE if drone_special
+			else SpecialAbilitySelection.Slot.MINE
+		)
 		_submit_decision(world, peer_id, movement, aim_angle, firing, shielding, special, slot)
 
 
@@ -343,7 +356,7 @@ func _projectile_evasion(world: AuthoritativeWorld, combatant: CombatantState, p
 		MAX_PROJECTILE_THREAT_CANDIDATES
 	):
 		var projectile := world.projectile_registry.get_projectile(projectile_id)
-		if projectile == null:
+		if projectile == null or projectile.is_drone:
 			continue
 		if projectile.owner_id == combatant.peer_id or world.are_allies(projectile.owner_id, combatant.peer_id) or projectile.velocity.is_zero_approx():
 			continue

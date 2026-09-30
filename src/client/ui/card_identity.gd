@@ -10,12 +10,13 @@ const ROLES := {
 	&"scatter": "Multi shot", &"pierce": "Piercing", &"ricochet": "Ricochet",
 	&"beam": "Beam weapon", &"boost": "Burst mobility", &"mine": "Area denial",
 	&"missile": "Seeking ordnance", &"cloak": "Concealment", &"rebound": "Return fire",
-	&"vent": "Shield pulse", &"escape": "Shield break escape",
+	&"vent": "Shield pulse", &"escape": "Shield break escape", &"drone": "Escort wingmen",
 }
 const SPECIAL_FAMILIES := {
 	&"auto_repair": &"repair", &"beam_weapon": &"beam", &"afterburner": &"boost",
 	&"mine_layer": &"mine", &"missile_launcher": &"missile", &"cloak": &"cloak",
 	&"rebound_shield": &"rebound", &"kinetic_vent": &"vent", &"breakaway_thrusters": &"escape",
+	&"drone_bay": &"drone",
 }
 const Metadata = preload("res://src/shared/models/stat_metadata.gd")
 const SUMMARIES := {
@@ -29,6 +30,7 @@ const SUMMARIES := {
 	&"mine": "Deploy explosive mines.", &"missile": "Launch seeking missiles.",
 	&"cloak": "Become temporarily invisible.", &"rebound": "Return blocked projectiles.",
 	&"vent": "Release stored shield energy.", &"escape": "Boost away after heavy damage.",
+	&"drone": "Deploy drones that fly and fire beside you.",
 }
 const SPECIAL_FLAGS := Metadata.SPECIAL_FLAGS
 

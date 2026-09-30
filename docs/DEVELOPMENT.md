@@ -357,6 +357,7 @@ All commands run from the repository root after bootstrap.
 | `.\tools\verify-npc-lobby.ps1` | Solo human, NPC fill/config, NPC draft/combat | Lobby/NPC changes |
 | `.\tools\run-performance-benchmark.ps1 -Map core_arena` | Selectable-map 32-Insane-NPC/1,024-projectile churn and 512-mine/512-projectile spatial-query cases, percentile timings and collision profiles | Combat, projectile, mine, NPC, or networking hot-path changes |
 | `.\tools\verify-local-host.ps1` | In-process host, loopback admission, LAN discovery, clean shutdown | Hosting/discovery changes |
+| `.\tools\verify-escort-drones.ps1` | Hosted session with an NPC: drone wings cross the live transport, track authority, hide while the owner is cloaked and return | Drone, cloak or projectile replication changes |
 | `.\tools\verify-presentation.ps1` | Production captures at six resolutions, including training, card identities, the lab, accessibility settings and crowded combat | UI, map, text, theme, timing changes |
 | `.\tools\build-beta.ps1` | Full foundation gate, Windows x64 export, rendered startup and packaged-audio inventory smoke, and friend ZIP | Beta/release packaging |
 | `python3 tools/build.py build` | Cross-platform gate, then every client and dedicated-server package plus combined checksums; runs launch smoke tests where the host can execute the binary | Release packaging without PowerShell |
@@ -469,7 +470,7 @@ All ten shipped maps are explicit `MapDefinition` resources under `resources/map
 
 Typed contracts deliberately focus on mutable objectives, transitions, queued event envelopes and effective stat comparisons. NPC steering consumes detached `ObjectiveState` snapshots with integer-keyed capture zones. Dictionary serialization occurs at the transport boundary. The coordinator prepares heat spawns, resets objectives, and warms navigation before publishing countdown state, so the first payload contains the current heat's bases and map. Draft and result events retain their existing ordering. Objective contract tests exercise all three objective modes across multiple heats and a round map change, as well as snapshot mutation isolation. General match payload contents, score/build dictionaries, observation rows and existing transport decoders remain explicit compatibility boundaries. These objective changes preserve the existing RPC schemas and packet layouts.
 
-Regression fixtures in `tests/fixtures/map_layout_baseline.json` and `stat_derivation_baseline.json` were captured from `040487c` before this extraction. They preserve every shipped map coordinate/palette and full-precision hashes for all 136 cards at 1/3/20 stacks. They detect unintended geometry or gameplay drift; update them only alongside a deliberate reviewed rules/content change.
+Regression fixtures in `tests/fixtures/map_layout_baseline.json` and `stat_derivation_baseline.json` were captured from `040487c` before this extraction. They preserve every shipped map coordinate/palette and full-precision hashes for every card at 1/3/20 stacks (regenerated when Escort Wing added the drone stat; all prior rows were verified unchanged with the new fields excluded). They detect unintended geometry or gameplay drift; update them only alongside a deliberate reviewed rules/content change.
 
 ## Impaired delivery and shipping verification
 

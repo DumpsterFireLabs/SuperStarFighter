@@ -14,7 +14,7 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(DeterministicMath.int_pow(1.07, 20), DeterministicMath.int_pow(1.07, 16) * DeterministicMath.int_pow(1.07, 4), "stack compounding is exact by squaring")
 	context.expect_equal(DeterministicMath.int_pow(0.8, 0), 1.0, "zero stacks leave a modifier neutral")
 	context.expect_equal(DeterministicMath.int_pow(2.0, -2), 0.25, "negative exponents invert")
-	context.expect_equal(StatMetadata.numeric_descriptors().size(), 41, "all numeric stats have one descriptor")
+	context.expect_equal(StatMetadata.numeric_descriptors().size(), 42, "all numeric stats have one descriptor")
 	for descriptor in StatMetadata.numeric_descriptors():
 		context.expect_true(not descriptor.label.is_empty() and not descriptor.short_label.is_empty(), "stat names are explicit")
 		context.expect_true(descriptor.minimum <= descriptor.maximum, "descriptor bounds are ordered")

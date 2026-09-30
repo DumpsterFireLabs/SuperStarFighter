@@ -49,6 +49,8 @@ var local_mine_charges_remaining: int = 0
 var local_mine_cooldown_remaining: float = 0.0
 var local_missile_charges_remaining: int = 0
 var local_missile_cooldown_remaining: float = 0.0
+var local_drone_charges_remaining: int = 0
+var local_drone_cooldown_remaining: float = 0.0
 var local_cloak_charges_remaining: int = 0
 var local_cloak_remaining: float = 0.0
 var local_cloak_cooldown_remaining: float = 0.0
@@ -76,6 +78,8 @@ func _sync_predicted_resources(ship: CombatShipView) -> void:
 	local_mine_cooldown_remaining = simulated.mine_cooldown_remaining
 	local_missile_charges_remaining = simulated.missile_charges_remaining
 	local_missile_cooldown_remaining = simulated.missile_cooldown_remaining
+	local_drone_charges_remaining = simulated.drone_charges_remaining
+	local_drone_cooldown_remaining = simulated.drone_cooldown_remaining
 	local_cloak_charges_remaining = simulated.cloak_charges_remaining
 	local_cloak_remaining = simulated.cloak_remaining
 	local_cloak_cooldown_remaining = simulated.cloak_cooldown_remaining
@@ -209,6 +213,7 @@ func step(delta: float, local_ship: CombatShipView, mouse_world_position: Vector
 	budget_warning_remaining = maxf(budget_warning_remaining - maxf(delta, 0.0), 0.0)
 	local_mine_cooldown_remaining = maxf(local_mine_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_missile_cooldown_remaining = maxf(local_missile_cooldown_remaining - maxf(delta, 0.0), 0.0)
+	local_drone_cooldown_remaining = maxf(local_drone_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_remaining = maxf(local_cloak_remaining - maxf(delta, 0.0), 0.0)
 	local_cloak_cooldown_remaining = maxf(local_cloak_cooldown_remaining - maxf(delta, 0.0), 0.0)
 	local_breakaway_remaining = maxf(local_breakaway_remaining - maxf(delta, 0.0), 0.0)
@@ -227,7 +232,8 @@ func step(delta: float, local_ship: CombatShipView, mouse_world_position: Vector
 	var missile_ready := local_stats.missile_launcher_enabled and local_missile_charges_remaining > 0 and local_missile_cooldown_remaining <= 0.0
 	var cloak_ready := local_stats.cloak_enabled and local_cloak_remaining <= 0.0 and local_cloak_cooldown_remaining <= 0.0
 	selected_special_slot = SpecialAbilitySelection.ensure_owned(selected_special_slot, local_stats)
-	var readiness := [afterburner_ready, mine_ready, missile_ready, cloak_ready]
+	var drone_ready := local_stats.drone_bay_enabled and local_drone_charges_remaining > 0 and local_drone_cooldown_remaining <= 0.0
+	var readiness := [afterburner_ready, mine_ready, missile_ready, cloak_ready, drone_ready]
 	var special_just_pressed := (
 		context.controls_enabled
 		and not input_blocked
@@ -321,6 +327,8 @@ func apply_local_snapshot(decoded: Dictionary, state: Dictionary, ship: CombatSh
 		_acknowledge_special_activation(int(local_state.get("last_special_sequence", -1)))
 		local_active_ordnance = int(local_state.get("active_ordnance", 0))
 		local_active_mines = int(local_state.get("active_mines", 0))
+		local_drone_charges_remaining = int(local_state.get("drone_charges", 0))
+		local_drone_cooldown_remaining = float(local_state.get("drone_cooldown", 0.0))
 		var evictions := int(local_state.get("budget_evictions", 0))
 		if evictions > local_budget_evictions:
 			budget_warning_remaining = 2.0
@@ -394,6 +402,8 @@ func reset_session() -> void:
 	local_mine_cooldown_remaining = 0.0
 	local_missile_charges_remaining = 0
 	local_missile_cooldown_remaining = 0.0
+	local_drone_charges_remaining = 0
+	local_drone_cooldown_remaining = 0.0
 	local_cloak_charges_remaining = 0
 	local_cloak_remaining = 0.0
 	local_cloak_cooldown_remaining = 0.0

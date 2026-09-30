@@ -45,7 +45,7 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 		if not _projectile_history.accepts_entity(projectile.projectile_id, version):
 			continue
 		_projectile_history.record(projectile.projectile_id, version)
-		if not projectile.is_mine:
+		if not projectile.is_mine and not projectile.is_drone and not projectile.is_drone_bolt:
 			projectile_observed.emit(projectile)
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
@@ -56,7 +56,16 @@ func _on_projectile_batch(decoded: Dictionary) -> void:
 			var newly_rebounded := _synchronize_projectile(existing, projectile)
 			if newly_rebounded:
 				_emit_rebound_feedback(projectile)
-		if projectile.is_mine or existing != null or projectile.has_rebounded:
+		if existing == null and projectile.is_fresh_wing_lead():
+			context.presentation_event.emit(&"drone_deploy", {
+				"projectile_id": projectile.projectile_id,
+				"owner_id": projectile.owner_id,
+				"position": projectile.position,
+				"listener_position": audio_listener_position(),
+				"server_tick": context.latest_server_tick,
+			})
+		# Escort bolts are frequent and quiet; the owner's gun cue would drown them.
+		if projectile.is_mine or projectile.is_drone or projectile.is_drone_bolt or existing != null or projectile.has_rebounded:
 			continue
 		if projectile.is_missile:
 			context.presentation_event.emit(&"missile_launch", {
@@ -105,7 +114,7 @@ func _on_projectile_correction(decoded: Dictionary) -> void:
 		# A correction can be the first authoritative evidence of a shot when its
 		# unreliable delta was lost. Promote it immediately instead of rendering
 		# the authoritative and predicted copies together until the timeout.
-		if not projectile.is_mine:
+		if not projectile.is_mine and not projectile.is_drone and not projectile.is_drone_bolt:
 			projectile_observed.emit(projectile)
 		var existing := authoritative_projectiles.get_projectile(projectile.projectile_id)
 		if existing == null:
@@ -283,6 +292,16 @@ func _step_projectile_visuals(delta: float) -> void:
 			projectile.position += projectile.velocity * maxf(delta, 0.0)
 			continue
 		var safe_delta := maxf(delta, 0.0)
+		if projectile.is_drone:
+			# Authority retires drones; locally follow the owner's rendered ship.
+			var owner := ships.get(projectile.owner_id) as CombatShipView
+			if owner != null and owner.combatant.alive:
+				projectile.steer_drone_toward(ProjectileState.drone_formation_point(owner.combatant.position, owner.combatant.aim_angle, projectile.drone_slot), owner.combatant.velocity, owner.combatant.aim_angle)
+			else:
+				projectile.velocity = Vector2.ZERO
+			projectile.move_drone(safe_delta, map_id, hidden_cover)
+			projectile.lifetime_remaining = maxf(projectile.lifetime_remaining - safe_delta, 0.0)
+			continue
 		if projectile.is_missile and projectile.lifetime_remaining > 0.0:
 			var target := ships.get(projectile.missile_target_id) as CombatShipView
 			if target != null and target.combatant.alive and ArenaCollisionSystem.has_clear_line_of_sight(
@@ -374,6 +393,9 @@ func _synchronize_projectile(existing: ProjectileState, incoming: ProjectileStat
 	existing.is_beam = incoming.is_beam
 	existing.is_mine = incoming.is_mine
 	existing.is_missile = incoming.is_missile
+	existing.is_drone = incoming.is_drone
+	existing.is_drone_bolt = incoming.is_drone_bolt
+	existing.drone_slot = incoming.drone_slot
 	existing.missile_target_id = incoming.missile_target_id
 	existing.mine_activation_remaining = incoming.mine_activation_remaining
 	existing.has_rebounded = incoming.has_rebounded

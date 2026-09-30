@@ -13,6 +13,7 @@ var _owner_heads: Dictionary = {}
 var _owner_cleanup_remaining: Dictionary = {}
 var _active_count: int = 0
 var _mine_count: int = 0
+var _drone_count: int = 0
 # Per-owner mine counts, kept with _mine_count so snapshots need not scan.
 var _owner_mine_counts: Dictionary = {}
 var _ordered_head: int = 0
@@ -46,6 +47,8 @@ func add(projectile: ProjectileState) -> Array[int]:
 	if projectile.is_mine:
 		_mine_count += 1
 		_owner_mine_counts[projectile.owner_id] = mine_count_for_owner(projectile.owner_id) + 1
+	if projectile.is_drone:
+		_drone_count += 1
 	revision += 1
 	_owner_counts[projectile.owner_id] = count_for_owner(projectile.owner_id) + 1
 	var owner_ids := _owner_ordered_ids.get(projectile.owner_id, []) as Array
@@ -56,7 +59,7 @@ func add(projectile: ProjectileState) -> Array[int]:
 	if not _enforce_budgets:
 		return removed
 	# Mines have a bounded reservation inside the existing total budgets.
-	# Ordinary fire may replace moving ordnance, never a deployed mine.
+	# Ordinary fire may replace moving ordnance, never a deployed mine or drone.
 	if projectile.is_mine:
 		while mine_count_for_owner(projectile.owner_id) > mine_limit_per_owner():
 			_evict(_oldest_for_owner(projectile.owner_id, true), removed)
@@ -84,6 +87,8 @@ func remove(projectile_id: int) -> bool:
 	if projectile.is_mine:
 		_mine_count = maxi(_mine_count - 1, 0)
 		_release_owner_mine(projectile.owner_id)
+	if projectile.is_drone:
+		_drone_count = maxi(_drone_count - 1, 0)
 	revision += 1
 	var slot := int(_slot_by_id.get(projectile_id, -1))
 	_slot_by_id.erase(projectile_id)
@@ -178,6 +183,10 @@ func has_mines() -> bool:
 	return _mine_count > 0
 
 
+func has_drones() -> bool:
+	return _drone_count > 0
+
+
 func mine_count() -> int:
 	return _mine_count
 
@@ -268,7 +277,7 @@ func _oldest_for_owner(owner_id: int, mines: bool = false) -> int:
 	var head := int(_owner_heads.get(owner_id, 0))
 	for index in range(head, owner_ids.size()):
 		var projectile := get_projectile(int(owner_ids[index]))
-		if projectile != null and projectile.is_mine == mines:
+		if projectile != null and projectile.is_mine == mines and not projectile.is_drone:
 			return int(owner_ids[index])
 	return REMOVED_ID
 
@@ -285,7 +294,7 @@ func _oldest_moving_global() -> int:
 	while _moving_eviction_cursor < _ordered_ids.size():
 		var id := _ordered_ids[_moving_eviction_cursor]
 		var projectile := get_projectile(id)
-		if projectile != null and not projectile.is_mine:
+		if projectile != null and not projectile.is_mine and not projectile.is_drone:
 			return id
 		_moving_eviction_cursor += 1
 	return REMOVED_ID

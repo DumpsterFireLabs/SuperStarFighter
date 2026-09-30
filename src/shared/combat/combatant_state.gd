@@ -15,6 +15,8 @@ var mine_charges_remaining: int = 0
 var mine_cooldown_remaining: float = 0.0
 var missile_charges_remaining: int = 0
 var missile_cooldown_remaining: float = 0.0
+var drone_charges_remaining: int = 0
+var drone_cooldown_remaining: float = 0.0
 # Legacy snapshot field mirrors owned stacks; cloak activations never consume it.
 var cloak_charges_remaining: int = 0
 var cloak_remaining: float = 0.0
@@ -36,6 +38,7 @@ const ACTION_MINE: int = 2
 const ACTION_MISSILE: int = 4
 const ACTION_BOOST: int = 8
 const ACTION_CLOAK: int = 16
+const ACTION_DRONES: int = 32
 
 const PREDICTION_TIMERS: Array[StringName] = [
 	&"afterburner_remaining", &"afterburner_cooldown_remaining",
@@ -74,6 +77,10 @@ func reset_for_heat(
 	else:
 		missile_charges_remaining = mini(missile_charges_remaining, stats.missile_capacity)
 	if refresh_heat_inventory:
+		drone_charges_remaining = stats.drone_capacity
+	else:
+		drone_charges_remaining = mini(drone_charges_remaining, stats.drone_capacity)
+	if refresh_heat_inventory:
 		cloak_charges_remaining = stats.cloak_capacity
 		cloak_cooldown_remaining = 0.0
 	else:
@@ -89,6 +96,7 @@ func reset_for_heat(
 	afterburner_cooldown_remaining = 0.0
 	mine_cooldown_remaining = 0.0
 	missile_cooldown_remaining = 0.0
+	drone_cooldown_remaining = 0.0
 	cloak_remaining = 0.0
 	cloak_activation_latched = false
 	breakaway_remaining = 0.0
@@ -109,6 +117,10 @@ func reset_match_inventory() -> void:
 	missile_cooldown_remaining = 0.0
 	stats.missile_capacity = 0
 	stats.missile_launcher_enabled = false
+	drone_charges_remaining = 0
+	drone_cooldown_remaining = 0.0
+	stats.drone_capacity = 0
+	stats.drone_bay_enabled = false
 	cloak_charges_remaining = 0
 	cloak_remaining = 0.0
 	cloak_cooldown_remaining = 0.0
@@ -140,6 +152,7 @@ func step(
 	afterburner_cooldown_remaining = maxf(afterburner_cooldown_remaining - safe_delta, 0.0)
 	mine_cooldown_remaining = maxf(mine_cooldown_remaining - safe_delta, 0.0)
 	missile_cooldown_remaining = maxf(missile_cooldown_remaining - safe_delta, 0.0)
+	drone_cooldown_remaining = maxf(drone_cooldown_remaining - safe_delta, 0.0)
 	cloak_remaining = maxf(cloak_remaining - safe_delta, 0.0)
 	cloak_cooldown_remaining = maxf(cloak_cooldown_remaining - safe_delta, 0.0)
 	breakaway_remaining = maxf(breakaway_remaining - safe_delta, 0.0)
@@ -223,6 +236,8 @@ func step_input_with_movement(
 				actions |= ACTION_MISSILE
 			if slot == SpecialAbilitySelection.Slot.CLOAK and activate_cloak():
 				actions |= ACTION_CLOAK
+			if slot == SpecialAbilitySelection.Slot.DRONE and deploy_drones():
+				actions |= ACTION_DRONES
 	else:
 		release_special_activation()
 	if frame.manual_reload:
@@ -248,6 +263,8 @@ func prediction_state() -> Dictionary:
 		"shield_depleted": shield.depletion_triggered,
 		"vent_release": shield.kinetic_vent_release_pending,
 		"burst_damage": burst_damage_accumulator,
+		"drone_charges": drone_charges_remaining,
+		"drone_cooldown": drone_cooldown_remaining,
 	}
 	for property_name in PREDICTION_TIMERS:
 		result[property_name] = get(property_name)
@@ -287,6 +304,8 @@ func restore_prediction_state(state: Dictionary, combat_stats: CombatStats) -> v
 	mine_cooldown_remaining = float(state.get("mine_cooldown", 0.0))
 	missile_charges_remaining = int(state.get("missile_charges", 0))
 	missile_cooldown_remaining = float(state.get("missile_cooldown", 0.0))
+	drone_charges_remaining = int(state.get("drone_charges", 0))
+	drone_cooldown_remaining = float(state.get("drone_cooldown", 0.0))
 	cloak_charges_remaining = int(state.get("cloak_charges", 0))
 	cloak_activation_latched = false
 
@@ -332,6 +351,14 @@ func launch_missile() -> bool:
 		return false
 	missile_charges_remaining -= 1
 	missile_cooldown_remaining = GameConstants.MISSILE_COOLDOWN_SECONDS
+	return true
+
+
+func deploy_drones() -> bool:
+	if not alive or not stats.drone_bay_enabled or drone_charges_remaining <= 0 or drone_cooldown_remaining > 0.0:
+		return false
+	drone_charges_remaining -= 1
+	drone_cooldown_remaining = GameConstants.DRONE_COOLDOWN_SECONDS
 	return true
 
 

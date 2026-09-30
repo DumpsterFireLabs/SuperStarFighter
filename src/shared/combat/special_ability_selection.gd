@@ -1,7 +1,7 @@
 class_name SpecialAbilitySelection
 extends RefCounted
 
-enum Slot { AFTERBURNER, MINE, MISSILE, CLOAK }
+enum Slot { AFTERBURNER, MINE, MISSILE, CLOAK, DRONE }
 
 
 static func owned_slots(stats: CombatStats) -> Array[int]:
@@ -14,6 +14,8 @@ static func owned_slots(stats: CombatStats) -> Array[int]:
 		slots.append(Slot.MISSILE)
 	if stats.cloak_enabled:
 		slots.append(Slot.CLOAK)
+	if stats.drone_bay_enabled:
+		slots.append(Slot.DRONE)
 	return slots
 
 
@@ -31,7 +33,7 @@ static func cycle(slot: int, stats: CombatStats, direction: int) -> int:
 
 
 static func label(slot: int) -> String:
-	return ["AFTERBURNER", "MINES", "MISSILES", "CLOAK"][slot] if slot >= 0 and slot <= Slot.CLOAK else "NONE"
+	return ["AFTERBURNER", "MINES", "MISSILES", "CLOAK", "DRONES"][slot] if slot >= 0 and slot <= Slot.DRONE else "NONE"
 
 
 ## Capture individual presses, including taps between simulation ticks.

@@ -16,6 +16,15 @@ var is_beam: bool = false
 var is_mine: bool = false
 var is_missile: bool = false
 var missile_target_id: int = 0
+# Drones reuse missile_target_id for their current target and damage for hull.
+var is_drone: bool = false
+var is_drone_bolt: bool = false
+var drone_slot: int = 0
+var drone_fire_cooldown: float = 0.0
+# Authority only: a cloaked owner's wing is withheld from replication and cannot be hit.
+var drone_hidden: bool = false
+# Presentation only: escorts face their owner's aim. Derived locally, never sent.
+var drone_facing: float = -PI * 0.5
 var mine_activation_remaining: float = 0.0
 var kinetic_vent_displacement_remaining: float = 0.0
 var has_rebounded: bool = false
@@ -86,6 +95,74 @@ static func create_missile(
 	missile.is_missile = true
 	missile.missile_target_id = target_id
 	return missile
+
+
+static func create_drone(id: int, owner: int, spawn_position: Vector2, slot: int) -> ProjectileState:
+	var drone := ProjectileState.new()
+	drone.projectile_id = id
+	drone.owner_id = owner
+	drone.position = spawn_position
+	drone.damage = GameConstants.DRONE_HEALTH
+	drone.radius = GameConstants.DRONE_RADIUS
+	drone.lifetime_remaining = GameConstants.DRONE_LIFETIME_SECONDS
+	drone.is_drone = true
+	drone.drone_slot = slot
+	# Stagger the wing so four drones never fire on the same tick.
+	drone.drone_fire_cooldown = GameConstants.DRONE_FIRE_INTERVAL_SECONDS * (0.5 + 0.25 * slot)
+	return drone
+
+
+static func create_drone_bolt(id: int, owner: int, spawn_position: Vector2, angle: float) -> ProjectileState:
+	var bolt := ProjectileState.new()
+	bolt.projectile_id = id
+	bolt.owner_id = owner
+	bolt.position = spawn_position
+	bolt.velocity = Vector2.from_angle(angle) * GameConstants.DRONE_BOLT_SPEED
+	bolt.damage = GameConstants.DRONE_BOLT_DAMAGE
+	bolt.radius = GameConstants.DRONE_BOLT_RADIUS
+	bolt.lifetime_remaining = GameConstants.DRONE_BOLT_LIFETIME_SECONDS
+	bolt.is_drone_bolt = true
+	return bolt
+
+
+## Formation point for a wing slot: two escorts ahead-flank, two behind-flank.
+static func drone_formation_point(owner_position: Vector2, owner_aim: float, slot: int) -> Vector2:
+	var angles := [deg_to_rad(55.0), deg_to_rad(-55.0), deg_to_rad(140.0), deg_to_rad(-140.0)]
+	return owner_position + Vector2.from_angle(owner_aim + float(angles[posmod(slot, angles.size())])) * GameConstants.DRONE_FORMATION_DISTANCE
+
+
+## Shared by authority and client presentation so both follow the same path.
+## The owner's velocity is fed forward so the wing holds formation in flight.
+func steer_drone_toward(target_position: Vector2, owner_velocity: Vector2, owner_aim: float) -> void:
+	if not is_drone:
+		return
+	drone_facing = owner_aim
+	velocity = (owner_velocity + (target_position - position) * GameConstants.DRONE_FOLLOW_GAIN).limit_length(GameConstants.DRONE_MAX_SPEED)
+
+
+## One cue per wing: the lead drone of a fresh deployment, not a wing
+## re-sent after its owner's cloak ends.
+func is_fresh_wing_lead() -> bool:
+	return is_drone and drone_slot == 0 and lifetime_remaining >= GameConstants.DRONE_LIFETIME_SECONDS - 0.5
+
+
+## Shared wall-aware motion so client drones slide along cover exactly as authority does.
+func move_drone(delta: float, map_id: StringName, hidden_cover: int) -> void:
+	var remaining := velocity * maxf(delta, 0.0)
+	# One slide lets escorts skirt cover instead of sticking to it.
+	for _attempt in 2:
+		if remaining.is_zero_approx():
+			return
+		var finish := position + remaining
+		var obstacle_hit: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(position, finish, radius, map_id, {}, hidden_cover)
+		if obstacle_hit == null:
+			position = finish
+			return
+		var normal := obstacle_hit.normal as Vector2
+		var fraction := clampf(float(obstacle_hit.get("fraction", 0.0)), 0.0, 1.0)
+		position = (obstacle_hit.position as Vector2) + normal * AuthoritativeWorld.COLLISION_SURFACE_EPSILON
+		remaining = (remaining * (1.0 - fraction)).slide(normal)
+		velocity = velocity.slide(normal)
 
 
 func steer_missile_toward(target_position: Vector2, delta: float) -> void:
@@ -162,7 +239,7 @@ func rebound_toward(
 	damage_factor: float = 0.5,
 	range_factor: float = 0.5
 ) -> bool:
-	if has_rebounded or is_mine or new_owner_id <= 0 or velocity.is_zero_approx():
+	if has_rebounded or is_mine or is_drone or new_owner_id <= 0 or velocity.is_zero_approx():
 		return false
 	var return_direction := source_position - position
 	if return_direction.is_zero_approx():

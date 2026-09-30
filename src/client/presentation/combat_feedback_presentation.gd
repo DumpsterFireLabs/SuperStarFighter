@@ -61,6 +61,7 @@ static func source_name(source: String) -> String:
 		"beam": return "BEAM"
 		"mine": return "MINE BLAST"
 		"missile": return "HOMING MISSILE"
+		"drone": return "ESCORT DRONE"
 		"shield_ram": return "SHIELD RAM"
 		"rebound_shield": return "REBOUND SHIELD"
 		"overtime": return "OVERTIME"

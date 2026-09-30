@@ -2,7 +2,7 @@
 
 ## Current balance pass — 7 September 2026
 
-The catalog contains **136 cards**: 19 Common, 28 Uncommon, 29 Rare, 21 Epic, 18 Legendary, 12 Mythical, and 9 Unobtanium. Tier offer weights remain 45%, 27%, 15%, 8%, 3.3%, 1.2%, and 0.5% respectively. The sections below preserve earlier audits; this inventory supersedes their counts.
+The catalog contains **137 cards**: 19 Common, 28 Uncommon, 29 Rare, 21 Epic, 18 Legendary, 13 Mythical, and 9 Unobtanium. Tier offer weights remain 45%, 27%, 15%, 8%, 3.3%, 1.2%, and 0.5% respectively. The sections below preserve earlier audits; this inventory supersedes their counts.
 
 | Card | Applied change | Reason |
 | --- | --- | --- |
