@@ -14,6 +14,16 @@ extends Resource
 @export var border_color: Color
 @export var obstacle_color: Color
 @export var line_color: Color
+## ArenaEffectRules mask that always runs on this map, ignoring host settings.
+@export var intrinsic_effects: int = 0
+## Damage per second-long burn for ships touching a circle obstacle.
+@export var contact_damage: float = 0.0
+## Random solar pulse interval in seconds; zero uses the host frequency.
+@export var pulse_interval_range: Vector2 = Vector2.ZERO
+## Replaces the default solar pulse warning when set.
+@export var pulse_prompt: String = ""
+## Final overtime radius for modes without an objective; zero uses the default.
+@export var overtime_minimum_radius: float = 0.0
 
 
 func validation_errors() -> PackedStringArray:
@@ -25,6 +35,14 @@ func validation_errors() -> PackedStringArray:
 	if material_family not in [&"station", &"cargo", &"crystal", &"thermal", &"stone"]:
 		errors.append("Unknown material family.")
 	var bounds := Rect2(Vector2.ZERO, GameConstants.ARENA_SIZE)
+	if intrinsic_effects < 0 or intrinsic_effects > 7:
+		errors.append("Intrinsic effects must be an arena effect mask.")
+	if not is_finite(contact_damage) or contact_damage < 0.0:
+		errors.append("Contact damage must be finite and nonnegative.")
+	if not pulse_interval_range.is_zero_approx() and (not pulse_interval_range.is_finite() or pulse_interval_range.x < 6.0 or pulse_interval_range.y < pulse_interval_range.x):
+		errors.append("Pulse interval range must be at least 6 seconds and ordered.")
+	if not is_finite(overtime_minimum_radius) or overtime_minimum_radius < 0.0:
+		errors.append("Overtime minimum radius must be finite and nonnegative.")
 	if not is_finite(central_radius) or central_radius < 0.0:
 		errors.append("Central radius must be finite and nonnegative.")
 	for rectangle in cover:

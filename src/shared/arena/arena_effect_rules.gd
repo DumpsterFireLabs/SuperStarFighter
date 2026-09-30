@@ -16,6 +16,9 @@ static func valid(settings: Dictionary) -> bool:
 	return settings.mode >= OFF and settings.mode <= CUSTOM and settings.mask >= 0 and settings.mask <= 7 and settings.frequency >= 0 and settings.frequency <= 2 and settings.strength >= 0 and settings.strength <= 2
 
 static func enabled(settings: Dictionary, map_id: StringName) -> int:
+	# Intrinsic hazards define their map, including in otherwise static matches.
+	var intrinsic := ArenaLayout.intrinsic_effects(map_id)
+	if intrinsic != 0: return intrinsic
 	if int(settings.get("mode", OFF)) == OFF: return 0
 	var compatible := 0
 	match map_id:

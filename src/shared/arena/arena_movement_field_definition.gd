@@ -8,6 +8,13 @@ extends Resource
 @export var inner_radius: float = 0.0
 @export var outer_radius: float = 0.0
 @export var clockwise: bool = true
+@export var gravity_acceleration: float = 0.0
+## Gravity only: ships touching this radius are crushed and projectiles vanish.
+@export var event_horizon_radius: float = 0.0
+## Presentation only: &"current", &"black_hole" or &"star".
+@export var visual_style: StringName = &"current"
+## Replaces the generated mechanic prompt when set.
+@export var prompt: String = ""
 @export_range(1.0, 2.0, 0.01) var maximum_speed_multiplier: float = 1.18
 @export_range(0.0, 0.5, 0.01) var flow_input_strength: float = 0.16
 @export_range(1.0, 200.0, 1.0) var feather_width: float = 48.0
@@ -29,6 +36,14 @@ func validation_errors(arena_bounds: Rect2) -> PackedStringArray:
 		errors.append("Movement field speed multiplier must be between 1 and 2.")
 	if not is_finite(flow_input_strength) or flow_input_strength < 0.0 or flow_input_strength > 0.5:
 		errors.append("Movement field flow input must be between 0 and 0.5.")
+	if not is_finite(gravity_acceleration) or gravity_acceleration < 0.0 or gravity_acceleration > 4000.0:
+		errors.append("Gravity acceleration must be finite and between 0 and 4000.")
+	if not is_finite(event_horizon_radius) or event_horizon_radius < 0.0 or event_horizon_radius >= outer_radius:
+		errors.append("Event horizon must be finite, nonnegative and inside the field.")
+	elif event_horizon_radius > 0.0 and gravity_acceleration <= 0.0:
+		errors.append("Only gravity fields can have an event horizon.")
+	if visual_style not in [&"current", &"black_hole", &"star"]:
+		errors.append("Unknown movement field visual style.")
 	var band_width := outer_radius - inner_radius
 	if not is_finite(feather_width) or feather_width <= 0.0 or feather_width * 2.0 > band_width:
 		errors.append("Movement field feather must be positive and fit inside the annulus.")

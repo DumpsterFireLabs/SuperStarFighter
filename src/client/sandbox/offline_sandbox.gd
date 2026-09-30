@@ -10,7 +10,7 @@ const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_s
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), Color("62ff9b"), Color("ffd95a")]
 const PRESET_NAMES: Array[String] = ["Base ship", "Rapid scatter", "Beam specialist", "Shield tank", "All abilities"]
-const LAB_MAP_IDS: Array[StringName] = [&"core_arena", &"solar_tide"]
+const LAB_MAP_IDS: Array[StringName] = [&"core_arena", &"solar_tide", &"wormhole"]
 const PRESET_BUILDS: Array[Dictionary] = [
 	{}, {&"rapid_cycling": 2, &"twin_shot": 2, &"extended_magazine": 2},
 	{&"beam_emitter": 1, &"heavy_rounds": 2, &"quick_loader": 2},
@@ -184,10 +184,11 @@ func _sync_presentation(before: Dictionary) -> void:
 		ship.velocity = state.velocity
 		ship.set_movement_field_strength(ArenaMovementSystem.influence_at(state.position, world.map_id))
 		if previous.alive and not state.alive:
-			ship.set_eliminated()
+			var crush_center := ArenaLayout.crushing_horizon(state.position, world.map_id)
+			ship.set_eliminated(crush_center)
 			var killer := int(kills.get(peer_id, 0))
 			eliminations.append({"killer_id": killer, "victim_id": peer_id, "reason": "combat" if killer > 0 else "environment"})
-			if not bool(accessibility.get("reduced_flashes", false)):
+			if not crush_center.is_finite() and not bool(accessibility.get("reduced_flashes", false)):
 				effects_layer.spawn_elimination(state.position, ship.ship_color, peer_id == 1)
 		elif state.health < float(previous.health) and not bool(accessibility.get("reduced_flashes", false)):
 			ship.flash_damage()
@@ -594,9 +595,11 @@ func set_lab_map(index: int) -> void:
 func _reset_combatants() -> void:
 	action_latch.reset()
 	world.clear_projectiles()
-	# These clear firing lanes keep targets immediately useful on both lab maps.
+	# These clear firing lanes keep targets immediately useful on the lab maps.
 	# Solar Tide starts close enough to reach the current in a few seconds.
 	var origin := Vector2(950.0, 650.0) if world.map_id == &"solar_tide" else Vector2(500.0, 720.0)
+	if world.map_id == &"wormhole":
+		origin = Vector2(1150.0, 700.0)
 	player.reset_ship(derived_stats, origin)
 	camera.position = origin
 	camera.offset = Vector2.ZERO

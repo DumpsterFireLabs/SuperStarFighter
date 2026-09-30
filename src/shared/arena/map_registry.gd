@@ -14,6 +14,8 @@ const DEFINITIONS: Array[Resource] = [
 	preload("res://resources/maps/switchyard.tres"),
 	preload("res://resources/maps/solar_tide.tres"),
 	preload("res://resources/maps/relay_zero.tres"),
+	preload("res://resources/maps/wormhole.tres"),
+	preload("res://resources/maps/solar_crucible.tres"),
  ]
 static var _entries: Dictionary = {}
 static var _ids: Array[StringName] = []
@@ -110,6 +112,26 @@ static func central_radius(id: StringName) -> float:
 
 static func material_family(id: StringName) -> StringName:
 	return _cached_definition(id).material_family
+
+
+static func intrinsic_effects(id: StringName) -> int:
+	return _cached_definition(id).intrinsic_effects
+
+
+static func contact_damage(id: StringName) -> float:
+	return _cached_definition(id).contact_damage
+
+
+static func pulse_interval_range(id: StringName) -> Vector2:
+	return _cached_definition(id).pulse_interval_range
+
+
+static func pulse_prompt(id: StringName) -> String:
+	return _cached_definition(id).pulse_prompt
+
+
+static func overtime_minimum_radius(id: StringName) -> float:
+	return _cached_definition(id).overtime_minimum_radius
 
 
 static func spawns(id: StringName) -> Array[Vector2]:

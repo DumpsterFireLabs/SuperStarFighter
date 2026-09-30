@@ -9,6 +9,7 @@ const AFTERBURNER_IGNITION_SECONDS: float = 0.12
 const AFTERBURNER_ECHO_LIFETIME_SECONDS: float = 0.30
 const AFTERBURNER_ECHO_INTERVAL_SECONDS: float = 0.045
 const MAX_AFTERBURNER_ECHOES: int = 6
+const CRUSH_SECONDS: float = 0.8
 
 var combatant: CombatantState
 var ship_color: Color = Color("42e8ff")
@@ -22,6 +23,8 @@ var reduced_flashes: bool = false
 var high_contrast: bool = false
 var shield_flash_remaining: float = 0.0
 var elimination_pulse_remaining: float = 0.0
+var crush_remaining: float = 0.0
+var _crush_center: Vector2 = Vector2.INF
 var thruster_particles: CPUParticles2D
 var thruster_intensity: float = 0.0
 var afterburner_bloom_remaining: float = 0.0
@@ -119,6 +122,7 @@ func _process(delta: float) -> void:
 	damage_flash_remaining = maxf(damage_flash_remaining - delta, 0.0)
 	shield_flash_remaining = maxf(shield_flash_remaining - delta, 0.0)
 	elimination_pulse_remaining = maxf(elimination_pulse_remaining - delta, 0.0)
+	crush_remaining = maxf(crush_remaining - delta, 0.0)
 	afterburner_bloom_remaining = maxf(afterburner_bloom_remaining - delta, 0.0)
 	afterburner_ignition_remaining = maxf(afterburner_ignition_remaining - delta, 0.0)
 	_update_afterburner_echoes(delta)
@@ -127,6 +131,7 @@ func _process(delta: float) -> void:
 		damage_flash_remaining > 0.0
 		or shield_flash_remaining > 0.0
 		or elimination_pulse_remaining > 0.0
+		or crush_remaining > 0.0
 		or afterburner_bloom_remaining > 0.0
 		or afterburner_ignition_remaining > 0.0
 		or not afterburner_echoes.is_empty()
@@ -162,10 +167,14 @@ func set_movement_field_strength(value: float) -> void:
 	queue_redraw()
 
 
-func set_eliminated() -> void:
+## A finite crush_center means the ship touched an event horizon: it shrinks
+## and spirals into that point instead of leaving a wreck marker.
+func set_eliminated(crush_center: Vector2 = Vector2.INF) -> void:
 	collision_layer = 0
 	collision_mask = 0
-	elimination_pulse_remaining = 0.65
+	_crush_center = crush_center
+	crush_remaining = CRUSH_SECONDS if crush_center.is_finite() else 0.0
+	elimination_pulse_remaining = 0.0 if crush_center.is_finite() else 0.65
 	thrust_input = Vector2.ZERO
 	afterburner_bloom_remaining = 0.0
 	afterburner_ignition_remaining = 0.0
@@ -212,6 +221,8 @@ func reset_ship(stats: CombatStats, spawn_position: Vector2) -> void:
 	damage_flash_remaining = 0.0
 	shield_flash_remaining = 0.0
 	elimination_pulse_remaining = 0.0
+	crush_remaining = 0.0
+	_crush_center = Vector2.INF
 	afterburner_bloom_remaining = 0.0
 	afterburner_duration = 0.0
 	afterburner_ignition_remaining = 0.0
@@ -308,6 +319,11 @@ func _draw() -> void:
 	if combatant == null:
 		return
 	if not combatant.alive:
+		if _crush_center.is_finite():
+			# Swallowed ships leave nothing behind once the animation ends.
+			if crush_remaining > 0.0:
+				_draw_crush()
+			return
 		var pulse_radius := 24.0 + elimination_pulse_remaining * 48.0
 		if not reduced_flashes:
 			draw_circle(Vector2.ZERO, pulse_radius, Color(1.0, 0.2, 0.35, 0.1 + elimination_pulse_remaining * 0.14))
@@ -372,6 +388,33 @@ func _draw() -> void:
 	var health_angle := TAU * combatant.health_fraction()
 	draw_arc(Vector2.ZERO, 26.0, -PI * 0.5, -PI * 0.5 + health_angle, 24, Color("54ff8b"), 2.0)
 	_draw_nameplate(Color("fff36a") if local_control else Color("e8f5ff"))
+
+
+func _draw_crush() -> void:
+	var progress := 1.0 - crush_remaining / CRUSH_SECONDS
+	# Accelerating infall: slow at the rim, violent at the end.
+	var fall := progress * progress
+	var singularity := to_local(_crush_center)
+	var hull_center := singularity + (-singularity).rotated(fall * TAU * 0.75) * (1.0 - fall)
+	var inward := (singularity - hull_center).normalized() if not singularity.is_equal_approx(hull_center) else Vector2.RIGHT
+	var shrink := maxf(1.0 - fall, 0.03)
+	# Tidal stretch along the fall line, shrinking everything else.
+	var stretch := 1.0 + fall * 1.8
+	var forward := Vector2.from_angle(combatant.aim_angle + fall * TAU * 2.0)
+	var side := forward.orthogonal()
+	var points := PackedVector2Array()
+	for point in [forward * 29.0, -forward * 19.0 + side * 17.0, -forward * 11.0, -forward * 19.0 - side * 17.0]:
+		var local := point as Vector2
+		var along := inward * local.dot(inward)
+		points.append(hull_center + (local - along + along * stretch) * shrink)
+	# Heats toward the accretion glow so the hull stays visible over the black disc.
+	var hot := ship_color.lerp(Color("ff9b28"), progress)
+	draw_line(Vector2.ZERO.lerp(hull_center, 0.35), hull_center, Color("ff9b28", 0.6 * (1.0 - progress * 0.7)), 8.0 * shrink + 2.0)
+	draw_colored_polygon(points, Color(hot, 0.9))
+	draw_polyline(points + PackedVector2Array([points[0]]), Color("fff4c4"), maxf(4.0 * shrink, 1.5))
+	if progress > 0.8 and not reduced_flashes:
+		var flash := (progress - 0.8) / 0.2
+		draw_circle(singularity, 14.0 * (1.0 - flash) + 2.0, Color("fff4c4", 0.8 * (1.0 - flash)))
 
 
 func _draw_movement_field_wake() -> void:

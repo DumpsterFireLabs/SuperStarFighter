@@ -61,6 +61,53 @@ static func movement_fields(map_id: StringName = DEFAULT_MAP_ID) -> Array[ArenaM
 	return Registry.movement_fields(map_id)
 
 
+## Gravity fields with a lethal event horizon.
+static func event_horizons(map_id: StringName = DEFAULT_MAP_ID) -> Array[ArenaMovementField]:
+	var horizons: Array[ArenaMovementField] = []
+	for field in movement_fields(map_id):
+		if field.event_horizon_radius > 0.0:
+			horizons.append(field)
+	return horizons
+
+
+## Center of the event horizon a ship at this position touches, or Vector2.INF.
+static func crushing_horizon(position: Vector2, map_id: StringName = DEFAULT_MAP_ID, tolerance: float = 0.0) -> Vector2:
+	for field in movement_fields(map_id):
+		if field.crushes(position, GameConstants.SHIP_COLLISION_RADIUS + tolerance):
+			return field.center
+	return Vector2.INF
+
+
+## False when a point lies within margin of an event horizon. Respawns and
+## objectives use this so nobody is placed where gravity will crush them.
+static func is_clear_of_hazards(position: Vector2, margin: float, map_id: StringName = DEFAULT_MAP_ID) -> bool:
+	for field in movement_fields(map_id):
+		if field.event_horizon_radius > 0.0 and position.distance_to(field.center) < field.event_horizon_radius + margin:
+			return false
+	return true
+
+
+static func intrinsic_effects(map_id: StringName = DEFAULT_MAP_ID) -> int:
+	return Registry.intrinsic_effects(map_id)
+
+
+static func contact_damage(map_id: StringName = DEFAULT_MAP_ID) -> float:
+	return Registry.contact_damage(map_id)
+
+
+static func pulse_interval_range(map_id: StringName = DEFAULT_MAP_ID) -> Vector2:
+	return Registry.pulse_interval_range(map_id)
+
+
+static func pulse_prompt(map_id: StringName = DEFAULT_MAP_ID) -> String:
+	return Registry.pulse_prompt(map_id)
+
+
+static func overtime_minimum_radius(map_id: StringName = DEFAULT_MAP_ID) -> float:
+	var authored := Registry.overtime_minimum_radius(map_id)
+	return authored if authored > 0.0 else GameConstants.OVERTIME_MINIMUM_RADIUS
+
+
 static func mechanic_prompt(map_id: StringName = DEFAULT_MAP_ID) -> String:
 	var fields := movement_fields(map_id)
 	if fields.is_empty():
