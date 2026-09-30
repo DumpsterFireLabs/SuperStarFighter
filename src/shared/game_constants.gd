@@ -6,7 +6,7 @@ const GAME_NAME: String = "Super Star Fighter"
 static var GAME_VERSION: String = ProjectSettings.get_setting("application/config/version")
 static var RELEASE_LABEL: String = "BETA " + GAME_VERSION.get_slice("-beta.", 1)
 const ENGINE_VERSION: String = "4.7.2"
-const PROTOCOL_VERSION: int = 49
+const PROTOCOL_VERSION: int = 50
 const SHIELD_PRESS_RETENTION_TICKS: int = 15
 const INPUT_STALE_SECONDS: float = 0.5
 # How long a disconnected match participant's seat, cards and score are held.
