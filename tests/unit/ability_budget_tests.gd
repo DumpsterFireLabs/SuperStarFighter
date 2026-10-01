@@ -33,7 +33,7 @@ static func _selection(context: TestContext) -> void:
 		frame.special_slot = (slot + 1) % 4
 		context.expect_equal(pilot.step_input(frame, 0.01), 0, "retry with same action identity cannot spend another ability")
 	var bad := InputPacketCodec.encode(PlayerInputFrame.new())
-	bad[20] = 4
+	bad[20] = SpecialAbilitySelection.Slot.DRONE + 1
 	context.expect_false(InputPacketCodec.decode(bad).ok, "invalid ability slot is rejected at network boundary")
 	var base := CombatantState.create(2, CombatStats.create_base())
 	context.expect_equal(base.step_input(PlayerInputFrame.new(1, 1, Vector2.ZERO, 0, false, false, false, true, 1, 3), 0.01), 0, "unowned explicit ability cannot activate or substitute another action")

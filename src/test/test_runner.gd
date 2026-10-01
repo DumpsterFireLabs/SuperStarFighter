@@ -62,6 +62,8 @@ func _ready() -> void:
 	CombatSystemTests.run(_context)
 	preload("res://tests/unit/projectile_trace_tests.gd").run(_context)
 	CombatCorrectnessTestsScript.run(_context)
+	preload("res://tests/unit/escort_drone_tests.gd").run(_context)
+	preload("res://tests/unit/escort_drone_tests.gd").run_network(_context, self)
 	NetworkProtocolTests.run(_context)
 	MatchCoordinatorTests.run(_context)
 	MatchObservationTestsScript.run(_context)

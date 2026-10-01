@@ -20,7 +20,7 @@ const SFX_NAMES: Array[StringName] = [
 	&"fire", &"beam_fire", &"reload", &"shield_on", &"shield_block", &"shield_break",
 	&"damage", &"elimination", &"card_lock", &"countdown", &"overtime",
 	&"round_win", &"match_win", &"projectile_impact", &"ricochet", &"mine_detonated",
-	&"missile_launch", &"rebound", &"kinetic_vent", &"breakaway", &"afterburner", &"objective_gain", &"objective_loss", &"objective_neutral",
+	&"missile_launch", &"drone_deploy", &"rebound", &"kinetic_vent", &"breakaway", &"afterburner", &"objective_gain", &"objective_loss", &"objective_neutral",
 ]
 
 var menu_player: AudioStreamPlayer
@@ -407,7 +407,7 @@ func _load_sfx() -> void:
 		&"round_win": [520.0, 880.0, 0.34], &"match_win": [440.0, 1320.0, 0.55],
 		&"projectile_impact": [310.0, 72.0, 0.13], &"ricochet": [1180.0, 540.0, 0.10],
 		&"mine_detonated": [145.0, 42.0, 0.42], &"rebound": [1480.0, 680.0, 0.13],
-		&"missile_launch": [185.0, 920.0, 0.32],
+		&"missile_launch": [185.0, 920.0, 0.32], &"drone_deploy": [540.0, 1620.0, 0.22],
 		&"kinetic_vent": [210.0, 1050.0, 0.24], &"breakaway": [330.0, 920.0, 0.22],
 		&"afterburner": [185.0, 1180.0, 0.48],
 		&"objective_gain": [760.0, 1520.0, 0.3], &"objective_loss": [620.0, 260.0, 0.3], &"objective_neutral": [660.0, 660.0, 0.24],

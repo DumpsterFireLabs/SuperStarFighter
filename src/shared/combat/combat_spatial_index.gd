@@ -14,6 +14,7 @@ var _ship_sweep_grid: Array = []
 var _projectile_threat_cells: Dictionary = {}
 var _armed_mine_cells: Dictionary = {}
 var _missile_sweep_cells: Dictionary = {}
+var _drone_cells: Dictionary = {}
 var _empty_ids: Array[int] = []
 var _respawn_threat_cells: Dictionary = {}
 var _respawn_threat_tick: int = -1
@@ -100,6 +101,29 @@ func rebuild_armed_mines(registry: ProjectileRegistry, armed_mine_ids: Array[int
 		var mine := registry.get_projectile(mine_id)
 		if mine != null:
 			_append_cell_id(_armed_mine_cells, _cell_for(mine.position), mine_id)
+
+
+func rebuild_drones(registry: ProjectileRegistry, drone_ids: Array[int]) -> void:
+	_drone_cells.clear()
+	for drone_id in drone_ids:
+		var drone := registry.get_projectile(drone_id)
+		if drone != null:
+			_append_cell_id(_drone_cells, _cell_for(drone.position), drone_id)
+
+
+func query_drones_along_segment(start: Vector2, finish: Vector2, padding: float) -> Array[int]:
+	if _drone_cells.is_empty():
+		return _empty_ids
+	return _query_cells(_drone_cells,
+		Vector2(minf(start.x, finish.x) - padding, minf(start.y, finish.y) - padding),
+		Vector2(maxf(start.x, finish.x) + padding, maxf(start.y, finish.y) + padding))
+
+
+func query_nearby_drones(position: Vector2, radius: float) -> Array[int]:
+	if _drone_cells.is_empty():
+		return _empty_ids
+	var extent := Vector2.ONE * maxf(radius, 0.0)
+	return _query_cells(_drone_cells, position - extent, position + extent)
 
 
 func rebuild_missile_sweeps(paths: Dictionary) -> void:

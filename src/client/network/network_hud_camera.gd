@@ -226,6 +226,11 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 			if local_prediction.local_missile_cooldown_remaining > 0.05:
 				missile_status += " (%.1fs)" % local_prediction.local_missile_cooldown_remaining
 			loadout.append("MISSILES %s" % missile_status)
+		if local_prediction.local_stats.drone_bay_enabled and (not compact or selected == SpecialAbilitySelection.Slot.DRONE):
+			var drone_status := "%d" % local_prediction.local_drone_charges_remaining
+			if local_prediction.local_drone_cooldown_remaining > 0.05:
+				drone_status += " (%.1fs)" % local_prediction.local_drone_cooldown_remaining
+			loadout.append("DRONES %s" % drone_status)
 		if local_prediction.local_stats.cloak_enabled and (not compact or selected == SpecialAbilitySelection.Slot.CLOAK or local_prediction.local_cloak_remaining > 0.0):
 			var cloak_status := "ACTIVE" if local_prediction.local_cloak_remaining > 0.0 else "READY"
 			if local_prediction.local_cloak_remaining <= 0.0 and local_prediction.local_cloak_cooldown_remaining > 0.05:

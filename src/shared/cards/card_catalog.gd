@@ -138,6 +138,7 @@ const DEFAULT_CARD_PATHS: Array[String] = [
 	"res://data/cards/kinetic_vent.tres",
 	"res://data/cards/mine_layer.tres",
 	"res://data/cards/hunter_missiles.tres",
+	"res://data/cards/escort_wing.tres",
 ]
 
 var _cards: Dictionary = {}

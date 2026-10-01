@@ -1,7 +1,9 @@
 extends RefCounted
 
 ## Projectile phase execution. World retains authoritative state and damage queues.
-## Order is deliberate: armed mines, missile paths, shots, missiles, damage, arming.
+## Order is deliberate: armed mines, missile paths, drones, shots, missiles, damage, arming.
+
+const DRONE_RETARGET_SECONDS: float = 0.2
 ## No retained world reference or independently mutable combat state.
 
 static func _acquire_missile_target(world: AuthoritativeWorld,
@@ -82,9 +84,13 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 	var missile_paths: Dictionary = {}
 	var shot_ids: Array[int] = []
 	var missile_ids: Array[int] = []
+	var drone_ids: Array[int] = []
 	for projectile_id in projectile_ids:
 		var candidate := registry.get_projectile(projectile_id)
 		if candidate == null or candidate.is_mine:
+			continue
+		if candidate.is_drone:
+			drone_ids.append(projectile_id)
 			continue
 		if not candidate.is_missile:
 			if ArenaMovementSystem.bend_projectile(candidate, safe_delta, map_id):
@@ -108,6 +114,10 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 		var end_fraction := minf(float(obstacle.fraction) if obstacle != null else 1.0, float(ship.fraction) if ship != null else 1.0)
 		missile_paths[projectile_id] = {"start": candidate.position, "finish": finish, "end_fraction": end_fraction}
 	spatial_index.rebuild_missile_sweeps(missile_paths)
+	# Bolts fired this tick join the shot list so they travel on their spawn tick.
+	var tangible_drone_ids := _step_drones(world, safe_delta, drone_ids, shot_ids)
+	spatial_index.rebuild_drones(registry, tangible_drone_ids)
+	var drones_present := registry.has_drones()
 	shot_ids.append_array(missile_ids)
 	for projectile_id in shot_ids:
 		if projectile_id == ProjectileRegistry.REMOVED_ID:
@@ -170,6 +180,12 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 				world._remove_projectile(int(missile_hit.missile_id))
 				world._remove_projectile(projectile.projectile_id)
 				break
+			var drone_hit: Variant = _nearest_projectile_drone_hit(world, projectile, start, finish) if drones_present else null
+			if drone_hit != null and float(drone_hit.fraction) <= minf(obstacle_fraction, minf(ship_fraction, mine_fraction)):
+				projectile.position = drone_hit.position as Vector2
+				_damage_drone(world, registry.get_projectile(int(drone_hit.drone_id)), projectile.damage)
+				world._remove_projectile(projectile.projectile_id)
+				break
 			if mine_hit != null and mine_fraction <= obstacle_fraction and mine_fraction <= ship_fraction:
 				projectile.position = mine_hit.position as Vector2
 				var mine := registry.get_projectile(int(mine_hit.mine_id))
@@ -213,6 +229,97 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 	_step_mine_activation(world, safe_delta, mine_ids)
 	if profiling:
 		world.last_projectile_profile_usec.damage_resolution = Time.get_ticks_usec() - damage_started
+
+
+
+## Returns the drones that can be hit this tick; a cloaked owner's wing cannot.
+static func _step_drones(world: AuthoritativeWorld, delta: float, drone_ids: Array[int], shot_ids: Array[int]) -> Array[int]:
+	var tangible: Array[int] = []
+	for drone_id in drone_ids:
+		var drone := world.projectile_registry.get_projectile(drone_id)
+		if drone == null:
+			continue
+		drone.lifetime_remaining -= delta
+		if drone.lifetime_remaining <= 0.0:
+			world._remove_projectile(drone_id)
+			continue
+		var owner := world.combatants.get(drone.owner_id) as CombatantState
+		if owner == null or not owner.alive:
+			# Owner cleanup retires the wing shortly after death.
+			drone.velocity = Vector2.ZERO
+			if not drone.drone_hidden:
+				tangible.append(drone_id)
+			continue
+		world._set_drone_hidden(drone, owner.is_cloaked())
+		if not drone.drone_hidden:
+			tangible.append(drone_id)
+		drone.steer_drone_toward(ProjectileState.drone_formation_point(owner.position, owner.aim_angle, drone.drone_slot), owner.velocity, owner.aim_angle)
+		drone.move_drone(delta, world.map_id, world.arena_effects.hidden_cover)
+		drone.drone_fire_cooldown = maxf(drone.drone_fire_cooldown - delta, 0.0)
+		if drone.drone_fire_cooldown > 0.0:
+			continue
+		# Escorts hold fire while their owner is cloaked so shots never reveal it.
+		if owner.is_cloaked():
+			drone.missile_target_id = 0
+			continue
+		var target := _nearest_drone_target(world, drone)
+		if target == null:
+			drone.missile_target_id = 0
+			drone.drone_fire_cooldown = DRONE_RETARGET_SECONDS
+			continue
+		drone.missile_target_id = target.peer_id
+		drone.drone_fire_cooldown = GameConstants.DRONE_FIRE_INTERVAL_SECONDS
+		var bolt := world._spawn_drone_bolt(drone, (target.position - drone.position).angle())
+		if bolt != null:
+			shot_ids.append(bolt.projectile_id)
+	return tangible
+
+
+
+static func _nearest_drone_target(world: AuthoritativeWorld, drone: ProjectileState) -> CombatantState:
+	var nearest: CombatantState
+	var nearest_distance_squared := GameConstants.DRONE_TARGET_RANGE * GameConstants.DRONE_TARGET_RANGE
+	for peer_id in world.spatial_index.query_nearby_ships(drone.position, GameConstants.DRONE_TARGET_RANGE):
+		var candidate := world.combatants[peer_id] as CombatantState
+		if not candidate.alive or candidate.is_cloaked() or peer_id == drone.owner_id or world.are_allies(drone.owner_id, peer_id):
+			continue
+		var distance_squared := candidate.position.distance_squared_to(drone.position)
+		if distance_squared > nearest_distance_squared:
+			continue
+		if nearest != null and is_equal_approx(distance_squared, nearest_distance_squared) and peer_id > nearest.peer_id:
+			continue
+		if not ArenaCollisionSystem.has_clear_line_of_sight(drone.position, candidate.position, world.map_id, world.arena_effects.hidden_cover):
+			continue
+		nearest = candidate
+		nearest_distance_squared = distance_squared
+	return nearest
+
+
+
+static func _nearest_projectile_drone_hit(world: AuthoritativeWorld, projectile: ProjectileState, start: Vector2, finish: Vector2) -> Variant:
+	var nearest: Variant = null
+	var nearest_fraction := INF
+	for drone_id in world.spatial_index.query_drones_along_segment(start, finish, projectile.radius + GameConstants.DRONE_RADIUS):
+		var drone := world.projectile_registry.get_projectile(drone_id)
+		if drone == null or drone.owner_id == projectile.owner_id or world.are_allies(projectile.owner_id, drone.owner_id):
+			continue
+		var fraction := world._segment_circle_hit_fraction(start, finish, drone.position, projectile.radius + drone.radius)
+		if fraction < 0.0 or fraction >= nearest_fraction:
+			continue
+		nearest_fraction = fraction
+		nearest = {"drone_id": drone_id, "fraction": fraction, "position": start.lerp(finish, fraction)}
+	return nearest
+
+
+
+static func _damage_drone(world: AuthoritativeWorld, drone: ProjectileState, amount: float) -> void:
+	if drone == null:
+		return
+	drone.damage -= maxf(amount, 0.0)
+	if drone.damage <= 0.0:
+		world._remove_projectile(drone.projectile_id)
+	else:
+		world._record_projectile_update(drone)
 
 
 
@@ -438,6 +545,19 @@ static func _detonate_mine(world: AuthoritativeWorld, mine: ProjectileState, dam
 				"source": "mine",
 				"mechanic": "blast_ignores_shield",
 			})
+		# Like ships, every tangible drone in the blast is caught, the owner's included.
+		for drone_id in spatial_index.query_nearby_drones(
+			current.position,
+			GameConstants.MINE_BLAST_RADIUS + GameConstants.DRONE_RADIUS
+		):
+			var drone := registry.get_projectile(drone_id)
+			if drone == null or drone.drone_hidden:
+				continue
+			if drone.position.distance_to(current.position) > GameConstants.MINE_BLAST_RADIUS + drone.radius:
+				continue
+			if not ArenaCollisionSystem.has_clear_line_of_sight(current.position, drone.position, map_id, arena_effects.hidden_cover):
+				continue
+			_damage_drone(world, drone, current.damage)
 		for candidate_id in spatial_index.query_nearby_mines(
 			current.position,
 			GameConstants.MINE_BLAST_RADIUS + GameConstants.MINE_RADIUS

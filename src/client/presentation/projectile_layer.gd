@@ -113,6 +113,10 @@ func _draw() -> void:
 		if projectile == null or not cull_rect.has_point(projectile.position):
 			continue
 		last_drawn_projectiles += 1
+		if projectile.is_drone:
+			# Only the offline lab draws authority state, where a hidden wing is the pilot's own.
+			_draw_drone(projectile, 0.3 if projectile.drone_hidden else (0.55 if uses_compact_friendly_style(projectile.owner_id) else 1.0))
+			continue
 		if uses_compact_friendly_style(projectile.owner_id):
 			_draw_compact_friendly(projectile)
 			continue
@@ -189,6 +193,21 @@ func _draw_team_marker(projectile: ProjectileState) -> void:
 
 func uses_compact_friendly_style(owner_id: int) -> bool:
 	return registry != null and registry.size() >= SIMPLIFY_PROJECTILE_THRESHOLD and is_friendly_owner(owner_id)
+
+
+## A small wingman in its owner's colour; the hull ring dims as it takes damage.
+func _draw_drone(projectile: ProjectileState, alpha: float) -> void:
+	var color := projectile_color_for_owner(projectile.owner_id)
+	var direction := Vector2.from_angle(projectile.drone_facing)
+	var side := direction.orthogonal()
+	var point := projectile.position
+	var nose := point + direction * 12.0
+	var rear := point - direction * 8.0
+	var body := PackedVector2Array([nose, rear + side * 8.0, rear - side * 8.0])
+	var health_fraction := clampf(projectile.damage / GameConstants.DRONE_HEALTH, 0.0, 1.0)
+	draw_arc(point, projectile.radius + 5.0, -PI * 0.5, -PI * 0.5 + TAU * health_fraction, 16, Color(color, 0.35 * alpha), 2.0)
+	draw_colored_polygon(body, Color(color, 0.85 * alpha))
+	draw_polyline(PackedVector2Array([nose, rear + side * 8.0, rear - side * 8.0, nose]), Color(color.lightened(0.6), alpha), 1.5)
 
 
 func _draw_compact_friendly(projectile: ProjectileState) -> void:

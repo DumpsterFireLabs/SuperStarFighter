@@ -137,6 +137,8 @@ func step(
 			_spawn_mine(combatant)
 		if actions & CombatantState.ACTION_MISSILE:
 			_spawn_missile(combatant)
+		if actions & CombatantState.ACTION_DRONES:
+			_spawn_drone_wing(combatant)
 		var motion := ArenaCollisionSystem.move_ship(combatant.position, combatant.velocity, delta, map_id, arena_effects.hidden_cover)
 		combatant.position = motion.position
 		combatant.velocity = motion.velocity
@@ -445,6 +447,69 @@ func _spawn_missile(combatant: CombatantState) -> void:
 	_spawned_since_batch.append(missile)
 
 
+## A new wing replaces the owner's previous one; at most one wing exists per pilot.
+func _spawn_drone_wing(combatant: CombatantState) -> void:
+	var previous_wing: Array[int] = []
+	for projectile_id in projectile_registry.ordered_ids_view():
+		var existing := projectile_registry.get_projectile(projectile_id)
+		if existing != null and existing.is_drone and existing.owner_id == combatant.peer_id:
+			previous_wing.append(projectile_id)
+	for projectile_id in previous_wing:
+		_remove_projectile(projectile_id)
+	for slot in GameConstants.DRONE_WING_SIZE:
+		var drone := ProjectileState.create_drone(
+			_next_projectile_id,
+			combatant.peer_id,
+			combatant.position,
+			slot
+		)
+		_next_projectile_id = SequenceMath.increment(_next_projectile_id)
+		drone.drone_hidden = combatant.is_cloaked()
+		for removed_id in projectile_registry.add(drone):
+			_record_removed(removed_id)
+		if not drone.drone_hidden:
+			_spawned_since_batch.append(drone)
+
+
+## Cloaking withdraws the wing from every client; uncloaking re-sends it as a
+## fresh spawn. Hidden drones stay simulated so the formation is intact after.
+func _set_drone_hidden(drone: ProjectileState, hidden: bool) -> void:
+	if drone.drone_hidden == hidden:
+		return
+	drone.drone_hidden = hidden
+	if hidden:
+		_spawned_since_batch.erase(drone)
+		_record_removed(drone.projectile_id)
+	else:
+		_removed_since_batch.erase(drone.projectile_id)
+		_record_projectile_update(drone)
+
+
+## Whether clients may learn about this projectile.
+static func is_replicated(projectile: ProjectileState) -> bool:
+	return not (projectile.is_drone and projectile.drone_hidden)
+
+
+static func replicated_only(projectiles: Array[ProjectileState]) -> Array[ProjectileState]:
+	var result: Array[ProjectileState] = []
+	for projectile in projectiles:
+		if is_replicated(projectile):
+			result.append(projectile)
+	return result
+
+
+func _spawn_drone_bolt(drone: ProjectileState, angle: float) -> ProjectileState:
+	var muzzle := drone.position + Vector2.from_angle(angle) * (drone.radius + GameConstants.DRONE_BOLT_RADIUS + 1.0)
+	if not ArenaCollisionSystem.projectile_obstacle_normal(muzzle, GameConstants.DRONE_BOLT_RADIUS, map_id, arena_effects.hidden_cover).is_zero_approx():
+		return null
+	var bolt := ProjectileState.create_drone_bolt(_next_projectile_id, drone.owner_id, muzzle, angle)
+	_next_projectile_id = SequenceMath.increment(_next_projectile_id)
+	for removed_id in projectile_registry.add(bolt):
+		_record_removed(removed_id)
+	_spawned_since_batch.append(bolt)
+	return bolt
+
+
 func _acquire_missile_target(
 	owner_id: int,
 	origin: Vector2,
@@ -632,6 +697,7 @@ func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:
 			var projectile := projectile_registry.get_projectile(projectile_id)
 			if (
 				projectile == null
+				or projectile.is_drone
 				or projectile.owner_id == source.peer_id
 				or are_allies(source.peer_id, projectile.owner_id)
 			):
@@ -886,6 +952,8 @@ func _record_shield_feedback(attacker_id: int, defender_id: int, reason: String)
 static func _projectile_source(projectile: ProjectileState) -> String:
 	if projectile.is_missile:
 		return "missile"
+	if projectile.is_drone_bolt:
+		return "drone"
 	if projectile.is_beam:
 		return "beam"
 	return "projectile"

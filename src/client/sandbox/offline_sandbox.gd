@@ -16,7 +16,7 @@ const PRESET_BUILDS: Array[Dictionary] = [
 	{}, {&"rapid_cycling": 2, &"twin_shot": 2, &"extended_magazine": 2},
 	{&"beam_emitter": 1, &"heavy_rounds": 2, &"quick_loader": 2},
 	{&"reinforced_hull": 2, &"capacitor_bank": 2, &"quick_charge": 2},
-	{&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1, &"cloak": 1},
+	{&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1, &"cloak": 1, &"escort_wing": 1},
 ]
 signal presentation_event(event_name: StringName, payload: Dictionary)
 
@@ -153,6 +153,8 @@ func step_lab(delta: float, frame: PlayerInputFrame) -> void:
 		var projectile := projectile_value as ProjectileState
 		if projectile.is_missile and not projectile.has_rebounded:
 			_emit_effect(&"missile_launch", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id}, projectile.position)
+		elif projectile.is_fresh_wing_lead():
+			_emit_effect(&"drone_deploy", {"projectile_id": projectile.projectile_id, "owner_id": projectile.owner_id}, projectile.position)
 	for detonation in world.drain_mine_detonations():
 		effects_layer.spawn_mine_explosion(detonation.position)
 		_emit_effect(&"mine_detonated", detonation, detonation.position)
@@ -502,6 +504,9 @@ func _update_hud() -> void:
 			charges = state.missile_charges_remaining
 		3:
 			cooldown = state.cloak_cooldown_remaining
+		4:
+			cooldown = state.drone_cooldown_remaining
+			charges = state.drone_charges_remaining
 	if selected_special_slot >= 0:
 		special_name += " ×%d" % charges if charges >= 0 else ""
 		if selected_special_slot == 3 and state.is_cloaked():

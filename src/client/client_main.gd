@@ -1441,7 +1441,7 @@ func _on_world_presentation_event(event_name: StringName, payload: Dictionary) -
 		)
 		return
 	var unique_key := ""
-	if event_name in [&"projectile_impact", &"ricochet", &"missile_launch"]:
+	if event_name in [&"projectile_impact", &"ricochet", &"missile_launch", &"drone_deploy"]:
 		unique_key = "%s:%s" % [payload.get("projectile_id", 0), payload.get("ricochets_remaining", -1)]
 	else:
 		unique_key = "%s:%s" % [payload.get("peer_id", 0), payload.get("server_tick", payload.get("projectile_id", 0))]

@@ -181,7 +181,7 @@ func refresh_build() -> void:
 	build_label.text = "BUILD · " + (", ".join(names) if not names.is_empty() else "Base ship")
 	var stats := lab.derived_stats
 	var stat_lines := PackedStringArray(["DERIVED STATS"])
-	for properties in [[&"max_health", &"max_speed", &"acceleration"], [&"projectile_damage", &"projectile_count", &"fire_rate"], [&"magazine_size", &"reload_duration"], [&"shield_capacity", &"shield_regeneration", &"shield_arc_degrees"], [&"pierce_count", &"ricochet_count"], [&"mine_capacity", &"missile_capacity", &"cloak_capacity"]]:
+	for properties in [[&"max_health", &"max_speed", &"acceleration"], [&"projectile_damage", &"projectile_count", &"fire_rate"], [&"magazine_size", &"reload_duration"], [&"shield_capacity", &"shield_regeneration", &"shield_arc_degrees"], [&"pierce_count", &"ricochet_count"], [&"mine_capacity", &"missile_capacity", &"cloak_capacity", &"drone_capacity"]]:
 		var parts := PackedStringArray()
 		for property in properties:
 			parts.append("%s %s" % [StatMetadata.label(property, true), StatMetadata.format_value(property, float(stats.get(property)))])

@@ -25,6 +25,9 @@ var mine_layer_enabled: bool = false
 var missile_capacity: int = 0
 var missile_launcher_enabled: bool = false
 
+var drone_capacity: int = 0
+var drone_bay_enabled: bool = false
+
 # Card stack count; retained under this name for build/stat compatibility.
 var cloak_capacity: int = 0
 var cloak_enabled: bool = false

@@ -26,6 +26,9 @@ static func tooltip(card: CardDefinition, stacks: int, stack_heading: String = "
 		stat_lines.append("Special  Drop an explosive mine on Special binding")
 	elif card.special_behavior_id == &"missile_launcher":
 		stat_lines.append("Special  Launch a limited-range seeker on Special binding")
+	elif card.special_behavior_id == &"drone_bay":
+		stat_lines.append("Special  Deploy %d escort drones on Special binding; a new wing replaces the last" % GameConstants.DRONE_WING_SIZE)
+		stat_lines.append("Drones  %.0f hull, %.0fs, %.0f damage bolts every %.1fs; hold fire while you are cloaked" % [GameConstants.DRONE_HEALTH, GameConstants.DRONE_LIFETIME_SECONDS, GameConstants.DRONE_BOLT_DAMAGE, GameConstants.DRONE_FIRE_INTERVAL_SECONDS])
 	elif card.special_behavior_id == &"cloak":
 		var cloak_stats := CombatStats.create_base()
 		cloak_stats.cloak_capacity = maxi(stacks, 1)

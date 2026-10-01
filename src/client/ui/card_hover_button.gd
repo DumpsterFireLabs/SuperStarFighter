@@ -294,6 +294,8 @@ func _effect_rows() -> Array[Dictionary]:
 		rows.append({"name": "Special", "each": "Drop mine", "total": "SHIFT / BINDING"})
 	elif card_definition.special_behavior_id == &"missile_launcher":
 		rows.append({"name": "Special", "each": "Launch seeker", "total": "SHIFT / BINDING"})
+	elif card_definition.special_behavior_id == &"drone_bay":
+		rows.append({"name": "Special", "each": "Deploy %d drones" % GameConstants.DRONE_WING_SIZE, "total": "SHIFT / BINDING"})
 	elif card_definition.special_behavior_id == &"cloak":
 		rows.append({"name": "Special", "each": "5s invisibility", "total": "SHIFT / BINDING"})
 	elif card_definition.special_behavior_id == &"rebound_shield":

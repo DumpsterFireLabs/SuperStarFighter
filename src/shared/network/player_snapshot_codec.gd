@@ -18,7 +18,7 @@ const LOCAL_FIELDS: Array[StringName] = [
 	&"weapon_cooldown", &"reload_remaining", &"cadence_remainder",
 	&"shield_inactivity", &"guard_window", &"guard_feedback", &"vent_release", &"burst_damage",
 ]
-const LOCAL_STATE_SIZE: int = 63 # Combat correction, ordnance, shield press and input age.
+const LOCAL_STATE_SIZE: int = 66 # Combat correction, ordnance, shield press, input age and drone bay.
 
 
 static func encode(server_tick: int, acknowledged_input: int, states: Array[Dictionary], local_state: Dictionary = {}) -> PackedByteArray:
@@ -87,6 +87,9 @@ static func _append_local_state(bytes: PackedByteArray, state: Dictionary) -> vo
 	ByteCodec.append_u32(bytes, int(state.get("budget_evictions", 0)) & 0xffffffff)
 	ByteCodec.append_u32(bytes, maxi(int(state.get("last_shield_press_sequence", 0)), 0))
 	ByteCodec.append_u16(bytes, clampi(int(state.get("input_age_ticks", 0)), 0, 65535))
+	# Only the owner needs drone inventory, so it rides the private block.
+	ByteCodec.append_u8(bytes, clampi(int(state.get("drone_charges", 0)), 0, 255))
+	ByteCodec.append_u16(bytes, clampi(roundi(float(state.get("drone_cooldown", 0.0)) * 1000.0), 0, 65535))
 
 
 static func _append_state(bytes: PackedByteArray, state: Dictionary) -> void:
@@ -278,6 +281,8 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	local_state["budget_evictions"] = ByteCodec.read_u32(bytes, offset + 53)
 	local_state["last_shield_press_sequence"] = ByteCodec.read_u32(bytes, offset + 57) if local_flags & 32 else -1
 	local_state["input_age_ticks"] = ByteCodec.read_u16(bytes, offset + 61)
+	local_state["drone_charges"] = ByteCodec.read_u8(bytes, offset + 63)
+	local_state["drone_cooldown"] = ByteCodec.read_u16(bytes, offset + 64) / 1000.0
 	return {"ok": true, "server_tick": ByteCodec.read_u32(bytes, 1), "acknowledged_input": ByteCodec.read_u32(bytes, 5), "states": states, "local_state": local_state}
 
 

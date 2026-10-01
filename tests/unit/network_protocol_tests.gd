@@ -271,7 +271,7 @@ static func _validate_projectile_codec(context: TestContext) -> void:
 	var zero_removal := ProjectilePacketCodec.encode_batch_chunks(1, 1, [], [0])[0]
 	context.expect_false(ProjectilePacketCodec.decode_batch(zero_removal).ok, "wire removal cannot use the registry tombstone ID")
 	var bad_flags := packet.duplicate()
-	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 16
+	bad_flags[ProjectilePacketCodec.HEADER_SIZE + 26] = 64
 	context.expect_false(ProjectilePacketCodec.decode_batch(bad_flags).ok, "unsupported projectile presentation flags are rejected")
 	var correction := ProjectilePacketCodec.encode_correction_chunks(1001, 8, spawned, true)[0]
 	context.expect_true(ProjectilePacketCodec.decode_correction(correction).ok, "projectile correction round-trips")

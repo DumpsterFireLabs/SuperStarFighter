@@ -14,7 +14,7 @@ static func families(stats: CombatStats) -> Array[StringName]:
 		result.append(&"shield")
 	if stats.afterburner_enabled or stats.breakaway_thrusters_enabled or stats.max_speed > 530.0:
 		result.append(&"drive")
-	elif stats.mine_layer_enabled or stats.missile_launcher_enabled:
+	elif stats.mine_layer_enabled or stats.missile_launcher_enabled or stats.drone_bay_enabled:
 		result.append(&"ordnance")
 	elif stats.auto_repair_enabled:
 		result.append(&"repair")
