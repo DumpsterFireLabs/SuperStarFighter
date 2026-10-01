@@ -459,7 +459,8 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"Button"), "shared interface theme defines a visible keyboard and controller focus state")
 	context.expect_true(client.interface_theme.has_stylebox(&"focus", &"LineEdit"), "shared interface theme defines focused text inputs")
 	context.expect_true(client.interface_theme.has_stylebox(&"tab_focus", &"TabBar"), "shared interface theme defines focused tab navigation")
-	context.expect_equal(client.connection_controller.connection_primary_button.theme_type_variation, &"PrimaryButton", "primary connection action uses the shared semantic action language")
+	context.expect_true(client.connection_controller.direct_connect_button.theme_type_variation == &"PrimaryButton" and client.connection_controller.host_join_button.theme_type_variation == &"PrimaryButton", "connect and host are the menu's primary actions")
+	context.expect_equal(client.connection_controller.connection_primary_button.theme_type_variation, &"SecondaryButton", "the default-focus Combat Lab entry does not compete with connect and host")
 	context.expect_equal(client.connection_controller.lobby.lobby_options_button.theme_type_variation, &"SecondaryButton", "secondary lobby action uses the shared semantic action language")
 	context.expect_equal(client.connection_controller.version_label.text, "%s  ·  VERSION %s" % [GameConstants.RELEASE_LABEL, GameConstants.GAME_VERSION], "main screen displays the canonical release version")
 	context.expect_equal(client._pointer_mode_for_gameplay(true), Input.MOUSE_MODE_CONFINED_HIDDEN, "active gameplay confines the hidden mouse pointer to the game window")
@@ -530,6 +531,20 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.connection_controller.lobby.ship_color_popup != null and client.connection_controller.lobby.random_color_button != null and client.connection_controller.lobby.ship_color_picker != null and client.connection_controller.lobby.ship_pattern_control != null and client.connection_controller.lobby.apply_ship_color_button != null, "roster appearance selection owns colour, pattern, Random, and explicit Apply controls")
 	context.expect_equal(client.connection_controller.lobby.ship_color_picker.picker_shape, ColorPicker.SHAPE_HSV_WHEEL, "roster colour selection opens an HSV wheel")
 	context.expect_equal(client.connection_controller.lobby.ship_pattern_control.item_count, ShipAppearanceScript.PATTERNS.size(), "ship customization exposes every supported hull pattern")
+	var ship_palette := client.connection_controller.lobby.ship_color_popup.find_child("ShipPalette", true, false) as Container
+	context.expect_true(ship_palette != null and ship_palette.get_child_count() == ServerLobby.RANDOM_SHIP_COLORS.size(), "ship customisation offers one palette swatch per curated ship colour")
+	context.expect_false(client.connection_controller.lobby.ship_color_picker.color_modes_visible or client.connection_controller.lobby.ship_color_picker.presets_visible, "engine colour-space tabs and swatch drawer stay hidden")
+	if ship_palette != null and ship_palette.get_child_count() > 1:
+		var saved_picker_color: Color = client.connection_controller.lobby.ship_color_picker.color
+		var saved_pending_color: Color = client.connection_controller.lobby.pending_ship_color
+		var palette_color := Color.from_string("#" + ServerLobby.RANDOM_SHIP_COLORS[1], Color.BLACK)
+		var palette_swatch := ship_palette.get_child(1) as Button
+		context.expect_equal(palette_swatch.focus_mode, Control.FOCUS_ALL, "palette swatches are reachable by keyboard and controller")
+		palette_swatch.pressed.emit()
+		context.expect_equal(client.connection_controller.lobby.pending_ship_color, palette_color, "choosing a palette swatch stages that colour for Apply")
+		context.expect_equal(client.connection_controller.lobby.ship_color_picker.color, palette_color, "choosing a palette swatch moves the wheel to that colour")
+		client.connection_controller.lobby.ship_color_picker.color = saved_picker_color
+		client.connection_controller.lobby.pending_ship_color = saved_pending_color
 	context.expect_true(client.draft_controller.draft_panel != null, "production draft screen exists")
 	context.expect_true(client.network_world.hud_camera.hud_panel != null, "production combat HUD exists")
 	context.expect_true(client.heat_intro_panel != null, "each heat has a centered READY and BEGIN presentation")

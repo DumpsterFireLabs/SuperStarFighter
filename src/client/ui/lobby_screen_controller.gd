@@ -514,11 +514,35 @@ func _create_ship_color_popup() -> void:
 	ship_color_picker.edit_alpha = false
 	ship_color_picker.picker_shape = ColorPicker.SHAPE_HSV_WHEEL
 	ship_color_picker.sliders_visible = false
-	ship_color_picker.presets_visible = false
 	ship_color_picker.sampler_visible = false
+	# Players pick from the curated ship palette or the wheel; engine colour-space
+	# modes (RGB/HSV/Linear) and custom swatch editing are not player concepts.
+	# The engine's swatch drawer adds folding, "Recent Colors" and a file menu,
+	# so the curated palette is a row of the game's own focusable buttons instead.
+	ship_color_picker.color_modes_visible = false
+	ship_color_picker.presets_visible = false
 	ship_color_picker.custom_minimum_size = Vector2(640.0, 300.0)
 	ship_color_picker.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	ship_color_picker.color_changed.connect(_on_ship_color_changed)
+	var palette_label := Label.new()
+	palette_label.text = "SHIP PALETTE"
+	palette_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
+	content.add_child(palette_label)
+	var palette := HFlowContainer.new()
+	palette.name = "ShipPalette"
+	palette.add_theme_constant_override("h_separation", 6)
+	palette.add_theme_constant_override("v_separation", 6)
+	content.add_child(palette)
+	for hex in ServerLobby.RANDOM_SHIP_COLORS:
+		var swatch_color := Color.from_string("#" + hex, DesignTokensScript.BRAND_CYAN)
+		var swatch := Button.new()
+		swatch.custom_minimum_size = Vector2(34.0, 34.0)
+		swatch.tooltip_text = "#%s" % hex
+		swatch.add_theme_stylebox_override("normal", _ship_color_swatch_style(swatch_color, false))
+		swatch.add_theme_stylebox_override("hover", _ship_color_swatch_style(swatch_color, true))
+		swatch.add_theme_stylebox_override("pressed", _ship_color_swatch_style(swatch_color.lightened(0.12), true))
+		swatch.pressed.connect(_choose_palette_color.bind(swatch_color))
+		palette.add_child(swatch)
 	content.add_child(ship_color_picker)
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 12)
@@ -870,6 +894,11 @@ func _on_ship_color_changed(color: Color) -> void:
 		return
 	pending_ship_color = Color(color.r, color.g, color.b, 1.0)
 	ship_pattern_preview.set_appearance(pending_ship_color, pending_ship_pattern)
+
+
+func _choose_palette_color(color: Color) -> void:
+	ship_color_picker.color = color
+	_on_ship_color_changed(color)
 
 
 func _on_ship_pattern_selected(index: int) -> void:

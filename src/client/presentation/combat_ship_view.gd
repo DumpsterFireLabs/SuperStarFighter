@@ -368,7 +368,7 @@ func _draw() -> void:
 		draw_line(-forward * 8.0 + side * offset, -forward * 16.0 + side * offset, Color.WHITE, 2.5)
 	if local_control:
 		var marker_center := -side * 39.0 if afterburner_bloom_remaining > 0.0 else -forward * 39.0
-		draw_polyline(PackedVector2Array([marker_center - side * 9.0, marker_center + forward * 8.0, marker_center + side * 9.0]), Color("fff36a"), 4.0)
+		draw_polyline(PackedVector2Array([marker_center - side * 9.0, marker_center + forward * 8.0, marker_center + side * 9.0]), _local_accent(), 4.0)
 		_draw_ammo_indicator()
 	if combatant.shield.active:
 		var half_arc := deg_to_rad(combatant.stats.shield_arc_degrees) * 0.5
@@ -387,7 +387,7 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, 38.0, 0.0, TAU, 32, Color("ff9f43", breakaway_alpha * 0.75), 3.0)
 	var health_angle := TAU * combatant.health_fraction()
 	draw_arc(Vector2.ZERO, 26.0, -PI * 0.5, -PI * 0.5 + health_angle, 24, Color("54ff8b"), 2.0)
-	_draw_nameplate(Color("fff36a") if local_control else Color("e8f5ff"))
+	_draw_nameplate(_local_accent() if local_control else Color("e8f5ff"))
 
 
 func _draw_crush() -> void:
@@ -578,6 +578,12 @@ func _draw_team_marker() -> void:
 	draw_string(ThemeDB.fallback_font, Vector2(-47, 65), team_marker_text(), HORIZONTAL_ALIGNMENT_CENTER, 94.0, 14, color.lightened(0.25))
 
 
+## Your own markers use your identity colour with the ◆, as every menu does,
+## lightened so a dark custom colour stays readable over the arena.
+func _local_accent() -> Color:
+	return ship_color.lightened(0.55 if high_contrast else 0.25)
+
+
 func _draw_nameplate(color: Color) -> void:
 	if not show_combat_details:
 		return
@@ -591,11 +597,11 @@ func _draw_ammo_indicator() -> void:
 	var fraction := clampf(float(weapon.ammunition) / float(magazine_size), 0.0, 1.0)
 	var background := Rect2(-36.0, -78.0, 72.0, 8.0)
 	draw_rect(background, Color("071024", 0.92), true)
-	draw_rect(background, Color("fff36a", 0.75), false, 1.5)
+	draw_rect(background, Color(_local_accent(), 0.75), false, 1.5)
 	if fraction > 0.0:
 		draw_rect(Rect2(background.position + Vector2(2.0, 2.0), Vector2((background.size.x - 4.0) * fraction, background.size.y - 4.0)), Color("ff9f43") if fraction <= 0.25 else Color("73f7ff"), true)
 	var text := ammo_indicator_text()
-	draw_string(ThemeDB.fallback_font, Vector2(-52.0, -83.0), text, HORIZONTAL_ALIGNMENT_CENTER, 104.0, 13, Color("fff36a") if weapon.reloading else Color("e8f5ff"))
+	draw_string(ThemeDB.fallback_font, Vector2(-52.0, -83.0), text, HORIZONTAL_ALIGNMENT_CENTER, 104.0, 13, DesignTokens.WARNING if weapon.reloading else Color("e8f5ff"))
 
 
 func ammo_indicator_text() -> String:
