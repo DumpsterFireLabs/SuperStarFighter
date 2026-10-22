@@ -93,7 +93,27 @@ func validation_errors() -> PackedStringArray:
 		for circle in circles:
 			if anchor.distance_to(Vector2(circle.x, circle.y)) <= circle.z + 96.0:
 				errors.append("Spawn anchor overlaps a circle.")
+		for resource in movement_fields:
+			var field := resource as ArenaMovementFieldDefinition
+			if field != null and field.event_horizon_radius > 0.0 and anchor.distance_to(field.center) <= field.event_horizon_radius + 96.0:
+				errors.append("Spawn anchor %d overlaps an event horizon." % index)
 		for other in range(index + 1, spawns.size()):
 			if anchor.distance_to(spawns[other]) < 160.0 - 0.001:
 				errors.append("Spawn anchors must be at least 160 pixels apart.")
+	# Do not build a navigation graph from malformed or non-finite geometry.
+	if errors.is_empty():
+		var navigation_circles: Array[Vector3] = circles.duplicate()
+		for resource in movement_fields:
+			var field := resource as ArenaMovementFieldDefinition
+			if field.event_horizon_radius > 0.0:
+				navigation_circles.append(Vector3(field.center.x, field.center.y, field.event_horizon_radius))
+		var navigation := MapNavigationValidation.new(cover, navigation_circles, flag_spawn)
+		for index in spawns.size():
+			if not navigation.reaches_destination(spawns[index]):
+				errors.append("Map %s spawn %d has no ship-clear route to the flag with all doors closed." % [map_id, index])
+			if not navigation.has_spawn_exits(spawns[index]):
+				errors.append("Map %s spawn %d needs two 96px-wide, 180px-long exits at least 90 degrees apart into the flag's navigation region with all doors closed." % [map_id, index])
+		var final_radius := overtime_minimum_radius if overtime_minimum_radius > 0.0 else GameConstants.OVERTIME_MINIMUM_RADIUS
+		if not navigation.reaches_overtime(final_radius):
+			errors.append("Map %s has no ship-clear route from the flag region into the final overtime disk with all doors closed." % map_id)
 	return errors

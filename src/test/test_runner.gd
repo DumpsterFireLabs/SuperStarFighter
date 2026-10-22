@@ -42,6 +42,7 @@ func _ready() -> void:
 	preload("res://tests/unit/objective_fairness_tests.gd").run(_context)
 	preload("res://tests/unit/preset_hazard_tests.gd").run(_context, self)
 	MapResourceTests.run(_context)
+	preload("res://tests/unit/map_navigation_tests.gd").run(_context)
 	preload("res://tests/unit/update_checker_tests.gd").run(_context)
 	await AbilityDeliveryTests.run(_context, self)
 	preload("res://tests/unit/combat_request_tests.gd").run(_context, self)

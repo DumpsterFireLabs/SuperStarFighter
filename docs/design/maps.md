@@ -20,6 +20,18 @@ The flag is at `(1600, 900)` except Core Arena and Solar Crucible `(1600, 540)`,
 
 `objective_fairness_tests.gd` also exercises countdown, pickup and dropped-flag reset in both flag modes on every map. These rules are implemented; the broader expansion contracts below retain their roadmap status.
 
+### Implemented connectivity and spawn-exit contract
+
+`MapDefinition.validation_errors()` is the common acceptance gate for registry publication and `ArenaLayout.validate_map()`. After basic geometry checks pass, it builds a fresh visibility graph from that resource's geometry. It never consults live map-ID navigation caches. Every spawn must reach the authored flag through segments swept at the full 20 px ship radius. Event horizons block navigation like solid circles, and their boundaries must also clear each 96 px spawn disk.
+
+Each spawn needs two clear corridors, each 96 px wide and 180 px long measured from the anchor center, with headings at least 90 degrees apart. Exit endpoints must reach the flag's component. These are distinct local escape headings; they do not prove two globally disjoint routes. Validation samples headings every five degrees, uses rectangle corners and 32 circumscribed circle vertices, and collision-checks every graph edge continuously. This is a conservative acceptance check: unusually tight valid routes can require geometry changes rather than being accepted through a blocker.
+
+All authored cover remains present during validation, including every closed door and intact cargo block. Opening doors or destroying cargo only removes obstacles. Regression tests nevertheless check all four Switchyard door-group combinations and all 64 Dead Freight cargo masks, plus a fixture that becomes disconnected when its door closes.
+
+The flag component must also reach a position that fits a full ship inside the final central overtime disk. The center may be occupied by a reactor or event horizon. The check searches the center and four concentric sample rings; an inaccessible or fully obstructed disk is rejected. Core Arena and Solar Tide now stop at a 340 px radius, because their previous 120 px disks lay entirely inside their central obstacles. Wormhole retains 420 px and Solar Crucible 340 px. Hill-centered overtime and the wider flag-mode base envelope retain their existing rules. This check establishes reachable final space, not safe travel throughout every stage of the shrink.
+
+`map_navigation_tests.gd` covers enclosed spawn rooms, narrow passages, valid detours, one-mouth dead ends, circle and event-horizon barriers, resource edits after navigation caching, and isolated overtime space. The remaining sightline, three-approach, and future dynamic-terrain targets below remain roadmap work.
+
 ### Original expansion outcome
 
 Super Star Fighter has a ten-map static roster. The existing 3200×1800 arena remains the neutral competitive benchmark; nine additional arenas introduce materially different sightlines, routing, cover, and weapon interactions without changing the core ship or card rules.

@@ -133,23 +133,9 @@ static func validate() -> PackedStringArray:
 
 
 static func validate_map(map_id: StringName) -> PackedStringArray:
-	var errors := PackedStringArray()
 	if not has_map(map_id):
 		return PackedStringArray(["Unknown map ID %s." % map_id])
-	var anchors := spawn_anchors(map_id)
-	if anchors.size() != GameConstants.MAX_PLAYERS:
-		errors.append("Map %s must provide exactly 32 spawn anchors." % map_id)
-	var safe_rect := arena_rect().grow(-SPAWN_CLEAR_RADIUS)
-	for index in anchors.size():
-		var anchor := anchors[index]
-		if not safe_rect.has_point(anchor):
-			errors.append("Map %s spawn anchor %d lies outside the safe arena bounds." % [map_id, index])
-		if overlaps_obstacle(anchor, SPAWN_CLEAR_RADIUS, map_id):
-			errors.append("Map %s spawn anchor %d overlaps an obstacle." % [map_id, index])
-		for other_index in range(index + 1, anchors.size()):
-			if anchor.distance_to(anchors[other_index]) < 160.0 - 0.001:
-				errors.append("Map %s spawn anchors %d and %d are less than 160 pixels apart." % [map_id, index, other_index])
-	return errors
+	return Registry.definition(map_id).validation_errors()
 
 
 static func overlaps_obstacle(point: Vector2, radius: float, map_id: StringName = DEFAULT_MAP_ID) -> bool:

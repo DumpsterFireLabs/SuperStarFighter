@@ -203,7 +203,7 @@ static func _validate_event_horizon(context: TestContext) -> void:
 	context.expect_true(swallow_world.projectile_registry.get_projectile(920) == null and swallow_world.projectile_registry.get_projectile(921) == null, "shots and missiles vanish past the event horizon")
 
 	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"wormhole"), 420.0, "Wormhole overtime stops well outside the hole")
-	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"core_arena"), GameConstants.OVERTIME_MINIMUM_RADIUS, "maps without hazards keep the default overtime radius")
+	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"riftline"), GameConstants.OVERTIME_MINIMUM_RADIUS, "maps with a clear center keep the default overtime radius")
 	var hazard_margin := hole.event_horizon_radius + GameModeRules.OBJECTIVE_ZONE_RADIUS + GameModeRules.OBJECTIVE_HAZARD_CLEARANCE
 	context.expect_true(GameModeRules.objective_spawn(&"wormhole").distance_to(hole.center) >= hazard_margin - 0.01, "the neutral flag spawns clear of the hole")
 	for round_number in range(1, 9):
