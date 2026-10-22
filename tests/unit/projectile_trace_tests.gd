@@ -1,7 +1,9 @@
 extends RefCounted
 
-## Frozen pre-extraction tick traces exercise phase ordering, ownership,
+## Reviewed tick traces exercise phase ordering, ownership,
 ## mines, missile interception, shields and ordinary/beam projectiles together.
+## Core/Riftline fixtures include embedded ships; protocol 51 updates their traces
+## for swept ship recovery and the widened Riftline gap. Prism traces are unchanged.
 static func trace(seed_value: int, map_id: StringName) -> String:
     var rng := RandomNumberGenerator.new()
     rng.seed = seed_value

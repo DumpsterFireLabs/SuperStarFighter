@@ -392,6 +392,10 @@ Integration logs live under `.tools/*-verification/` or `.tools/verification-log
 
 Tests use `TestContext` assertions and run headlessly through the project's test startup mode. Behavior assertions should state the contract they protect, not mirror implementation names without meaning.
 
+`ship_collision_tests.gd` covers legal boosted builds, long sweeps, sliding, bounds, dynamic cover, embedded recovery, and delayed client replay. `objective_fairness_tests.gd` checks equal team routes on every map and cargo/door state, spawn reachability, authored zone validation, and countdown/pickup/reset in both flag modes. Review intentional geometry changes alongside `tests/fixtures/map_layout_baseline.json`; do not regenerate away unrelated coordinate precision.
+
+`preset_hazard_tests.gd` checks preset transitions against actual round/heat initialization, intrinsic damage, map-pool validation, authority, readiness, frozen settings, and UI controls. `src/test/lobby_flow_verifier.gd` exercises map selection over real TCP, including invalid/guest/midmatch requests, replication to both clients and late spectators, and rematches. Run `presentation_capture.gd` with `--preset-hazards-only` plus the usual capture directory/resolution arguments for focused lobby, map-picker and intrinsic-control screenshots.
+
 Good regression coverage normally includes:
 
 - Boundary values and one value just outside each boundary.

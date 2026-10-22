@@ -15,7 +15,7 @@ static func run(context: TestContext) -> void:
 		context.expect_equal(rectangles.size(), row.rectangles.size(), "cover count preserved")
 		for index in rectangles.size():
 			var values: Array = row.rectangles[index]
-			context.expect_equal(rectangles[index], Rect2(values[0], values[1], values[2], values[3]), "cover coordinates preserve pre-refactor geometry")
+			context.expect_equal(rectangles[index], Rect2(values[0], values[1], values[2], values[3]), "cover coordinates match the reviewed geometry baseline")
 		var circles := ArenaLayout.circle_obstacles(id)
 		context.expect_true(circles.is_read_only(), "shared circle list is immutable")
 		context.expect_equal(circles.size(), row.circles.size(), "circle count preserved")

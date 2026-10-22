@@ -261,6 +261,11 @@ func send_team_assignment(peer_id: int, team_selection: int) -> void:
 		request_team_assignment.rpc_id(NetworkProtocol.SERVER_PEER_ID, peer_id, team_selection)
 
 
+func send_map_pool(pool: Array) -> void:
+	if role == Role.CLIENT and local_peer_id != 0:
+		request_map_pool.rpc_id(NetworkProtocol.SERVER_PEER_ID, pool)
+
+
 func send_arena_effects(settings: Dictionary) -> void:
 	if role == Role.CLIENT:
 		request_arena_effects.rpc_id(NetworkProtocol.SERVER_PEER_ID, settings)
@@ -656,6 +661,14 @@ func request_team_assignment(peer_id: int, team_selection: int) -> void:
 	if not _accept_control_request(sender_id, "team_assignment"):
 		return
 	commands.request_team_assignment(sender_id, peer_id, team_selection)
+
+
+@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
+func request_map_pool(pool: Array) -> void:
+	if role != Role.SERVER: return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not _accept_control_request(sender_id, "map_pool"): return
+	commands.request_map_pool(sender_id, pool)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -1209,6 +1222,10 @@ func operator_set_setting(setting: String, value: Variant) -> Dictionary:
 		return {"ok": false, "error": "The server is not running."}
 	var result: Dictionary
 	match setting:
+		"map_pool":
+			if not value is Array:
+				return _invalid_operator_setting_type(setting, "a list of map IDs")
+			result = lobby.request_map_pool(ServerLobby.OPERATOR_AUTHORITY_ID, value)
 		"rounds_to_win":
 			if not _is_integer_setting_value(value):
 				return _invalid_operator_setting_type(setting, "an integer")

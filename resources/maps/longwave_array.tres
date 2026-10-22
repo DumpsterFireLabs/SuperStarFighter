@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"longwave_array"
+flag_spawn = Vector2(1600, 900)
 display_name = "Longwave Array"
 cover = Array[Rect2]([Rect2(675.0, 255.0, 90.0, 430.0), Rect2(2435.0, 255.0, 90.0, 430.0), Rect2(675.0, 1115.0, 90.0, 430.0), Rect2(2435.0, 1115.0, 90.0, 430.0), Rect2(1275.0, 700.0, 90.0, 400.0), Rect2(1835.0, 700.0, 90.0, 400.0)])
 circles = Array[Vector3]([])

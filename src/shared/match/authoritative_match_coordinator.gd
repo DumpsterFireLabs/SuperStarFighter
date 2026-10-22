@@ -94,7 +94,8 @@ func _init(
 	match_seed = seed_value
 	overtime_start_seconds = overtime_start_override if overtime_start_override >= 0.0 else lobby.config.overtime_start_seconds
 	_rng.seed = match_seed
-	_map_rotation = ArenaLayout.map_ids()
+	machine = MatchStateMachine.new(lobby.config, catalog)
+	_map_rotation = machine.config.map_pool.duplicate()
 	var map_rng := RandomNumberGenerator.new()
 	map_rng.seed = match_seed ^ 0x5A17_2026
 	for index in range(_map_rotation.size() - 1, 0, -1):
@@ -102,7 +103,6 @@ func _init(
 		var temporary := _map_rotation[index]
 		_map_rotation[index] = _map_rotation[swap_index]
 		_map_rotation[swap_index] = temporary
-	machine = MatchStateMachine.new(lobby.config, catalog)
 	for player_value in lobby.players.values():
 		var lobby_player := player_value as PlayerMatchState
 		var player := machine.add_player(
@@ -663,7 +663,7 @@ func _prepare_world_heat() -> void:
 	world.set_team_assignments(_team_assignments_cache)
 	_spawn_assignments_cache = spawn_assignments.duplicate(true)
 	world.prepare_heat(participant_stats, spawn_assignments)
-	world.arena_effects.reset(current_map_id, lobby.config.arena_effects)
+	world.arena_effects.reset(current_map_id, machine.config.arena_effects)
 	_last_arena_effect_snapshot = {}
 	_last_arena_effect_tick = -1
 
@@ -946,7 +946,8 @@ func _state_payload() -> Dictionary:
 		"players": _public_players(),
 		"builds": _public_builds(),
 		"powerups": powerups.snapshot() if machine.state == MatchStateMachine.State.ACTIVE_HEAT else [],
-		"arena_effect_settings": lobby.config.arena_effects.duplicate(),
+		"arena_effect_settings": machine.config.arena_effects.duplicate(),
+		"map_pool": machine.config.map_pool.duplicate(),
 		"arena_effect_state": world.arena_effects.snapshot(),
 		"random_spawn_powerups": lobby.config.random_spawn_powerups,
 		"random_powerup_interval_seconds": lobby.config.random_powerup_interval_seconds,

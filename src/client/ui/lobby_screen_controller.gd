@@ -4,6 +4,7 @@ extends Node
 ## navigation is published as intent, with no client-root dependency.
 const PreferencesScript = preload("res://src/client/ui/connection_preferences.gd")
 const PresetControls = preload("res://src/client/ui/match_preset_controls.gd")
+const MapPoolControls = preload("res://src/client/ui/map_pool_controls.gd")
 const NavigationScript = preload("res://src/client/ui/screen_navigation.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
@@ -40,6 +41,7 @@ var lobby_options_tabs: TabContainer
 var lobby_options_status: Label
 var lobby_options_close: Button
 var arena_effect_controls: ArenaEffectControls
+var map_pool_controls: MapPoolControls
 var powerups_button: CheckButton
 var powerup_interval_control: SpinBox
 var powerups_permanent_button: CheckButton
@@ -256,7 +258,7 @@ func _create_lobby_options_popup() -> void:
 	lobby_preset_control = PresetControls.create_picker(match_content)
 	lobby_preset_control.set_item_text(0, "Custom · choose your own rules")
 	lobby_preset_note = PresetControls.create_note(match_content)
-	lobby_preset_note.text = "Start with a preset, then adjust Match, Pilots, and Arena Rules."
+	lobby_preset_note.text = "Start with a preset, then adjust Match, Pilots, Arena Rules, and Maps."
 	lobby_preset_note.add_theme_color_override("font_color", DesignTokensScript.TEXT_SECONDARY)
 	lobby_preset_control.item_selected.connect(_on_lobby_preset_selected)
 	_setup_heading(match_content, "MODE & VICTORY")
@@ -369,6 +371,10 @@ func _create_lobby_options_popup() -> void:
 	arena_effect_controls = ArenaEffectControls.new()
 	rules_content.add_child(arena_effect_controls)
 	arena_effect_controls.settings_changed.connect(bridge.send_arena_effects)
+	var maps_content := _setup_tab("MAPS")
+	map_pool_controls = MapPoolControls.new()
+	maps_content.add_child(map_pool_controls)
+	map_pool_controls.pool_changed.connect(bridge.send_map_pool)
 	_setup_heading(rules_content, "POWERUPS")
 	powerups_button = CheckButton.new()
 	powerups_button.text = "Enable powerup drops"
@@ -451,7 +457,7 @@ func _setup_note(parent: VBoxContainer, message: String) -> Label:
 
 
 func _on_setup_tab_changed(index: int) -> void:
-	var first_control: Control = [lobby_preset_control, player_limit_control.get_line_edit(), overtime_start_control.get_line_edit()][index]
+	var first_control: Control = [lobby_preset_control, player_limit_control.get_line_edit(), overtime_start_control.get_line_edit(), map_pool_controls.first_editable_control()][index]
 	var tab_bar := lobby_options_tabs.get_tab_bar()
 	tab_bar.focus_next = tab_bar.get_path_to(first_control)
 	tab_bar.focus_neighbor_bottom = tab_bar.focus_next
@@ -601,9 +607,12 @@ func render_lobby(state: Dictionary) -> void:
 	var is_leader: bool = int(state.get("leader_id", 0)) == bridge.local_peer_id
 	lobby_rules_label.text = "%s  ·  First to %d rounds  ·  %s" % [GameModeRules.mode_name(int(state.get("game_mode", 0))), int(state.get("rounds_to_win", 3)), "NPC fill enabled" if bool(state.get("npcs_enabled", false)) else "Human pilots only"]
 	lobby_rules_label.text += "  ·  Competitive 16:9" if bool(state.get("competitive_view", false)) else "  ·  Expanded view"
+	var pool: Array = state.get("map_pool", ArenaLayout.map_ids())
+	var effect_settings: Dictionary = state.get("arena_effects", ArenaEffectRules.DEFAULT)
+	lobby_rules_label.text += "\n" + MapPoolControls.summary(pool, effect_settings)
 	lobby_readiness_label.text = readiness_summary(state)
 	lobby_options_button.text = "MATCH SETUP" if is_leader else "VIEW MATCH SETUP"
-	lobby_options_button.tooltip_text = "Choose a preset, configure pilots, and adjust arena rules." if is_leader else "View current rules. Only the lobby leader may edit match setup."
+	lobby_options_button.tooltip_text = "Choose a preset, configure pilots, and review maps and arena rules." if is_leader else "View current rules. Only the lobby leader may edit match setup."
 	_rebuild_lobby_roster(state, is_leader)
 	var local_ready := false
 	for player_value in state.get("players", []):
@@ -646,7 +655,7 @@ func render_lobby(state: Dictionary) -> void:
 	_applying_lobby_state = false
 	ready_button.disabled = match_active
 	ready_button.text = "READY ✓" if local_ready else "READY FOR LAUNCH"
-	lobby_options_status.text = "Changes apply immediately. Pilots must ready up again after rule changes." if is_leader else "Only the lobby leader can change these rules. You can browse all three tabs."
+	lobby_options_status.text = "Changes apply immediately. Pilots must ready up again after rule changes." if is_leader else "Only the lobby leader can change these rules. You can browse all four tabs."
 	lobby_options_status.remove_theme_color_override("font_color")
 	var settings_editable: bool = is_leader and not match_active
 	lobby_preset_control.disabled = not settings_editable
@@ -657,7 +666,8 @@ func render_lobby(state: Dictionary) -> void:
 	npcs_button.disabled = not settings_editable
 	npc_all_difficulty_control.disabled = not settings_editable or not bool(state.get("npcs_enabled", false))
 	powerups_button.disabled = not settings_editable
-	arena_effect_controls.refresh(state.get("arena_effects", ArenaEffectRules.DEFAULT) as Dictionary, settings_editable)
+	arena_effect_controls.refresh(effect_settings, settings_editable, pool)
+	map_pool_controls.refresh(pool, effect_settings, settings_editable)
 	powerup_interval_control.editable = settings_editable and bool(state.get("random_spawn_powerups", false))
 	powerups_permanent_button.disabled = not settings_editable or not bool(state.get("random_spawn_powerups", false))
 	overtime_start_control.editable = settings_editable

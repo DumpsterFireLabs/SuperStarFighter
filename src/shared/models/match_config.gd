@@ -10,6 +10,7 @@ var countdown_duration_seconds: float = GameConstants.COUNTDOWN_DURATION_SECONDS
 var heat_result_duration_seconds: float = GameConstants.HEAT_RESULT_DURATION_SECONDS
 var round_result_duration_seconds: float = GameConstants.ROUND_RESULT_DURATION_SECONDS
 var arena_effects: Dictionary = ArenaEffectRules.DEFAULT.duplicate()
+var map_pool: Array[StringName] = ArenaLayout.map_ids()
 var competitive_view: bool = false
 var random_spawn_powerups: bool = false
 var random_powerup_interval_seconds: float = 20.0
@@ -21,6 +22,8 @@ var team_count: int = GameModeRules.DEFAULT_TEAM_COUNT
 
 func validate() -> PackedStringArray:
 	var errors := PackedStringArray()
+	if not valid_map_pool(map_pool):
+		errors.append("Map pool must contain at least one known map, without duplicates.")
 	if not ArenaEffectRules.valid(arena_effects):
 		errors.append("Invalid arena effect settings.")
 	if protocol_version != GameConstants.PROTOCOL_VERSION:
@@ -65,6 +68,18 @@ func duration_to_ticks(duration_seconds: float) -> int:
 	return ceili(duration_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
 
 
+static func valid_map_pool(pool: Array) -> bool:
+	if pool.is_empty() or pool.size() > ArenaLayout.map_ids().size(): return false
+	var seen := {}
+	for value in pool:
+		if typeof(value) not in [TYPE_STRING, TYPE_STRING_NAME]: return false
+		if String(value).length() > 64: return false
+		var map_id := StringName(value)
+		if not ArenaLayout.has_map(map_id) or seen.has(map_id): return false
+		seen[map_id] = true
+	return true
+
+
 func duplicate_config() -> MatchConfig:
 	var copy := MatchConfig.new()
 	copy.protocol_version = protocol_version
@@ -76,6 +91,7 @@ func duplicate_config() -> MatchConfig:
 	copy.heat_result_duration_seconds = heat_result_duration_seconds
 	copy.round_result_duration_seconds = round_result_duration_seconds
 	copy.arena_effects = arena_effects.duplicate()
+	copy.map_pool = map_pool.duplicate()
 	copy.competitive_view = competitive_view
 	copy.random_spawn_powerups = random_spawn_powerups
 	copy.random_powerup_interval_seconds = random_powerup_interval_seconds

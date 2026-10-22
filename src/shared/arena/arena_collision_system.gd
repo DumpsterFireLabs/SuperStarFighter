@@ -6,10 +6,64 @@ static var _empty_obstacle_indices: Array[int] = []
 const PROJECTILE_OBSTACLE_CELL_SIZE: float = 240.0
 const OBSTACLE_GRID_WIDTH: int = ceili(GameConstants.ARENA_SIZE.x / PROJECTILE_OBSTACLE_CELL_SIZE)
 const OBSTACLE_GRID_HEIGHT: int = ceili(GameConstants.ARENA_SIZE.y / PROJECTILE_OBSTACLE_CELL_SIZE)
+const MAX_SHIP_SLIDE_CONTACTS: int = 4
+const SHIP_CONTACT_MARGIN: float = 0.001
 
 
 static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id: StringName = ArenaLayout.DEFAULT_MAP_ID, hidden_cover: int = 0) -> Dictionary:
-	var next_position := position + velocity * maxf(delta, 0.0)
+	# Repair an already embedded start (including zero-delta overlap separation),
+	# then sweep the entire motion. Endpoint depenetration alone can push a fast
+	# ship through the far face of cover. Authority and prediction share this path.
+	var recovered := _recover_ship_overlap(position, velocity, map_id, hidden_cover)
+	var next_position: Vector2 = recovered.position
+	var next_velocity: Vector2 = recovered.velocity
+	var remaining := maxf(delta, 0.0)
+	if remaining <= 0.0 or next_velocity.is_zero_approx():
+		return recovered
+	var geometry := _projectile_geometry(map_id, GameConstants.SHIP_COLLISION_RADIUS, hidden_cover)
+	for _contact in MAX_SHIP_SLIDE_CONTACTS:
+		var motion := next_velocity * remaining
+		if motion.is_zero_approx(): break
+		var hit := _ship_sweep_hit(next_position, motion, geometry)
+		if not is_finite(hit.x):
+			next_position += motion
+			break
+		var normal := Vector2(hit.y, hit.z)
+		next_position += motion * hit.x + normal * hit.w
+		next_velocity = next_velocity.slide(normal)
+		remaining *= 1.0 - hit.x
+	# Exhausting the bounded contact budget discards unused travel, never moves
+	# unchecked through another surface. The next tick can continue sliding.
+	return {"position": next_position, "velocity": next_velocity}
+
+
+## Returns contact fraction, normal x/y and separation margin. Boundary contacts
+## need no margin, preserving exact arena extents and movement along their faces.
+static func _ship_sweep_hit(start: Vector2, motion: Vector2, geometry: Dictionary) -> Vector4:
+	var best := Vector4(INF, 0, 0, 0)
+	var minimum := Vector2.ONE * GameConstants.SHIP_COLLISION_RADIUS
+	var maximum := GameConstants.ARENA_SIZE - minimum
+	for axis in 2:
+		if is_zero_approx(motion[axis]): continue
+		var boundary: float = minimum[axis] if motion[axis] < 0.0 else maximum[axis]
+		var fraction := (boundary - start[axis]) / motion[axis]
+		if fraction >= 0.0 and fraction <= 1.0 and fraction < best.x:
+			var normal := Vector2.ZERO
+			normal[axis] = -signf(motion[axis])
+			best = Vector4(fraction, normal.x, normal.y, 0.0)
+	for rectangle: Rect2 in geometry.rectangles:
+		var hit := _segment_aabb_hit_vector(start, motion, rectangle, true)
+		if hit.x < best.x and motion.dot(Vector2(hit.y, hit.z)) < 0.0:
+			best = Vector4(hit.x, hit.y, hit.z, SHIP_CONTACT_MARGIN)
+	for circle: Vector3 in geometry.circles:
+		var hit := _segment_circle_hit_vector(start, motion, Vector2(circle.x, circle.y), circle.z)
+		if hit.x < best.x and motion.dot(Vector2(hit.y, hit.z)) < 0.0:
+			best = Vector4(hit.x, hit.y, hit.z, SHIP_CONTACT_MARGIN)
+	return best
+
+
+static func _recover_ship_overlap(position: Vector2, velocity: Vector2, map_id: StringName, hidden_cover: int) -> Dictionary:
+	var next_position := position
 	var next_velocity := velocity
 	var radius := GameConstants.SHIP_COLLISION_RADIUS
 	if next_position.x < radius or next_position.x > GameConstants.ARENA_SIZE.x - radius:
@@ -20,7 +74,8 @@ static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id
 		next_velocity.y = 0.0
 	for rectangle in cover_rectangles(map_id, hidden_cover):
 		var expanded := rectangle.grow(radius)
-		if expanded.has_point(next_position):
+		# Exact surface contacts are legal starts and may move away or tangentially.
+		if next_position.x > expanded.position.x and next_position.x < expanded.end.x and next_position.y > expanded.position.y and next_position.y < expanded.end.y:
 			var distances := [
 				absf(next_position.x - expanded.position.x),
 				absf(expanded.end.x - next_position.x),
@@ -30,16 +85,16 @@ static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id
 			var nearest := distances.find(distances.min())
 			match nearest:
 				0:
-					next_position.x = expanded.position.x
+					next_position.x = expanded.position.x - SHIP_CONTACT_MARGIN
 					next_velocity.x = minf(next_velocity.x, 0.0)
 				1:
-					next_position.x = expanded.end.x
+					next_position.x = expanded.end.x + SHIP_CONTACT_MARGIN
 					next_velocity.x = maxf(next_velocity.x, 0.0)
 				2:
-					next_position.y = expanded.position.y
+					next_position.y = expanded.position.y - SHIP_CONTACT_MARGIN
 					next_velocity.y = minf(next_velocity.y, 0.0)
 				3:
-					next_position.y = expanded.end.y
+					next_position.y = expanded.end.y + SHIP_CONTACT_MARGIN
 					next_velocity.y = maxf(next_velocity.y, 0.0)
 	for circle in ArenaLayout.circle_obstacles(map_id):
 		var circle_center := circle.center as Vector2
@@ -47,7 +102,7 @@ static func move_ship(position: Vector2, velocity: Vector2, delta: float, map_id
 		var circle_limit := float(circle.radius) + radius
 		if from_center.length_squared() < circle_limit * circle_limit:
 			var normal := from_center.normalized() if not from_center.is_zero_approx() else Vector2.RIGHT
-			next_position = circle_center + normal * circle_limit
+			next_position = circle_center + normal * (circle_limit + SHIP_CONTACT_MARGIN)
 			var inward_speed := next_velocity.dot(-normal)
 			if inward_speed > 0.0:
 				next_velocity += normal * inward_speed
@@ -302,7 +357,7 @@ static func _rectangle_normal(position: Vector2, rectangle: Rect2) -> Vector2:
 	return normal if not normal.is_zero_approx() else Vector2.UP
 
 
-static func _segment_aabb_hit_vector(start: Vector2, direction: Vector2, rectangle: Rect2) -> Vector3:
+static func _segment_aabb_hit_vector(start: Vector2, direction: Vector2, rectangle: Rect2, include_surface_contact: bool = false) -> Vector3:
 	var entry_fraction := 0.0
 	var exit_fraction := 1.0
 	var entry_normal := Vector2.ZERO
@@ -314,6 +369,9 @@ static func _segment_aabb_hit_vector(start: Vector2, direction: Vector2, rectang
 		if absf(direction_value) <= 0.000001:
 			if start_value < minimum or start_value > maximum:
 				return Vector3(INF, 0.0, 0.0)
+			# A ship travelling exactly along a face never enters the rectangle.
+			if include_surface_contact and (start_value == minimum or start_value == maximum):
+				return Vector3(INF, 0.0, 0.0)
 			continue
 		var near_fraction := (minimum - start_value) / direction_value
 		var far_fraction := (maximum - start_value) / direction_value
@@ -321,13 +379,13 @@ static func _segment_aabb_hit_vector(start: Vector2, direction: Vector2, rectang
 			var swap := near_fraction
 			near_fraction = far_fraction
 			far_fraction = swap
-		if near_fraction > entry_fraction:
+		if near_fraction > entry_fraction or (include_surface_contact and near_fraction == entry_fraction):
 			entry_fraction = near_fraction
 			entry_normal = Vector2(-signf(direction_value), 0.0) if axis == 0 else Vector2(0.0, -signf(direction_value))
 		exit_fraction = minf(exit_fraction, far_fraction)
 		if entry_fraction > exit_fraction:
 			return Vector3(INF, 0.0, 0.0)
-	if entry_normal.is_zero_approx() or entry_fraction < 0.0 or entry_fraction > 1.0:
+	if entry_normal.is_zero_approx() or entry_fraction < 0.0 or entry_fraction > 1.0 or (include_surface_contact and exit_fraction <= 0.0):
 		return Vector3(INF, 0.0, 0.0)
 	return Vector3(entry_fraction, entry_normal.x, entry_normal.y)
 

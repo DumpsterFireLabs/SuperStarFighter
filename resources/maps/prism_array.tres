@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"prism_array"
+flag_spawn = Vector2(1600, 900)
 display_name = "Prism Array"
 cover = Array[Rect2]([Rect2(915.0, 560.0, 330.0, 100.0), Rect2(1270.0, 270.0, 100.0, 300.0), Rect2(1955.0, 560.0, 330.0, 100.0), Rect2(1830.0, 270.0, 100.0, 300.0), Rect2(915.0, 1140.0, 330.0, 100.0), Rect2(1270.0, 1230.0, 100.0, 300.0), Rect2(1955.0, 1140.0, 330.0, 100.0), Rect2(1830.0, 1230.0, 100.0, 300.0)])
 circles = Array[Vector3]([])

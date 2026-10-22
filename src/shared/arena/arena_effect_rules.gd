@@ -32,3 +32,26 @@ static func interval(settings: Dictionary) -> float:
 
 static func damage(settings: Dictionary) -> float:
 	return [8.0, 16.0, 28.0][int(settings.strength)]
+
+
+## The actual rules for one selected map, including mechanics outside the
+## optional event switch. Shared by lobby disclosure and regression coverage.
+static func mechanics_summary(settings: Dictionary, map_id: StringName) -> String:
+	var mechanics := PackedStringArray()
+	var has_gravity := false
+	var has_current := false
+	var has_horizon := false
+	for field in ArenaLayout.movement_fields(map_id):
+		has_gravity = has_gravity or field.gravity_acceleration > 0.0
+		has_current = has_current or (not field.is_gravity() and (field.flow_input_strength > 0.0 or field.maximum_speed_multiplier > 1.0))
+		has_horizon = has_horizon or field.event_horizon_radius > 0.0
+	if has_current: mechanics.append("current (intrinsic)")
+	if has_gravity: mechanics.append("gravity (intrinsic)")
+	if has_horizon: mechanics.append("lethal horizons (intrinsic)")
+	if ArenaLayout.contact_damage(map_id) > 0.0: mechanics.append("surface burns (intrinsic)")
+	var effects := enabled(settings, map_id)
+	if effects & SOLAR:
+		mechanics.append("solar flares (intrinsic)" if ArenaLayout.intrinsic_effects(map_id) & SOLAR else "solar pulses")
+	if effects & CARGO: mechanics.append("destructible cargo")
+	if effects & DOORS: mechanics.append("alternating doors")
+	return ", ".join(mechanics) if not mechanics.is_empty() else "Static arena; no map hazards."

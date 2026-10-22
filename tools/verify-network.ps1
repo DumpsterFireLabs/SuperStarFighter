@@ -90,8 +90,10 @@ function Assert-SsfContains {
 }
 
 try {
+    # Alpha is deliberately killed below, so reconnect support retains its
+    # seat. Reserve a third seat for Gamma; Beta + held Alpha + Gamma is full.
     $server = Start-SsfProcess -Name 'server' -UserArguments @(
-        '--server', '--password=test-lobby', "--port=$Port", '--max-players=2', '--rounds-to-win=2', '--auto-start', '--test-server-duration=40'
+        '--server', '--password=test-lobby', "--port=$Port", '--max-players=3', '--rounds-to-win=2', '--auto-start', '--test-server-duration=40'
     )
     Start-Sleep -Milliseconds 600
     $badPassword = Start-SsfProcess -Name 'badpassword' -UserArguments @(
@@ -186,6 +188,7 @@ try {
     $badNameText = Get-SsfOutput -Name 'badname'
     $fullText = Get-SsfOutput -Name 'full'
     Assert-SsfContains -Text $serverText -Pattern '"display_name":"Alpha","event":"peer_joined"' -Description 'Alpha admission'
+    Assert-SsfContains -Text $serverText -Pattern '"event":"reconnect_seat_held"' -Description 'crashed player retains a reconnect seat'
     Assert-SsfContains -Text $serverText -Pattern '"display_name":"Beta","event":"peer_joined"' -Description 'Beta admission'
     Assert-SsfContains -Text $serverText -Pattern '"event":"match_event","event_type":"MATCH_START_ACCEPTED"' -Description 'authoritative start event'
     Assert-SsfContains -Text $betaText -Pattern "players=1 leader=$betaId" -Description 'deterministic leader transfer'

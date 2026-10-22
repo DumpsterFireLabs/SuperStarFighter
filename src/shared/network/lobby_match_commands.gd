@@ -72,6 +72,14 @@ func request_team_assignment(sender_id: int, peer_id: int, team_selection: int) 
 		_bridge._broadcast_lobby_state()
 
 
+func request_map_pool(sender_id: int, pool: Array) -> void:
+	var result := lobby.request_map_pool(sender_id, pool)
+	if not result.ok:
+		_bridge._send_request_rejected(sender_id, result.error)
+	elif bool(result.get("changed", false)):
+		_bridge._broadcast_lobby_state()
+
+
 func request_arena_effects(sender_id: int, settings: Dictionary) -> void:
 	var result := lobby.request_arena_effects(sender_id, settings)
 	if not result.ok:

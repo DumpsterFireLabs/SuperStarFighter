@@ -693,3 +693,15 @@ Local ability delivery repeats the original press identity and selected slot in 
 ## Solar Crucible map addition
 
 The built-in rotation includes Solar Crucible with 32 validated spawns, a solid central star, localized gravity at 25% of Wormhole strength, randomized flare waves blocked by inward-facing shields, and shield-bypassing surface burns. [Arena effects](../ARENA_EFFECTS.md#solar-crucible) defines the timing, damage, protection, and overtime rules. Protocol 49 requires matching map content on clients and servers.
+
+## Swept ship collision and neutral flag fairness
+
+Ship movement sweeps its full displacement against arena bounds and expanded rectangular/circular cover, removes inward velocity at contact, and spends remaining travel sliding. At most four contacts are resolved per movement step; unused travel is discarded if that bound is reached. Embedded starts retain deterministic overlap recovery. Authority and client prediction use the same implementation, including current door/cargo masks.
+
+Each map authors a validated neutral flag location with full objective-zone and lethal-horizon clearance. Team bases have equal navigation distance to the flag; Riftline and Switchyard leave 280 px central gaps. Solar Tide places the flag outside its directional current. See the implemented flag contract in [Maps](maps.md). Protocol **51**, binary packet version **18**, requires matching clients and servers for the changed collision and map content.
+
+## Preset map and hazard contracts
+
+`MatchConfig.map_pool` contains one or more unique, registered map IDs. Host/operator changes validate atomically, clear human readiness, and are rejected during a match. The coordinator shuffles a detached pool using the match seed, keeps each round on one map, and repeats only after exhausting the pool. Its frozen configuration supplies map selection and arena-effect settings to subsequent heats and late-spectator payloads. Fresh rematches preserve these rules. Unknown map IDs are rejected at the selection boundary rather than normalized to the default map.
+
+The semi-competitive preset selects nine static maps and disables optional events. Other presets restore the entire twelve-map roster: Duel, Skirmish and Team objective disable optional events; Chaos enables map signatures. Intrinsic currents, gravity, lethal horizons, and Crucible hazards retain their map rules. The lobby summary names selected intrinsic-mechanic maps, the MAPS tab discloses each map's active mechanics, and solar damage remains editable whenever an included map uses it. See [Semi-competitive rules](../SEMI-COMPETITIVE-RULES.md). The new map-pool RPC and replicated configuration require protocol **52**; binary packets remain version **18**.

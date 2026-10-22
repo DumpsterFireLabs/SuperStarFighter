@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"core_arena"
+flag_spawn = Vector2(1600, 540)
 display_name = "Core Arena"
 cover = Array[Rect2]([Rect2(770.0, 485.0, 360.0, 130.0), Rect2(2070.0, 485.0, 360.0, 130.0), Rect2(2070.0, 1185.0, 360.0, 130.0), Rect2(770.0, 1185.0, 360.0, 130.0)])
 circles = Array[Vector3]([Vector3(1600.0, 900.0, 180.0)])

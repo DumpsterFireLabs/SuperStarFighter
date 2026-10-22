@@ -7,7 +7,7 @@ var toggles: Array[CheckButton] = []
 var updating := false
 
 func _ready() -> void:
-	for entry in [["mode", "Arena effects", ["Off", "Map signature", "Custom"]], ["frequency", "Event frequency", ["Low", "Normal", "High"]], ["strength", "Hazard strength", ["Gentle", "Standard", "Brutal"]]]:
+	for entry in [["mode", "Optional effects", ["Off", "Map signature", "Custom"]], ["frequency", "Event frequency", ["Low", "Normal", "High"]], ["strength", "Solar damage", ["Gentle", "Standard", "Brutal"]]]:
 		var row := HBoxContainer.new()
 		var label := Label.new()
 		label.text = entry[1]
@@ -18,7 +18,7 @@ func _ready() -> void:
 		for choice in entry[2]: selector.add_item(choice)
 		selector.item_selected.connect(func(_index: int) -> void: _changed())
 		if entry[0] == "frequency": selector.tooltip_text = "Changes Twin Suns pulse and door intervals. Solar Crucible always uses random 12-20 second intervals."
-		if entry[0] == "strength": selector.tooltip_text = "Solar pulse damage: Gentle 8, Standard 16, Brutal 28. Doors never crush ships."
+		if entry[0] == "strength": selector.tooltip_text = "Twin Suns pulses and Solar Crucible flares: Gentle 8, Standard 16, Brutal 28. Surface burns, gravity and currents are unchanged."
 		selectors[entry[0]] = selector
 		row.add_child(selector)
 		add_child(row)
@@ -30,15 +30,21 @@ func _ready() -> void:
 		toggles.append(toggle)
 		add_child(toggle)
 	var note := Label.new()
-	note.text = "Optional effects run on compatible maps. Solar Crucible hazards are always active.\nPulses stop and doors open before overtime."
+	note.text = "Off disables optional events only. Selected maps keep their intrinsic currents, gravity, lethal horizons and Crucible hazards. Review the MAPS tab before readying up.\nPulses stop and doors open before overtime."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(note)
 
-func refresh(settings: Dictionary, editable: bool) -> void:
+func refresh(settings: Dictionary, editable: bool, map_pool: Array = []) -> void:
 	updating = true
+	var solar_enabled := false
+	var frequency_enabled := false
+	for map_id in ArenaLayout.map_ids() if map_pool.is_empty() else map_pool:
+		var effects := ArenaEffectRules.enabled(settings, StringName(map_id))
+		solar_enabled = solar_enabled or (effects & ArenaEffectRules.SOLAR) != 0
+		frequency_enabled = frequency_enabled or (effects & ArenaEffectRules.DOORS) != 0 or ((effects & ArenaEffectRules.SOLAR) != 0 and ArenaLayout.pulse_interval_range(map_id) == Vector2.ZERO)
 	for key in selectors:
 		(selectors[key] as OptionButton).select(int(settings.get(key, ArenaEffectRules.DEFAULT[key])))
-		(selectors[key] as OptionButton).disabled = not editable or (key != "mode" and int(settings.get("mode", 0)) == 0)
+		(selectors[key] as OptionButton).disabled = not editable or (key == "strength" and not solar_enabled) or (key == "frequency" and not frequency_enabled)
 	for index in toggles.size():
 		toggles[index].set_pressed_no_signal((int(settings.get("mask", 7)) & (1 << index)) != 0)
 		toggles[index].visible = int(settings.get("mode", 0)) == ArenaEffectRules.CUSTOM

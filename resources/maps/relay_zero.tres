@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"relay_zero"
+flag_spawn = Vector2(1600, 900)
 display_name = "Relay Zero"
 cover = Array[Rect2]([Rect2(640.0, 590.0, 280.0, 120.0), Rect2(640.0, 1090.0, 280.0, 120.0), Rect2(1190.0, 290.0, 120.0, 280.0), Rect2(1190.0, 1230.0, 120.0, 280.0), Rect2(1890.0, 290.0, 120.0, 280.0), Rect2(1890.0, 1230.0, 120.0, 280.0), Rect2(2280.0, 590.0, 280.0, 120.0), Rect2(2280.0, 1090.0, 280.0, 120.0)])
 circles = Array[Vector3]([Vector3(1120.0, 900.0, 105.0), Vector3(2080.0, 900.0, 105.0)])

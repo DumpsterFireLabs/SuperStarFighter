@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"twin_suns"
+flag_spawn = Vector2(1600, 900)
 display_name = "Twin Suns"
 cover = Array[Rect2]([])
 circles = Array[Vector3]([Vector3(1130.0, 900.0, 245.0), Vector3(2070.0, 900.0, 245.0)])

@@ -49,11 +49,11 @@ const TEAM_COLORS := {
 const HILL_HOLD_SECONDS: float = 20.0
 const CROWDED_HILL_MIN_PLAYERS: int = 8
 const CROWDED_HILL_OVERTIME_SECONDS: float = 30.0
-const OBJECTIVE_ZONE_RADIUS: float = 125.0
+const OBJECTIVE_ZONE_RADIUS: float = GameConstants.OBJECTIVE_ZONE_RADIUS
 const HILL_OVERTIME_MINIMUM_RADIUS: float = OBJECTIVE_ZONE_RADIUS + 50.0
 # Extra space between an objective zone's edge and an event horizon, so holding
 # the zone never means fighting the strongest gravity.
-const OBJECTIVE_HAZARD_CLEARANCE: float = 100.0
+const OBJECTIVE_HAZARD_CLEARANCE: float = GameConstants.OBJECTIVE_HAZARD_CLEARANCE
 const FLAG_PICKUP_RADIUS: float = 42.0
 const FLAG_RESET_SECONDS: float = 8.0
 const OBJECTIVE_RESPAWN_SECONDS: float = 5.0
@@ -120,7 +120,8 @@ static func team_color(team_id: int) -> Color:
 static func objective_spawn(map_id: StringName, round_number: int = 0) -> Vector2:
 	var center := ArenaLayout.center(map_id)
 	if round_number <= 0:
-		return _nearest_clear_zone(center, map_id)
+		# Clearance search order must never choose a team's shorter flag route.
+		return ArenaLayout.flag_spawn(map_id)
 	# Hills rotate through distinct sectors each round instead of always occupying
 	# the arena center. The map-aware clearance search keeps every variant legal.
 	var sector := posmod(round_number - 1, 8)

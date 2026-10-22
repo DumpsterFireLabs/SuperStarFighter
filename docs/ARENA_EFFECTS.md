@@ -1,19 +1,19 @@
 # Optional arena effects
 
-Enable effects in **Match Setup → Arena Rules → Arena effects**. Only the lobby leader can change these settings before a match; changes clear human readiness. Guests see the same settings. Defaults are Off. The Chaos preset chooses Map signature; the other presets restore Off.
+Enable effects in **Match Setup → Arena Rules → Optional effects**. Only the lobby leader can change these settings before a match; changes clear human readiness. Guests see the same settings. Defaults are Off. The Chaos preset chooses Map signature; the other presets restore Off. Select the eligible rotation in **Match Setup → Maps**, where each map's active mechanics are disclosed. Semi-competitive selects nine static maps; the other presets restore all twelve. Map and effect settings are frozen for the match.
 
-- **Off:** disables optional effects. Solar Crucible always retains its defining hazards.
+- **Off:** disables optional effects. Selected intrinsic maps retain Solar Tide's current, Wormhole's gravity and lethal horizons, and Solar Crucible's gravity, flares and burns.
 - **Map signature:** solar pulses on Twin Suns, destructible cargo on Dead Freight, and blast doors on Switchyard.
 - **Custom:** individually allow those effects on their compatible maps. Other maps retain their existing behaviour, including Solar Tide's movement field.
 - **Event frequency:** Low / Normal / High use 24 / 18 / 12 second cycles for pulses and doors.
-- **Hazard strength:** Gentle / Standard / Brutal deal 8 / 16 / 28 solar damage. Cargo durability stays fixed and doors never inflict damage.
+- **Solar damage:** Gentle / Standard / Brutal deal 8 / 16 / 28 solar damage. This remains editable with optional effects Off when Solar Crucible is selected. Surface burns, gravity, currents and cargo durability stay fixed; doors never inflict damage. Frequency and damage controls are disabled when the selected pool has no applicable event.
 
 ## Solar Crucible
 
 Solar Crucible joins the built-in round rotation with 32 clear spawns and a solid central star. Its hazards remain active even when optional arena effects are Off.
 
 - After three seconds of opening grace, a three-second visual warning and alarm precede the first expanding flare. Subsequent flares launch 12–20 seconds apart, randomized by the server each heat. Event frequency does not change this range.
-- Face the star and shield when the wave arrives. Each wave hits a life once and passes through cover. Hazard strength selects 8 / 16 / 28 damage (Standard: 16).
+- Face the star and shield when the wave arrives. Each wave hits a life once and passes through cover. Solar damage selects 8 / 16 / 28 damage (Standard: 16).
 - Touching the star causes 12 hull damage and a small outward impulse, at most once per second. Shields do not block surface burns. Respawn grace protects against both burns and flares for three seconds.
 - Localized gravity reaches 650 pixels from the center, with one quarter of Wormhole's gravity acceleration and a smooth outer fade. Normal thrust can overcome it. The shared gravity system also gently curves projectiles.
 - Burns and flares stop five seconds before overtime. The solid star and gentle pull remain; elimination modes retain a 340-pixel final safe radius so ships can orbit the surface.

@@ -88,6 +88,7 @@ static func _validate_rematch(context: TestContext) -> void:
 	var bridge := NetworkBridge.new()
 	bridge.lobby = ServerLobby.new()
 	bridge.world = AuthoritativeWorld.new()
+	bridge.lobby.config.map_pool.assign([&"core_arena", &"riftline"])
 	for peer_id in [2, 3]:
 		bridge.lobby.admit(peer_id, "Pilot%d" % peer_id)
 		bridge.lobby.request_ready(peer_id, true)
@@ -113,6 +114,8 @@ static func _validate_rematch(context: TestContext) -> void:
 	context.expect_equal(bridge.match_coordinator.machine.round_number, 1, "fresh rematch starts round one")
 	context.expect_equal(bridge.lobby.config.game_mode, rules.game_mode, "fresh rematch preserves mode")
 	context.expect_equal(bridge.lobby.config.rounds_to_win, rules.rounds_to_win, "fresh rematch preserves rounds to win")
+	context.expect_equal(bridge.match_coordinator.machine.config.map_pool, rules.map_pool, "fresh rematch preserves the selected map pool")
+	context.expect_equal(bridge.match_coordinator.machine.config.arena_effects, rules.arena_effects, "fresh rematch preserves the hazard policy")
 	context.expect_equal(bridge.match_coordinator.machine.players[2].display_name, "Pilot2", "fresh rematch preserves pilot identity")
 	context.expect_false(bridge.can_control_results(3), "guest cannot control final results without admin authentication")
 	bridge.in_game_admin.configure("results-admin-secret-2026")

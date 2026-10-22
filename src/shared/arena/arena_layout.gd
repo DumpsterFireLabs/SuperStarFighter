@@ -57,6 +57,10 @@ static func spawn_anchors(map_id: StringName = DEFAULT_MAP_ID) -> Array[Vector2]
 	return Registry.spawns(map_id)
 
 
+static func flag_spawn(map_id: StringName = DEFAULT_MAP_ID) -> Vector2:
+	return Registry.flag_spawn(map_id)
+
+
 static func movement_fields(map_id: StringName = DEFAULT_MAP_ID) -> Array[ArenaMovementField]:
 	return Registry.movement_fields(map_id)
 

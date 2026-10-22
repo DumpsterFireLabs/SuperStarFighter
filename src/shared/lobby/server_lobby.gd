@@ -214,6 +214,23 @@ func request_all_npc_difficulty(sender_id: int, difficulty: int) -> Dictionary:
 	return {"ok": true, "changed": changed}
 
 
+func request_map_pool(sender_id: int, pool: Array) -> Dictionary:
+	var authority_error := _settings_authority_error(sender_id)
+	if not authority_error.is_empty(): return {"ok": false, "error": authority_error}
+	if not MatchConfig.valid_map_pool(pool):
+		return {"ok": false, "error": "Select at least one known map, without duplicates."}
+	# Canonical registry order makes membership the setting; clients cannot use
+	# selection order to bypass readiness or influence the seeded shuffle.
+	var selected: Array[StringName] = []
+	for map_id in ArenaLayout.map_ids():
+		if pool.has(map_id): selected.append(map_id)
+	if config.map_pool == selected: return {"ok": true, "changed": false}
+	config.map_pool = selected
+	_clear_human_ready()
+	_revision_changed()
+	return {"ok": true, "changed": true}
+
+
 func request_arena_effects(sender_id: int, settings: Dictionary) -> Dictionary:
 	var authority_error := _settings_authority_error(sender_id)
 	if not authority_error.is_empty(): return {"ok": false, "error": authority_error}
@@ -384,6 +401,8 @@ func request_start(sender_id: int) -> Dictionary:
 		return {"ok": false, "error": "Only the lobby leader may start the match."}
 	if match_active:
 		return {"ok": false, "error": "A match is already active."}
+	if not MatchConfig.valid_map_pool(config.map_pool):
+		return {"ok": false, "error": "Select a valid map pool before starting."}
 	if not all_humans_ready():
 		return {"ok": false, "error": "Every connected player must ready up before the match can start."}
 	var added_npcs: Array[PlayerMatchState] = []
@@ -554,6 +573,7 @@ func serialize() -> Dictionary:
 		"team_setup_valid": setup_error.is_empty(),
 		"team_setup_error": setup_error,
 		"arena_effects": config.arena_effects.duplicate(),
+		"map_pool": config.map_pool.duplicate(),
 		"random_spawn_powerups": config.random_spawn_powerups,
 		"random_powerup_interval_seconds": config.random_powerup_interval_seconds,
 		"random_powerups_permanent": config.random_powerups_permanent,

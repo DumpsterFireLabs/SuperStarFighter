@@ -37,6 +37,9 @@ func _capture_sequence() -> void:
 	client.settings_controller.resolution_control.select(client.RESOLUTION_OPTIONS.find(capture_resolution))
 	await process_frame
 	await process_frame
+	if "--preset-hazards-only" in OS.get_cmdline_user_args():
+		await _capture_preset_hazards(client)
+		return
 	await _capture(client, "splash")
 	client.splash_auto_timer.stop()
 	client.splash_stage = 1
@@ -505,6 +508,45 @@ func _capture_crowded_combat(client: Node) -> void:
 	view.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "crowded_combat_reduced")
 	view.replicated_visuals.effects_layer.set_process(true)
+
+
+func _capture_preset_hazards(client: Node) -> void:
+	client._dismiss_splash(true)
+	client._show_connection_screen("Preset verification")
+	client.bridge.session.local_peer_id = 2
+	var lobby := ServerLobby.new()
+	lobby.admit(2, "Host")
+	lobby.admit(3, "Guest")
+	var screen: Node = client.connection_controller.lobby
+	var presets := preload("res://src/shared/lobby/match_presets.gd")
+	presets.apply(lobby, 2, "competitive")
+	client.bridge.session.latest_lobby_state = lobby.serialize()
+	client._on_lobby_state(client.bridge.latest_lobby_state)
+	await _capture(client, "competitive_lobby")
+	screen._show_lobby_options()
+	screen.lobby_preset_control.select(1)
+	screen.lobby_preset_note.text = presets.find("competitive").description
+	await _capture(client, "competitive_setup")
+	screen.lobby_options_tabs.current_tab = 3
+	await _capture(client, "competitive_maps")
+	screen._hide_lobby_options(false)
+	presets.apply(lobby, 2, "chaos")
+	client.bridge.session.latest_lobby_state = lobby.serialize()
+	client._on_lobby_state(client.bridge.latest_lobby_state)
+	await _capture(client, "chaos_lobby")
+	screen._show_lobby_options()
+	screen.lobby_options_tabs.current_tab = 3
+	screen.map_pool_controls.toggles[&"solar_crucible"].grab_focus()
+	await process_frame
+	await _capture(client, "hazard_maps")
+	lobby.request_map_pool(2, ["solar_crucible"])
+	lobby.request_arena_effects(2, ArenaEffectRules.DEFAULT)
+	client.bridge.session.latest_lobby_state = lobby.serialize()
+	client._on_lobby_state(client.bridge.latest_lobby_state)
+	screen.lobby_options_tabs.current_tab = 2
+	await _capture(client, "intrinsic_controls")
+	print("PRESENTATION_CAPTURE_OK=%s preset_hazards" % capture_label)
+	quit(0)
 
 
 func _capture(_client: Node, screen_name: String) -> void:

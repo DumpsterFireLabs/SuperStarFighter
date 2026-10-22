@@ -7,6 +7,8 @@ extends Resource
 @export var cover: Array[Rect2] = []
 @export var circles: Array[Vector3] = [] # center x/y, radius
 @export var spawns: Array[Vector2] = []
+## Neutral flag location, authored for equal team access and full zone clearance.
+@export var flag_spawn: Vector2 = Vector2.INF
 @export var movement_fields: Array[Resource] = []
 @export var central_radius: float = 0.0
 @export var material_family: StringName = &"station"
@@ -64,6 +66,20 @@ func validation_errors() -> PackedStringArray:
 	for color in [floor_color, border_color, obstacle_color, line_color]:
 		if not is_finite(color.r) or not is_finite(color.g) or not is_finite(color.b) or not is_finite(color.a) or color.a <= 0.0:
 			errors.append("Map palette must contain finite visible colors.")
+	var objective_radius := GameConstants.OBJECTIVE_ZONE_RADIUS
+	if not flag_spawn.is_finite() or not bounds.grow(-objective_radius).has_point(flag_spawn):
+		errors.append("Flag spawn must be finite and keep its full zone inside the arena.")
+	else:
+		for rectangle in cover:
+			if rectangle.grow(objective_radius).has_point(flag_spawn):
+				errors.append("Flag zone overlaps cover.")
+		for circle in circles:
+			if flag_spawn.distance_to(Vector2(circle.x, circle.y)) <= circle.z + objective_radius:
+				errors.append("Flag zone overlaps a circle.")
+		for resource in movement_fields:
+			var field := resource as ArenaMovementFieldDefinition
+			if field != null and field.event_horizon_radius > 0.0 and flag_spawn.distance_to(field.center) < field.event_horizon_radius + objective_radius + GameConstants.OBJECTIVE_HAZARD_CLEARANCE:
+				errors.append("Flag zone is too close to an event horizon.")
 	if spawns.size() != GameConstants.MAX_PLAYERS:
 		errors.append("Map must provide exactly 32 spawn anchors.")
 	var safe_bounds := bounds.grow(-96.0)

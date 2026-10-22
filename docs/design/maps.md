@@ -1,6 +1,6 @@
 # Super Star Fighter — Ten-Map Expansion Plan
 
-**Status:** Ten-map roster, authoritative per-round rotation, and optional solar pulses, destructible cargo, and alternating blast doors are implemented. Freely moving terrain, portals, and manual lobby selection remain planned. See [Arena effects](../ARENA_EFFECTS.md) for the shipped prototype rules.
+**Status:** The current twelve-map roster, host-selected map pools, authoritative per-round rotation, and optional solar pulses, destructible cargo, and alternating blast doors are implemented. Freely moving terrain and portals remain planned. See [Arena effects](../ARENA_EFFECTS.md) for shipped rules and [Semi-competitive rules](../SEMI-COMPETITIVE-RULES.md) for preset pools. The ten-map expansion scope below is historical.
 
 **Scope:** Preserve the existing arena, add nine distinct static topologies, rotate them authoritatively between rounds, and retain the advanced-mechanics/full-capacity roadmap.
 
@@ -11,6 +11,16 @@
 The current roster also includes Solar Crucible: a central solid star, randomized shield-blockable flare waves, contact burns, and localized gravity at 25% of Wormhole strength. Its hazards are intrinsic to the map. See [Arena effects](../ARENA_EFFECTS.md#solar-crucible) for timing and damage rules. The ten-map plan below preserves the original expansion scope.
 
 ## 1. Outcome
+
+### Implemented flag fairness contract
+
+The current twelve-map roster authors a `flag_spawn` in each `MapDefinition`. The registry rejects non-finite positions, cover or circle overlap, an out-of-bounds 125 px objective zone, and insufficient event-horizon clearance (125 px zone plus 100 px safety margin). Neutral flags no longer use the directional nearest-clear-point search. Hill placement retains its round-based rotation.
+
+The flag is at `(1600, 900)` except Core Arena and Solar Crucible `(1600, 540)`, Wormhole `(1600, 480)`, and Solar Tide `(1600, 300)`. Solar Tide's full flag zone sits outside its clockwise current. Riftline and Switchyard have 280 px central gaps to fit a centered flag zone. Team base-to-flag navigation lengths must agree within one pixel, including all cargo destruction masks and both door groups' open/closed combinations. Every spawn must retain a route to the flag. These geometric checks do not establish equal travel time through all dynamic effects or equal human win rates.
+
+`objective_fairness_tests.gd` also exercises countdown, pickup and dropped-flag reset in both flag modes on every map. These rules are implemented; the broader expansion contracts below retain their roadmap status.
+
+### Original expansion outcome
 
 Super Star Fighter has a ten-map static roster. The existing 3200×1800 arena remains the neutral competitive benchmark; nine additional arenas introduce materially different sightlines, routing, cover, and weapon interactions without changing the core ship or card rules.
 

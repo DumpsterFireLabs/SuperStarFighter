@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"broken_orbit"
+flag_spawn = Vector2(1600, 900)
 display_name = "Broken Orbit"
 cover = Array[Rect2]([Rect2(1290.0, 385.0, 620.0, 90.0), Rect2(1290.0, 1325.0, 620.0, 90.0), Rect2(905.0, 685.0, 90.0, 430.0), Rect2(2205.0, 685.0, 90.0, 430.0), Rect2(1160.0, 680.0, 280.0, 80.0), Rect2(1760.0, 1040.0, 280.0, 80.0)])
 circles = Array[Vector3]([])

@@ -7,6 +7,7 @@ var guest: NetworkBridge
 var spectator: NetworkBridge
 var spectator_state: Dictionary = {}
 var guest_rejections: int = 0
+var host_rejections: int = 0
 var host_state: Dictionary = {}
 var guest_state: Dictionary = {}
 var verification_port: int = 17669
@@ -42,6 +43,8 @@ func _run() -> void:
 	host.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
 		if event == &"STATE_CHANGED":
 			host_state = payload
+		elif event == &"REQUEST_REJECTED":
+			host_rejections += 1
 	)
 	guest.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
 		if event == &"REQUEST_REJECTED":
@@ -67,6 +70,13 @@ func _run() -> void:
 	if server.lobby.player_limit != 4:
 		_fail("guest_preset_mutated_rules")
 		return
+	host.send_match_preset("competitive")
+	if not await _until(func() -> bool: return (guest.latest_lobby_state.get("map_pool", []) as Array).size() == 9):
+		_fail("competitive_pool_not_replicated")
+		return
+	if (guest.latest_lobby_state.map_pool as Array).has(&"solar_crucible") or server.lobby.config.arena_effects.mode != ArenaEffectRules.OFF:
+		_fail("competitive_hazards_enabled")
+		return
 	host.send_match_preset("team_objective")
 	if not await _until(func() -> bool: return int(guest.latest_lobby_state.get("game_mode", -1)) == GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG and int(guest.latest_lobby_state.get("player_limit", 0)) == 8):
 		_fail("host_preset_not_replicated")
@@ -89,12 +99,42 @@ func _run() -> void:
 	if not await _until(func() -> bool: return server.lobby.all_humans_ready()):
 		_fail("ready_not_replicated")
 		return
+	guest.send_map_pool(["solar_crucible"])
+	if not await _until(func() -> bool: return guest_rejections == 3):
+		_fail("guest_map_pool_not_rejected")
+		return
+	host.send_map_pool(["unknown"])
+	if not await _until(func() -> bool: return host_rejections == 1):
+		_fail("unknown_map_pool_not_rejected")
+		return
+	if not server.lobby.all_humans_ready() or server.lobby.config.map_pool != ArenaLayout.map_ids():
+		_fail("rejected_map_pool_mutated_lobby")
+		return
+	host.send_map_pool(["core_arena", "switchyard"])
+	if not await _until(func() -> bool: return guest.latest_lobby_state.get("map_pool", []) == [&"core_arena", &"switchyard"] and host.latest_lobby_state.get("map_pool", []) == [&"core_arena", &"switchyard"]):
+		_fail("host_map_pool_not_replicated")
+		return
+	if server.lobby.all_humans_ready() or bool(guest.latest_lobby_state.get("all_humans_ready", true)):
+		_fail("map_pool_did_not_clear_readiness")
+		return
+	host.send_ready_state(true)
+	guest.send_ready_state(true)
+	if not await _until(func() -> bool: return server.lobby.all_humans_ready()):
+		_fail("map_pool_reready")
+		return
 	host.send_start_match()
 	if not await _until(func() -> bool: return String(host_state.get("state_name", "")) == "DRAFT" and String(guest_state.get("state_name", "")) == "DRAFT"):
 		_fail("draft_not_replicated")
 		return
 	if not bool(host_state.get("competitive_view", false)) or not bool(guest_state.get("competitive_view", false)):
 		_fail("match_view_policy_missing")
+		return
+	host.send_map_pool(["solar_crucible"])
+	if not await _until(func() -> bool: return host_rejections == 2):
+		_fail("midmatch_map_pool_not_rejected")
+		return
+	if server.match_coordinator.machine.config.map_pool != [&"core_arena", &"switchyard"] or host_state.get("map_pool", []) != [&"core_arena", &"switchyard"]:
+		_fail("match_pool_not_frozen")
 		return
 	host.send_competitive_view(false)
 	await create_timer(0.1).timeout
@@ -108,6 +148,9 @@ func _run() -> void:
 	if not server.lobby.players[spectator.local_peer_id].spectator:
 		_fail("late_join_not_spectator")
 		return
+	if spectator_state.get("map_pool", []) != [&"core_arena", &"switchyard"] or spectator_state.get("arena_effect_settings", {}) != server.match_coordinator.machine.config.arena_effects:
+		_fail("late_spectator_hazard_contract_missing")
+		return
 	# Results are a deterministic fixture; requests and their replication use
 	# actual remote sender identities, RPC checksums and the ordered TCP stream.
 	var prior := server.match_coordinator
@@ -120,7 +163,7 @@ func _run() -> void:
 		_fail("results_not_replicated")
 		return
 	guest.send_rematch()
-	if not await _until(func() -> bool: return guest_rejections == 3):
+	if not await _until(func() -> bool: return guest_rejections == 4):
 		_fail("guest_rematch_not_rejected")
 		return
 	if server.match_coordinator != prior:
@@ -139,7 +182,10 @@ func _run() -> void:
 	if not (builds.get(host.local_peer_id, {}) as Dictionary).is_empty() or int(host_state.get("round_number", 0)) != 1 or not bool(host_state.get("competitive_view", false)) or not bool(guest_state.get("competitive_view", false)):
 		_fail("client_fresh_build_or_round")
 		return
-	print("SSF_LOBBY_FLOW_OK=host_preset_guest_rejections_fresh_rematch protocol=%d" % GameConstants.PROTOCOL_VERSION)
+	if host_state.get("map_pool", []) != [&"core_arena", &"switchyard"] or server.match_coordinator.machine.config.map_pool != [&"core_arena", &"switchyard"]:
+		_fail("rematch_map_pool_changed")
+		return
+	print("SSF_LOBBY_FLOW_OK=host_preset_map_pool_hazards_guest_rejections_fresh_rematch protocol=%d" % GameConstants.PROTOCOL_VERSION)
 	_cleanup()
 	quit(0)
 

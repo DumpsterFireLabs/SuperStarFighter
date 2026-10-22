@@ -110,6 +110,10 @@ static func central_radius(id: StringName) -> float:
 	return _cached_definition(id).central_radius
 
 
+static func flag_spawn(id: StringName) -> Vector2:
+	return _cached_definition(id).flag_spawn
+
+
 static func material_family(id: StringName) -> StringName:
 	return _cached_definition(id).material_family
 

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 map_id = &"dead_freight"
+flag_spawn = Vector2(1600, 900)
 display_name = "Dead Freight"
 cover = Array[Rect2]([Rect2(635.0, 470.0, 430.0, 180.0), Rect2(635.0, 1130.0, 430.0, 180.0), Rect2(1370.0, 400.0, 460.0, 160.0), Rect2(1370.0, 1240.0, 460.0, 160.0), Rect2(2135.0, 470.0, 430.0, 180.0), Rect2(2135.0, 1130.0, 430.0, 180.0)])
 circles = Array[Vector3]([])
