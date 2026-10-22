@@ -1,0 +1,107 @@
+{
+  "workload_version": 2,
+  "workload_signature": "ad4384855f9d1f649adcacd55607ff8e9f14c6f5224a31c5a525ab68b9ca1122",
+  "hardware_label": "graphite-i7-10700k-windows",
+  "host": {
+    "cpu": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+    "engine": "4.7.2-stable (official)",
+    "os": "Windows",
+    "threads": 16
+  },
+  "cases": [
+    {
+      "map": "core_arena",
+      "mode": 0,
+      "field": false,
+      "solar": false
+    },
+    {
+      "map": "dead_freight",
+      "mode": 1,
+      "field": false,
+      "solar": false
+    },
+    {
+      "map": "twin_suns",
+      "mode": 2,
+      "field": false,
+      "solar": true
+    },
+    {
+      "map": "switchyard",
+      "mode": 3,
+      "field": false,
+      "solar": false
+    },
+    {
+      "map": "prism_array",
+      "mode": 4,
+      "field": false,
+      "solar": false
+    },
+    {
+      "map": "solar_tide",
+      "mode": 2,
+      "field": true,
+      "solar": false
+    },
+    {
+      "map": "wormhole",
+      "mode": 2,
+      "field": true,
+      "solar": false
+    },
+    {
+      "map": "solar_crucible",
+      "mode": 2,
+      "field": true,
+      "solar": true
+    }
+  ],
+  "repeats": 3,
+  "timings": {
+    "core_arena": {
+      "p95_usec": 17195,
+      "p99_usec": 19103
+    },
+    "dead_freight": {
+      "p95_usec": 15627,
+      "p99_usec": 17160
+    },
+    "twin_suns": {
+      "p95_usec": 16018,
+      "p99_usec": 18474
+    },
+    "switchyard": {
+      "p95_usec": 15947,
+      "p99_usec": 17886
+    },
+    "prism_array": {
+      "p95_usec": 16750,
+      "p99_usec": 18740
+    },
+    "solar_tide": {
+      "p95_usec": 17781,
+      "p99_usec": 19188
+    },
+    "wormhole": {
+      "p95_usec": 20370,
+      "p99_usec": 22789
+    },
+    "solar_crucible": {
+      "p95_usec": 20132,
+      "p99_usec": 22667
+    }
+  },
+  "evidence": {
+    "hardware_label": "graphite-i7-10700k-windows",
+    "workload_version": 2,
+    "recorded_utc": "2026-10-22T20:44:43.403592+00:00",
+    "manifest_sha256": "89c6bb7b6a466080f4ed4206b85ba82289cb60c416abab1ad7bfa78695713557",
+    "profiled": false,
+    "repeats": 3,
+    "strict_physics_budget": false,
+    "revision": "3620def81c4d59c82d220c975e1017bc2cab9db8",
+    "dirty": true
+  }
+}

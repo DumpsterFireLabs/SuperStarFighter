@@ -1,0 +1,10 @@
+[
+  {"map": "core_arena", "mode": 0, "field": false, "solar": false},
+  {"map": "dead_freight", "mode": 1, "field": false, "solar": false},
+  {"map": "twin_suns", "mode": 2, "field": false, "solar": true},
+  {"map": "switchyard", "mode": 3, "field": false, "solar": false},
+  {"map": "prism_array", "mode": 4, "field": false, "solar": false},
+  {"map": "solar_tide", "mode": 2, "field": true, "solar": false},
+  {"map": "wormhole", "mode": 2, "field": true, "solar": false},
+  {"map": "solar_crucible", "mode": 2, "field": true, "solar": true}
+]

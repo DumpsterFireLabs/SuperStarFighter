@@ -379,6 +379,8 @@ Integration logs live under `.tools/*-verification/` or `.tools/verification-log
 
 ### Choosing proportional verification
 
+The [mixed-load CPU acceptance guide](PERFORMANCE-ACCEPTANCE.md) describes the eight-case architecture matrix, gravity/hazard coverage, named-hardware baseline, and profiling workflow. Portable correctness checks stay separate from CPU timing acceptance; the 59 FPS display cap is not a simulation performance metric.
+
 - Documentation-only change: link/path review plus `git diff --check`.
 - Card value/resource change: tests; add presentation verification for visible copy changes.
 - Shared combat change: tests plus match loop; add network verification if packets/authority changed.

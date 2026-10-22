@@ -2,6 +2,10 @@
 
 Reviewed 2026-10-22 at commit `cbc306b`, release `0.1.0-beta.19`, protocol 50, packet format 18.
 
+## Implementation follow-up
+
+The findings below preserve the original review. Collision, neutral-flag fairness, and preset/map-pool contracts were fixed in `0536c70`. Connectivity, spawn exits, hazard clearance, and reachable final overtime space were added in `3620def`; sightline targets remain design work. Finding 5's acceptance gap is now covered by the eight-case matrix and [named-hardware CPU regression lane](../PERFORMANCE-ACCEPTANCE.md), including regression tests for inactive hazards and idle/reduced workloads. This improves coverage and measurement; it does not certify spare CPU capacity. Finding 6's current-state documentation cleanup and the smaller architecture recommendations below remain outstanding.
+
 **Assessment: the architecture is sound for the current game, with specific correctness and growth problems to address.** Keep the authoritative simulation, shared rules, resource-based content, and separated presentation owners. Prioritize collision correctness, objective fairness, and map-policy consistency. Further map mechanics should follow those fixes and better acceptance coverage.
 
 This review covers runtime ownership, combat and prediction, transport and replication, match/draft/objective flow, the twelve shipped map resources, arena effects, NPC navigation, authoring validation, UI contracts, release tooling, and automated acceptance. It combines source inspection, existing tests, and targeted diagnostic experiments. It is not a human playtest, a complete adversarial security audit, or certification of every platform and network condition. Gameplay recommendations below are distinguished from reproduced defects.
