@@ -10,8 +10,12 @@ const CombatHudPanelScript = preload("res://src/client/ui/combat_hud_panel.gd")
 const WeaponSoundProfileScript = preload("res://src/client/presentation/weapon_sound_profile.gd")
 const TARGET_COUNT: int = 5
 const TARGET_COLORS: Array[Color] = [Color("ff4f78"), Color("ff9f43"), Color("b66cff"), DesignTokens.SUCCESS, Color("ffd95a")]
-const PRESET_NAMES: Array[String] = ["Base ship", "Rapid scatter", "Beam specialist", "Shield tank", "All abilities"]
-const LAB_MAP_IDS: Array[StringName] = [&"core_arena", &"solar_tide", &"wormhole"]
+## Hand-tuned firing lanes; every other map searches for a clear lane.
+const LAB_ORIGINS: Dictionary = {&"core_arena": Vector2(500.0, 720.0), &"solar_tide": Vector2(950.0, 650.0), &"wormhole": Vector2(1150.0, 700.0)}
+const TARGET_ROW_SPACING: float = 110.0
+const TARGET_DISTANCE_MIN: float = 160.0
+const TARGET_DISTANCE_MAX: float = 900.0
+const TARGET_DISTANCE_STEP: float = 20.0
 const PRESET_BUILDS: Array[Dictionary] = [
 	{}, {&"rapid_cycling": 2, &"twin_shot": 2, &"extended_magazine": 2},
 	{&"beam_emitter": 1, &"heavy_rounds": 2, &"quick_loader": 2},
@@ -19,6 +23,8 @@ const PRESET_BUILDS: Array[Dictionary] = [
 	{&"afterburner": 1, &"mine_layer": 1, &"hunter_missiles": 1, &"cloak": 1, &"escort_wing": 1},
 ]
 signal presentation_event(event_name: StringName, payload: Dictionary)
+
+static var _lab_origin_cache: Dictionary = {}
 
 var catalog: CardCatalog = CardCatalog.create_default()
 var build: Dictionary = {}
@@ -598,7 +604,7 @@ func _apply_build() -> void:
 func set_target_settings(count_value: int, health_value: float, distance_value: float, shields_value: bool, firing_value: bool, moving_value: bool) -> void:
 	target_count = clampi(count_value, 1, TARGET_COUNT)
 	target_health = clampf(health_value, 10.0, 600.0)
-	target_distance = clampf(distance_value, 160.0, 900.0)
+	target_distance = clampf(distance_value, TARGET_DISTANCE_MIN, TARGET_DISTANCE_MAX)
 	targets_shielding = shields_value
 	targets_firing = firing_value
 	targets_moving = moving_value
@@ -606,22 +612,81 @@ func set_target_settings(count_value: int, health_value: float, distance_value: 
 	_reset_combatants()
 
 
+## Index into ArenaLayout.map_ids(); the lab offers every registered map.
 func set_lab_map(index: int) -> void:
-	if index < 0 or index >= LAB_MAP_IDS.size():
+	var map_ids := ArenaLayout.map_ids()
+	if index < 0 or index >= map_ids.size():
 		return
-	world.set_map_id(LAB_MAP_IDS[index])
+	world.set_map_id(map_ids[index])
 	arena.set_map_id(world.map_id)
 	_reset_combatants()
+
+
+## Player start whose target rows stay clear of geometry at every lab distance.
+## Tuned origins win when they pass (Solar Tide starts near its current);
+## otherwise the nearest passing grid point, else the least-blocked one.
+static func lab_origin(map_id: StringName) -> Vector2:
+	if _lab_origin_cache.has(map_id):
+		return _lab_origin_cache[map_id]
+	var preferred: Vector2 = LAB_ORIGINS.get(map_id, LAB_ORIGINS[&"core_arena"])
+	var grid: Array[Vector2] = []
+	var max_x := GameConstants.ARENA_SIZE.x - TARGET_DISTANCE_MAX - 80.0
+	var max_y := GameConstants.ARENA_SIZE.y - TARGET_ROW_SPACING * (TARGET_COUNT - 1) - 80.0
+	for x in range(80, int(max_x) + 1, 40):
+		for y in range(80, int(max_y) + 1, 40):
+			grid.append(Vector2(x, y))
+	grid.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.distance_squared_to(preferred) < b.distance_squared_to(preferred))
+	grid.push_front(preferred)
+	var chosen := Vector2.INF
+	for candidate in grid:
+		if _lane_blocked_count(candidate, map_id, true) == 0:
+			chosen = candidate
+			break
+	if chosen == Vector2.INF:
+		var fewest := 1 << 30
+		for candidate in grid:
+			var blocked := _lane_blocked_count(candidate, map_id, false)
+			if blocked < fewest:
+				fewest = blocked
+				chosen = candidate
+	_lab_origin_cache[map_id] = chosen
+	return chosen
+
+
+static func _lane_blocked_count(origin: Vector2, map_id: StringName, stop_at_first: bool) -> int:
+	var blocked := 0 if _lab_spot_clear(origin, map_id) else 1
+	var distance := TARGET_DISTANCE_MIN
+	while distance <= TARGET_DISTANCE_MAX and not (stop_at_first and blocked > 0):
+		# Row 0 is the default target; keep its line of fire open too.
+		if not ArenaCollisionSystem.is_ship_position_clear(origin + Vector2(distance, 0.0), map_id):
+			blocked += 1
+		for index in TARGET_COUNT:
+			if not _lab_spot_clear(origin + Vector2(distance, index * TARGET_ROW_SPACING), map_id):
+				blocked += 1
+		distance += TARGET_DISTANCE_STEP
+	return blocked
+
+
+static func _lab_spot_clear(position: Vector2, map_id: StringName) -> bool:
+	return ArenaCollisionSystem.is_ship_position_clear(position, map_id, 8.0) and ArenaLayout.crushing_horizon(position, map_id, 40.0) == Vector2.INF
+
+
+## Nearest clear spot to a requested target position (no-op when already clear).
+func _clear_target_position(position: Vector2) -> Vector2:
+	if _lab_spot_clear(position, world.map_id):
+		return position
+	for radius in range(20, 600, 20):
+		for step in 16:
+			var candidate := position + Vector2.from_angle(TAU * step / 16.0) * radius
+			if _lab_spot_clear(candidate, world.map_id):
+				return candidate
+	return position
 
 
 func _reset_combatants() -> void:
 	action_latch.reset()
 	world.clear_projectiles()
-	# These clear firing lanes keep targets immediately useful on the lab maps.
-	# Solar Tide starts close enough to reach the current in a few seconds.
-	var origin := Vector2(950.0, 650.0) if world.map_id == &"solar_tide" else Vector2(500.0, 720.0)
-	if world.map_id == &"wormhole":
-		origin = Vector2(1150.0, 700.0)
+	var origin := lab_origin(world.map_id)
 	player.reset_ship(derived_stats, origin)
 	camera.position = origin
 	camera.offset = Vector2.ZERO
@@ -630,7 +695,7 @@ func _reset_combatants() -> void:
 	for index in targets.size():
 		var stats := CombatStats.create_base()
 		stats.max_health = target_health
-		targets[index].reset_ship(stats, origin + Vector2(target_distance, index * 110.0))
+		targets[index].reset_ship(stats, _clear_target_position(origin + Vector2(target_distance, index * TARGET_ROW_SPACING)))
 		targets[index].combatant.aim_angle = PI
 		targets[index].visible = index < target_count
 		if index >= target_count:

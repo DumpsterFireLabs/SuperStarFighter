@@ -16,7 +16,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	lab.lab_panel._refresh_cards("")
 	for index in lab.PRESET_BUILDS.size():
 		for card_id in lab.PRESET_BUILDS[index]:
-			context.expect_true(lab.catalog.get_card(card_id) != null, "lab preset %s references a real card %s" % [lab.PRESET_NAMES[index], card_id])
+			context.expect_true(lab.catalog.get_card(card_id) != null, "lab preset %d references a real card %s" % [index, card_id])
 		lab.load_preset(index)
 		var expected := StatSystem.derive(lab.build, lab.catalog)
 		context.expect_approx(lab.player.combatant.stats.projectile_damage, expected.projectile_damage, "lab preset derives authoritative damage")
@@ -34,15 +34,40 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_approx(lab.targets[0].combatant.health, 200.0, "lab target HP uses actual combatant health")
 	context.expect_false(lab.targets[3].combatant.alive, "inactive lab targets cannot collide or take damage")
 	context.expect_true(lab.targets_shielding and lab.targets_moving, "lab shield and movement controls update target behavior")
-	lab.set_lab_map(1)
+	var map_ids := ArenaLayout.map_ids()
+	context.expect_equal(lab.lab_panel.map_control.item_count, map_ids.size(), "lab arena selector offers every registered map")
+	context.expect_true(lab.lab_panel.find_child("LabTabs", true, false).find_child("ArenaSelection", true, false) == null, "arena choice sits outside the Targets tab")
+	var solar_index := map_ids.find(&"solar_tide")
+	lab.set_lab_map(solar_index)
 	context.expect_equal(lab.world.map_id, &"solar_tide", "lab exposes the Solar Current arena for direct playtesting")
 	context.expect_equal(lab.arena.map_id, &"solar_tide", "lab presentation follows the selected authoritative map")
-	context.expect_true(lab.lab_panel.map_control.get_item_text(1).contains("Solar Current"), "arena selector names the mechanic being tested")
-	for distance in [160.0, 420.0, 900.0]:
-		lab.set_target_settings(5, 100.0, distance, false, false, false)
-		for target in lab.targets:
-			context.expect_true(ArenaCollisionSystem.is_ship_position_clear(target.combatant.position, lab.world.map_id), "lab target placement stays clear of map geometry at range %.0f" % distance)
+	context.expect_true(lab.lab_panel.map_control.get_item_text(solar_index).contains("Solar Current"), "arena selector names the mechanic being tested")
+	for map_index in map_ids.size():
+		lab.set_lab_map(map_index)
+		context.expect_equal(lab.world.map_id, map_ids[map_index], "lab can load %s" % map_ids[map_index])
+		context.expect_true(ArenaCollisionSystem.is_ship_position_clear(lab.player.combatant.position, lab.world.map_id), "lab player start is clear on %s" % lab.world.map_id)
+		for distance in [160.0, 420.0, 900.0]:
+			lab.set_target_settings(5, 100.0, distance, false, false, false)
+			for target in lab.targets:
+				context.expect_true(ArenaCollisionSystem.is_ship_position_clear(target.combatant.position, lab.world.map_id), "lab target placement stays clear of %s geometry at range %.0f" % [lab.world.map_id, distance])
+				context.expect_true(ArenaLayout.crushing_horizon(target.combatant.position, lab.world.map_id) == Vector2.INF, "lab targets start outside event horizons on %s" % lab.world.map_id)
 	lab.set_lab_map(0)
+	var panel = lab.lab_panel
+	panel.sort_control.select(panel.CardSort.RARITY_DESCENDING)
+	panel.sort_control.item_selected.emit(panel.CardSort.RARITY_DESCENDING)
+	var sorted_ids: Array[StringName] = panel.filtered_ids
+	for index in range(1, sorted_ids.size()):
+		context.expect_true(lab.catalog.get_card(sorted_ids[index - 1]).rarity >= lab.catalog.get_card(sorted_ids[index]).rarity, "rarest-first sort orders cards by descending rarity")
+	context.expect_equal(panel.cards.item_count, sorted_ids.size(), "sorted list shows every card")
+	context.expect_equal(panel.cards.get_item_text(0).get_slice(" · ", 0), lab.catalog.get_card(sorted_ids[0]).display_name, "list rows follow the sorted order")
+	panel.cards.select(0)
+	panel.cards.item_selected.emit(0)
+	context.expect_equal(lab.catalog.all_ids()[lab.selected_card_index], sorted_ids[0], "selecting a sorted row selects that card")
+	panel.sort_control.select(panel.CardSort.NAME)
+	panel.sort_control.item_selected.emit(panel.CardSort.NAME)
+	for index in range(1, panel.filtered_ids.size()):
+		context.expect_true(lab.catalog.get_card(panel.filtered_ids[index - 1]).display_name.to_lower() <= lab.catalog.get_card(panel.filtered_ids[index]).display_name.to_lower(), "name sort is alphabetical by card name")
+	context.expect_true(panel.find_child("BuildPreset", true, false) == null, "build preset dropdown is gone")
 	lab.set_target_settings(1, 100.0, 160.0, false, false, false)
 	for tick in 24:
 		lab.step_lab(1.0 / 60.0, PlayerInputFrame.new(tick + 1, tick, Vector2.ZERO, 0.0, tick == 0))
@@ -92,8 +117,6 @@ static func run(context: TestContext, parent: Node) -> void:
 	lab.set_editor_open(false)
 	_press_pad(lab.get_viewport(), JOY_BUTTON_A)
 	context.expect_true(lab.editor_open, "controller confirm opens the editor from active range")
-	lab.load_preset(4)
-	context.expect_equal(lab.lab_panel.preset_control.selected, 4, "preset selector reflects a programmatically loaded build")
 	lab.set_editor_open(false)
 	Input.action_press("fire")
 	lab._physics_process(1.0 / 60.0)

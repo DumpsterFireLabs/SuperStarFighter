@@ -28,14 +28,16 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(panel.get_global_rect().encloses(panel.add_button.get_global_rect()), "stack action stays visible in enlarged editor")
 	panel.search.text = "Quick Loader"
 	panel.search.text_changed.emit(panel.search.text)
-	(panel.find_child("InspectCard", true, false) as Button).pressed.emit()
 	await parent.get_tree().process_frame
 	var tabs := panel.find_child("LabTabs", true, false) as TabContainer
-	context.expect_equal(tabs.current_tab, 3, "details opens selected-card tab without scrolling past the list")
-	context.expect_true(panel.card_description.text.contains("Quick Loader"), "details retains the selected card")
+	context.expect_equal(tabs.get_tab_count(), 3, "card details no longer need a separate lab tab")
+	context.expect_equal(tabs.current_tab, 0, "selecting a card stays on the build tab")
+	context.expect_true(panel.card_description.is_visible_in_tree(), "selected-card details show inside the build tab")
+	context.expect_true(panel.card_description.text.contains("Quick Loader"), "build tab details follow the selected card")
+	context.expect_true(panel.get_global_rect().encloses(panel.find_child("CardDetails", true, false).get_global_rect()), "card details stay inside the enlarged editor")
 	panel.add_button.pressed.emit()
-	context.expect_equal(int(lab.build.get(&"quick_loader", 0)), 1, "selected card can be added while inspecting details")
-	tabs.current_tab = 0
-	context.expect_equal(panel.search.text, "Quick Loader", "returning from details preserves the search")
+	context.expect_equal(int(lab.build.get(&"quick_loader", 0)), 1, "selected card can be added while reading its details")
+	context.expect_true(panel.card_description.text.contains("×1"), "details refresh with the new stack count")
+	context.expect_equal(panel.search.text, "Quick Loader", "adding a stack preserves the search")
 	context.expect_true(lab.editor_open, "inspecting a card keeps the range paused")
 	lab.free()

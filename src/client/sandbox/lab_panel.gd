@@ -17,8 +17,11 @@ var distance_control: SpinBox
 var shield_control: CheckBox
 var fire_control: CheckBox
 var move_control: CheckBox
-var preset_control: OptionButton
+var sort_control: OptionButton
 var map_control: OptionButton
+
+enum CardSort { NAME, RARITY_ASCENDING, RARITY_DESCENDING }
+const SORT_NAMES: Array[String] = ["Sort · Name", "Sort · Common first", "Sort · Rarest first"]
 
 
 func configure(sandbox: OfflineSandbox) -> void:
@@ -31,6 +34,17 @@ func configure(sandbox: OfflineSandbox) -> void:
 	layout.add_child(heading)
 	_label(heading, "COMBAT LAB", DesignTokens.TEXT_SECTION_SIZE)
 	_button(heading, "LEARN TO PLAY", lab.start_tutorial)
+	# The arena applies to the whole lab, so it sits above the tabs.
+	map_control = OptionButton.new()
+	map_control.name = "ArenaSelection"
+	map_control.tooltip_text = "Arena"
+	map_control.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
+	map_control.clip_text = true
+	for map_id in ArenaLayout.map_ids():
+		map_control.add_item("Arena · %s" % map_label(map_id))
+	map_control.select(maxi(ArenaLayout.map_ids().find(lab.world.map_id), 0))
+	map_control.item_selected.connect(lab.set_lab_map)
+	layout.add_child(map_control)
 	var tabs := TabContainer.new()
 	tabs.name = "LabTabs"
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -39,17 +53,14 @@ func configure(sandbox: OfflineSandbox) -> void:
 	var content := _tab(tabs, "Build", false)
 	var browse_controls := HBoxContainer.new()
 	content.add_child(browse_controls)
-	var presets := OptionButton.new()
-	preset_control = presets
-	presets.name = "BuildPreset"
-	for preset_name in lab.PRESET_NAMES:
-		presets.add_item(preset_name)
-	presets.add_item("Custom build")
-	presets.set_item_disabled(lab.PRESET_NAMES.size(), true)
-	presets.item_selected.connect(lab.load_preset)
-	presets.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	presets.clip_text = true
-	browse_controls.add_child(presets)
+	sort_control = OptionButton.new()
+	sort_control.name = "CardSort"
+	sort_control.tooltip_text = "Sort cards"
+	sort_control.custom_minimum_size.y = DesignTokens.CONTROL_HEIGHT
+	for sort_name in SORT_NAMES:
+		sort_control.add_item(sort_name)
+	sort_control.item_selected.connect(func(_index: int) -> void: _refresh_cards(search.text))
+	browse_controls.add_child(sort_control)
 	search = LineEdit.new()
 	search.name = "CardSearch"
 	search.placeholder_text = "Search cards…"
@@ -62,28 +73,29 @@ func configure(sandbox: OfflineSandbox) -> void:
 	cards.name = "CardResults"
 	cards.custom_minimum_size.y = 96.0
 	cards.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cards.size_flags_stretch_ratio = 3.0
 	cards.item_selected.connect(_select_card)
 	cards.item_activated.connect(func(_index: int) -> void: lab._grant_selected_card())
 	content.add_child(cards)
+	# Selected-card details live under the list, so picking a card shows its
+	# effect without leaving the build tab.
+	var details := ScrollContainer.new()
+	details.name = "CardDetails"
+	details.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	details.custom_minimum_size.y = 72.0
+	content.add_child(details)
+	card_description = _label(details, "", 16)
+	card_description.name = "CardDescription"
 	var card_actions := HBoxContainer.new()
-	layout.add_child(card_actions)
-	tabs.tab_changed.connect(func(index: int) -> void: card_actions.visible = index in [0, 3])
+	content.add_child(card_actions)
 	add_button = _button(card_actions, "+ STACK", lab._grant_selected_card)
 	remove_button = _button(card_actions, "− STACK", lab.remove_selected_card)
-	var inspect := _button(card_actions, "DETAILS", func() -> void: tabs.current_tab = 3)
-	inspect.name = "InspectCard"
 	content = _tab(tabs, "Targets")
 	_label(content, "TARGETS", DesignTokens.TEXT_SECTION_SIZE)
-	map_control = OptionButton.new()
-	map_control.name = "ArenaSelection"
-	for map_id in lab.LAB_MAP_IDS:
-		var suffix := " · Solar Current trial" if map_id == &"solar_tide" else ""
-		map_control.add_item("%s%s" % [ArenaLayout.display_name(map_id), suffix])
-	map_control.item_selected.connect(lab.set_lab_map)
-	content.add_child(map_control)
-	count_control = _spin(content, "Count", 1.0, 5.0, 1.0, lab.target_count)
+	count_control = _spin(content, "Count", 1.0, float(lab.TARGET_COUNT), 1.0, lab.target_count)
 	health_control = _spin(content, "Hull HP", 10.0, 600.0, 10.0, lab.target_health)
-	distance_control = _spin(content, "Distance", 160.0, 900.0, 20.0, lab.target_distance)
+	distance_control = _spin(content, "Distance", lab.TARGET_DISTANCE_MIN, lab.TARGET_DISTANCE_MAX, lab.TARGET_DISTANCE_STEP, lab.target_distance)
 	shield_control = _check(content, "Face player and shield", lab.targets_shielding)
 	fire_control = _check(content, "Return fire", lab.targets_firing)
 	move_control = _check(content, "Strafe", lab.targets_moving)
@@ -100,12 +112,18 @@ func configure(sandbox: OfflineSandbox) -> void:
 	_button(content, "RESET MEASUREMENTS", lab.reset_measurements)
 	telemetry_label = _label(content, "", 16)
 	help_label = _label(content, "", 15)
-	content = _tab(tabs, "Card")
-	_button(content, "BACK TO CARDS", func() -> void: tabs.current_tab = 0; cards.grab_focus())
-	card_description = _label(content, "", 16)
-	card_description.name = "CardDescription"
 	_refresh_cards("")
 	refresh_build()
+
+
+## Map name, plus the arena mechanic when it has its own name (Solar Current).
+static func map_label(map_id: StringName) -> String:
+	var name := ArenaLayout.display_name(map_id)
+	var mechanics := PackedStringArray()
+	for field in ArenaLayout.movement_fields(map_id):
+		if not field.display_name.is_empty() and not name.contains(field.display_name) and not field.display_name in mechanics:
+			mechanics.append(field.display_name)
+	return name if mechanics.is_empty() else "%s · %s trial" % [name, ", ".join(mechanics)]
 
 
 func _tab(tabs: TabContainer, title: String, scrolling: bool = true) -> VBoxContainer:
@@ -140,7 +158,18 @@ func matching_card_ids(query: String) -> Array[StringName]:
 		var haystack := "%s %s %s %s" % [card_id, card.display_name, card.description, CardDefinition.Rarity.keys()[card.rarity]]
 		if needle.is_empty() or haystack.to_lower().contains(needle):
 			result.append(card_id)
+	var mode := sort_control.selected if sort_control != null else CardSort.NAME
+	result.sort_custom(func(a: StringName, b: StringName) -> bool: return _sorts_before(lab.catalog.get_card(a), lab.catalog.get_card(b), mode))
 	return result
+
+
+## Rarity sorts keep name order inside each rarity band.
+static func _sorts_before(a: CardDefinition, b: CardDefinition, mode: int) -> bool:
+	if mode != CardSort.NAME and a.rarity != b.rarity:
+		return a.rarity < b.rarity if mode == CardSort.RARITY_ASCENDING else a.rarity > b.rarity
+	var a_name := a.display_name.to_lower()
+	var b_name := b.display_name.to_lower()
+	return a_name < b_name if a_name != b_name else String(a.card_id) < String(b.card_id)
 
 
 func _refresh_cards(query: String) -> void:
@@ -153,6 +182,7 @@ func _refresh_cards(query: String) -> void:
 		cards.set_item_custom_fg_color(index, card.rarity_color())
 		if card_id == current_id:
 			cards.select(index)
+			cards.ensure_current_is_visible()
 	add_button.disabled = filtered_ids.is_empty()
 	remove_button.disabled = filtered_ids.is_empty()
 	if filtered_ids.is_empty():
@@ -172,8 +202,6 @@ func _select_card(index: int) -> void:
 
 
 func refresh_build() -> void:
-	var selected_preset := lab.PRESET_BUILDS.find(lab.build)
-	preset_control.select(selected_preset if selected_preset >= 0 else lab.PRESET_NAMES.size())
 	var names := PackedStringArray()
 	for card_id in lab.catalog.all_ids():
 		if int(lab.build.get(card_id, 0)) > 0:
