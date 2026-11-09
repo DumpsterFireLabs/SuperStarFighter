@@ -1,6 +1,8 @@
 param(
     # Run only suites whose file name contains this text, e.g. -Filter input_profile
-    [string]$Filter = ''
+    [string]$Filter = '',
+    # Print a PASS line for every assertion, not only failures and the summary
+    [switch]$VerboseTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +12,7 @@ $godot = Get-SsfGodotExecutable
 $logPath = New-SsfVerificationLogPath -Name 'unit-tests'
 $userArguments = @('--run-tests')
 if ($Filter) { $userArguments += "--test-filter=$Filter" }
+if ($VerboseTests) { $userArguments += '--verbose-tests' }
 $ErrorActionPreference = 'Continue'
 try {
     $output = (& $godot --headless --path $SsfRepositoryRoot --log-file $logPath -- @userArguments 2>&1 | Out-String)

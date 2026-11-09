@@ -4,7 +4,7 @@ const Preferences = preload("res://src/client/ui/connection_preferences.gd")
 
 
 static func run(context: TestContext) -> void:
-	var path := "res://.tools/connection-preferences-%d.cfg" % Time.get_ticks_usec()
+	var path := context.scratch_path("connection-preferences.cfg")
 	var initial := ConfigFile.new()
 	initial.set_value("audio", "master", 0.42)
 	initial.set_value("appearance", "ship_color", "invalid")

@@ -212,7 +212,7 @@ static func _slow_logging(context: TestContext) -> void:
 
 
 static func _settings_sections(context: TestContext) -> void:
-	var path := "res://.tools/architecture-settings-%d.cfg" % Time.get_ticks_usec()
+	var path := context.scratch_path("architecture-settings.cfg")
 	context.expect_equal(SettingsStore.update(func(config: ConfigFile) -> void:
 		config.set_value("audio", "master", 37)
 	, path), OK, "settings store creates an absent settings file")

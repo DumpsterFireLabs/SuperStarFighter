@@ -73,6 +73,8 @@ var _context := TestContext.new()
 func _ready() -> void:
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
 	var filter := String(configuration.get("test_filter", ""))
+	_context.verbose = bool(configuration.get("verbose_tests", false))
+	TestContext.clear_scratch()
 	if filter.is_empty():
 		_run_registration_guard()
 	else:
@@ -109,6 +111,7 @@ func _ready() -> void:
 	for line in timings:
 		print(line)
 	_context.print_failure_recap()
+	TestContext.clear_scratch()
 	print("TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
 	print("SSF_MODE_READY=tests")
 	get_tree().quit(0 if _context.failed == 0 else 1)
@@ -296,6 +299,8 @@ func _run_foundation_tests() -> void:
 	_context.expect_true(filtered_tests.ok and filtered_tests.test_filter == "input_profile", "test filter parses with --run-tests")
 	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--test-filter=input_profile"])).ok, "test filter is only valid with --run-tests")
 	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--run-tests", "--test-filter="])).ok, "empty test filter is rejected")
+	_context.expect_true(CommandLineConfig.parse(PackedStringArray(["--run-tests", "--verbose-tests"])).verbose_tests, "verbose test output is opt-in")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--server", "--verbose-tests", "--password=test-lobby"])).ok, "verbose test output is only valid with --run-tests")
 
 	var invalid_port := CommandLineConfig.parse(PackedStringArray(["--server", "--port=80"]))
 	_context.expect_true(not invalid_port.ok, "privileged server port is rejected")

@@ -5,8 +5,7 @@ const Preferences = preload("res://src/client/presentation/accessibility_prefere
 
 static func run(context: TestContext, parent: Node) -> void:
 	var preferences = Preferences.new()
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://reports"))
-	preferences.settings_path = "res://reports/accessibility-test-%d.cfg" % Time.get_ticks_usec()
+	preferences.settings_path = context.scratch_path("accessibility.cfg")
 	var config := ConfigFile.new()
 	config.set_value("audio", "master_volume", 37)
 	config.save(preferences.settings_path)

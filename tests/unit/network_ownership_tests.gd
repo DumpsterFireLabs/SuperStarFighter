@@ -408,7 +408,7 @@ static func _schedule(context: TestContext) -> void:
 
 
 static func _ban_persistence(context: TestContext) -> void:
-	var directory := ProjectSettings.globalize_path("res://reports/network-owner-tests")
+	var directory := ProjectSettings.globalize_path(context.scratch_path("network-owner"))
 	DirAccess.make_dir_recursive_absolute(directory)
 	var path := directory.path_join("bans-%d.json" % Time.get_ticks_usec())
 	var first := NetworkBridge.new()

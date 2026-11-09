@@ -5,7 +5,7 @@ const InputProfileManagerScript = preload("res://src/client/input/input_profile_
 
 
 static func run(context: TestContext) -> void:
-	var settings_path := "res://.tools/ssf_input_profile_test.cfg"
+	var settings_path := context.scratch_path("input-profile.cfg")
 	var absolute_path := ProjectSettings.globalize_path(settings_path)
 	if FileAccess.file_exists(settings_path):
 		DirAccess.remove_absolute(absolute_path)

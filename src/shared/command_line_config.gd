@@ -30,6 +30,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"bot_name": "",
 		"force_test_failure": false,
 		"test_filter": "",
+		"verbose_tests": false,
 		"test_protocol_version": GameConstants.PROTOCOL_VERSION,
 		"has_test_protocol_override": false,
 		"test_server_duration": 0,
@@ -144,6 +145,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			result.behind_proxy = true
 		elif argument == "--force-test-failure":
 			result.force_test_failure = true
+		elif argument == "--verbose-tests":
+			result.verbose_tests = true
 		elif argument.begins_with("--test-filter="):
 			result.test_filter = argument.trim_prefix("--test-filter=").strip_edges()
 			if result.test_filter.is_empty():
@@ -260,6 +263,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("--bind and --behind-proxy are only valid with --server.")
 	if result.force_test_failure and result.mode != "tests":
 		return _error("--force-test-failure is only valid with --run-tests.")
+	if result.verbose_tests and result.mode != "tests":
+		return _error("--verbose-tests is only valid with --run-tests.")
 	if not String(result.test_filter).is_empty() and result.mode != "tests":
 		return _error("--test-filter is only valid with --run-tests.")
 	if result.has_test_protocol_override and result.mode != "bot_client":
