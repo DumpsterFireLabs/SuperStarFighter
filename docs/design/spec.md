@@ -521,19 +521,21 @@ For multi-projectile shots, distribute projectiles evenly across the total sprea
 Client-to-server messages:
 
 - `client_hello(protocol_version, display_name, password_proof)` — reliable, required within 10 seconds of transport connection and only after the server's fresh challenge; the raw lobby password is never sent by this RPC.
-- `request_lobby_config(rounds_to_win)` — reliable, lobby leader only.
-- `request_player_limit(total_participants)` — reliable, lobby leader and lobby state only; bounded by 2, server capacity, and 32.
-- `request_npcs_enabled(enabled)` — reliable, lobby leader and lobby state only.
-- `request_game_mode(mode)` — reliable, lobby leader and lobby state only; validates one of the five supported modes and clears human readiness.
-- `request_team_count(team_count)` — reliable, lobby leader and waiting Team Death Match only; bounded from 2 through 8 and cannot exceed the participant limit.
+- `request_lobby_setting(setting_id, value)` — reliable, lobby leader and lobby state only. One RPC for every scalar lobby setting; the server rejects an unknown id, a value of the wrong type, a non-finite number or a value outside the setting's bounds before the lobby sees it, and counts each as malformed control traffic. Settings:
+  - `rounds_to_win` (integer, 1–5).
+  - `player_limit` (integer total participants; bounded by 2, server capacity, and 32).
+  - `npcs_enabled` (boolean).
+  - `npc_difficulty` (integer, one of the five supported tiers; updates every current NPC and the default for later NPC fills).
+  - `game_mode` (integer, one of the five supported modes; clears human readiness).
+  - `team_count` (integer, 2–8; waiting Team Death Match only and cannot exceed the participant limit).
+  - `random_spawn_powerups` (boolean, defaults to false).
+  - `random_powerup_interval` (seconds, 5–90).
+  - `random_powerups_permanent` (boolean, defaults to false).
+  - `competitive_view` (boolean).
+  - `overtime_start` (seconds, 30–120).
 - `request_team_assignment(peer_id, team_selection)` — reliable and waiting team mode only; `0` requests Auto, otherwise the selection must name an available team. The leader may target anyone, a human may target themselves, and any human may target an NPC.
-- `request_random_spawn_powerups(enabled)` — reliable, lobby leader and lobby state only; defaults to false.
-- `request_random_powerup_interval(seconds)` — reliable, lobby leader and lobby state only; bounded from 5 through 90.
-- `request_random_powerups_permanent(enabled)` — reliable, lobby leader and lobby state only; defaults to false.
-- `request_overtime_start(seconds)` — reliable, lobby leader and lobby state only; bounded from 30 through 120.
 - `request_player_color(random, rgb_hex)` — reliable, waiting human only; a custom value must be exactly six hexadecimal RGB digits.
 - `request_npc_difficulty(npc_peer_id, difficulty)` — reliable, lobby leader and lobby state only; target must be a current server-owned NPC and difficulty must be one of the five supported tiers.
-- `request_all_npc_difficulty(difficulty)` — reliable, lobby leader and lobby state only; updates every current NPC and the default for later NPC fills.
 - `request_ready_state(ready)` — reliable, waiting human only.
 - `request_eject_player(peer_id)` — reliable, lobby leader and lobby state only; the sender cannot target themselves or an NPC.
 - `request_start_match()` — reliable, lobby leader only; all connected humans must be ready.

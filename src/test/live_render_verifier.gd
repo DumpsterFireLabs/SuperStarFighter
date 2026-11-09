@@ -189,7 +189,7 @@ func _run() -> void:
 func _lobby(state: Dictionary) -> void:
 	if bool(state.get("match_active", false)): return
 	if not bool(state.get("npcs_enabled", false)):
-		client.send_npcs_enabled(true)
+		client.send_lobby_setting(&"npcs_enabled", true)
 	elif not bool(state.get("all_humans_ready", false)):
 		client.send_ready_state(true)
 	else:

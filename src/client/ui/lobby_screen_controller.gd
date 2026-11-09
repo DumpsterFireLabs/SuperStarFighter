@@ -792,17 +792,17 @@ func _rebuild_lobby_roster(state: Dictionary, is_leader: bool) -> void:
 
 func _on_rounds_changed(value: float) -> void:
 	if not _applying_lobby_state:
-		bridge.send_lobby_config(roundi(value))
+		bridge.send_lobby_setting(&"rounds_to_win", roundi(value))
 
 
 func _on_player_limit_changed(value: float) -> void:
 	if not _applying_lobby_state:
-		bridge.send_player_limit(roundi(value))
+		bridge.send_lobby_setting(&"player_limit", roundi(value))
 
 
 func _on_npcs_toggled(enabled: bool) -> void:
 	if not _applying_lobby_state:
-		bridge.send_npcs_enabled(enabled)
+		bridge.send_lobby_setting(&"npcs_enabled", enabled)
 
 
 func _on_game_mode_selected(index: int) -> void:
@@ -810,12 +810,12 @@ func _on_game_mode_selected(index: int) -> void:
 	game_mode_note.text = GameModeRules.mode_description(mode)
 	team_count_row.visible = mode == GameModeRules.Mode.TEAM_DEATH_MATCH
 	if not _applying_lobby_state:
-		bridge.send_game_mode(mode)
+		bridge.send_lobby_setting(&"game_mode", mode)
 
 
 func _on_team_count_changed(value: float) -> void:
 	if not _applying_lobby_state:
-		bridge.send_team_count(roundi(value))
+		bridge.send_lobby_setting(&"team_count", roundi(value))
 
 
 func _on_team_assignment_selected(index: int, peer_id: int) -> void:
@@ -853,7 +853,7 @@ func _hide_lobby_options(restore_focus: bool = true) -> void:
 
 func _on_powerups_toggled(enabled: bool) -> void:
 	if not _applying_lobby_state:
-		bridge.send_random_spawn_powerups(enabled)
+		bridge.send_lobby_setting(&"random_spawn_powerups", enabled)
 
 
 func _show_ship_color_popup() -> void:
@@ -950,27 +950,27 @@ func _on_npc_difficulty_selected(index: int, npc_peer_id: int) -> void:
 
 func _on_all_npc_difficulty_selected(index: int) -> void:
 	if not _applying_lobby_state:
-		bridge.send_all_npc_difficulty(index)
+		bridge.send_lobby_setting(&"npc_difficulty", index)
 
 
 func _on_powerup_interval_changed(value: float) -> void:
 	if not _applying_lobby_state:
-		bridge.send_random_powerup_interval(value)
+		bridge.send_lobby_setting(&"random_powerup_interval", value)
 
 
 func _on_powerups_permanent_toggled(permanent: bool) -> void:
 	if not _applying_lobby_state:
-		bridge.send_random_powerups_permanent(permanent)
+		bridge.send_lobby_setting(&"random_powerups_permanent", permanent)
 
 
 func _on_competitive_view_changed(enabled: bool) -> void:
 	if not _applying_lobby_state:
-		bridge.send_competitive_view(enabled)
+		bridge.send_lobby_setting(&"competitive_view", enabled)
 
 
 func _on_overtime_start_changed(value: float) -> void:
 	if not _applying_lobby_state:
-		bridge.send_overtime_start(value)
+		bridge.send_lobby_setting(&"overtime_start", value)
 
 
 func _on_ready_toggled(ready: bool) -> void:

@@ -131,7 +131,7 @@ func _physics_process(delta: float) -> void:
 					bridge.send_test_input_packet(InputPacketCodec.encode(frame))
 				else:
 					bridge.send_action_input(frame)
-				bridge.send_lobby_config(GameConstants.DEFAULT_ROUNDS_TO_WIN)
+				bridge.send_lobby_setting(&"rounds_to_win", GameConstants.DEFAULT_ROUNDS_TO_WIN)
 
 
 func _on_welcome(peer_id: int) -> void:
@@ -155,10 +155,10 @@ func _on_lobby_state(state: Dictionary) -> void:
 	if int(state.get("leader_id", 0)) != bridge.local_peer_id:
 		return
 	if desired_player_limit > 0 and int(state.get("player_limit", 0)) != desired_player_limit:
-		bridge.send_player_limit(desired_player_limit)
+		bridge.send_lobby_setting(&"player_limit", desired_player_limit)
 		return
 	if enable_npcs and not bool(state.get("npcs_enabled", false)):
-		bridge.send_npcs_enabled(true)
+		bridge.send_lobby_setting(&"npcs_enabled", true)
 		return
 	if bool(state.get("all_humans_ready", false)) and ((state.get("players", []) as Array).size() >= start_when_players or bool(state.get("npcs_enabled", false))):
 		bridge.send_start_match()

@@ -82,15 +82,15 @@ func _run() -> void:
 		_fail("host_preset_not_replicated")
 		return
 	# Keep free seats for the real late-spectator admission check.
-	host.send_npcs_enabled(false)
+	host.send_lobby_setting(&"npcs_enabled", false)
 	if not await _until(func() -> bool: return not bool(guest.latest_lobby_state.get("npcs_enabled", true))):
 		_fail("npc_fill_not_disabled")
 		return
-	guest.send_competitive_view(true)
+	guest.send_lobby_setting(&"competitive_view", true)
 	if not await _until(func() -> bool: return guest_rejections == 2):
 		_fail("guest_competitive_view_not_rejected")
 		return
-	host.send_competitive_view(true)
+	host.send_lobby_setting(&"competitive_view", true)
 	if not await _until(func() -> bool: return bool(guest.latest_lobby_state.get("competitive_view", false)) and bool(host.latest_lobby_state.get("competitive_view", false))):
 		_fail("competitive_view_not_replicated")
 		return
@@ -136,7 +136,7 @@ func _run() -> void:
 	if server.match_coordinator.machine.config.map_pool != [&"core_arena", &"switchyard"] or host_state.get("map_pool", []) != [&"core_arena", &"switchyard"]:
 		_fail("match_pool_not_frozen")
 		return
-	host.send_competitive_view(false)
+	host.send_lobby_setting(&"competitive_view", false)
 	await create_timer(0.1).timeout
 	if not server.lobby.config.competitive_view:
 		_fail("view_policy_changed_midmatch")

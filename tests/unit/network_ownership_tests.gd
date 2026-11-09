@@ -129,6 +129,7 @@ static func run(context: TestContext) -> void:
 	command_bridge.free()
 	_lobby_commands_without_bridge(context)
 	_lobby_setting_descriptors(context)
+	_lobby_setting_requests(context)
 	_server_tick_metrics(context)
 	_reconnect_reservations(context)
 	_operator_commands(context)
@@ -866,3 +867,35 @@ static func _operator_commands(context: TestContext) -> void:
 	context.expect_false(OperatorCommands.kick(lobby, session, 99, false).ok, "operator cannot kick a peer that is not connected")
 	var status := OperatorCommands.status_report(lobby, session, null, ServerTickMetrics.new(), {}, true, 0)
 	context.expect_true(status.ok and status.human_count == 1 and not (status.lobby as Dictionary).has("players"), "operator status summarizes the lobby without its roster")
+
+
+## request_lobby_setting arrives untyped; everything wrong is refused before
+## the lobby is touched.
+static func _lobby_setting_requests(context: TestContext) -> void:
+	var cases := [
+		[42, true, "lobby_setting_id_type", "a numeric setting id"],
+		["x".repeat(LobbySettings.MAX_SETTING_ID_LENGTH + 1), true, "oversized_lobby_setting_id", "an oversized setting id"],
+		[&"server_name", "Arena", "unknown_lobby_setting", "a session setting through the lobby RPC"],
+		[&"not_a_setting", true, "unknown_lobby_setting", "an unknown setting id"],
+		[&"rounds_to_win", "five", "lobby_setting_value_type", "a string for an integer setting"],
+		[&"rounds_to_win", 2.5, "lobby_setting_value_type", "a fraction for an integer setting"],
+		[&"npcs_enabled", 1, "lobby_setting_value_type", "a number for a boolean setting"],
+		[&"competitive_view", ["x".repeat(4096)], "lobby_setting_value_type", "an array value"],
+		[&"game_mode", {"mode": 1}, "lobby_setting_value_type", "a dictionary value"],
+		[&"overtime_start", NAN, "non_finite_lobby_setting", "NaN"],
+		[&"random_powerup_interval", INF, "non_finite_lobby_setting", "infinity"],
+		[&"rounds_to_win", 9, "lobby_setting_out_of_range", "an integer above its bound"],
+		[&"player_limit", 1, "lobby_setting_out_of_range", "an integer below its bound"],
+		[&"overtime_start", 300.0, "lobby_setting_out_of_range", "a number above its bound"],
+	]
+	for case in cases:
+		var result := LobbySettings.validate_request(case[0], case[1])
+		context.expect_true(not result.ok and result.detail == case[2], "lobby setting request refuses %s (%s)" % [case[3], result.get("detail", "accepted")])
+	var accepted := LobbySettings.validate_request("player_limit", 4.0)
+	context.expect_true(accepted.ok and accepted.setting_id == &"player_limit" and typeof(accepted.value) == TYPE_INT and accepted.value == 4, "a valid lobby setting request arrives typed")
+	context.expect_true(LobbySettings.validate_request(&"competitive_view", true).ok, "boolean settings pass validation")
+	var bridge := NetworkBridge.new()
+	context.expect_true(bridge.has_method(&"request_lobby_setting") and bridge.has_method(&"send_lobby_setting"), "the bridge exposes the single lobby-setting RPC")
+	for removed in [&"request_lobby_config", &"request_player_limit", &"request_npcs_enabled", &"request_game_mode", &"request_team_count", &"request_random_spawn_powerups", &"request_all_npc_difficulty", &"request_random_powerup_interval", &"request_random_powerups_permanent", &"request_competitive_view", &"request_overtime_start"]:
+		context.expect_false(bridge.has_method(removed), "per-setting RPC %s is gone" % removed)
+	bridge.free()

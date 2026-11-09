@@ -12,6 +12,8 @@ extends RefCounted
 
 enum Kind { BOOL, INT, FLOAT }
 
+const MAX_SETTING_ID_LENGTH: int = 64
+
 const SCALAR := {
 	&"rounds_to_win": {"kind": Kind.INT, "request": &"request_rounds_to_win", "min": GameConstants.MIN_ROUNDS_TO_WIN, "max": GameConstants.MAX_ROUNDS_TO_WIN},
 	&"player_limit": {"kind": Kind.INT, "request": &"request_player_limit", "min": GameConstants.MIN_PLAYERS, "max": GameConstants.MAX_PLAYERS},
@@ -86,3 +88,24 @@ static func in_bounds(setting_id: StringName, value: Variant) -> bool:
 ## returns that function's result dictionary.
 static func apply(lobby: ServerLobby, sender_id: int, setting_id: StringName, value: Variant) -> Dictionary:
 	return lobby.call(SCALAR[setting_id].request, sender_id, value)
+
+
+## Validates an untrusted request_lobby_setting call before anything touches
+## the lobby. Returns {"ok": true, "setting_id", "value"} with the value typed,
+## or {"ok": false, "detail"} naming why it was refused for the traffic log.
+static func validate_request(setting_id: Variant, value: Variant) -> Dictionary:
+	if typeof(setting_id) not in [TYPE_STRING, TYPE_STRING_NAME]:
+		return {"ok": false, "detail": "lobby_setting_id_type"}
+	if String(setting_id).length() > MAX_SETTING_ID_LENGTH:
+		return {"ok": false, "detail": "oversized_lobby_setting_id"}
+	var id := StringName(setting_id)
+	if not SCALAR.has(id):
+		return {"ok": false, "detail": "unknown_lobby_setting"}
+	if value is float and not is_finite(value):
+		return {"ok": false, "detail": "non_finite_lobby_setting"}
+	var typed := coerce(id, value)
+	if not typed.ok:
+		return {"ok": false, "detail": "lobby_setting_value_type"}
+	if not in_bounds(id, typed.value):
+		return {"ok": false, "detail": "lobby_setting_out_of_range"}
+	return {"ok": true, "setting_id": id, "value": typed.value}

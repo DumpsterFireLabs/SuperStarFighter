@@ -18,8 +18,8 @@ class RecordingBridge extends NetworkBridge:
 	var requests: Array[Dictionary] = []
 	func send_ready_state(ready: bool) -> void:
 		requests.append({"ready": ready})
-	func send_lobby_config(rounds: int) -> void:
-		requests.append({"rounds": rounds})
+	func send_lobby_setting(setting_id: StringName, value: Variant) -> void:
+		requests.append({String(setting_id): value})
 	func send_player_appearance(random_color: bool, color: Color, pattern: StringName = &"solid") -> void:
 		requests.append({"random_color": random_color, "color": color, "pattern": pattern})
 	func start_client(host: String, port: int, display_name: String, protocol_version: int = GameConstants.PROTOCOL_VERSION, password: String = "") -> Error:
@@ -66,7 +66,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	screen.lobby.ready_button.button_pressed = true
 	context.expect_equal(bridge.requests.back(), {"ready": true}, "ready interaction reaches the injected bridge")
 	screen.lobby.rounds_control.value = 4
-	context.expect_equal(bridge.requests.back(), {"rounds": 4}, "host rule interaction reaches the injected bridge")
+	context.expect_equal(bridge.requests.back(), {"rounds_to_win": 4}, "host rule interaction reaches the injected bridge")
 	screen.lobby._show_ship_color_popup()
 	screen.lobby._on_ship_color_changed(Color("ff4ea3"))
 	screen.render_lobby(state)

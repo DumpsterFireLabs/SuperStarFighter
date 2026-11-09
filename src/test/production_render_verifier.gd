@@ -75,7 +75,7 @@ func _run() -> void:
 func _lobby(state: Dictionary) -> void:
 	if bool(state.get("match_active", false)): return
 	if not bool(state.get("npcs_enabled", false)):
-		app.bridge.send_npcs_enabled(true)
+		app.bridge.send_lobby_setting(&"npcs_enabled", true)
 	elif not bool(state.get("all_humans_ready", false)):
 		app.bridge.send_ready_state(true)
 	else:

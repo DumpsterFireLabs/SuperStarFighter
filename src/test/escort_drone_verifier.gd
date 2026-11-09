@@ -42,8 +42,8 @@ func _run() -> void:
 	while client.bridge.local_peer_id == 0 and Time.get_ticks_msec() - started < TIMEOUT_MSEC:
 		await process_frame
 	var server: NetworkBridge = client.connection_controller.hosted_session.server_bridge
-	client.bridge.send_player_limit(2)
-	client.bridge.send_npcs_enabled(true)
+	client.bridge.send_lobby_setting(&"player_limit", 2)
+	client.bridge.send_lobby_setting(&"npcs_enabled", true)
 	while server.lobby.participant_count() < 2 and Time.get_ticks_msec() - started < TIMEOUT_MSEC:
 		await process_frame
 	client.bridge.send_ready_state(true)

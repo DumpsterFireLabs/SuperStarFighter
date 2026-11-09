@@ -98,8 +98,8 @@ func _verify_lobby_requests(client: Node) -> bool:
 
 func _verify_global_pause(client: Node) -> bool:
 	var server: NetworkBridge = client.connection_controller.hosted_session.server_bridge
-	client.bridge.send_player_limit(2)
-	client.bridge.send_npcs_enabled(true)
+	client.bridge.send_lobby_setting(&"player_limit", 2)
+	client.bridge.send_lobby_setting(&"npcs_enabled", true)
 	var started_at := Time.get_ticks_msec()
 	while server.lobby.participant_count() < 2 and Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
 		await process_frame

@@ -205,29 +205,10 @@ func send_action_input(frame: PlayerInputFrame) -> void:
 	action_input.rpc_id(NetworkProtocol.SERVER_PEER_ID, InputPacketCodec.encode(frame))
 
 
-func send_lobby_config(rounds_to_win: int) -> void:
+## Asks the server to change one scalar lobby setting from LobbySettings.
+func send_lobby_setting(setting_id: StringName, value: Variant) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
-		request_lobby_config.rpc_id(NetworkProtocol.SERVER_PEER_ID, rounds_to_win)
-
-
-func send_player_limit(player_limit: int) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_player_limit.rpc_id(NetworkProtocol.SERVER_PEER_ID, player_limit)
-
-
-func send_npcs_enabled(enabled: bool) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_npcs_enabled.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
-
-
-func send_game_mode(mode: int) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_game_mode.rpc_id(NetworkProtocol.SERVER_PEER_ID, mode)
-
-
-func send_team_count(team_count: int) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_team_count.rpc_id(NetworkProtocol.SERVER_PEER_ID, team_count)
+		request_lobby_setting.rpc_id(NetworkProtocol.SERVER_PEER_ID, setting_id, value)
 
 
 func send_team_assignment(peer_id: int, team_selection: int) -> void:
@@ -245,11 +226,6 @@ func send_arena_effects(settings: Dictionary) -> void:
 		request_arena_effects.rpc_id(NetworkProtocol.SERVER_PEER_ID, settings)
 
 
-func send_random_spawn_powerups(enabled: bool) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_random_spawn_powerups.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
-
-
 func send_player_color(random_color: bool, color: Color) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_player_color.rpc_id(NetworkProtocol.SERVER_PEER_ID, random_color, color.to_html(false))
@@ -263,31 +239,6 @@ func send_player_appearance(random_color: bool, color: Color, pattern: StringNam
 func send_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
 	if role == Role.CLIENT and local_peer_id != 0:
 		request_npc_difficulty.rpc_id(NetworkProtocol.SERVER_PEER_ID, npc_peer_id, difficulty)
-
-
-func send_all_npc_difficulty(difficulty: int) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_all_npc_difficulty.rpc_id(NetworkProtocol.SERVER_PEER_ID, difficulty)
-
-
-func send_random_powerup_interval(seconds: float) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_random_powerup_interval.rpc_id(NetworkProtocol.SERVER_PEER_ID, seconds)
-
-
-func send_random_powerups_permanent(permanent: bool) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_random_powerups_permanent.rpc_id(NetworkProtocol.SERVER_PEER_ID, permanent)
-
-
-func send_competitive_view(enabled: bool) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_competitive_view.rpc_id(NetworkProtocol.SERVER_PEER_ID, enabled)
-
-
-func send_overtime_start(seconds: float) -> void:
-	if role == Role.CLIENT and local_peer_id != 0:
-		request_overtime_start.rpc_id(NetworkProtocol.SERVER_PEER_ID, seconds)
 
 
 func send_ready_state(ready: bool) -> void:
@@ -556,54 +507,21 @@ static func _valid_admin_peer_id(value: Variant) -> bool:
 	return (value is int and value > 1 and value <= 2_147_483_647) or (value is float and is_finite(value) and value > 1.0 and value <= 2_147_483_647.0 and value == floor(value))
 
 
+## One RPC for every scalar lobby setting described in LobbySettings. Both
+## arguments arrive untyped from the network and are validated against the
+## descriptor (id, type, finiteness and bounds) before the lobby sees them.
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_lobby_config(rounds_to_win: int) -> void:
+func request_lobby_setting(setting_id: Variant, value: Variant) -> void:
 	if role != Role.SERVER:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "lobby_config"):
+	if not _accept_control_request(sender_id, "lobby_setting"):
 		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"rounds_to_win", rounds_to_win))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_player_limit(player_limit: int) -> void:
-	if role != Role.SERVER:
+	var request := LobbySettings.validate_request(setting_id, value)
+	if not request.ok:
+		session.reject_malformed_control(sender_id, String(request.detail))
 		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "player_limit"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"player_limit", player_limit))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_npcs_enabled(enabled: bool) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "npcs_enabled"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"npcs_enabled", enabled))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_game_mode(mode: int) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "game_mode"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"game_mode", mode))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_team_count(team_count: int) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "team_count"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"team_count", team_count))
+	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, request.setting_id, request.value))
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -630,16 +548,6 @@ func request_arena_effects(settings: Dictionary) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not _accept_control_request(sender_id, "arena_effects"): return
 	_apply_command_outcome(sender_id, CommandService.request_arena_effects(lobby, sender_id, settings))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_random_spawn_powerups(enabled: bool) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "random_spawn_powerups"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"random_spawn_powerups", enabled))
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -676,56 +584,6 @@ func request_npc_difficulty(npc_peer_id: int, difficulty: int) -> void:
 	if not _accept_control_request(sender_id, "npc_difficulty"):
 		return
 	_apply_command_outcome(sender_id, CommandService.request_npc_difficulty(lobby, sender_id, npc_peer_id, difficulty))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_all_npc_difficulty(difficulty: int) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "all_npc_difficulty"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"npc_difficulty", difficulty))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_random_powerup_interval(seconds: float) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "random_powerup_interval"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"random_powerup_interval", seconds))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_random_powerups_permanent(permanent: bool) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "random_powerups_permanent"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"random_powerups_permanent", permanent))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_competitive_view(enabled: bool) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "competitive_view"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"competitive_view", enabled))
-
-
-@rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
-func request_overtime_start(seconds: float) -> void:
-	if role != Role.SERVER:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	if not _accept_control_request(sender_id, "overtime_start"):
-		return
-	_apply_command_outcome(sender_id, CommandService.apply_setting(lobby, sender_id, &"overtime_start", seconds))
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
