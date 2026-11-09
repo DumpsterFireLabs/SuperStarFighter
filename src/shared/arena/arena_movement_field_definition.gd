@@ -9,6 +9,12 @@ extends Resource
 @export var outer_radius: float = 0.0
 @export var clockwise: bool = true
 @export var gravity_acceleration: float = 0.0
+## Gravity only: distance at which the pull falls to half its peak. Doubling it
+## doubles the distance at which every strength of pull is felt.
+@export var gravity_falloff_radius: float = 180.0
+## Gravity only: scales the pull on shots and missiles relative to ships, so
+## fast projectiles visibly curve. Beams still lens at a gentler fraction.
+@export_range(0.0, 6.0, 0.05) var projectile_gravity_multiplier: float = 1.0
 ## Gravity only: ships touching this radius are crushed and projectiles vanish.
 @export var event_horizon_radius: float = 0.0
 ## Presentation only: &"current", &"black_hole" or &"star".
@@ -30,7 +36,10 @@ func validation_errors(arena_bounds: Rect2) -> PackedStringArray:
 		errors.append("Movement field center must be finite.")
 	if not is_finite(inner_radius) or not is_finite(outer_radius) or inner_radius < 0.0 or outer_radius <= inner_radius:
 		errors.append("Movement field radii must define a positive annulus.")
-	elif not arena_bounds.encloses(Rect2(center - Vector2.ONE * outer_radius, Vector2.ONE * outer_radius * 2.0)):
+	elif not arena_bounds.has_point(center):
+		errors.append("Movement field center must be inside arena bounds.")
+	elif gravity_acceleration <= 0.0 and not arena_bounds.encloses(Rect2(center - Vector2.ONE * outer_radius, Vector2.ONE * outer_radius * 2.0)):
+		# Currents are drawn as complete rings; gravity may reach past the walls.
 		errors.append("Movement field must remain inside arena bounds.")
 	if not is_finite(maximum_speed_multiplier) or maximum_speed_multiplier < 1.0 or maximum_speed_multiplier > 2.0:
 		errors.append("Movement field speed multiplier must be between 1 and 2.")
@@ -38,6 +47,10 @@ func validation_errors(arena_bounds: Rect2) -> PackedStringArray:
 		errors.append("Movement field flow input must be between 0 and 0.5.")
 	if not is_finite(gravity_acceleration) or gravity_acceleration < 0.0 or gravity_acceleration > 4000.0:
 		errors.append("Gravity acceleration must be finite and between 0 and 4000.")
+	if not is_finite(gravity_falloff_radius) or gravity_falloff_radius <= 0.0 or gravity_falloff_radius > outer_radius:
+		errors.append("Gravity falloff radius must be positive and inside the field.")
+	if not is_finite(projectile_gravity_multiplier) or projectile_gravity_multiplier < 0.0 or projectile_gravity_multiplier > 6.0:
+		errors.append("Projectile gravity multiplier must be between 0 and 6.")
 	if not is_finite(event_horizon_radius) or event_horizon_radius < 0.0 or event_horizon_radius >= outer_radius:
 		errors.append("Event horizon must be finite, nonnegative and inside the field.")
 	elif event_horizon_radius > 0.0 and gravity_acceleration <= 0.0:

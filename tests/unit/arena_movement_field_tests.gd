@@ -8,6 +8,20 @@ static func run(context: TestContext, parent: Node) -> void:
 	context.expect_true(gravity.influence_at(gravity.center + Vector2(100, 0)) > gravity.influence_at(gravity.center + Vector2(600, 0)), "gravity increases toward the throat")
 	context.expect_equal(gravity.flow_direction_at(gravity.center + Vector2(100, 0)), Vector2.LEFT, "gravity pulls inward")
 	context.expect_true(gravity.influence_at(gravity.center) == 1.0 and gravity.flow_direction_at(gravity.center).is_finite(), "wormhole center remains finite")
+	var pull := func(distance: float) -> float: return gravity.gravity_acceleration * gravity.influence_at(gravity.center + Vector2(distance, 0))
+	var thrust := CombatStats.create_base().acceleration
+	context.expect_true(pull.call(225.0) > thrust and pull.call(255.0) < thrust, "full thrust loses to gravity only inside roughly 240 px")
+	context.expect_true(pull.call(600.0) > 400.0, "wormhole pull is strong 600 px from the center")
+	context.expect_true(pull.call(1000.0) > 180.0, "wormhole pull is still clearly felt 1000 px from the center")
+	context.expect_true(pull.call(1350.0) > 0.0 and pull.call(1401.0) == 0.0, "wormhole pull reaches its drawn edge and stops there")
+	var shield_thrust := thrust * GameConstants.SHIELD_ACCELERATION_FACTOR
+	context.expect_true(pull.call(375.0) > shield_thrust and pull.call(410.0) < shield_thrust, "a raised shield loses to gravity inside roughly 390 px")
+	context.expect_true(gravity.projectile_gravity_multiplier >= 2.0, "wormhole pulls shots harder than ships so they visibly curve")
+	var passing := ProjectileState.create(905, 95, 1, gravity.center + Vector2(-600, -400), 0.0, CombatStats.create_base())
+	for tick in 60:
+		ArenaMovementSystem.bend_projectile(passing, 1.0 / 60.0, &"wormhole")
+		passing.position += passing.velocity / 60.0
+	context.expect_true(passing.velocity.angle() > deg_to_rad(25.0), "a shot passing 400 px from the hole curves at least 25 degrees")
 	var falling := CombatantState.create(95, CombatStats.create_base(), gravity.center + Vector2(150, 0))
 	ArenaMovementSystem.step_input(falling, PlayerInputFrame.new(1, 1, Vector2.ZERO, 0.0), 1.0 / 60.0, &"wormhole")
 	context.expect_true(falling.velocity.x < 0.0, "gravity pulls an idle ship")
@@ -202,7 +216,7 @@ static func _validate_event_horizon(context: TestContext) -> void:
 	swallow_world.step(1.0 / 60.0)
 	context.expect_true(swallow_world.projectile_registry.get_projectile(920) == null and swallow_world.projectile_registry.get_projectile(921) == null, "shots and missiles vanish past the event horizon")
 
-	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"wormhole"), 420.0, "Wormhole overtime stops well outside the hole")
+	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"wormhole"), 520.0, "Wormhole overtime stops outside the shielded point of no return")
 	context.expect_approx(ArenaLayout.overtime_minimum_radius(&"riftline"), GameConstants.OVERTIME_MINIMUM_RADIUS, "maps with a clear center keep the default overtime radius")
 	var hazard_margin := hole.event_horizon_radius + GameModeRules.OBJECTIVE_ZONE_RADIUS + GameModeRules.OBJECTIVE_HAZARD_CLEARANCE
 	context.expect_true(GameModeRules.objective_spawn(&"wormhole").distance_to(hole.center) >= hazard_margin - 0.01, "the neutral flag spawns clear of the hole")
@@ -211,12 +225,12 @@ static func _validate_event_horizon(context: TestContext) -> void:
 	var respawn_world := AuthoritativeWorld.new()
 	respawn_world.set_map_id(&"wormhole")
 	respawn_world.add_peer(43)
-	var late_overtime := RespawnPlacement.choose(respawn_world, 43, hole.center, hole.center, 420.0)
+	var late_overtime := RespawnPlacement.choose(respawn_world, 43, hole.center, hole.center, ArenaLayout.overtime_minimum_radius(&"wormhole"))
 	context.expect_true(late_overtime.is_finite() and late_overtime.distance_to(hole.center) >= hole.event_horizon_radius + RespawnPlacement.HAZARD_CLEARANCE, "late-overtime respawns land outside the hole's grip")
 	var steering := NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 200.0, &"wormhole")
 	context.expect_true(steering.x > 0.3, "NPC pilots steer away from the event horizon")
-	context.expect_true(NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 600.0, &"wormhole").is_zero_approx(), "NPC pilots ignore the hole from a safe distance")
-	context.expect_true(NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 380.0, &"wormhole", Vector2.LEFT * 480.0).x > 0.0, "NPC pilots brake early when diving toward the hole")
+	context.expect_true(NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 700.0, &"wormhole").is_zero_approx(), "NPC pilots ignore the hole from a safe distance")
+	context.expect_true(NpcPilotController.hazard_steering(hole.center + Vector2.RIGHT * 520.0, &"wormhole", Vector2.LEFT * 480.0).x > 0.0, "NPC pilots brake early when diving toward the hole")
 	var detour := NpcObjectiveNavigation.plan_route(hole.center + Vector2.LEFT * 1200.0, hole.center + Vector2.RIGHT * 1200.0, &"wormhole")
 	var closest := INF
 	var from := hole.center + Vector2.LEFT * 1200.0

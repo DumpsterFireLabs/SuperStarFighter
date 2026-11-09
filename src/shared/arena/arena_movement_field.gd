@@ -49,6 +49,16 @@ var gravity_acceleration: float:
 		return _values[&"gravity_acceleration"]
 	set(_value):
 		pass
+var gravity_falloff_radius: float:
+	get:
+		return _values[&"gravity_falloff_radius"]
+	set(_value):
+		pass
+var projectile_gravity_multiplier: float:
+	get:
+		return _values[&"projectile_gravity_multiplier"]
+	set(_value):
+		pass
 var feather_width: float:
 	get:
 		return _values[&"feather_width"]
@@ -74,6 +84,8 @@ var prompt: String:
 func _init(source: ArenaMovementFieldDefinition) -> void:
 	_values = {
 		&"gravity_acceleration": source.gravity_acceleration,
+		&"gravity_falloff_radius": source.gravity_falloff_radius,
+		&"projectile_gravity_multiplier": source.projectile_gravity_multiplier,
 		&"field_id": source.field_id,
 		&"display_name": source.display_name,
 		&"center": source.center,
@@ -99,7 +111,7 @@ func influence_at(position: Vector2) -> float:
 			return 0.0
 		# Softened inverse-square gravity, feathered to zero at the drawn edge.
 		var falloff := _smooth_unit((outer_radius - distance) / feather_width)
-		return falloff / (1.0 + pow(distance / 180.0, 2.0))
+		return falloff / (1.0 + pow(distance / gravity_falloff_radius, 2.0))
 	if distance <= inner_radius or distance >= outer_radius:
 		return 0.0
 	var inner_strength := _smooth_unit((distance - inner_radius) / feather_width)

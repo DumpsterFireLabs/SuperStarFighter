@@ -15,7 +15,7 @@ Solar Crucible joins the built-in round rotation with 32 clear spawns and a soli
 - After three seconds of opening grace, a three-second visual warning and alarm precede the first expanding flare. Subsequent flares launch 12–20 seconds apart, randomized by the server each heat. Event frequency does not change this range.
 - Face the star and shield when the wave arrives. Each wave hits a life once and passes through cover. Solar damage selects 8 / 16 / 28 damage (Standard: 16).
 - Touching the star causes 12 hull damage and a small outward impulse, at most once per second. Shields do not block surface burns. Respawn grace protects against both burns and flares for three seconds.
-- Localized gravity reaches 650 pixels from the center, with one quarter of Wormhole's gravity acceleration and a smooth outer fade. Normal thrust can overcome it. The shared gravity system also gently curves projectiles.
+- Localized gravity reaches 650 pixels from the center, with a 450 px/s² peak pull (well below Wormhole's at every distance) and a smooth outer fade. Normal thrust can overcome it. The shared gravity system also gently curves projectiles.
 - Burns and flares stop five seconds before overtime. The solid star and gentle pull remain; elimination modes retain a 340-pixel final safe radius so ships can orbit the surface.
 
 ## Solar pulses — Twin Suns

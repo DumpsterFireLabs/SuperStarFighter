@@ -68,7 +68,7 @@ static func bend_projectile(projectile: ProjectileState, delta: float, map_id: S
 			continue
 		if field.crushes(projectile.position, 0.0):
 			return true
-		var acceleration := field.flow_direction_at(projectile.position) * field.gravity_acceleration * field.influence_at(projectile.position)
+		var acceleration := field.flow_direction_at(projectile.position) * field.gravity_acceleration * field.projectile_gravity_multiplier * field.influence_at(projectile.position)
 		var speed := projectile.velocity.length()
 		projectile.velocity += acceleration * maxf(delta, 0.0) * (0.35 if projectile.is_beam else 1.0)
 		# Lensing changes the direction of light, preserving its travel speed.

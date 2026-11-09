@@ -18,8 +18,9 @@ const BLOCKED_LOOP_RESET_TICKS: int = GameConstants.PHYSICS_TICKS_PER_SECOND
 const FULL_MAP_ACQUISITION_RANGE: float = 4000.0
 const CLOSE_CONTACT_ESCAPE_DISTANCE: float = GameConstants.SHIP_COLLISION_RADIUS * 2.0 + 48.0
 const MAX_PROJECTILE_THREAT_CANDIDATES: int = 48
-# Covers the band where a shielding ship can no longer out-thrust Wormhole gravity.
-const HAZARD_AVOIDANCE_MARGIN: float = 200.0
+# Covers the band where a shielding ship can no longer out-thrust Wormhole
+# gravity (~390 px from center), plus headroom for approach speed.
+const HAZARD_AVOIDANCE_MARGIN: float = 360.0
 # Inward speed is projected this far ahead so fast dives start braking early.
 const HAZARD_LOOKAHEAD_SECONDS: float = 0.45
 const DIFFICULTY_PROFILES := {

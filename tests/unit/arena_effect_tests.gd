@@ -231,7 +231,9 @@ static func _validate_solar_crucible(context: TestContext) -> void:
 	context.expect_empty(effects.step(55, 60, {2: ship}), "overtime disables burns and flares")
 	var sun_gravity := ArenaLayout.movement_fields(&"solar_crucible")[0]
 	var hole_gravity := ArenaLayout.movement_fields(&"wormhole")[0]
-	context.expect_approx(sun_gravity.gravity_acceleration, hole_gravity.gravity_acceleration * 0.25, "solar gravity is one quarter of black hole strength")
+	context.expect_approx(sun_gravity.gravity_acceleration, 450.0, "solar gravity keeps its tuned peak strength")
+	for distance in [150.0, 300.0, 500.0]:
+		context.expect_true(sun_gravity.gravity_acceleration * sun_gravity.influence_at(star + Vector2(distance, 0)) < hole_gravity.gravity_acceleration * hole_gravity.influence_at(hole_gravity.center + Vector2(distance, 0)) * 0.5, "solar gravity stays far weaker than the black hole at %.0f px" % distance)
 	context.expect_approx(sun_gravity.influence_at(star + Vector2(700, 0)), 0.0, "solar gravity stays localized")
 	ship.velocity = Vector2.ZERO
 	ship.shield.active = false

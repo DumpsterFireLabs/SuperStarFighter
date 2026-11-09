@@ -692,7 +692,7 @@ Local ability delivery repeats the original press identity and selected slot in 
 
 ## Solar Crucible map addition
 
-The built-in rotation includes Solar Crucible with 32 validated spawns, a solid central star, localized gravity at 25% of Wormhole strength, randomized flare waves blocked by inward-facing shields, and shield-bypassing surface burns. [Arena effects](../ARENA_EFFECTS.md#solar-crucible) defines the timing, damage, protection, and overtime rules. Protocol 49 requires matching map content on clients and servers.
+The built-in rotation includes Solar Crucible with 32 validated spawns, a solid central star, localized gravity far weaker than Wormhole's, randomized flare waves blocked by inward-facing shields, and shield-bypassing surface burns. [Arena effects](../ARENA_EFFECTS.md#solar-crucible) defines the timing, damage, protection, and overtime rules. Protocol 49 requires matching map content on clients and servers.
 
 ## Swept ship collision and neutral flag fairness
 
