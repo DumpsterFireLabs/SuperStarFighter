@@ -288,6 +288,16 @@ Do not try to delete either stack. PowerShell is the daily driver on Windows and
 
 **Action.** In `project.godot`, raise `debug/gdscript/warnings/untyped_declaration`, `unsafe_method_access`, and `unused_variable` and see how many hits the foundation parse sweep reports. If the count is manageable, fix them and set `untyped_declaration` to error — the project already claims typed GDScript as its baseline. If the count is large, record the number here and stop. **Inferred:** function parameters look fully typed (a grep for untyped first parameters found none), so the count may be small. Do not adopt an external formatter without the owner's agreement; it would rewrite every file.
 
+**Measured 2026-11-09 (stopped here, as above).** With the three warnings raised to error level, `--check-only` over all 249 scripts under `src/` and `tests/` reports:
+
+| Warning | Hits | Files | Heaviest files |
+| --- | ---: | ---: | --- |
+| `untyped_declaration` | 1,225 | 207 | `combined_performance_benchmark.gd` 60, `lobby_match_commands.gd` 48, `operator_commands.gd` 44, `spectator_camera_tests.gd` 39 |
+| `unsafe_method_access` | 1,082 | 124 | `presentation_system_tests.gd` 230, `presentation_capture.gd` 188, `screen_controller_tests.gd` 56 |
+| `unused_variable` | 0 | 0 | — |
+
+Most `untyped_declaration` hits are untyped `for` iterators and `var x := dict.key` reads; most `unsafe_method_access` hits are tests calling methods on nodes held as `Node` or `Variant`. That is too many to fix as one item, so `project.godot` is unchanged. Cheap next steps if wanted: set `unused_variable` to error (no hits today), then type `for` iterators file by file.
+
 ---
 
 ## D. Documentation
