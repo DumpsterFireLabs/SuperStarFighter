@@ -1,247 +1,134 @@
 extends RefCounted
 
-## Lobby/match commands execute only after the RPC owner admits and validates
-## the sender. A weak link prevents a bridge/service ownership cycle.
+## Lobby and match commands. They run only after NetworkBridge has admitted and
+## validated the sender, take the lobby (and the match coordinator where they
+## need it) explicitly, and return a LobbyCommandOutcome describing what should
+## happen. NetworkBridge._apply_command_outcome applies it, so nothing here
+## touches the bridge, the world or the transport.
+
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
-var _owner: WeakRef
-var _bridge: Node:
-	get: return _owner.get_ref() as Node
-var lobby: ServerLobby:
-	get: return _bridge.lobby
-var world: AuthoritativeWorld:
-	get: return _bridge.world
-var session: NetworkSessionOwner:
-	get: return _bridge.session
-var match_coordinator: AuthoritativeMatchCoordinator:
-	get: return _bridge.match_coordinator
+const MatchPresetsScript = preload("res://src/shared/lobby/match_presets.gd")
 
 
-func _init(owner: Node) -> void:
-	_owner = weakref(owner)
-
-
-func request_lobby_config(sender_id: int, rounds_to_win: int) -> void:
-	var result := lobby.request_rounds_to_win(sender_id, rounds_to_win)
-	if result.ok:
-		_bridge._broadcast_lobby_state()
-	else:
-		_bridge._send_request_rejected(sender_id, result.error)
-
-
-func request_player_limit(sender_id: int, player_limit: int) -> void:
-	var result := lobby.request_player_limit(sender_id, player_limit)
-	if result.ok:
-		_bridge._remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-		_bridge._activate_added_npcs(result)
-		_bridge._broadcast_lobby_state()
-	else:
-		_bridge._send_request_rejected(sender_id, result.error)
-
-
-func request_npcs_enabled(sender_id: int, enabled: bool) -> void:
-	var result := lobby.request_npcs_enabled(sender_id, enabled)
-	if result.ok:
-		_bridge._remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-		_bridge._activate_added_npcs(result)
-		_bridge._broadcast_lobby_state()
-	else:
-		_bridge._send_request_rejected(sender_id, result.error)
-
-
-func request_game_mode(sender_id: int, mode: int) -> void:
-	var result := lobby.request_game_mode(sender_id, mode)
+## Applies one scalar setting from LobbySettings. `value` must already have the
+## setting's type.
+static func apply_setting(lobby: ServerLobby, sender_id: int, setting_id: StringName, value: Variant) -> LobbyCommandOutcome:
+	var result := LobbySettings.apply(lobby, sender_id, setting_id, value)
 	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+		return LobbyCommandOutcome.rejected(String(result.error))
+	var outcome := LobbyCommandOutcome.new()
+	# Rounds, player limit and NPC toggles report no "changed" flag; they
+	# always republish, as they did before the descriptor table existed.
+	outcome.broadcast_lobby = bool(result.get("changed", true))
+	outcome.removed_npc_ids = result.get("removed_npc_ids", []) as Array
+	outcome.added_npc_result = result
+	return outcome
 
 
-func request_team_count(sender_id: int, team_count: int) -> void:
-	var result := lobby.request_team_count(sender_id, team_count)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+static func request_team_assignment(lobby: ServerLobby, sender_id: int, peer_id: int, team_selection: int) -> LobbyCommandOutcome:
+	return _from_result(lobby.request_team_assignment(sender_id, peer_id, team_selection))
 
 
-func request_team_assignment(sender_id: int, peer_id: int, team_selection: int) -> void:
-	var result := lobby.request_team_assignment(sender_id, peer_id, team_selection)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+static func request_map_pool(lobby: ServerLobby, sender_id: int, pool: Array) -> LobbyCommandOutcome:
+	return _from_result(lobby.request_map_pool(sender_id, pool))
 
 
-func request_map_pool(sender_id: int, pool: Array) -> void:
-	var result := lobby.request_map_pool(sender_id, pool)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+static func request_arena_effects(lobby: ServerLobby, sender_id: int, settings: Dictionary) -> LobbyCommandOutcome:
+	return _from_result(lobby.request_arena_effects(sender_id, settings))
 
 
-func request_arena_effects(sender_id: int, settings: Dictionary) -> void:
-	var result := lobby.request_arena_effects(sender_id, settings)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+static func request_player_color(lobby: ServerLobby, sender_id: int, random_color: bool, color_value: String) -> LobbyCommandOutcome:
+	return _from_result(lobby.request_player_color(sender_id, random_color, color_value))
 
 
-func request_random_spawn_powerups(sender_id: int, enabled: bool) -> void:
-	var result := lobby.request_random_spawn_powerups(sender_id, enabled)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_player_color(sender_id: int, random_color: bool, color_value: String) -> void:
-	var result := lobby.request_player_color(sender_id, random_color, color_value)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_player_appearance(sender_id: int, random_color: bool, color_value: String, pattern_value: String) -> void:
+static func request_player_appearance(lobby: ServerLobby, sender_id: int, random_color: bool, color_value: String, pattern_value: String) -> LobbyCommandOutcome:
 	var pattern := ShipAppearanceScript.normalized_pattern(pattern_value)
-	var result := lobby.request_player_appearance(sender_id, random_color, color_value, pattern)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+	return _from_result(lobby.request_player_appearance(sender_id, random_color, color_value, pattern))
 
 
-func request_npc_difficulty(sender_id: int, npc_peer_id: int, difficulty: int) -> void:
-	var result := lobby.request_npc_difficulty(sender_id, npc_peer_id, difficulty)
-	if result.ok:
-		if bool(result.get("changed", false)):
-			_bridge._broadcast_lobby_state()
-	else:
-		_bridge._send_request_rejected(sender_id, result.error)
+static func request_npc_difficulty(lobby: ServerLobby, sender_id: int, npc_peer_id: int, difficulty: int) -> LobbyCommandOutcome:
+	return _from_result(lobby.request_npc_difficulty(sender_id, npc_peer_id, difficulty))
 
 
-func request_all_npc_difficulty(sender_id: int, difficulty: int) -> void:
-	var result := lobby.request_all_npc_difficulty(sender_id, difficulty)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
+static func request_ready_state(lobby: ServerLobby, sender_id: int, ready: bool) -> LobbyCommandOutcome:
+	return _from_result(lobby.request_ready(sender_id, ready))
 
 
-func request_random_powerup_interval(sender_id: int, seconds: float) -> void:
-	var result := lobby.request_random_powerup_interval(sender_id, seconds)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_random_powerups_permanent(sender_id: int, permanent: bool) -> void:
-	var result := lobby.request_random_powerups_permanent(sender_id, permanent)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_competitive_view(sender_id: int, enabled: bool) -> void:
-	var result := lobby.request_competitive_view(sender_id, enabled)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_overtime_start(sender_id: int, seconds: float) -> void:
-	var result := lobby.request_overtime_start(sender_id, seconds)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_ready_state(sender_id: int, ready: bool) -> void:
-	var result := lobby.request_ready(sender_id, ready)
-	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-	elif bool(result.get("changed", false)):
-		_bridge._broadcast_lobby_state()
-
-
-func request_eject_player(sender_id: int, target_peer_id: int) -> void:
+static func request_eject_player(lobby: ServerLobby, sender_id: int, target_peer_id: int) -> LobbyCommandOutcome:
 	var result := lobby.request_eject(sender_id, target_peer_id)
 	if not result.ok:
-		_bridge._send_request_rejected(sender_id, result.error)
-		return
-	if world != null:
-		world.remove_peer(target_peer_id)
-	session.forget_admission(target_peer_id)
-	_bridge._activate_added_npcs(result)
-	var reason := NetworkProtocol.REJECT_EJECTED
-	_bridge.connection_rejected.rpc_id(target_peer_id, reason, NetworkProtocol.rejection_message(reason))
-	session.schedule_disconnect(target_peer_id)
-	_bridge._broadcast_lobby_state()
-	_bridge.server_peer_departed.emit(target_peer_id)
-	_bridge._log("info", "peer_ejected", {"leader_id": sender_id, "peer_id": target_peer_id})
+		return LobbyCommandOutcome.rejected(String(result.error))
+	var outcome := LobbyCommandOutcome.new()
+	outcome.eject_peer_id = target_peer_id
+	outcome.added_npc_result = result
+	outcome.broadcast_lobby = true
+	return outcome
 
 
-func request_start_match(sender_id: int) -> void:
+static func request_start_match(lobby: ServerLobby, sender_id: int) -> LobbyCommandOutcome:
 	var result := lobby.request_start(sender_id)
-	if result.ok:
-		_bridge._activate_added_npcs(result)
-		_bridge._broadcast_lobby_state()
-		_bridge._start_match_coordinator(sender_id)
-	else:
-		_bridge._send_request_rejected(sender_id, result.error)
+	if not result.ok:
+		return LobbyCommandOutcome.rejected(String(result.error))
+	var outcome := LobbyCommandOutcome.new()
+	outcome.added_npc_result = result
+	outcome.broadcast_lobby = true
+	outcome.start_match = true
+	return outcome
 
 
-func request_match_preset(sender_id: int, preset_id: String) -> void:
-	var result := preload("res://src/shared/lobby/match_presets.gd").apply(lobby, sender_id, preset_id)
+static func request_match_preset(lobby: ServerLobby, sender_id: int, preset_id: String) -> LobbyCommandOutcome:
+	var result: Dictionary = MatchPresetsScript.apply(lobby, sender_id, preset_id)
 	if not bool(result.ok):
-		_bridge._send_request_rejected(sender_id, String(result.error))
-		return
-	_bridge._remove_npc_entities(result.get("removed_npc_ids", []) as Array)
-	_bridge._activate_added_npcs(result)
-	_bridge._broadcast_lobby_state()
+		return LobbyCommandOutcome.rejected(String(result.error))
+	var outcome := LobbyCommandOutcome.new()
+	outcome.removed_npc_ids = result.get("removed_npc_ids", []) as Array
+	outcome.added_npc_result = result
+	outcome.broadcast_lobby = true
+	return outcome
 
 
-func request_rematch(sender_id: int) -> void:
-	var result: Dictionary = _bridge._prepare_fresh_rematch(sender_id)
-	if not bool(result.ok):
-		_bridge._send_request_rejected(sender_id, String(result.error))
-		return
-	_bridge._broadcast_lobby_state()
-	_bridge._broadcast_match_event(MatchEventTypes.MATCH_START_ACCEPTED, {"leader_id": sender_id, "fresh_rematch": true})
-	_bridge._drain_match_coordinator()
+## `can_control` is whether the sender leads the lobby or holds admin rights.
+static func request_rematch(can_control: bool) -> LobbyCommandOutcome:
+	if not can_control:
+		return LobbyCommandOutcome.rejected("Only the lobby leader or an authenticated admin may start a fresh rematch.")
+	var outcome := LobbyCommandOutcome.new()
+	outcome.fresh_rematch = true
+	return outcome
 
 
-func request_return_to_lobby(sender_id: int) -> void:
-	if not _bridge.can_control_results(sender_id):
-		_bridge._send_request_rejected(sender_id, "Only the lobby leader or an authenticated admin may return the match to the lobby.")
-		return
-	if match_coordinator == null or not match_coordinator.return_to_lobby():
-		_bridge._send_request_rejected(sender_id, "Return to lobby is only available from the final results screen.")
-		return
-	_bridge._drain_match_coordinator()
-	if match_coordinator.is_finished():
-		_bridge.match_coordinator = null
-		_bridge._broadcast_lobby_state()
+static func request_return_to_lobby(coordinator: AuthoritativeMatchCoordinator, can_control: bool) -> LobbyCommandOutcome:
+	if not can_control:
+		return LobbyCommandOutcome.rejected("Only the lobby leader or an authenticated admin may return the match to the lobby.")
+	if coordinator == null or not coordinator.return_to_lobby():
+		return LobbyCommandOutcome.rejected("Return to lobby is only available from the final results screen.")
+	var outcome := LobbyCommandOutcome.new()
+	outcome.drain_coordinator = true
+	outcome.release_finished_match = true
+	return outcome
 
 
-func request_extend_match(sender_id: int) -> void:
-	if not _bridge.can_control_results(sender_id):
-		_bridge._send_request_rejected(sender_id, "Only the lobby leader or an authenticated admin may extend the match.")
-		return
-	if match_coordinator == null or not match_coordinator.extend_match():
-		_bridge._send_request_rejected(sender_id, "Match extension is only available from final results with at least two competing participants.")
-		return
-	_bridge._drain_match_coordinator()
+static func request_extend_match(coordinator: AuthoritativeMatchCoordinator, can_control: bool) -> LobbyCommandOutcome:
+	if not can_control:
+		return LobbyCommandOutcome.rejected("Only the lobby leader or an authenticated admin may extend the match.")
+	if coordinator == null or not coordinator.extend_match():
+		return LobbyCommandOutcome.rejected("Match extension is only available from final results with at least two competing participants.")
+	var outcome := LobbyCommandOutcome.new()
+	outcome.drain_coordinator = true
+	return outcome
 
 
-func request_match_paused(sender_id: int, paused: bool) -> void:
-	if match_coordinator == null or not match_coordinator.request_pause(sender_id, paused):
-		_bridge._send_request_rejected(sender_id, "Only the host may pause or resume a running match.")
-		return
-	_bridge._drain_match_coordinator()
+static func request_match_paused(coordinator: AuthoritativeMatchCoordinator, sender_id: int, paused: bool) -> LobbyCommandOutcome:
+	if coordinator == null or not coordinator.request_pause(sender_id, paused):
+		return LobbyCommandOutcome.rejected("Only the host may pause or resume a running match.")
+	var outcome := LobbyCommandOutcome.new()
+	outcome.drain_coordinator = true
+	return outcome
+
+
+## Shared shape of most lobby requests: refuse, or republish when changed.
+static func _from_result(result: Dictionary) -> LobbyCommandOutcome:
+	if not result.ok:
+		return LobbyCommandOutcome.rejected(String(result.error))
+	var outcome := LobbyCommandOutcome.new()
+	outcome.broadcast_lobby = bool(result.get("changed", false))
+	return outcome

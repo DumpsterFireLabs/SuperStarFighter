@@ -3,12 +3,8 @@ extends Node
 signal access_changed(unlocked: bool)
 
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
-const SETTINGS = [
-	"rounds_to_win", "player_limit", "npcs_enabled", "npc_difficulty",
-	"game_mode", "team_count", "random_spawn_powerups", "random_powerup_interval",
-	"random_powerups_permanent", "competitive_view", "overtime_start",
-	"server_name", "auto_start",
-]
+## Operator settings come from the shared descriptor table.
+var _setting_ids: Array[StringName] = LobbySettings.operator_setting_ids()
 
 var bridge: NetworkBridge
 var _authenticated: bool = false
@@ -104,8 +100,8 @@ func create_ui(canvas: CanvasLayer, theme: Theme) -> void:
 	body.add_child(settings_row)
 	setting_choice = OptionButton.new()
 	setting_choice.custom_minimum_size.x = 260
-	for setting in SETTINGS:
-		setting_choice.add_item(setting)
+	for setting in _setting_ids:
+		setting_choice.add_item(String(setting))
 	settings_row.add_child(setting_choice)
 	setting_value = _field("Value (JSON or text)", "", false)
 	setting_value.max_length = 128
@@ -242,7 +238,7 @@ func _apply_setting() -> void:
 	var value: Variant = JSON.parse_string(raw)
 	if value == null and raw != "null":
 		value = raw
-	_command({"command": "set", "setting": SETTINGS[setting_choice.selected], "value": value})
+	_command({"command": "set", "setting": String(_setting_ids[setting_choice.selected]), "value": value})
 
 
 func _on_response(response: Dictionary) -> void:

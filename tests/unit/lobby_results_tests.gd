@@ -124,10 +124,10 @@ static func _validate_rematch(context: TestContext) -> void:
 	context.expect_true(bridge.in_game_admin.authenticate(3, "192.0.2.3", admin_proof, 2.0).ok, "guest unlocks admin rights for results controls")
 	context.expect_true(bridge.can_control_results(3), "authenticated admin can control final results without lobby leadership")
 	bridge.match_coordinator.machine.state = MatchStateMachine.State.MATCH_RESULT
-	bridge.commands.request_extend_match(3)
+	bridge._apply_command_outcome(3, preload("res://src/shared/network/lobby_match_commands.gd").request_extend_match(bridge.match_coordinator, bridge.can_control_results(3)))
 	context.expect_equal(bridge.match_coordinator.machine.state, MatchStateMachine.State.ROUND_RESULT, "authenticated admin can add five rounds from final results")
 	bridge.match_coordinator.machine.state = MatchStateMachine.State.MATCH_RESULT
-	bridge.commands.request_return_to_lobby(3)
+	bridge._apply_command_outcome(3, preload("res://src/shared/network/lobby_match_commands.gd").request_return_to_lobby(bridge.match_coordinator, bridge.can_control_results(3)))
 	context.expect_true(bridge.match_coordinator == null, "authenticated admin can return every player to the lobby")
 	bridge.in_game_admin.revoke(3)
 	context.expect_false(bridge.can_control_results(3), "locking admin removes authority over final results")

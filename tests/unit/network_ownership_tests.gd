@@ -1,5 +1,8 @@
 extends RefCounted
 
+const Commands = preload("res://src/shared/network/lobby_match_commands.gd")
+
+
 class CommandBridge extends NetworkBridge:
 	var broadcasts := 0
 	var rejected := 0
@@ -118,14 +121,14 @@ static func run(context: TestContext) -> void:
 	command_bridge.lobby = ServerLobby.new()
 	command_bridge.lobby.admit(2, "Host")
 	command_bridge.lobby.admit(3, "Guest")
-	command_bridge.commands.request_lobby_config(3, 5)
+	command_bridge._apply_command_outcome(3, Commands.apply_setting(command_bridge.lobby, 3, &"rounds_to_win", 5))
 	context.expect_equal(command_bridge.rejected, 1, "command service retains leader authorization")
-	command_bridge.commands.request_lobby_config(2, 5)
+	command_bridge._apply_command_outcome(2, Commands.apply_setting(command_bridge.lobby, 2, &"rounds_to_win", 5))
 	context.expect_equal(command_bridge.lobby.config.rounds_to_win, 5, "command service applies accepted settings")
 	context.expect_equal(command_bridge.broadcasts, 1, "accepted command publishes once")
-	var service: RefCounted = command_bridge.commands
 	command_bridge.free()
-	context.expect_equal(service._owner.get_ref(), null, "command service cannot retain its bridge")
+	_lobby_commands_without_bridge(context)
+	_lobby_setting_descriptors(context)
 	_seat_keeping_departures(context)
 	_admission_queue(context)
 	_transport_liveness(context)
@@ -754,3 +757,46 @@ static func _recovery_budget(context: TestContext) -> void:
 	fixture.scheduler.clear()
 	context.expect_equal(fixture.scheduler.payload_metrics().recovery_pending_chunks, 0, "rematch discards the old complete-snapshot queue")
 	context.expect_equal(fixture.scheduler.payload_metrics().recovery_active_peers, 0, "rematch releases every peer")
+
+
+## The command service decides outcomes from a bare ServerLobby; no bridge,
+## world or transport is constructed here.
+static func _lobby_commands_without_bridge(context: TestContext) -> void:
+	var source := FileAccess.get_file_as_string("res://src/shared/network/lobby_match_commands.gd")
+	context.expect_false(source.contains("_bridge"), "lobby command service holds no bridge reference")
+	var lobby := ServerLobby.new()
+	lobby.admit(2, "Host")
+	lobby.admit(3, "Guest")
+	var refused := Commands.apply_setting(lobby, 3, &"rounds_to_win", 4)
+	context.expect_true(refused.is_rejected() and lobby.config.rounds_to_win != 4, "guests cannot change lobby settings")
+	var accepted := Commands.apply_setting(lobby, 2, &"rounds_to_win", 4)
+	context.expect_true(not accepted.is_rejected() and accepted.broadcast_lobby and lobby.config.rounds_to_win == 4, "leader setting change applies and republishes")
+	context.expect_false(Commands.apply_setting(lobby, 2, &"competitive_view", false).broadcast_lobby, "unchanged flagged setting does not republish")
+	context.expect_true(Commands.apply_setting(lobby, 2, &"competitive_view", true).broadcast_lobby, "changed flagged setting republishes")
+	var filled := Commands.apply_setting(lobby, 2, &"npcs_enabled", true)
+	context.expect_false((filled.added_npc_result.get("added_npcs", []) as Array).is_empty(), "enabling NPCs reports the seats to populate")
+	var emptied := Commands.apply_setting(lobby, 2, &"npcs_enabled", false)
+	context.expect_false(emptied.removed_npc_ids.is_empty(), "disabling NPCs reports the entities to remove")
+	context.expect_true(Commands.request_ready_state(lobby, 3, true).broadcast_lobby, "ready change republishes")
+	context.expect_true(Commands.request_rematch(false).is_rejected(), "rematch needs results authority")
+	context.expect_true(Commands.request_rematch(true).fresh_rematch, "authorized rematch asks the bridge to prepare one")
+	context.expect_true(Commands.request_return_to_lobby(null, true).is_rejected(), "return to lobby needs a finished match")
+	context.expect_true(Commands.request_extend_match(null, false).is_rejected(), "match extension needs results authority")
+	context.expect_true(Commands.request_match_paused(null, 2, true).is_rejected(), "pause needs a running match")
+	var eject := Commands.request_eject_player(lobby, 2, 3)
+	context.expect_true(eject.eject_peer_id == 3 and eject.broadcast_lobby, "leader eject names the peer to disconnect")
+
+
+static func _lobby_setting_descriptors(context: TestContext) -> void:
+	var lobby := ServerLobby.new()
+	for setting_id: StringName in LobbySettings.SCALAR:
+		context.expect_true(lobby.has_method(LobbySettings.SCALAR[setting_id].request), "lobby setting %s names an existing ServerLobby request" % setting_id)
+	context.expect_equal(LobbySettings.coerce(&"rounds_to_win", 3.0).get("value"), 3, "integer settings accept whole JSON numbers")
+	context.expect_false(LobbySettings.coerce(&"rounds_to_win", 3.5).ok, "integer settings reject fractions")
+	context.expect_false(LobbySettings.coerce(&"npcs_enabled", 1).ok, "boolean settings reject numbers")
+	context.expect_false(LobbySettings.coerce(&"overtime_start", NAN).ok, "number settings reject non-finite values")
+	context.expect_false(LobbySettings.coerce(&"not_a_setting", true).ok, "unknown settings are rejected")
+	context.expect_true(LobbySettings.in_bounds(&"overtime_start", 45.0) and not LobbySettings.in_bounds(&"overtime_start", 300.0), "descriptor bounds bracket the lobby range")
+	context.expect_true(LobbySettings.in_bounds(&"competitive_view", true), "boolean settings have no bounds")
+	var ids := LobbySettings.operator_setting_ids()
+	context.expect_true(ids.has(&"rounds_to_win") and ids.has(&"server_name") and ids.has(&"auto_start"), "operator setting list covers lobby and session settings")
