@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .tools/downloads
-          key: godot-downloads-4.7.2-${{ runner.os }}-${{ runner.arch }}
+          key: godot-downloads-${{ hashFiles('tools/engine.json') }}-${{ runner.os }}-${{ runner.arch }}
       - name: Virtual display for the Linux client launch smoke
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xvfb
@@ -74,7 +74,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .tools/downloads
-          key: godot-downloads-4.7.2-${{ runner.os }}-${{ runner.arch }}
+          key: godot-downloads-${{ hashFiles('tools/engine.json') }}-${{ runner.os }}-${{ runner.arch }}
       - name: Bootstrap Godot and export templates
         run: python tools/build.py bootstrap
       - name: Project gate and every package

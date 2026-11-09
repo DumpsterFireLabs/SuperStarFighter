@@ -14,18 +14,16 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
-ROOT = Path(__file__).resolve().parents[1]
+from ssf_tools import ROOT, default_godot, unexpected_errors
 
 
 def errors(text):
-    return [line.strip() for line in text.splitlines()
-            if line.lstrip().startswith(('ERROR:', 'SCRIPT ERROR:'))
-            and line.strip() != 'ERROR: Failed to read the root certificate store.']
+    return unexpected_errors(text)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--godot', type=Path, default=ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe')
+    parser.add_argument('--godot', type=Path, default=default_godot())
     parser.add_argument('--server', type=Path, required=True)
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--port', type=int, default=18375)

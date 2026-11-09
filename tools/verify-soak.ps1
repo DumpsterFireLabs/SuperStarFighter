@@ -227,9 +227,7 @@ try {
 
     $combined = $serverText
     foreach ($name in $allNames) { if ($name -ne 'server') { $combined += Get-SsfSoakOutput $name } }
-    $unexpectedErrors = $combined -split "`r?`n" | Where-Object {
-        ($_ -match '^(SCRIPT ERROR:|ERROR:)') -and (-not $_.Contains('Failed to read the root certificate store.'))
-    }
+    $unexpectedErrors = Get-SsfUnexpectedGodotErrors -Output $combined
     if ($unexpectedErrors) { throw "Soak emitted unexpected errors: $($unexpectedErrors -join ' | ')" }
     $serverExitCode = $server.ExitCode
     if ($null -eq $serverExitCode) { throw 'Soak server exit code was unavailable after handle finalization.' }

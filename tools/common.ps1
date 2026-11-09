@@ -3,11 +3,14 @@ Set-StrictMode -Version Latest
 $SsfRepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SsfRelease = (& python (Join-Path $PSScriptRoot 'release_metadata.py') | ConvertFrom-Json)
 if ($LASTEXITCODE -ne 0) { throw 'Could not load release.json.' }
-$SsfGodotVersionTag = '4.7.2-stable'
-$SsfGodotTemplateVersion = '4.7.2.stable'
+# The pinned engine lives in tools/engine.json, shared with tools/ssf_tools.py.
+$SsfEngine = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'engine.json') -Raw | ConvertFrom-Json
+$SsfGodotRelease = [string]$SsfEngine.godot
+$SsfGodotVersionTag = "$SsfGodotRelease-$($SsfEngine.status)"
+$SsfGodotTemplateVersion = "$SsfGodotRelease.$($SsfEngine.status)"
 $SsfToolsRoot = Join-Path $SsfRepositoryRoot '.tools'
 $SsfGodotRoot = Join-Path $SsfToolsRoot 'godot'
-$SsfGodotExecutable = Join-Path $SsfGodotRoot 'Godot_v4.7.2-stable_win64_console.exe'
+$SsfGodotExecutable = Join-Path $SsfGodotRoot "Godot_v$($SsfGodotVersionTag)_win64_console.exe"
 $SsfGodotDataRoot = Join-Path $SsfGodotRoot 'editor_data'
 $SsfExportTemplateRoot = Join-Path $SsfGodotDataRoot "export_templates\$SsfGodotTemplateVersion"
 
@@ -26,6 +29,27 @@ function New-SsfVerificationLogPath {
     return Join-Path $logRoot "$label-$([Guid]::NewGuid().ToString('N')).log"
 }
 
+# Returns the engine and script error lines a gate must reject. Script errors are
+# never allowlisted; engine errors are accepted only when a whole line matches.
+# This is the PowerShell twin of unexpected_errors in tools/ssf_tools.py.
+function Get-SsfUnexpectedGodotErrors {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Output,
+        [string[]]$AllowedErrorPatterns = @()
+    )
+    $allowed = @('^ERROR: Failed to read the root certificate store\.$') + $AllowedErrorPatterns
+    # The leading comma keeps an empty or single-line result an array under StrictMode.
+    return ,@($Output -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object {
+        $line = $_
+        if ($line.StartsWith('SCRIPT ERROR:')) { return $true }
+        if (-not $line.StartsWith('ERROR:')) { return $false }
+        foreach ($pattern in $allowed) {
+            if ($line -match $pattern) { return $false }
+        }
+        return $true
+    })
+}
+
 function Assert-SsfGodotResult {
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Output,
@@ -42,17 +66,7 @@ function Assert-SsfGodotResult {
         throw "$Name did not emit the required completion marker."
     }
     # Engine errors can return a value and allow an otherwise passing summary.
-    # Script errors are never allowlisted; environment allowances match full lines.
-    $allowed = @('^ERROR: Failed to read the root certificate store\.$') + $AllowedErrorPatterns
-    $unexpected = @($Output -split "`r?`n" | Where-Object {
-        $line = $_.TrimStart()
-        if ($line.StartsWith('SCRIPT ERROR:')) { return $true }
-        if (-not $line.StartsWith('ERROR:')) { return $false }
-        foreach ($pattern in $allowed) {
-            if ($line -match $pattern) { return $false }
-        }
-        return $true
-    })
+    $unexpected = Get-SsfUnexpectedGodotErrors -Output $Output -AllowedErrorPatterns $AllowedErrorPatterns
     if ($unexpected.Count -gt 0) {
         throw "$Name emitted unexpected Godot errors: $($unexpected -join ' | ')"
     }

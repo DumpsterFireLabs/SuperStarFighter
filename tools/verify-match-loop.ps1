@@ -107,10 +107,7 @@ try {
     }
 
     $combined = $serverText + $alphaText + $betaText
-    $unexpectedErrors = $combined -split "`r?`n" | Where-Object {
-        ($_ -match '^(SCRIPT ERROR:|ERROR:)') -and
-        (-not $_.Contains('Failed to read the root certificate store.'))
-    }
+    $unexpectedErrors = Get-SsfUnexpectedGodotErrors -Output $combined
     if ($unexpectedErrors) {
         throw "Match-loop verification emitted unexpected Godot errors: $($unexpectedErrors -join ' | ')"
     }

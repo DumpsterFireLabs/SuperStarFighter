@@ -12,13 +12,13 @@ from pathlib import Path
 import statistics
 import subprocess
 
-ROOT = Path(__file__).resolve().parents[1]
+from ssf_tools import ROOT, default_godot, unexpected_errors
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline', required=True, help='Local commit/ref before the optimization')
-    parser.add_argument('--godot', type=Path, default=ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe')
+    parser.add_argument('--godot', type=Path, default=default_godot())
     args = parser.parse_args()
     revision = subprocess.check_output(['git', 'rev-parse', '--verify', args.baseline + '^{commit}'], cwd=ROOT, text=True).strip()
     folder = ROOT / '.tools/collision-queries' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')
@@ -38,7 +38,7 @@ def main():
                              timeout=60, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     (folder / 'fixture.log').write_text(process.stdout, encoding='utf-8')
     markers = [line.split('=', 1)[1] for line in process.stdout.splitlines() if line.startswith('SSF_SWEEP_MICRO=')]
-    errors = [line for line in process.stdout.splitlines() if line.startswith(('ERROR:', 'SCRIPT ERROR:')) and line != 'ERROR: Failed to read the root certificate store.']
+    errors = unexpected_errors(process.stdout)
     if process.returncode or errors or not markers:
         raise SystemExit(f'Collision benchmark failed; inspect {folder}')
     measurements = json.loads(markers[-1])

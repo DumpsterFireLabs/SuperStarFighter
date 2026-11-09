@@ -105,10 +105,8 @@ if (-not (Test-Path -LiteralPath $smokeLog -PathType Leaf)) {
     throw 'Exported client smoke test did not create its log.'
 }
 $smokeText = Get-Content -LiteralPath $smokeLog -Raw
-$unexpectedSmokeErrors = @($smokeText -split "`r?`n" | Where-Object {
-    $_.StartsWith('ERROR:') -and -not $_.Contains('Failed to read the root certificate store.')
-})
-if (-not $smokeText.Contains('SSF_MODE_READY=client') -or $smokeText.Contains('SCRIPT ERROR:') -or $unexpectedSmokeErrors.Count -gt 0) {
+$unexpectedSmokeErrors = Get-SsfUnexpectedGodotErrors -Output $smokeText
+if (-not $smokeText.Contains('SSF_MODE_READY=client') -or $unexpectedSmokeErrors.Count -gt 0) {
     throw 'Exported client smoke log failed ready/error validation.'
 }
 $audioReadyMatch = [regex]::Match($smokeText, 'SSF_AUDIO_READY menu=(\d+) gameplay=(\d+) win=(\d+)')

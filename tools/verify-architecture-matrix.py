@@ -10,7 +10,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+from ssf_tools import ROOT, default_godot, unexpected_errors
 CASES_PATH = ROOT / 'tests/fixtures/architecture_matrix_cases.json'
 WORKLOAD_VERSION = 2
 TIMING_METRICS = ('p95_usec', 'p99_usec')
@@ -34,9 +34,7 @@ def parse_result(text, exit_code, scenario):
     result = marker(text, 'SSF_ARCHITECTURE_MATRIX')
     result['attribution'] = marker(text, 'SSF_MATRIX_PHASES')
     result['host'] = marker(text, 'SSF_MATRIX_HOST')
-    errors = [line.strip() for line in text.splitlines()
-              if line.lstrip().startswith(('ERROR:', 'SCRIPT ERROR:'))
-              and line.strip() != 'ERROR: Failed to read the root certificate store.']
+    errors = unexpected_errors(text)
     # Independently reject empty, short, wrong-map or inactive-hazard fixtures.
     functional = result.get('functional_valid') is True and not errors
     functional &= result.get('map') == scenario['map'] and result.get('mode_id') == scenario['mode']
@@ -91,7 +89,7 @@ def compare_baseline(current, reference):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--godot', type=Path, default=ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe')
+    parser.add_argument('--godot', type=Path, default=default_godot())
     parser.add_argument('--strict-physics-budget', action='store_true')
     parser.add_argument('--profile', action='store_true', help='Diagnostic attribution with instrumentation overhead')
     parser.add_argument('--case', type=int, help='One diagnostic case; disallowed for baseline acceptance')

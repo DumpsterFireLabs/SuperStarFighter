@@ -24,48 +24,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from release_metadata import load_release, render_file
+from ssf_tools import (CACHE, GODOT_RELEASE, GODOT_ROOT, GODOT_VERSION, LOGS, ROOT, TEMPLATE_VERSION, GateError,
+                       engine_layout, godot_executable, host, run_godot)
+from ssf_tools import validate_godot_output as validate
 
-ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
-CACHE = ROOT / ".tools"
 DOWNLOADS = CACHE / "downloads"
-LOGS = CACHE / "verification-logs"
-GODOT_VERSION = "4.7.2-stable"
-GODOT_ROOT = CACHE / "godot"
-TEMPLATES = GODOT_ROOT / "editor_data" / "export_templates" / "4.7.2.stable"
+TEMPLATES = GODOT_ROOT / "editor_data" / "export_templates" / TEMPLATE_VERSION
 RELEASE_URL = f"https://github.com/godotengine/godot/releases/download/{GODOT_VERSION}/"
 TEMPLATE_ARCHIVE = f"Godot_v{GODOT_VERSION}_export_templates.tpz"
 REQUIRED_TEMPLATES = ("windows_release_x86_64.exe", "linux_release.x86_64", "linux_release.arm64", "macos.zip")
 AUDIO_EXTENSIONS = (".wav", ".ogg", ".mp3")
 CLIENTS = ("windows", "linux-x64", "linux-arm64", "macos")
 SERVERS = ("server-windows", "server-linux-x64", "server-linux-arm64")
-
-
-class GateError(RuntimeError):
-    pass
-
-
-def host():
-    machine = platform.machine().lower()
-    arch = {"amd64": "x86_64", "x86_64": "x86_64", "aarch64": "arm64", "arm64": "arm64"}.get(machine, machine)
-    return platform.system(), arch
-
-
-def engine_layout():
-    """Return the official editor archive and its executable for this host.
-
-    Self-contained mode keeps editor data beside the engine. On macOS Godot looks for
-    `_sc_` beside Godot.app rather than inside the read-only bundle.
-    """
-    system, arch = host()
-    if system == "Windows":
-        return f"Godot_v{GODOT_VERSION}_win64.exe.zip", GODOT_ROOT / f"Godot_v{GODOT_VERSION}_win64_console.exe"
-    if system == "Linux" and arch in ("x86_64", "arm64"):
-        name = f"Godot_v{GODOT_VERSION}_linux.{arch}"
-        return f"{name}.zip", GODOT_ROOT / name
-    if system == "Darwin":
-        return f"Godot_v{GODOT_VERSION}_macos.universal.zip", GODOT_ROOT / "Godot.app/Contents/MacOS/Godot"
-    raise GateError(f"Unsupported build host: {system} {arch}")
 
 
 # ---------------------------------------------------------------- bootstrap
@@ -109,10 +80,14 @@ def extract(archive, destination):
                     os.chmod(destination / member.filename, mode)
 
 
-def bootstrap(force=False):
+def bootstrap(force=False, templates=True):
+    """Download, verify and unpack the pinned editor (and, by default, export templates).
+
+    CI acceptance passes templates=False: it only runs the editor headless.
+    """
     archive_name, godot = engine_layout()
     sums = download("SHA512-SUMS.txt", force)
-    for name in (archive_name, TEMPLATE_ARCHIVE):
+    for name in (archive_name, TEMPLATE_ARCHIVE) if templates else (archive_name,):
         verify_checksum(download(name, force), sums)
     if force and GODOT_ROOT.exists():
         shutil.rmtree(GODOT_ROOT)
@@ -120,7 +95,7 @@ def bootstrap(force=False):
         extract(DOWNLOADS / archive_name, GODOT_ROOT)
         godot.chmod(godot.stat().st_mode | 0o111)
     (GODOT_ROOT / "_sc_").touch()
-    if not all((TEMPLATES / name).is_file() for name in REQUIRED_TEMPLATES):
+    if templates and not all((TEMPLATES / name).is_file() for name in REQUIRED_TEMPLATES):
         stage = CACHE / "template-stage"
         shutil.rmtree(stage, ignore_errors=True)
         extract(DOWNLOADS / TEMPLATE_ARCHIVE, stage)
@@ -129,56 +104,17 @@ def bootstrap(force=False):
             raise GateError("The export template archive did not contain a templates directory.")
         shutil.copytree(source, TEMPLATES, dirs_exist_ok=True)
         shutil.rmtree(stage)
-    missing = [name for name in REQUIRED_TEMPLATES if not (TEMPLATES / name).is_file()]
+    missing = [name for name in REQUIRED_TEMPLATES if not (TEMPLATES / name).is_file()] if templates else []
     if missing:
         raise GateError(f"Export templates are missing after extraction: {', '.join(missing)}")
     version = subprocess.run([str(godot), "--headless", "--version"], capture_output=True, text=True, timeout=120)
-    if version.returncode != 0 or not version.stdout.strip().startswith("4.7.2"):
+    if version.returncode != 0 or not version.stdout.strip().startswith(GODOT_RELEASE):
         raise GateError(f"Unexpected Godot version output: {version.stdout.strip()}")
-    print(f"Godot {version.stdout.strip()} and export templates are ready in {GODOT_ROOT}.")
-    return godot
-
-
-def godot_executable(override=None):
-    godot = Path(override).resolve() if override else engine_layout()[1]
-    if not godot.is_file():
-        raise GateError(f"Godot {GODOT_VERSION} is not bootstrapped. Run: python tools/build.py bootstrap")
+    print(f"Godot {version.stdout.strip()}{' and export templates are' if templates else ' is'} ready in {GODOT_ROOT}.")
     return godot
 
 
 # ---------------------------------------------------------------- verification
-
-def validate(name, output, exit_code, marker="", expected_exit=0, allowed=()):
-    """Accept a run only with the expected exit, marker and no unallowlisted errors.
-
-    Engine errors can return zero and still print a passing summary. Script errors are
-    never allowlisted; environment allowances match whole lines.
-    """
-    if exit_code != expected_exit:
-        raise GateError(f"{name} exited with {exit_code}; expected {expected_exit}.")
-    if marker and not re.search(marker, output, re.IGNORECASE):
-        raise GateError(f"{name} did not emit the required completion marker.")
-    patterns = (r"^ERROR: Failed to read the root certificate store\.$", *allowed)
-    unexpected = []
-    for line in output.splitlines():
-        line = line.lstrip()
-        if line.startswith("SCRIPT ERROR:") or (
-                line.startswith("ERROR:") and not any(re.search(p, line, re.IGNORECASE) for p in patterns)):
-            unexpected.append(line)
-    if unexpected:
-        raise GateError(f"{name} emitted unexpected Godot errors: {' | '.join(unexpected)}")
-
-
-def run_godot(godot, name, args, timeout=1800):
-    LOGS.mkdir(parents=True, exist_ok=True)
-    log = LOGS / f"{re.sub(r'[^a-zA-Z0-9-]', '-', name)}-{uuid.uuid4().hex}.log"
-    split = args.index("--") if "--" in args else len(args)
-    command = [str(godot), *args[:split], "--log-file", str(log), *args[split:]]
-    result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
-    output = result.stdout.decode("utf-8", "replace")
-    log.with_suffix(".console.txt").write_text(output, encoding="utf-8")
-    return output, result.returncode, log.with_suffix(".console.txt")
-
 
 def checked_godot(godot, name, args, marker="", expected_exit=0, allowed=(), timeout=1800):
     output, code, console = run_godot(godot, name, args, timeout)
@@ -566,7 +502,7 @@ def main():
     package.add_argument("--skip-gate", action="store_true", help="skip the project gate (shipping-policy checks still run)")
     package.add_argument("--output", type=Path, help="output directory (default: the release directory from release.json)")
     for command in (verify, package):
-        command.add_argument("--godot", help="use this Godot 4.7.2 editor instead of the bootstrapped one")
+        command.add_argument("--godot", help=f"use this Godot {GODOT_RELEASE} editor instead of the bootstrapped one")
     args = parser.parse_args()
     try:
         if args.command == "bootstrap":

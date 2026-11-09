@@ -29,6 +29,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Cache official Godot downloads
+        uses: actions/cache@v4
+        with:
+          path: .tools/downloads
+          key: godot-editor-downloads-${{ hashFiles('tools/engine.json') }}-${{ runner.os }}-${{ runner.arch }}
       - name: Native import, unit, negative gates, dense transport, mixed matrix and memory
         run: python tools/ci-acceptance.py
       - name: Keep evidence even on failure

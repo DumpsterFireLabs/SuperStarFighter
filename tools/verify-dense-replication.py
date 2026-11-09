@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from tcp_link_proxy import StreamLink, StreamProxy
 
-ROOT = Path(__file__).resolve().parents[1]
+from ssf_tools import ROOT, default_godot, unexpected_errors
 PROFILES = {
     'baseline': {},
     'loss_jitter': {'delay': 0.050, 'jitter': 0.020, 'loss': 0.05},
@@ -56,8 +56,7 @@ def run_profile(godot, name, port, seed, output, exercise_recovery):
     text = log_path.read_text(encoding='utf-8')
     markers = [line.split('=', 1)[1] for line in text.splitlines() if line.startswith('SSF_DENSE_RESULT=')]
     fixture = json.loads(markers[-1]) if markers else {}
-    errors = [line.strip() for line in text.splitlines() if line.lstrip().startswith(('ERROR:', 'SCRIPT ERROR:'))
-              and line.strip() != 'ERROR: Failed to read the root certificate store.']
+    errors = unexpected_errors(text)
     covered = True
     if name == 'loss_jitter': covered = all(r['loss_stalls'] > 0 and r['delayed'] > 0 for r in link.counters.values())
     if name in ('congested', 'shallow_queue', 'undersupplied'): covered = link.counters['down']['max_queue_wait_seconds'] > 0
@@ -75,7 +74,7 @@ def run_profile(godot, name, port, seed, output, exercise_recovery):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--godot', type=Path, default=ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe')
+    parser.add_argument('--godot', type=Path, default=default_godot())
     parser.add_argument('--port', type=int, default=17880)
     parser.add_argument('--profile', choices=['all', *PROFILES], default='baseline')
     parser.add_argument('--seed', type=int, default=230926)

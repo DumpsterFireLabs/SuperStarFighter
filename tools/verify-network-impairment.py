@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from tcp_link_proxy import StreamLink, StreamProxy
 
-ROOT = Path(__file__).resolve().parents[1]
+from ssf_tools import ROOT, default_godot, unexpected_errors
 BLACKOUT_WINDOW = (4.0, 4.7)
 PROFILES = {
     "baseline": {},
@@ -78,9 +78,9 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
     (output / f"{name}.proxy.json").write_text(json.dumps(dict(
         profile=name, seed=seed, configuration=profile, stream=counters,
         peak_queued_segments=link.peak, exit_code=process.returncode), indent=2) + "\n", encoding="utf-8")
-    if process.returncode or "SSF_IMPAIRMENT_OK=" not in text or "SCRIPT ERROR:" in text:
+    if process.returncode or "SSF_IMPAIRMENT_OK=" not in text:
         raise RuntimeError(f"{name}: Godot verification failed; see {log_path}")
-    errors = [line for line in text.splitlines() if line.startswith("ERROR:") and line != "ERROR: Failed to read the root certificate store."]
+    errors = unexpected_errors(text)
     if errors:
         raise RuntimeError(f"{name}: unexpected errors: {errors}")
     for direction, row in counters.items():
@@ -115,7 +115,7 @@ def run_profile(godot, name, port, seed, output, shield_only=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--godot", type=Path, default=ROOT / ".tools/godot/Godot_v4.7.2-stable_win64_console.exe")
+    parser.add_argument("--godot", type=Path, default=default_godot())
     parser.add_argument("--profile", choices=["all", *PROFILES], default="all")
     parser.add_argument("--port", type=int, default=17780)
     parser.add_argument("--seed", type=int, default=230926)

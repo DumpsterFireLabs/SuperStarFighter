@@ -14,7 +14,7 @@ import tempfile
 import threading
 import time
 
-ROOT = Path(__file__).resolve().parents[1]
+from ssf_tools import ROOT, default_godot, unexpected_errors
 
 
 def pump(source, destination):
@@ -53,7 +53,7 @@ def serve(listener, context, server_port, stop):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--godot', type=Path, default=ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe')
+    parser.add_argument('--godot', type=Path, default=default_godot())
     parser.add_argument('--port', type=int, default=17990)
     args = parser.parse_args()
     if not 1024 <= args.port <= 65534: parser.error('port must leave room for the adjacent proxy port')
@@ -101,8 +101,7 @@ def main():
                     process.kill()
                     process.wait()
         text = log_path.read_text(encoding='utf-8', errors='replace')
-    errors = [line.strip() for line in text.splitlines() if line.lstrip().startswith(('ERROR:', 'SCRIPT ERROR:'))
-              and line.strip() != 'ERROR: Failed to read the root certificate store.']
+    errors = unexpected_errors(text)
     marker = next((line for line in text.splitlines() if line.startswith('SSF_WSS_OK=')), '')
     passed = process.returncode == 0 and '"ok":true' in marker and not errors
     print(marker or text[-2000:])

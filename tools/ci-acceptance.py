@@ -2,44 +2,23 @@
 """Portable CI acceptance using the repository's pinned Godot version.
 Functional checks run on shared runners; timing budgets require named hardware.
 """
-import argparse, hashlib, json, os, platform, re, subprocess, sys, urllib.request, zipfile
+import argparse, subprocess, sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-VERSION = '4.7.2-stable'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build import bootstrap as build_bootstrap
+from ssf_tools import ROOT, validate_godot_output
+
 OUTPUT = ROOT / '.tools/ci-acceptance'
 
 
 def bootstrap():
-    system = platform.system()
-    suffix, executable = {
-        'Windows': ('win64.exe.zip', f'Godot_v{VERSION}_win64_console.exe'),
-        'Linux': ('linux.x86_64.zip', f'Godot_v{VERSION}_linux.x86_64'),
-        'Darwin': ('macos.universal.zip', 'Godot.app/Contents/MacOS/Godot'),
-    }[system]
-    folder = ROOT / '.tools/ci-godot'
-    folder.mkdir(parents=True, exist_ok=True)
-    name = f'Godot_v{VERSION}_{suffix}'
-    base = f'https://github.com/godotengine/godot/releases/download/{VERSION}/'
-    checksum = urllib.request.urlopen(base + 'SHA512-SUMS.txt', timeout=60).read().decode()
-    rows = [line.split() for line in checksum.splitlines() if line.split() and line.split()[-1].lstrip('*').endswith(name)]
-    if len(rows) != 1: raise RuntimeError(f'No unique official checksum for {name}')
-    archive = folder / name
-    urllib.request.urlretrieve(base + name, archive)
-    if hashlib.sha512(archive.read_bytes()).hexdigest() != rows[0][0].lower(): raise RuntimeError('Godot checksum mismatch')
-    with zipfile.ZipFile(archive) as bundle:
-        for member in bundle.infolist():
-            if not (folder / member.filename).resolve().is_relative_to(folder.resolve()): raise RuntimeError('Unsafe archive path')
-        bundle.extractall(folder)
-    path = folder / executable
-    path.chmod(path.stat().st_mode | 0o111)
-    return path
+    """The shared, checksum-verified bootstrap; acceptance needs no export templates."""
+    return build_bootstrap(templates=False)
 
 
 def validate(text, exit_code, marker, expected_exit=0):
-    errors = [line.strip() for line in text.splitlines() if line.lstrip().startswith(('ERROR:', 'SCRIPT ERROR:')) and line.strip() != 'ERROR: Failed to read the root certificate store.']
-    if exit_code != expected_exit or not re.search(marker, text) or errors:
-        raise RuntimeError(f'Acceptance failed: exit={exit_code}, marker={marker}, errors={errors[:5]}')
+    validate_godot_output('Acceptance', text, exit_code, marker, expected_exit)
 
 
 def run_engine(godot, name, args, marker, timeout=300, expected_exit=0):

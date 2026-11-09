@@ -8,8 +8,8 @@ $ErrorActionPreference = 'Stop'
 
 $downloadRoot = Join-Path $SsfToolsRoot 'downloads'
 $templateStageRoot = Join-Path $SsfToolsRoot 'template-stage'
-$engineArchiveName = 'Godot_v4.7.2-stable_win64.exe.zip'
-$templateArchiveName = 'Godot_v4.7.2-stable_export_templates.tpz'
+$engineArchiveName = "Godot_v$($SsfGodotVersionTag)_win64.exe.zip"
+$templateArchiveName = "Godot_v$($SsfGodotVersionTag)_export_templates.tpz"
 $checksumName = 'SHA512-SUMS.txt'
 $releaseRoot = "https://github.com/godotengine/godot/releases/download/$SsfGodotVersionTag"
 
@@ -114,7 +114,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $SsfExportTemplateRoot 'windows_rele
 }
 
 $version = & $SsfGodotExecutable --headless --version
-if ($LASTEXITCODE -ne 0 -or -not ($version -like '4.7.2*')) {
+if ($LASTEXITCODE -ne 0 -or -not ($version -like "$SsfGodotRelease*")) {
     throw "Unexpected Godot version output: $version"
 }
 

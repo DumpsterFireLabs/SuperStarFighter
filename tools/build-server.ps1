@@ -30,7 +30,7 @@ $null = $process.Handle
 if (-not $process.WaitForExit(20000)) { Stop-Process -Id $process.Id -Force; throw 'Server smoke timed out.' }
 $process.WaitForExit()
 $text = Get-Content -LiteralPath $logPath -Raw
-$errors = $text -split "`r?`n" | Where-Object { $_ -match '^(SCRIPT ERROR:|ERROR:)' -and $_ -notmatch 'root certificate store' }
+$errors = Get-SsfUnexpectedGodotErrors -Output $text
 if ($process.ExitCode -ne 0 -or $errors -or -not $text.Contains('SSF_MODE_READY=server') -or -not $text.Contains('SSF_SERVER_GRACEFUL_SHUTDOWN=test_duration')) {
     throw 'Standalone server smoke failed.'
 }
