@@ -1,33 +1,66 @@
 extends Node
 
-const AbilityDeliveryTests = preload("res://tests/unit/ability_delivery_tests.gd")
-
-const InputProfileTestsScript = preload("res://tests/unit/input_profile_tests.gd")
-const CombatCorrectnessTestsScript = preload("res://tests/unit/combat_correctness_tests.gd")
-const GameplayGapTestsScript = preload("res://tests/unit/gameplay_gap_tests.gd")
-const ReviewFollowupTestsScript = preload("res://tests/unit/review_followup_tests.gd")
-const AbilityBudgetTestsScript = preload("res://tests/unit/ability_budget_tests.gd")
-const CombatFeedbackTestsScript = preload("res://tests/unit/combat_feedback_tests.gd")
-const BuildLabTestsScript = preload("res://tests/unit/build_lab_tests.gd")
-const AccessibilityTestsScript = preload("res://tests/unit/accessibility_tests.gd")
-const PerformanceReadabilityTestsScript = preload("res://tests/unit/performance_readability_tests.gd")
-const CombatTutorialTestsScript = preload("res://tests/unit/combat_tutorial_tests.gd")
-const CardIdentityTestsScript = preload("res://tests/unit/card_identity_tests.gd")
-const MatchObservationTestsScript = preload("res://tests/unit/match_observation_tests.gd")
-const NpcObjectiveTestsScript = preload("res://tests/unit/npc_objective_tests.gd")
-const VisualAccessibilityTestsScript = preload("res://tests/unit/visual_accessibility_tests.gd")
-const LobbyResultsTestsScript = preload("res://tests/unit/lobby_results_tests.gd")
-const CompetitiveViewTests = preload("res://tests/unit/competitive_view_tests.gd")
-const CollisionQueryOptimizationTests = preload("res://tests/unit/collision_query_optimization_tests.gd")
-const ScreenControllerTests = preload("res://tests/unit/screen_controller_tests.gd")
-const AudioMixTests = preload("res://tests/unit/audio_mix_tests.gd")
-const MapResourceTests = preload("res://tests/unit/map_resource_tests.gd")
-const StatMetadataTests = preload("res://tests/unit/stat_metadata_tests.gd")
-const NetworkOwnershipTests = preload("res://tests/unit/network_ownership_tests.gd")
-const ObjectiveContractTests = preload("res://tests/unit/objective_contract_tests.gd")
-const NetworkViewOwnershipTests = preload("res://tests/unit/network_view_ownership_tests.gd")
-const ArenaMovementFieldTests = preload("res://tests/unit/arena_movement_field_tests.gd")
 const UNIT_TEST_DIRECTORY := "res://tests/unit"
+const FOUNDATION_SUITE := "foundation"
+const TREE := 1
+const AWAIT := 2
+## Every suite, in run order: [file name without .gd, flags, method]. TREE
+## passes this node as the suite's parent; AWAIT waits for a suite that yields.
+## Keep the order explicit; some suites depend on state left by earlier ones.
+const SUITES: Array = [
+	["arena_effect_tests", TREE],
+	[FOUNDATION_SUITE, 0],
+	["ship_collision_tests", 0],
+	["objective_fairness_tests", 0],
+	["preset_hazard_tests", TREE],
+	["map_resource_tests", 0],
+	["map_navigation_tests", 0],
+	["update_checker_tests", 0],
+	["ability_delivery_tests", TREE | AWAIT],
+	["combat_request_tests", TREE],
+	["movement_reconciliation_tests", 0],
+	["stat_metadata_tests", 0],
+	["network_ownership_tests", 0],
+	["architecture_followup_tests", 0],
+	["objective_contract_tests", 0],
+	["network_view_ownership_tests", TREE],
+	["spectator_camera_tests", TREE],
+	["arena_movement_field_tests", TREE],
+	["competitive_view_tests", TREE],
+	["collision_query_optimization_tests", 0],
+	["screen_controller_tests", TREE],
+	["draft_layout_tests", TREE | AWAIT],
+	["audio_mix_tests", TREE],
+	["card_stat_tests", 0],
+	["client_draft_presentation_tests", TREE],
+	["draft_manager_tests", 0],
+	["match_state_machine_tests", 0],
+	["combat_system_tests", 0],
+	["projectile_trace_tests", 0],
+	["combat_correctness_tests", 0],
+	["escort_drone_tests", 0],
+	["escort_drone_tests", TREE, &"run_network"],
+	["network_protocol_tests", 0],
+	["match_coordinator_tests", 0],
+	["match_observation_tests", 0],
+	["lobby_results_tests", TREE],
+	["npc_objective_tests", 0],
+	["visual_accessibility_tests", TREE],
+	["gameplay_gap_tests", TREE],
+	["review_followup_tests", TREE],
+	["ability_budget_tests", TREE],
+	["combat_feedback_tests", 0],
+	["shield_timing_tests", TREE],
+	["build_lab_tests", TREE],
+	["accessibility_tests", TREE],
+	["performance_readability_tests", TREE],
+	["combat_tutorial_tests", TREE | AWAIT],
+	["card_identity_tests", TREE],
+	["presentation_followup_tests", TREE | AWAIT],
+	["input_profile_tests", 0],
+	["presentation_system_tests", TREE],
+	["graphical_language_tests", TREE | AWAIT],
+]
 ## Suites run by another suite rather than by this runner, keyed by file name.
 const SUITES_RUN_BY_OTHER_SUITES := {
 	"connection_preferences_tests.gd": "res://tests/unit/screen_controller_tests.gd",
@@ -37,102 +70,70 @@ var _context := TestContext.new()
 
 
 func _ready() -> void:
-	if "--r22-only" in OS.get_cmdline_user_args():
-		ArenaMovementFieldTests.run(_context, self)
-		print("R22_TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
-		get_tree().quit(0 if _context.failed == 0 else 1)
-		return
-	_run_registration_guard()
-	preload("res://tests/unit/arena_effect_tests.gd").run(_context, self)
-	_run_foundation_tests()
-	preload("res://tests/unit/ship_collision_tests.gd").run(_context)
-	preload("res://tests/unit/objective_fairness_tests.gd").run(_context)
-	preload("res://tests/unit/preset_hazard_tests.gd").run(_context, self)
-	MapResourceTests.run(_context)
-	preload("res://tests/unit/map_navigation_tests.gd").run(_context)
-	preload("res://tests/unit/update_checker_tests.gd").run(_context)
-	await AbilityDeliveryTests.run(_context, self)
-	preload("res://tests/unit/combat_request_tests.gd").run(_context, self)
-	preload("res://tests/unit/movement_reconciliation_tests.gd").run(_context)
-	StatMetadataTests.run(_context)
-	NetworkOwnershipTests.run(_context)
-	preload("res://tests/unit/architecture_followup_tests.gd").run(_context)
-	ObjectiveContractTests.run(_context)
-	NetworkViewOwnershipTests.run(_context, self)
-	preload("res://tests/unit/spectator_camera_tests.gd").run(_context, self)
-	ArenaMovementFieldTests.run(_context, self)
-	CompetitiveViewTests.run(_context, self)
-	CollisionQueryOptimizationTests.run(_context)
-	ScreenControllerTests.run(_context, self)
-	await preload("res://tests/unit/draft_layout_tests.gd").run(_context, self)
-	AudioMixTests.run(_context, self)
-	CardStatTests.run(_context)
-	ClientDraftPresentationTests.run(_context, self)
-	DraftManagerTests.run(_context)
-	MatchStateMachineTests.run(_context)
-	CombatSystemTests.run(_context)
-	preload("res://tests/unit/projectile_trace_tests.gd").run(_context)
-	CombatCorrectnessTestsScript.run(_context)
-	preload("res://tests/unit/escort_drone_tests.gd").run(_context)
-	preload("res://tests/unit/escort_drone_tests.gd").run_network(_context, self)
-	NetworkProtocolTests.run(_context)
-	MatchCoordinatorTests.run(_context)
-	MatchObservationTestsScript.run(_context)
-	LobbyResultsTestsScript.run(_context, self)
-	NpcObjectiveTestsScript.run(_context)
-	VisualAccessibilityTestsScript.run(_context, self)
-	GameplayGapTestsScript.run(_context, self)
-	ReviewFollowupTestsScript.run(_context, self)
-	AbilityBudgetTestsScript.run(_context, self)
-	CombatFeedbackTestsScript.run(_context)
-	preload("res://tests/unit/shield_timing_tests.gd").run(_context, self)
-	BuildLabTestsScript.run(_context, self)
-	AccessibilityTestsScript.run(_context, self)
-	PerformanceReadabilityTestsScript.run(_context, self)
-	await CombatTutorialTestsScript.run(_context, self)
-	CardIdentityTestsScript.run(_context, self)
-	await preload("res://tests/unit/presentation_followup_tests.gd").run(_context, self)
-	InputProfileTestsScript.run(_context)
-	PresentationSystemTests.run(_context, self)
-	await preload("res://tests/unit/graphical_language_tests.gd").run(_context, self)
 	var configuration: Dictionary = get_tree().root.get_meta("ssf_command_line", {})
+	var filter := String(configuration.get("test_filter", ""))
+	if filter.is_empty():
+		_run_registration_guard()
+	else:
+		print("TEST_FILTER %s" % filter)
+	var timings: Array[String] = []
+	var selected := 0
+	for entry: Array in SUITES:
+		var suite_name: String = entry[0]
+		if not filter.is_empty() and not suite_name.contains(filter):
+			continue
+		selected += 1
+		var method: StringName = entry[2] if entry.size() > 2 else &"run"
+		var label := suite_name if method == &"run" else "%s.%s" % [suite_name, method]
+		var passed_before := _context.passed
+		var failed_before := _context.failed
+		var started_msec := Time.get_ticks_msec()
+		_context.begin_suite(label)
+		if suite_name == FOUNDATION_SUITE:
+			_run_foundation_tests()
+		else:
+			var suite: GDScript = load(UNIT_TEST_DIRECTORY.path_join(suite_name + ".gd"))
+			var flags: int = entry[1]
+			var arguments: Array = [_context, self] if flags & TREE else [_context]
+			if flags & AWAIT:
+				await suite.callv(method, arguments)
+			else:
+				suite.callv(method, arguments)
+		timings.append("SUITE %s passed=%d failed=%d ms=%d" % [label, _context.passed - passed_before, _context.failed - failed_before, Time.get_ticks_msec() - started_msec])
+	_context.begin_suite("")
+	if selected == 0:
+		_context.expect_true(false, "test filter %s matches at least one suite" % filter)
 	if configuration.get("force_test_failure", false):
 		_context.expect_true(false, "forced failure proves the nonzero exit path")
+	for line in timings:
+		print(line)
+	_context.print_failure_recap()
 	print("TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
 	print("SSF_MODE_READY=tests")
 	get_tree().quit(0 if _context.failed == 0 else 1)
 
 
 ## Fails for any unit suite that nothing runs, so a new test file cannot pass
-## CI by never executing. A suite counts as run when its invoker calls `.run`
-## on it through `preload("<path>")`, its class_name, or a const preloading it.
+## CI by never executing. A suite runs when it is listed in SUITES, or when the
+## suite named in SUITES_RUN_BY_OTHER_SUITES calls `preload("<path>").run`.
 func _run_registration_guard() -> void:
-	var runner_source := FileAccess.get_file_as_string((get_script() as Script).resource_path)
+	var listed := {}
+	for entry: Array in SUITES:
+		listed[String(entry[0]) + ".gd"] = true
 	var suite_files := Array(DirAccess.get_files_at(UNIT_TEST_DIRECTORY)).filter(func(file_name: String) -> bool: return file_name.ends_with("_tests.gd"))
 	_context.expect_true(suite_files.size() > 0, "registration guard finds unit suites under %s" % UNIT_TEST_DIRECTORY)
 	for file_name: String in suite_files:
-		var path := UNIT_TEST_DIRECTORY.path_join(file_name)
-		var invoker := String(SUITES_RUN_BY_OTHER_SUITES.get(file_name, "res://src/test/test_runner.gd"))
-		var invoker_source := runner_source if not SUITES_RUN_BY_OTHER_SUITES.has(file_name) else FileAccess.get_file_as_string(invoker)
-		_context.expect_true(_invokes_suite(invoker_source, path), "unit suite %s is run by %s (register new suites in src/test/test_runner.gd)" % [file_name, invoker])
+		if SUITES_RUN_BY_OTHER_SUITES.has(file_name):
+			var invoker := String(SUITES_RUN_BY_OTHER_SUITES[file_name])
+			var invoked := FileAccess.get_file_as_string(invoker).contains('preload("%s").run' % UNIT_TEST_DIRECTORY.path_join(file_name))
+			_context.expect_true(invoked, "unit suite %s is run by %s" % [file_name, invoker])
+		else:
+			_context.expect_true(listed.has(file_name), "unit suite %s is listed in SUITES in src/test/test_runner.gd" % file_name)
+	for file_name: String in listed:
+		if file_name != FOUNDATION_SUITE + ".gd":
+			_context.expect_true(suite_files.has(file_name), "SUITES entry %s exists under %s" % [file_name, UNIT_TEST_DIRECTORY])
 	for file_name: String in SUITES_RUN_BY_OTHER_SUITES:
 		_context.expect_true(suite_files.has(file_name), "suite %s listed as run by another suite still exists" % file_name)
-
-
-func _invokes_suite(invoker_source: String, suite_path: String) -> bool:
-	if invoker_source.contains('preload("%s").run' % suite_path):
-		return true
-	var names: Array[String] = []
-	var declared := RegEx.create_from_string("(?m)^class_name\\s+(\\w+)").search(FileAccess.get_file_as_string(suite_path))
-	if declared != null:
-		names.append(declared.get_string(1))
-	var alias_pattern := RegEx.create_from_string("(?m)^const\\s+(\\w+)\\s*(?::\\s*\\w+\\s*)?:?=\\s*preload\\(\"%s\"\\)" % suite_path.replace(".", "\\."))
-	for alias in alias_pattern.search_all(invoker_source):
-		names.append(alias.get_string(1))
-	for suite_name in names:
-		if RegEx.create_from_string("\\b%s\\.run" % suite_name).search(invoker_source) != null:
-			return true
-	return false
 
 
 func _run_foundation_tests() -> void:
@@ -289,6 +290,11 @@ func _run_foundation_tests() -> void:
 		"--password=test-lobby",
 	]))
 	_context.expect_false(invalid_host.ok, "hostnames containing spaces are rejected")
+
+	var filtered_tests := CommandLineConfig.parse(PackedStringArray(["--run-tests", "--test-filter=input_profile"]))
+	_context.expect_true(filtered_tests.ok and filtered_tests.test_filter == "input_profile", "test filter parses with --run-tests")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--test-filter=input_profile"])).ok, "test filter is only valid with --run-tests")
+	_context.expect_false(CommandLineConfig.parse(PackedStringArray(["--run-tests", "--test-filter="])).ok, "empty test filter is rejected")
 
 	var invalid_port := CommandLineConfig.parse(PackedStringArray(["--server", "--port=80"]))
 	_context.expect_true(not invalid_port.ok, "privileged server port is rejected")

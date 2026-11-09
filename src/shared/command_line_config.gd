@@ -29,6 +29,7 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		"window_mode_override": "",
 		"bot_name": "",
 		"force_test_failure": false,
+		"test_filter": "",
 		"test_protocol_version": GameConstants.PROTOCOL_VERSION,
 		"has_test_protocol_override": false,
 		"test_server_duration": 0,
@@ -143,6 +144,10 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 			result.behind_proxy = true
 		elif argument == "--force-test-failure":
 			result.force_test_failure = true
+		elif argument.begins_with("--test-filter="):
+			result.test_filter = argument.trim_prefix("--test-filter=").strip_edges()
+			if result.test_filter.is_empty():
+				return _error("--test-filter requires a non-empty suite name fragment.")
 		elif argument == "--test-fast-match":
 			result.test_fast_match = true
 		elif argument.begins_with("--test-match-seed="):
@@ -255,6 +260,8 @@ static func parse(arguments: PackedStringArray, dedicated_server_feature: bool =
 		return _error("--bind and --behind-proxy are only valid with --server.")
 	if result.force_test_failure and result.mode != "tests":
 		return _error("--force-test-failure is only valid with --run-tests.")
+	if not String(result.test_filter).is_empty() and result.mode != "tests":
+		return _error("--test-filter is only valid with --run-tests.")
 	if result.has_test_protocol_override and result.mode != "bot_client":
 		return _error("--test-protocol-version is only valid with --bot-client.")
 	if result.test_server_duration > 0 and result.mode != "server":

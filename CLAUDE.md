@@ -5,7 +5,7 @@ Godot 4.7.2 (pinned), typed GDScript, server-authoritative multiplayer over WebS
 ## Running tests
 
 - Once per checkout: `.\tools\bootstrap.ps1` (or `python3 tools/build.py bootstrap` without PowerShell).
-- Unit suite: `.\tools\run-tests.ps1`. It must end with `TEST_SUMMARY passed=N failed=0`, exit 0, and print no `ERROR:` or `SCRIPT ERROR:` lines. The full log is under `.tools/verification-logs/`.
+- Unit suite: `.\tools\run-tests.ps1`. It must end with `TEST_SUMMARY passed=N failed=0`, exit 0, and print no `ERROR:` or `SCRIPT ERROR:` lines. The full log is under `.tools/verification-logs/`. `-Filter <text>` runs only suites whose file name contains the text; per-suite counts and timings print before the summary, and failures are repeated there.
 - In a git worktree, `.tools/` is not there: link it from the main checkout, then run the engine once with `--headless --path <worktree> --import`, or the test run hangs silently. Revert the line-ending churn that import leaves in `assets/**/*.import` before committing.
 
 ## Rules
