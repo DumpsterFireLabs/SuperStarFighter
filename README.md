@@ -96,7 +96,7 @@ Relative is the default flight mode: movement stays aligned to the screen, so `W
 | View / Back | Hold live scoreboard |
 | Menu / Start | Open the pilot menu (online combat keeps running) |
 | Left / right bumper while spectating | Cycle living pilots |
-| D-pad in menus | Navigate menus and draft cards |
+| D-pad or left stick in menus | Navigate menus and draft cards |
 | A / Cross | Confirm |
 | B / Circle | Back |
 

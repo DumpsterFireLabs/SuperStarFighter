@@ -26,6 +26,22 @@ static func run(context: TestContext) -> void:
 	var idle_input := manager.movement_input_for_aim(PI * 0.5)
 	context.expect_equal(idle_input, Vector2.ZERO, "idle Relative flight produces no movement input")
 	context.expect_true(&"ui_accept" in manager.rebind_actions(), "keyboard profile exposes menu confirmation for rebinding")
+	context.expect_true(_action_has_joy_button(&"ui_accept", JOY_BUTTON_A), "keyboard profile menus still accept a controller's A button")
+	context.expect_true(_action_has_axis(&"ui_left", JOY_AXIS_LEFT_X, -1.0), "menus navigate with the left stick under the keyboard profile")
+	context.expect_equal(InputMap.action_get_events(&"fire").size(), 1, "gameplay actions keep only the active profile's binding")
+	var suggestions: Array[int] = [0]
+	manager.controller_switch_suggested.connect(func() -> void: suggestions[0] += 1)
+	var pad_motion := InputEventJoypadMotion.new()
+	pad_motion.axis = JOY_AXIS_LEFT_X
+	pad_motion.axis_value = 0.9
+	manager.note_input_event(pad_motion)
+	context.expect_equal(suggestions[0], 0, "stick drift alone does not suggest the controller profile")
+	var pad_press := InputEventJoypadButton.new()
+	pad_press.button_index = JOY_BUTTON_A
+	pad_press.pressed = true
+	manager.note_input_event(pad_press)
+	manager.note_input_event(pad_press)
+	context.expect_equal(suggestions[0], 1, "a controller press under the keyboard profile suggests switching once per launch")
 	Input.action_press(&"move_up")
 	var screen_relative_input := manager.movement_input_for_aim(PI * 0.5)
 	context.expect_true(screen_relative_input.y > 0.99 and absf(screen_relative_input.x) < 0.01, "Relative flight converts screen-up into the correct ship-local input")
@@ -42,6 +58,8 @@ static func run(context: TestContext) -> void:
 	context.expect_equal(manager.binding_text(&"manual_reload"), "X / Square", "controller profile provides a default manual reload button")
 	context.expect_equal(manager.binding_text(&"special"), "Left Stick Click", "controller profile provides a default special-card button")
 	context.expect_true(&"ui_cancel" in manager.rebind_actions(), "controller profile exposes menu back for rebinding")
+	context.expect_true(_action_has_key(&"ui_accept", KEY_ENTER), "controller profile menus still accept the keyboard Enter key")
+	context.expect_true(_action_has_axis(&"ui_down", JOY_AXIS_LEFT_Y, 1.0), "controller profile menus navigate with the left stick")
 	context.expect_approx(InputMap.action_get_deadzone(&"aim_right"), InputProfileManagerScript.DEFAULT_CONTROLLER_DEADZONE, "controller deadzone is applied to runtime actions", 0.0001)
 	Input.action_press(&"aim_right", 0.85)
 	Input.action_press(&"aim_up", 0.45)
@@ -62,6 +80,7 @@ static func run(context: TestContext) -> void:
 	arbitrary_axis.axis_value = -0.9
 	context.expect_true(manager.rebind(&"move_up", arbitrary_axis, false), "joystick axes can be remapped by direction")
 	context.expect_equal(manager.binding_text(&"move_up"), "Right Stick Y −", "remapped joystick axis retains its direction")
+	manager.dismiss_controller_prompt(false)
 	manager.set_controller_deadzone(0.31, false)
 	context.expect_approx(InputMap.action_get_deadzone(&"move_up"), 0.31, "custom controller deadzone updates the runtime input map", 0.0001)
 	context.expect_equal(manager.save_settings(), OK, "control profile saves successfully")
@@ -71,6 +90,7 @@ static func run(context: TestContext) -> void:
 	context.expect_true(restored.uses_controller(), "selected control profile persists between launches")
 	context.expect_equal(restored.flight_mode, InputProfileManagerScript.FlightMode.NEWTONIAN, "an explicit Newtonian flight mode persists between launches")
 	context.expect_approx(restored.controller_deadzone, 0.31, "controller deadzone persists between launches", 0.0001)
+	context.expect_true(restored.controller_prompt_dismissed, "declining the controller prompt persists between launches")
 	context.expect_equal(restored.binding_text(&"fire"), "X / Square", "controller button remap persists between launches")
 	context.expect_equal(restored.binding_text(&"move_up"), "Right Stick Y −", "joystick axis remap persists between launches")
 	restored.set_scheme(InputProfileManagerScript.Scheme.KEYBOARD_MOUSE, false)
@@ -89,3 +109,24 @@ static func run(context: TestContext) -> void:
 	var runtime_defaults := InputProfileManagerScript.new()
 	runtime_defaults.apply_active_bindings()
 	runtime_defaults.free()
+
+
+static func _action_has_joy_button(action: StringName, button: JoyButton) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadButton and event.button_index == button:
+			return true
+	return false
+
+
+static func _action_has_axis(action: StringName, axis: JoyAxis, direction: float) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadMotion and event.axis == axis and signf(event.axis_value) == signf(direction):
+			return true
+	return false
+
+
+static func _action_has_key(action: StringName, keycode: Key) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventKey and event.physical_keycode == keycode:
+			return true
+	return false

@@ -522,7 +522,13 @@ func _on_control_bindings_changed() -> void:
 func _update_controller_status() -> void:
 	if controller_status_label == null:
 		return
-	controller_status_label.text = input_profiles.controller_status_text() if input_profiles.uses_controller() else "Keyboard and mouse is the default profile. Controller settings remain saved separately."
+	if input_profiles.uses_controller():
+		controller_status_label.text = input_profiles.controller_status_text()
+	elif not Input.get_connected_joypads().is_empty():
+		controller_status_label.text = "%s
+Select Controller / Joystick above to play with it." % input_profiles.controller_status_text()
+	else:
+		controller_status_label.text = "Keyboard and mouse is the default profile. Controller settings remain saved separately."
 
 
 func _add_volume_setting(parent: VBoxContainer, title: String, channel: StringName, initial_value: float) -> void:

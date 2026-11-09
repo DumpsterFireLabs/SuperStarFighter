@@ -78,6 +78,8 @@ var f2_return_confirmation: ConfirmationDialog
 var update_checker: Node
 var update_notice: ConfirmationDialog
 var _pending_update_url: String = ""
+var controller_prompt: ConfirmationDialog
+var _controller_prompt_pending: bool = false
 var _application_has_focus: bool = true
 var _disconnect_in_progress: bool = false
 
@@ -171,6 +173,7 @@ func _ready() -> void:
 	_create_gameplay_cursor()
 	_create_splash_screen()
 	_create_update_notice()
+	_create_controller_prompt()
 	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=tcp" % configuration.get("port", GameConstants.DEFAULT_PORT))
 
@@ -245,6 +248,7 @@ func _input(event: InputEvent) -> void:
 	# Rebinding must capture the key without pausing or resuming the match.
 	if settings_controller.capture_input(event):
 		return
+	input_profiles.note_input_event(event)
 	if event is InputEventKey and event.pressed and event.alt_pressed and event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
 		if not event.echo:
 			settings_controller.toggle_fullscreen()
@@ -506,6 +510,49 @@ func _show_pending_update_notice() -> void:
 	update_notice.get_ok_button().grab_focus()
 
 
+func _create_controller_prompt() -> void:
+	controller_prompt = ConfirmationDialog.new()
+	controller_prompt.name = "ControllerPrompt"
+	controller_prompt.title = "CONTROLLER DETECTED"
+	controller_prompt.ok_button_text = "USE CONTROLLER"
+	controller_prompt.cancel_button_text = "KEEP KEYBOARD & MOUSE"
+	controller_prompt.theme = interface_theme
+	controller_prompt.confirmed.connect(func() -> void:
+		input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER)
+		_focus_connection_menu()
+	)
+	controller_prompt.canceled.connect(func() -> void:
+		input_profiles.dismiss_controller_prompt()
+		_focus_connection_menu()
+	)
+	connection_controller.connection_canvas.add_child(controller_prompt)
+	controller_prompt.get_ok_button().theme_type_variation = &"PrimaryButton"
+	input_profiles.controller_switch_suggested.connect(func() -> void:
+		_controller_prompt_pending = true
+		_show_pending_controller_prompt.call_deferred()
+	)
+
+
+## Offers the Controller profile when a pad is used under Keyboard & Mouse.
+## Like the update notice, it waits for a calm moment on the main menu.
+func _show_pending_controller_prompt() -> void:
+	if not _controller_prompt_pending or controller_prompt == null or controller_prompt.visible:
+		return
+	if input_profiles.uses_controller():
+		_controller_prompt_pending = false
+		return
+	if update_notice.visible or splash_screen.visible or not connection_controller.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible:
+		return
+	_controller_prompt_pending = false
+	var device_names: Array[String] = []
+	for device_id in Input.get_connected_joypads():
+		device_names.append(Input.get_joy_name(device_id))
+	var device_text := ", ".join(device_names) if not device_names.is_empty() else "A controller"
+	controller_prompt.dialog_text = "%s is connected, but the Keyboard & Mouse profile is active.\nSwitch to the Controller profile? You can change this any time in Settings → Controls." % device_text
+	controller_prompt.popup_centered()
+	controller_prompt.get_ok_button().grab_focus()
+
+
 func _open_update_page() -> void:
 	OS.shell_open(_pending_update_url)
 	_pending_update_url = ""
@@ -554,6 +601,7 @@ func _hide_settings() -> void:
 	settings_return_to_pause = false
 	settings_return_to_lobby = false
 	_show_pending_update_notice()
+	_show_pending_controller_prompt()
 
 
 func _create_credits_overlay() -> void:
@@ -655,6 +703,7 @@ func _hide_credits() -> void:
 	if connection_controller.is_visible():
 		connection_controller.focus_credits()
 	_show_pending_update_notice()
+	_show_pending_controller_prompt()
 
 
 func _create_gameplay_cursor() -> void:
@@ -823,6 +872,7 @@ func _finish_splash_dismissal() -> void:
 	splash_screen.visible = false
 	_focus_connection_menu()
 	_show_pending_update_notice()
+	_show_pending_controller_prompt()
 
 
 func _focus_connection_menu() -> void:
@@ -967,6 +1017,7 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	audio_director.set_context(&"menu")
 	_focus_connection_menu()
 	_show_pending_update_notice()
+	_show_pending_controller_prompt()
 
 
 func _prepare_connection() -> void:

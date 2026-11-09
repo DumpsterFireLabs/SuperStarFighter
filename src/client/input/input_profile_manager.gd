@@ -7,6 +7,9 @@ signal scheme_changed(scheme: Scheme)
 signal flight_mode_changed(flight_mode: FlightMode)
 signal bindings_changed()
 signal controller_connections_changed()
+## Raised once per launch when a controller is used while the keyboard and
+## mouse profile is active, so the client can offer to switch profiles.
+signal controller_switch_suggested()
 
 enum Scheme {
 	KEYBOARD_MOUSE,
@@ -26,6 +29,7 @@ const DEFAULT_CONTROLLER_DEADZONE: float = 0.22
 const MIN_CONTROLLER_DEADZONE: float = 0.05
 const MAX_CONTROLLER_DEADZONE: float = 0.75
 const FLIGHT_MODE_NAMES: Array[String] = ["Newtonian", "Relative"]
+const MENU_STICK_THRESHOLD: float = 0.5
 
 const MOVEMENT_ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
@@ -100,6 +104,8 @@ var controller_deadzone: float = DEFAULT_CONTROLLER_DEADZONE
 var settings_path: String = SETTINGS_PATH
 var keyboard_bindings: Dictionary = {}
 var controller_bindings: Dictionary = {}
+var controller_prompt_dismissed: bool = false
+var _controller_switch_suggested: bool = false
 
 
 func _init() -> void:
@@ -119,6 +125,7 @@ func load_settings() -> void:
 	active_scheme = Scheme.KEYBOARD_MOUSE
 	flight_mode = FlightMode.RELATIVE
 	controller_deadzone = DEFAULT_CONTROLLER_DEADZONE
+	controller_prompt_dismissed = false
 	var config := ConfigFile.new()
 	if config.load(settings_path) == OK:
 		active_scheme = _validated_scheme(int(config.get_value(SETTINGS_SECTION, "scheme", Scheme.KEYBOARD_MOUSE)))
@@ -128,6 +135,7 @@ func load_settings() -> void:
 			MIN_CONTROLLER_DEADZONE,
 			MAX_CONTROLLER_DEADZONE
 		)
+		controller_prompt_dismissed = bool(config.get_value(SETTINGS_SECTION, "controller_prompt_dismissed", false))
 		_load_profile(config, KEYBOARD_SECTION, keyboard_bindings, KEYBOARD_REBIND_ACTIONS, Scheme.KEYBOARD_MOUSE)
 		_load_profile(config, CONTROLLER_SECTION, controller_bindings, CONTROLLER_REBIND_ACTIONS, Scheme.CONTROLLER)
 	apply_active_bindings()
@@ -138,6 +146,7 @@ func save_settings() -> Error:
 		config.set_value(SETTINGS_SECTION, "scheme", int(active_scheme))
 		config.set_value(SETTINGS_SECTION, "flight_mode", int(flight_mode))
 		config.set_value(SETTINGS_SECTION, "controller_deadzone", controller_deadzone)
+		config.set_value(SETTINGS_SECTION, "controller_prompt_dismissed", controller_prompt_dismissed)
 		_save_profile(config, KEYBOARD_SECTION, keyboard_bindings, KEYBOARD_REBIND_ACTIONS)
 		_save_profile(config, CONTROLLER_SECTION, controller_bindings, CONTROLLER_REBIND_ACTIONS)
 	, settings_path)
@@ -205,16 +214,60 @@ func rebind(action: StringName, event: InputEvent, save: bool = true) -> bool:
 
 func apply_active_bindings() -> void:
 	var bindings := controller_bindings if active_scheme == Scheme.CONTROLLER else keyboard_bindings
+	var inactive_bindings := keyboard_bindings if active_scheme == Scheme.CONTROLLER else controller_bindings
 	for action in managed_actions():
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 		InputMap.action_erase_events(action)
 		var analog_action := action in MOVEMENT_ACTIONS or action in AIM_ACTIONS
-		InputMap.action_set_deadzone(action, controller_deadzone if active_scheme == Scheme.CONTROLLER and analog_action else 0.5)
-		if bindings.has(action):
-			var event := _deserialize_binding(bindings[action] as Dictionary)
-			if event != null:
-				InputMap.action_add_event(action, event)
+		InputMap.action_set_deadzone(action, controller_deadzone if active_scheme == Scheme.CONTROLLER and analog_action else MENU_STICK_THRESHOLD)
+		_add_binding_event(action, bindings)
+		# Menus answer to both devices whichever profile is active, so a newly
+		# connected controller (or a keyboard) can always reach Settings.
+		if action in MENU_ACTIONS:
+			_add_binding_event(action, inactive_bindings)
+			var stick := _menu_stick_binding(action)
+			if not stick.is_empty():
+				_add_binding_event(action, {action: stick})
+
+
+func _add_binding_event(action: StringName, bindings: Dictionary) -> void:
+	if not bindings.has(action):
+		return
+	var event := _deserialize_binding(bindings[action] as Dictionary)
+	if event == null:
+		return
+	for existing in InputMap.action_get_events(action):
+		if existing.is_match(event, true) and existing.get_class() == event.get_class():
+			return
+	InputMap.action_add_event(action, event)
+
+
+func _menu_stick_binding(action: StringName) -> Dictionary:
+	match action:
+		&"ui_up": return _axis_binding(JOY_AXIS_LEFT_Y, -1.0)
+		&"ui_down": return _axis_binding(JOY_AXIS_LEFT_Y, 1.0)
+		&"ui_left": return _axis_binding(JOY_AXIS_LEFT_X, -1.0)
+		&"ui_right": return _axis_binding(JOY_AXIS_LEFT_X, 1.0)
+	return {}
+
+
+## Called for every client input event. A controller button press while the
+## keyboard profile is active suggests switching, at most once per launch and
+## never after the player has declined.
+func note_input_event(event: InputEvent) -> void:
+	if active_scheme == Scheme.CONTROLLER or controller_prompt_dismissed or _controller_switch_suggested:
+		return
+	if not (event is InputEventJoypadButton and event.pressed):
+		return
+	_controller_switch_suggested = true
+	controller_switch_suggested.emit()
+
+
+func dismiss_controller_prompt(save: bool = true) -> void:
+	controller_prompt_dismissed = true
+	if save:
+		save_settings()
 
 
 func movement_vector() -> Vector2:
@@ -278,10 +331,25 @@ func controller_status_text() -> String:
 	if connected.is_empty():
 		return "No controller detected · bindings can still be configured"
 	var names: Array[String] = []
+	var unknown_layout := false
 	for device_id in connected:
 		var device_name := Input.get_joy_name(device_id)
-		names.append(device_name if not device_name.is_empty() else "Controller %d" % (int(device_id) + 1))
-	return "Detected: %s" % ", ".join(names)
+		var label := device_name if not device_name.is_empty() else "Controller %d" % (int(device_id) + 1)
+		# Godot only knows a pad's button/axis layout when SDL's mapping database
+		# recognises it. Unrecognised pads report raw indices, so triggers and
+		# sticks can land on the wrong actions.
+		if not Input.is_joy_known(device_id):
+			label += " (unrecognized layout)"
+			unknown_layout = true
+		names.append(label)
+	var text := "Detected: %s" % ", ".join(names)
+	if unknown_layout:
+		text += "
+Unrecognized controllers may need XInput / PC mode, or each input rebound below."
+	if connected.size() > 1:
+		text += "
+All connected controllers share these bindings; disconnect extras if input drifts."
+	return text
 
 
 static func managed_actions() -> Array[StringName]:

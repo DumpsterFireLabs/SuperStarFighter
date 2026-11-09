@@ -271,7 +271,7 @@ func _spin(parent: Node, title: String, minimum: float, maximum: float, step_val
 	spin.step = step_value
 	spin.value = value
 	var handle_controller := func(event: InputEvent) -> void:
-		if event is InputEventJoypadButton and event.pressed:
+		if (event is InputEventJoypadButton and event.pressed) or event is InputEventJoypadMotion:
 			if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
 				spin.value += spin.step * (-1.0 if event.is_action_pressed("ui_left") else 1.0)
 				spin.accept_event()

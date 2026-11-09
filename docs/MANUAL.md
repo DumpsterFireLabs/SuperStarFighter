@@ -614,11 +614,11 @@ If left/right cues appear centered or identical, confirm Windows Mono audio is o
 
 The Controls tab provides:
 
-- An explicit **Keyboard & Mouse** or **Controller / Joystick** profile selector. Keyboard and mouse is the default until another selection is saved.
+- An explicit **Keyboard & Mouse** or **Controller / Joystick** profile selector. Keyboard and mouse is the default until another selection is saved. Pressing a controller button while Keyboard & Mouse is active offers to switch profiles once on the main menu; declining stops the offer.
 - A persistent **Newtonian** ship-facing or **Relative** screen-aligned flight-mode selector.
-- Live connected-controller names. Bindings can also be prepared before a device is connected.
+- Live connected-controller names, marked **(unrecognized layout)** when the engine has no button map for the device. Bindings can also be prepared before a device is connected.
 - A controller stick-deadzone slider, defaulting to 22%.
-- One binding button for every movement, aim, combat, spectator, draft, and menu-navigation action available to the selected profile.
+- One binding button for every movement, aim, combat, spectator, draft, and menu-navigation action available to the selected profile. Menus accept both profiles' menu bindings and the left stick, whichever profile is active.
 - **Restore This Profile's Defaults**, which does not overwrite the other profile.
 
 To remap an action, select its binding button and press the replacement key, mouse button, controller button, or joystick axis direction. Axis capture requires a deliberate movement past 65%, which avoids binding ordinary stick drift. Capture times out after eight seconds without changing the binding.
@@ -739,8 +739,10 @@ If files are incomplete, use `-Force`.
 
 ### My controller or joystick does not respond correctly
 
-- Open **Settings → Controls** and select **Controller / Joystick**; devices do not take over automatically.
+- Open **Settings → Controls** and select **Controller / Joystick**, or accept the **Controller detected** offer on the main menu; devices do not take over automatically.
 - Confirm the detected-device line lists the hardware. Reconnect it and reopen Settings if needed.
+- If the device is marked **(unrecognized layout)**, triggers and sticks may report on the wrong inputs. Multi-mode pads (GameSir, 8BitDo and similar) usually work best in their XInput / PC mode; otherwise rebind each action.
+- If more than one controller is listed, all of them drive the same bindings. Disconnect extras, or turn off Steam Input or companion apps that add a virtual controller, if input drifts or a trigger seems stuck.
 - Use the binding list for nonstandard flight sticks, rudders, or controllers whose physical layout does not match the twin-stick defaults.
 - Increase the deadzone if an axis drifts, or reduce it if small deliberate movement is ignored.
 - If menus work but the ship does not aim, bind all four aim directions to suitable positive/negative axes.
