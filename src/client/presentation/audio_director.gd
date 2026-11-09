@@ -626,7 +626,7 @@ func _set_bus_percent(bus_name: StringName, percent: float, mute_bus: bool) -> v
 
 func _load_settings() -> void:
 	var config := ConfigFile.new()
-	if config.load(SETTINGS_PATH) != OK:
+	if SettingsStore.load_into(config, SETTINGS_PATH) != OK:
 		return
 	master_volume_percent = clampf(float(config.get_value("audio", "master", master_volume_percent)), 0.0, 100.0)
 	music_volume_percent = clampf(float(config.get_value("audio", "music", music_volume_percent)), 0.0, 100.0)

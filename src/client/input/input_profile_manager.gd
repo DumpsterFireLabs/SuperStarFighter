@@ -127,7 +127,7 @@ func load_settings() -> void:
 	controller_deadzone = DEFAULT_CONTROLLER_DEADZONE
 	controller_prompt_dismissed = false
 	var config := ConfigFile.new()
-	if config.load(settings_path) == OK:
+	if SettingsStore.load_into(config, settings_path) == OK:
 		active_scheme = _validated_scheme(int(config.get_value(SETTINGS_SECTION, "scheme", Scheme.KEYBOARD_MOUSE)))
 		flight_mode = _validated_flight_mode(int(config.get_value(SETTINGS_SECTION, "flight_mode", FlightMode.RELATIVE)))
 		controller_deadzone = clampf(

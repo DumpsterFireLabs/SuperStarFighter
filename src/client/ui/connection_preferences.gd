@@ -20,7 +20,7 @@ func _init(path: String = SettingsStore.PATH) -> void:
 
 func load_appearance() -> Error:
 	var config := ConfigFile.new()
-	var error := config.load(settings_path)
+	var error := SettingsStore.load_into(config, settings_path)
 	if error != OK: return error
 	random_color = bool(config.get_value("appearance", "random_ship_color", true))
 	var color := String(config.get_value("appearance", "ship_color", ship_color.to_html(false)))
@@ -45,7 +45,7 @@ func save_appearance(random_value: bool, color: Color, pattern: StringName) -> E
 ## Returns the remembered display name, or "" when none is stored or it is invalid.
 func load_display_name() -> String:
 	var config := ConfigFile.new()
-	if config.load(settings_path) != OK: return ""
+	if SettingsStore.load_into(config, settings_path) != OK: return ""
 	var stored := String(config.get_value("profile", "display_name", ""))
 	return stored if ServerLobby.is_valid_display_name(stored) else ""
 
@@ -65,7 +65,7 @@ func password_for_endpoint(address: String, port: int) -> String:
 	var key := endpoint_key(address, port)
 	if key.is_empty(): return ""
 	var config := ConfigFile.new()
-	if config.load(settings_path) != OK: return ""
+	if SettingsStore.load_into(config, settings_path) != OK: return ""
 	var password := String(config.get_value("lobby_passwords", key, ""))
 	return password if NetworkProtocol.is_valid_lobby_password(password) else ""
 

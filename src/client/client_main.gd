@@ -10,6 +10,7 @@ const UpdateCheckerScript = preload("res://src/client/network/update_checker.gd"
 const SplashControllerScript = preload("res://src/client/ui/splash_controller.gd")
 const CreditsOverlayScript = preload("res://src/client/ui/credits_overlay.gd")
 const PauseMenuScript = preload("res://src/client/ui/pause_menu.gd")
+const ClientDiagnosticsScript = preload("res://src/client/client_diagnostics.gd")
 
 var draft_controller := DraftScreenControllerScript.new()
 var standings_controller := StandingsScreenControllerScript.new()
@@ -178,6 +179,7 @@ func _ready() -> void:
 	_create_controller_prompt()
 	audio_director.set_context(&"menu")
 	print("SSF_MODE_READY=client port=%d sandbox=offline_combat network=tcp" % configuration.get("port", GameConstants.DEFAULT_PORT))
+	_log_diagnostic("client_started", ClientDiagnosticsScript.startup_fields())
 
 
 func _notification(what: int) -> void:
@@ -699,11 +701,13 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 
 
 func _prepare_connection() -> void:
+	_log_diagnostic("connection_attempt", {"hosting": connection_controller.is_hosting()})
 	offline_sandbox.set_sandbox_active(false)
 	network_world.set_network_active(false)
 
 
 func _on_connected(peer_id: int) -> void:
+	_log_diagnostic("connection_admitted", {"peer_id": peer_id})
 	network_world.set_network_active(false, false)
 	audio_director.set_context(&"lobby")
 	connection_controller.show_connected(peer_id)
@@ -1268,6 +1272,7 @@ func _heat_intro_style(accent: Color) -> StyleBoxFlat:
 
 
 func _on_rejected(reason: StringName, message: String) -> void:
+	_log_diagnostic("connection_rejected", {"reason": String(reason)})
 	# Joiners cannot change server settings; point them at what they control.
 	_show_connection_screen("CONNECTION REJECTED\n%s\nCheck your details or choose another server, then try again." % message, true)
 	if reason == NetworkProtocol.REJECT_INVALID_PASSWORD:
@@ -1288,6 +1293,13 @@ func _exit_tree() -> void:
 	# The bridge already sent its leave notice from its own _exit_tree.
 	if bridge != null:
 		bridge.stop()
+
+
+## Structured bug-report lines (see client_diagnostics.gd). Only the running
+## game logs them, not test scenes. Never pass addresses or credentials.
+func _log_diagnostic(event: String, fields: Dictionary = {}) -> void:
+	if is_inside_tree() and get_tree().current_scene == self:
+		ClientDiagnosticsScript.log_event(event, fields)
 
 
 func _log_client_lifecycle(event: String) -> void:

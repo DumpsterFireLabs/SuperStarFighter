@@ -20,7 +20,7 @@ var settings_path: String = SettingsStore.PATH
 
 func load_settings() -> void:
 	var config := ConfigFile.new()
-	if config.load(settings_path) != OK:
+	if SettingsStore.load_into(config, settings_path) != OK:
 		return
 	var loaded := {}
 	for key in DEFAULTS:

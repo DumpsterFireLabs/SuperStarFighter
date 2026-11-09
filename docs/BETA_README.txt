@@ -106,6 +106,10 @@ UNSIGNED BUILD WARNING
 
 These beta executables are not code-signed. Windows SmartScreen may display an unrecognized-app warning, Linux may require the executable permission command shown above, and macOS Gatekeeper may require the Control-click Open flow. Verify the SHA-256 value supplied by the person sharing the build before running it.
 
+REPORTING A PROBLEM
+
+Open Settings and choose OPEN LOG FOLDER, then attach godot.log (and, if the problem happened in an earlier session, the dated godot*.log files beside it) to your report. The first lines record the game version, protocol, operating system, renderer and window size; connection attempts, admissions and rejection reasons follow. The log never contains passwords, reconnect tokens or the server address you typed. Say roughly when the problem happened and what you were doing.
+
 KNOWN BETA LIMITATIONS
 
 - Windows x64, Linux x64, Linux ARM64 (including 64-bit Raspberry Pi), and macOS arm64/x86_64 only.

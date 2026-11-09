@@ -15,6 +15,12 @@ run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
 run/flush_stdout_on_print.dedicated_server=true
 config/features=PackedStringArray("4.7")
 
+[debug]
+
+file_logging/enable_file_logging.pc=true
+file_logging/log_path="user://logs/godot.log"
+file_logging/max_log_files=5
+
 [display]
 
 window/size/viewport_width=1920

@@ -33,6 +33,7 @@ static func run(context: TestContext) -> void:
 	_settings_sections(context)
 	_match_config_copy_guard(context)
 	_match_name_constants(context)
+	_client_diagnostics(context)
 
 
 ## The constants are the wire values; pin them so a rename is caught here.
@@ -222,4 +223,26 @@ static func _settings_sections(context: TestContext) -> void:
 	result.load(path)
 	context.expect_equal(result.get_value("audio", "master"), 37, "saving video settings preserves audio preferences")
 	context.expect_equal(result.get_value("video", "width"), 1600, "settings store commits the requested preference")
+	context.expect_equal(result.get_value(SettingsStore.META_SECTION, SettingsStore.SCHEMA_KEY), SettingsStore.SCHEMA_VERSION, "every save records the settings schema version")
+	var unversioned := ConfigFile.new()
+	unversioned.set_value("audio", "master", 50)
+	unversioned.save(path)
+	var loaded := ConfigFile.new()
+	context.expect_equal(SettingsStore.load_into(loaded, path), OK, "settings loads through the migrating reader")
+	context.expect_equal(SettingsStore.schema_of(loaded), 1, "files from before versioning read as schema 1")
+	context.expect_equal(loaded.get_value("audio", "master"), 50, "schema 1 needs no migration")
 	DirAccess.remove_absolute(path)
+
+
+static func _client_diagnostics(context: TestContext) -> void:
+	var diagnostics := preload("res://src/client/client_diagnostics.gd")
+	var fields: Dictionary = diagnostics.startup_fields()
+	context.expect_equal(fields.get("game_version"), GameConstants.GAME_VERSION, "client startup line names the build")
+	context.expect_equal(fields.get("protocol_version"), GameConstants.PROTOCOL_VERSION, "client startup line names the protocol")
+	context.expect_equal(fields.get("packet_version"), NetworkProtocol.PACKET_VERSION, "client startup line names the packet format")
+	for key in ["os", "renderer", "window_size", "engine"]:
+		context.expect_true(fields.has(key), "client startup line records %s" % key)
+	for key in fields:
+		context.expect_false(String(key).contains("password") or String(key).contains("token") or String(key).contains("address") or String(key).contains("host"), "client startup line carries no credentials or addresses (%s)" % key)
+	context.expect_true(String(diagnostics.log_folder()).ends_with("logs"), "the log folder is user://logs")
+	context.expect_true(bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging.pc", false)), "desktop builds write a rotating log file")

@@ -9,6 +9,7 @@ const NavigationScript = preload("res://src/client/ui/screen_navigation.gd")
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const AccessibilityPreferencesScript = preload("res://src/client/presentation/accessibility_preferences.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
+const ClientDiagnosticsScript = preload("res://src/client/client_diagnostics.gd")
 enum WindowModeOption {
 	WINDOWED,
 	BORDERLESS_FULLSCREEN,
@@ -142,7 +143,17 @@ func _create_settings_overlay(canvas: CanvasLayer) -> void:
 	saved_note.text = "Settings and both control profiles save automatically."
 	saved_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	saved_note.theme_type_variation = &"HintLabel"
-	content.add_child(saved_note)
+	saved_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var note_row := HBoxContainer.new()
+	content.add_child(note_row)
+	note_row.add_child(saved_note)
+	# Bug reports attach user://logs/godot.log; this opens its folder.
+	var log_button := Button.new()
+	log_button.name = "OpenLogFolderButton"
+	log_button.text = "OPEN LOG FOLDER"
+	log_button.theme_type_variation = &"QuietButton"
+	log_button.pressed.connect(func() -> void: ClientDiagnosticsScript.open_log_folder())
+	note_row.add_child(log_button)
 	var back_button := Button.new()
 	back_button.text = "CLOSE SETTINGS"
 	back_button.theme_type_variation = &"QuietButton"
@@ -593,7 +604,7 @@ func _load_video_settings() -> void:
 	if DisplayServer.get_name() != "headless":
 		current_resolution = DisplayServer.window_get_size()
 	var config := ConfigFile.new()
-	if config.load(SettingsStore.PATH) == OK:
+	if SettingsStore.load_into(config, SettingsStore.PATH) == OK:
 		var configured_mode := int(config.get_value("video", "window_mode", WindowModeOption.WINDOWED))
 		if configured_mode >= WindowModeOption.WINDOWED and configured_mode <= WindowModeOption.EXCLUSIVE_FULLSCREEN:
 			current_window_mode = configured_mode
