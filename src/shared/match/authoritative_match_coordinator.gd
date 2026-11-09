@@ -663,9 +663,16 @@ func _prepare_world_heat() -> void:
 	world.set_team_assignments(_team_assignments_cache)
 	_spawn_assignments_cache = spawn_assignments.duplicate(true)
 	world.prepare_heat(participant_stats, spawn_assignments)
-	world.arena_effects.reset(current_map_id, machine.config.arena_effects)
+	world.arena_effects.reset(current_map_id, machine.config.arena_effects, hazard_seed(match_seed, machine.round_number, machine.heat_number))
 	_last_arena_effect_snapshot = {}
 	_last_arena_effect_tick = -1
+
+
+## Seeds each heat's hazard timing (Solar Crucible flares) from the match seed,
+## round and heat, so a known seed reproduces a hazard bug report.
+static func hazard_seed(seed_value: int, round_number: int, heat_number: int) -> int:
+	var value := hash([seed_value, round_number, heat_number])
+	return value if value != 0 else 1
 
 
 func _spread_spawn_assignments(participant_ids: Array[int], anchors: Array[Vector2]) -> Dictionary:

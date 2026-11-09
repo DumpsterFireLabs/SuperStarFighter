@@ -2,6 +2,7 @@ extends RefCounted
 
 static func run(context: TestContext, parent: Node) -> void:
 	_validate_solar_crucible(context)
+	_seeded_hazard_timing(context)
 	var options := ArenaEffectRules.DEFAULT.duplicate()
 	context.expect_true(ArenaEffectRules.valid(options), "default arena settings validate")
 	context.expect_equal(ArenaEffectRules.enabled(options, &"twin_suns"), 0, "effects default off")
@@ -247,3 +248,15 @@ static func _validate_solar_crucible(context: TestContext) -> void:
 	world.step_arena_effects(4, 60)
 	context.expect_true(not victim.alive, "contact burn resolves authoritative lethal damage")
 	context.expect_true(str(world.drain_combat_feedback()).contains("star_contact"), "contact death names its hazard")
+
+
+static func _seeded_hazard_timing(context: TestContext) -> void:
+	var options := ArenaEffectRules.DEFAULT.duplicate()
+	var first := ArenaEffectState.new()
+	var second := ArenaEffectState.new()
+	var seed_value := AuthoritativeMatchCoordinator.hazard_seed(4242, 2, 3)
+	first.reset(&"solar_crucible", options, seed_value)
+	second.reset(&"solar_crucible", options, seed_value)
+	context.expect_equal(first._next_flare_start, second._next_flare_start, "the same match seed, round and heat reproduce flare timing")
+	context.expect_true(AuthoritativeMatchCoordinator.hazard_seed(4242, 2, 3) != AuthoritativeMatchCoordinator.hazard_seed(4242, 2, 4), "each heat gets its own hazard seed")
+	context.expect_true(AuthoritativeMatchCoordinator.hazard_seed(0, 0, 0) != 0, "the hazard seed is never the unseeded sentinel")

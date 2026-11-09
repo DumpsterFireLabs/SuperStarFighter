@@ -26,7 +26,9 @@ var _flare_rng := RandomNumberGenerator.new()
 var _flare_start := 3.0
 var _next_flare_start := 0.0
 
-func reset(selected_map: StringName, options: Dictionary) -> void:
+## `hazard_seed` makes flare timing reproducible from the match seed; 0 keeps
+## the old unseeded behavior for callers outside a match (map authoring).
+func reset(selected_map: StringName, options: Dictionary, hazard_seed: int = 0) -> void:
 	map_id = selected_map
 	settings = options.duplicate()
 	enabled = ArenaEffectRules.enabled(settings, map_id)
@@ -42,7 +44,10 @@ func reset(selected_map: StringName, options: Dictionary) -> void:
 	_hit_lives.clear()
 	_grace_until.clear()
 	_contact_until.clear()
-	_flare_rng.randomize()
+	if hazard_seed != 0:
+		_flare_rng.seed = hazard_seed
+	else:
+		_flare_rng.randomize()
 	_flare_start = 3.0
 	_next_flare_start = _flare_start + _random_pulse_gap()
 	if enabled & ArenaEffectRules.CARGO:
