@@ -779,6 +779,14 @@ func _on_match_start_accepted(_server_tick: int, payload: Dictionary) -> void:
 
 
 func _on_match_state_changed(server_tick: int, payload: Dictionary) -> void:
+	# A map this build lacks would otherwise render as plausible wrong geometry.
+	var map_id := String(payload.get("map_id", ""))
+	if not map_id.is_empty() and not ArenaLayout.has_map(StringName(map_id)):
+		_log_diagnostic("unknown_map_rejected", {"map_id": map_id.left(64)})
+		_disconnect_online("DISCONNECTED: UNKNOWN MAP
+The server chose a map this build does not have (%s).
+Update the game to the server's version, then reconnect." % map_id.left(64))
+		return
 	var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 	var state_name := String(payload.get("state_name", MatchStateNames.LOBBY))
 	standings_controller.invalidate_rows()
