@@ -41,12 +41,7 @@ func _capture_sequence() -> void:
 		await _capture_preset_hazards(client)
 		return
 	await _capture(client, "splash")
-	client.splash_auto_timer.stop()
-	client.splash_stage = 1
-	client.studio_splash.visible = false
-	client.splash_neon_backdrop.visible = true
-	client.game_splash.visible = true
-	client.game_splash.modulate = Color.WHITE
+	client.splash.show_game_splash()
 	await _capture(client, "game_splash")
 	client._dismiss_splash(true)
 	var local_servers: Array[Dictionary] = [

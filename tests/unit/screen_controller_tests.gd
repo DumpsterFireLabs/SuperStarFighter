@@ -22,7 +22,7 @@ static func run(context: TestContext, parent: Node) -> void:
 	client._dismiss_splash(true)
 	context.expect_true(client.connection_controller.connection_primary_button != null, "admin UI preserves main menu controls")
 	context.expect_true(client.connection_controller.connection_canvas.find_child("LobbyAdminButton", true, false) != null, "online lobby exposes admin access")
-	context.expect_true(client.pause_overlay.find_child("PauseAdminButton", true, false) != null, "pilot menu exposes admin access")
+	context.expect_true(client.pause_menu.overlay.find_child("PauseAdminButton", true, false) != null, "pilot menu exposes admin access")
 	client.bridge.session.role = NetworkBridge.Role.CLIENT
 	client.bridge.session.local_peer_id = 2
 	client.admin_panel.show_panel()
@@ -106,12 +106,12 @@ static func _global_pause_shortcut(context: TestContext, client: Node) -> void:
 	var key := InputEventKey.new()
 	key.physical_keycode = KEY_F10
 	key.pressed = true
-	client.pause_overlay.visible = true
+	client.pause_menu.overlay.visible = true
 	client._input(key)
 	context.expect_equal(recording.pause_requests, [true], "F10 requests global pause from inside the pilot menu")
 	client.network_world.apply_match_pause(true)
 	client._update_global_pause_ui()
-	context.expect_true(client.global_pause_notice.text.contains("F10 to resume"), "paused host sees the current shortcut")
+	context.expect_true(client.pause_menu.global_pause_notice.text.contains("F10 to resume"), "paused host sees the current shortcut")
 	key.echo = true
 	client._input(key)
 	context.expect_equal(recording.pause_requests.size(), 1, "holding F10 cannot repeatedly toggle pause")
@@ -126,7 +126,7 @@ static func _global_pause_shortcut(context: TestContext, client: Node) -> void:
 	client._input(key)
 	client._update_global_pause_ui()
 	context.expect_equal(recording.pause_requests.size(), 2, "guest hotkey cannot request global pause or resume")
-	context.expect_false(client.global_pause_notice.text.contains("F10"), "guests see waiting text instead of a host shortcut")
+	context.expect_false(client.pause_menu.global_pause_notice.text.contains("F10"), "guests see waiting text instead of a host shortcut")
 	recording.session.latest_lobby_state.leader_id = 2
 	var remapped := InputEventKey.new()
 	remapped.physical_keycode = KEY_F9
@@ -137,13 +137,13 @@ static func _global_pause_shortcut(context: TestContext, client: Node) -> void:
 	context.expect_equal(recording.pause_requests.size(), 2, "old F10 shortcut stops working after rebinding")
 	client._input(remapped)
 	context.expect_equal(recording.pause_requests.size(), 3, "remapped global pause shortcut takes effect")
-	context.expect_true(client.global_pause_notice.text.contains("F9 to resume"), "intermission notice follows the remapped shortcut")
+	context.expect_true(client.pause_menu.global_pause_notice.text.contains("F9 to resume"), "intermission notice follows the remapped shortcut")
 	client.latest_match_payload = {"state_name": "LOBBY"}
 	client._input(remapped)
 	context.expect_equal(recording.pause_requests.size(), 3, "host hotkey does nothing in the lobby")
 	client.match_state.reset()
 	client.network_world.reset_session()
-	client.pause_overlay.visible = false
+	client.pause_menu.overlay.visible = false
 	client.bridge = original_bridge
 	client.input_profiles.restore_active_defaults(false)
 	recording.free()

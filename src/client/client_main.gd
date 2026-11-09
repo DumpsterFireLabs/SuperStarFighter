@@ -7,6 +7,9 @@ const SettingsControllerScript = preload("res://src/client/ui/settings_controlle
 const ConnectionControllerScript = preload("res://src/client/ui/connection_controller.gd")
 const AdminPanelScript = preload("res://src/client/ui/admin_panel.gd")
 const UpdateCheckerScript = preload("res://src/client/network/update_checker.gd")
+const SplashControllerScript = preload("res://src/client/ui/splash_controller.gd")
+const CreditsOverlayScript = preload("res://src/client/ui/credits_overlay.gd")
+const PauseMenuScript = preload("res://src/client/ui/pause_menu.gd")
 
 var draft_controller := DraftScreenControllerScript.new()
 var standings_controller := StandingsScreenControllerScript.new()
@@ -14,15 +17,15 @@ var standings_controller := StandingsScreenControllerScript.new()
 var settings_controller := SettingsControllerScript.new()
 var connection_controller := ConnectionControllerScript.new()
 var admin_panel := AdminPanelScript.new()
+var splash := SplashControllerScript.new()
+var credits := CreditsOverlayScript.new()
+var pause_menu := PauseMenuScript.new()
 
 const InputProfileManagerScript = preload("res://src/client/input/input_profile_manager.gd")
 const CardHoverButtonScript = preload("res://src/client/ui/card_hover_button.gd")
 const DesignTokensScript = preload("res://src/client/ui/design_tokens.gd")
 const ShipAppearanceScript = preload("res://src/shared/models/ship_appearance.gd")
 const CROSSHAIR_TEXTURE: Texture2D = preload("res://assets/ui/crosshair.svg")
-const DUMPSTER_FIRE_LABS_TEXTURE: Texture2D = preload("res://assets/ui/dumpster_fire_labs.png")
-const STUDIO_SPLASH_AUTO_ADVANCE_SECONDS: float = 4.0
-const SPLASH_AUTO_ADVANCE_SECONDS: float = 10.0
 const HEAT_BEGIN_LEAD_SECONDS: float = 0.10
 const HEAT_BEGIN_FADE_SECONDS: float = 0.10
 const WindowModeOption = SettingsControllerScript.WindowModeOption
@@ -45,20 +48,9 @@ var heat_intro_panel: PanelContainer
 var heat_intro_kicker: Label
 var heat_intro_title: Label
 var heat_intro_subtitle: Label
-var pause_overlay: PanelContainer
-var pause_title: Label
 
 var settings_return_to_pause: bool = false
 var settings_return_to_lobby: bool = false
-var credits_panel: Control
-var splash_screen: Control
-var studio_splash: Control
-var game_splash: Control
-var splash_neon_backdrop: Control
-var splash_auto_timer: Timer
-var splash_stage: int = 0
-var splash_transitioning: bool = false
-var splash_dismissed: bool = false
 var card_catalog := CardCatalog.create_default()
 var match_state := preload("res://src/client/network/client_match_state.gd").new()
 var latest_match_payload: Dictionary:
@@ -69,11 +61,6 @@ var interface_theme: Theme
 var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = MatchStateNames.LOBBY
-var pause_resume_button: Button
-var global_pause_button: Button
-var global_pause_notice: Label
-var pause_note: Label
-var pause_disconnect_button: Button
 var f2_return_confirmation: ConfirmationDialog
 var update_checker: Node
 var update_notice: ConfirmationDialog
@@ -88,6 +75,7 @@ var _native_gameplay_cursor_active: bool = false
 
 
 func _init() -> void:
+	_register_match_event_handlers()
 	match_state.changed.connect(standings_controller.invalidate_context)
 	draft_controller.inspection_requested.connect(_inspect_card)
 	draft_controller.presentation_changed.connect(_update_match_presentation)
@@ -118,6 +106,20 @@ func _init() -> void:
 	add_child(admin_panel)
 	admin_panel.access_changed.connect(func(_unlocked: bool) -> void: standings_controller.invalidate_context())
 	standings_controller.admin_requested.connect(_show_admin)
+	splash.name = "SplashController"
+	splash.finished.connect(_on_splash_finished)
+	add_child(splash)
+	credits.name = "CreditsOverlay"
+	credits.closed.connect(_on_credits_closed)
+	add_child(credits)
+	pause_menu.name = "PauseMenu"
+	pause_menu.resume_requested.connect(_hide_pause_overlay)
+	pause_menu.global_pause_requested.connect(_toggle_global_pause)
+	pause_menu.settings_requested.connect(_show_settings.bind(true))
+	pause_menu.admin_requested.connect(_show_admin)
+	pause_menu.disconnect_requested.connect(_return_from_pause)
+	pause_menu.quit_requested.connect(func() -> void: get_tree().quit())
+	add_child(pause_menu)
 
 
 func _ready() -> void:
@@ -166,12 +168,12 @@ func _ready() -> void:
 	standings_controller.set_admin_access_provider(admin_panel.is_authenticated)
 	connection_controller.start_discovery()
 	_create_match_ui()
-	_create_pause_overlay()
+	pause_menu.create_ui(connection_controller.connection_canvas, self, interface_theme, _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	_create_f2_return_confirmation()
 	settings_controller._create_settings_overlay(connection_controller.connection_canvas)
-	_create_credits_overlay()
+	credits.create_ui(connection_controller.connection_canvas, interface_theme, _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
 	_create_gameplay_cursor()
-	_create_splash_screen()
+	splash.create_ui(settings_controller.register_interface_scope)
 	_create_update_notice()
 	_create_controller_prompt()
 	audio_director.set_context(&"menu")
@@ -211,7 +213,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			admin_panel.hide_panel()
 			get_viewport().set_input_as_handled()
 			return
-		if credits_panel != null and credits_panel.visible:
+		if credits.panel != null and credits.is_open():
 			_hide_credits()
 			get_viewport().set_input_as_handled()
 			return
@@ -222,7 +224,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_hide_settings()
 			get_viewport().set_input_as_handled()
 			return
-		if pause_overlay != null and pause_overlay.visible:
+		if pause_menu.overlay != null and pause_menu.overlay.visible:
 			_hide_pause_overlay()
 			get_viewport().set_input_as_handled()
 			return
@@ -230,7 +232,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_pause_overlay()
 			get_viewport().set_input_as_handled()
 			return
-	if pause_overlay != null and pause_overlay.visible:
+	if pause_menu.overlay != null and pause_menu.overlay.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
 		_request_f2_return_to_menu()
@@ -271,7 +273,7 @@ func _input(event: InputEvent) -> void:
 		else:
 			card_inspector.handle_input(event)
 		return
-	if splash_screen != null and splash_screen.visible and _is_start_input(event):
+	if splash.screen != null and splash.screen.visible and _is_start_input(event):
 		_dismiss_splash()
 		get_viewport().set_input_as_handled()
 		return
@@ -296,7 +298,7 @@ func _create_match_ui() -> void:
 	card_inspector = preload("res://src/client/ui/card_inspector.gd").new()
 	add_child(card_inspector)
 	settings_controller.register_interface_scope(card_inspector)
-	card_inspector.closed.connect(func() -> void: network_world.input_blocked = pause_overlay != null and pause_overlay.visible)
+	card_inspector.closed.connect(func() -> void: network_world.input_blocked = pause_menu.overlay != null and pause_menu.overlay.visible)
 	match_panel = PanelContainer.new()
 	match_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	match_panel.position = Vector2(-380.0, 20.0)
@@ -345,86 +347,6 @@ func _create_match_ui() -> void:
 	standings_controller.create_ui()
 
 
-func _create_pause_overlay() -> void:
-	pause_overlay = PanelContainer.new()
-	pause_overlay.set_anchors_preset(Control.PRESET_CENTER)
-	pause_overlay.position = Vector2(-320.0, -220.0)
-	pause_overlay.custom_minimum_size = Vector2(640.0, 440.0)
-	pause_overlay.theme = interface_theme
-	pause_overlay.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
-	pause_overlay.visible = false
-	connection_controller.connection_canvas.add_child(pause_overlay)
-	var content := VBoxContainer.new()
-	content.alignment = BoxContainer.ALIGNMENT_CENTER
-	content.add_theme_constant_override("separation", 18)
-	pause_overlay.add_child(content)
-	pause_title = Label.new()
-	pause_title.text = "PILOT MENU"
-	pause_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pause_title.theme_type_variation = &"ScreenTitle"
-	content.add_child(pause_title)
-	pause_note = Label.new()
-	pause_note.text = "Online combat continues while this menu is open."
-	pause_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pause_note.theme_type_variation = &"HintLabel"
-	content.add_child(pause_note)
-	global_pause_button = Button.new()
-	global_pause_button.name = "GlobalPauseButton"
-	global_pause_button.custom_minimum_size.y = 58.0
-	# Resume is the one primary action here; pausing everyone is an alternate.
-	global_pause_button.theme_type_variation = &"SecondaryButton"
-	global_pause_button.visible = false
-	global_pause_button.pressed.connect(_toggle_global_pause)
-	content.add_child(global_pause_button)
-	pause_resume_button = Button.new()
-	pause_resume_button.text = "RESUME"
-	pause_resume_button.theme_type_variation = &"PrimaryButton"
-	pause_resume_button.custom_minimum_size.y = 58.0
-	pause_resume_button.pressed.connect(_hide_pause_overlay)
-	content.add_child(pause_resume_button)
-	var settings_button := Button.new()
-	settings_button.text = "SETTINGS"
-	settings_button.theme_type_variation = &"SecondaryButton"
-	settings_button.custom_minimum_size.y = 58.0
-	settings_button.pressed.connect(_show_settings.bind(true))
-	content.add_child(settings_button)
-	var admin_button := Button.new()
-	admin_button.name = "PauseAdminButton"
-	admin_button.text = "SERVER ADMIN"
-	admin_button.theme_type_variation = &"SecondaryButton"
-	admin_button.custom_minimum_size.y = 58.0
-	admin_button.pressed.connect(_show_admin)
-	content.add_child(admin_button)
-	pause_disconnect_button = Button.new()
-	pause_disconnect_button.name = "PauseDisconnectButton"
-	pause_disconnect_button.text = "DISCONNECT / RETURN TO MENU"
-	pause_disconnect_button.theme_type_variation = &"DangerButton"
-	pause_disconnect_button.custom_minimum_size.y = 58.0
-	pause_disconnect_button.pressed.connect(_return_from_pause)
-	content.add_child(pause_disconnect_button)
-	var quit_button := Button.new()
-	quit_button.text = "QUIT GAME"
-	quit_button.theme_type_variation = &"DangerButton"
-	quit_button.custom_minimum_size.y = 58.0
-	quit_button.pressed.connect(get_tree().quit)
-	content.add_child(quit_button)
-	var notice_canvas := CanvasLayer.new()
-	notice_canvas.layer = 21
-	add_child(notice_canvas)
-	global_pause_notice = Label.new()
-	global_pause_notice.name = "GlobalPauseNotice"
-	global_pause_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	global_pause_notice.add_theme_font_size_override("font_size", 26)
-	global_pause_notice.add_theme_color_override("font_color", DesignTokensScript.WARNING)
-	global_pause_notice.add_theme_color_override("font_outline_color", Color("02040d"))
-	global_pause_notice.add_theme_constant_override("outline_size", 10)
-	global_pause_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	global_pause_notice.visible = false
-	notice_canvas.add_child(global_pause_notice)
-	global_pause_notice.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	global_pause_notice.offset_top = 12.0
-
-
 func _can_toggle_global_pause() -> bool:
 	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
 	var state_name := String(latest_match_payload.get("state_name", MatchStateNames.LOBBY))
@@ -441,21 +363,8 @@ func _toggle_global_pause() -> void:
 
 
 func _update_global_pause_ui() -> void:
-	var paused := network_world.match_paused
 	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
-	global_pause_button.visible = _can_toggle_global_pause()
-	global_pause_button.text = "RESUME MATCH FOR EVERYONE" if paused else "PAUSE MATCH FOR EVERYONE"
-	var binding: String = input_profiles.binding_text(&"global_pause")
-	if binding != "Unbound":
-		global_pause_button.text += " · " + binding
-	pause_resume_button.text = "CLOSE MENU" if paused else "RESUME"
-	pause_note.text = "Match and timers are paused for everyone." if paused else "Online combat continues while this menu is open."
-	global_pause_notice.visible = paused
-	var resume_hint := "%s to resume for everyone." % binding if binding != "Unbound" else "Open the pilot menu to resume for everyone."
-	global_pause_notice.text = "INTERMISSION · MATCH PAUSED\n" + (resume_hint if is_host else "Waiting for the host to resume.")
-	var awaiting := _awaiting_reconnect_names()
-	if paused and not awaiting.is_empty():
-		global_pause_notice.text = "MATCH PAUSED · PILOT DISCONNECTED\nWaiting for %s to reconnect." % ", ".join(PackedStringArray(awaiting))
+	pause_menu.show_global_pause(network_world.match_paused, is_host, _can_toggle_global_pause(), input_profiles.binding_text(&"global_pause"), _awaiting_reconnect_names())
 
 
 func _create_f2_return_confirmation() -> void:
@@ -504,7 +413,7 @@ func _on_update_available(version: String, url: String) -> void:
 func _show_pending_update_notice() -> void:
 	if _pending_update_url.is_empty() or update_notice == null or update_notice.visible:
 		return
-	if splash_screen.visible or not connection_controller.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible:
+	if splash.screen.visible or not connection_controller.is_visible() or settings_controller.settings_panel.visible or credits.is_open():
 		return
 	update_notice.popup_centered()
 	update_notice.get_ok_button().grab_focus()
@@ -541,7 +450,7 @@ func _show_pending_controller_prompt() -> void:
 	if input_profiles.uses_controller():
 		_controller_prompt_pending = false
 		return
-	if update_notice.visible or splash_screen.visible or not connection_controller.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible:
+	if update_notice.visible or splash.screen.visible or not connection_controller.is_visible() or settings_controller.settings_panel.visible or credits.is_open():
 		return
 	_controller_prompt_pending = false
 	var device_names: Array[String] = []
@@ -575,8 +484,8 @@ func _refresh_control_prompts() -> void:
 func _show_settings(return_to_pause: bool) -> void:
 	settings_return_to_pause = return_to_pause
 	settings_return_to_lobby = not return_to_pause and connection_controller.is_lobby_visible()
-	if pause_overlay != null:
-		pause_overlay.visible = false
+	if pause_menu.overlay != null:
+		pause_menu.overlay.visible = false
 	settings_controller.settings_panel.visible = true
 	settings_controller._refresh_input_settings_ui()
 	if network_world != null:
@@ -588,9 +497,9 @@ func _hide_settings() -> void:
 	settings_controller._cancel_binding_capture()
 	settings_controller.settings_panel.visible = false
 	if settings_return_to_pause and not connection_controller.is_visible():
-		pause_overlay.visible = true
+		pause_menu.overlay.visible = true
 		network_world.input_blocked = true
-		pause_resume_button.grab_focus()
+		pause_menu.resume_button.grab_focus()
 	elif settings_return_to_lobby and connection_controller.is_lobby_visible():
 		network_world.input_blocked = false
 		connection_controller.focus_settings()
@@ -604,102 +513,15 @@ func _hide_settings() -> void:
 	_show_pending_controller_prompt()
 
 
-func _create_credits_overlay() -> void:
-	credits_panel = Control.new()
-	credits_panel.name = "CreditsScreen"
-	credits_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	credits_panel.visible = false
-	connection_controller.connection_canvas.add_child(credits_panel)
-	var dim := ColorRect.new()
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color("02040d", 0.92)
-	credits_panel.add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	credits_panel.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(960.0, 610.0)
-	panel.theme = interface_theme
-	panel.add_theme_stylebox_override("panel", _panel_style(DesignTokensScript.BRAND_MAGENTA, 0.98))
-	center.add_child(panel)
-	var content := VBoxContainer.new()
-	content.alignment = BoxContainer.ALIGNMENT_CENTER
-	content.add_theme_constant_override("separation", 12)
-	panel.add_child(content)
-	var kicker := Label.new()
-	kicker.text = "✦  DUMPSTER FIRE LABS PRESENTS  ✦"
-	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kicker.theme_type_variation = &"Kicker"
-	content.add_child(kicker)
-	var title := Label.new()
-	title.text = "THANKS FOR PLAYING!"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 44)
-	title.theme_type_variation = &"ScreenTitle"
-	content.add_child(title)
-	var thank_you := Label.new()
-	thank_you.text = "To everyone who stepped into the arena—thank you for giving the game a shot.\nI set out to make the kind of game I’d have a blast playing with friends, whether at a LAN party or online.\nI hope you had as much fun playing—and testing—it as I did making it!"
-	thank_you.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	thank_you.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	thank_you.custom_minimum_size = Vector2(900.0, 0.0)
-	thank_you.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
-	thank_you.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
-	content.add_child(thank_you)
-	_add_credit_block(content, "CREATED BY", "Graphite  ·  jbohack  ·  Champ")
-	_add_credit_block(content, "TESTERS", "Equip  ·  KingRat  ·  DoomGuy  ·  Adam  ·  WhackyJacky  ·  Hipu  ·  Krusty Dave  ·  NoPE  ·  OSINTI4L  ·  TurboDoink  ·  AK-REX  ·  Dakka  ·  Gremlin  ·  Trash Panda  ·  SkonSolo")
-	_add_credit_block(content, "SPECIAL THANKS", "ChatGPT  ·  Claude")
-	var repo_center := CenterContainer.new()
-	content.add_child(repo_center)
-	var repo_link := LinkButton.new()
-	repo_link.text = "github.com/DumpsterFireLabs/SuperStarFighter"
-	repo_link.uri = "https://github.com/DumpsterFireLabs/SuperStarFighter"
-	repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
-	repo_link.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
-	repo_link.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
-	repo_link.add_theme_color_override("font_hover_color", DesignTokensScript.FOCUS)
-	repo_link.add_theme_color_override("font_focus_color", DesignTokensScript.FOCUS)
-	# ON_HOVER only reacts to the mouse, so keyboard and controller focus underline explicitly.
-	repo_link.focus_entered.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ALWAYS)
-	repo_link.focus_exited.connect(func() -> void: repo_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER)
-	repo_center.add_child(repo_link)
-	var back_center := CenterContainer.new()
-	content.add_child(back_center)
-	var back_button := Button.new()
-	back_button.text = "BACK TO MAIN MENU"
-	back_button.theme_type_variation = &"PrimaryButton"
-	back_button.custom_minimum_size = Vector2(300.0, 52.0)
-	back_button.pressed.connect(_hide_credits)
-	back_center.add_child(back_button)
-
-
-func _add_credit_block(parent: VBoxContainer, role: String, names: String) -> void:
-	var block := VBoxContainer.new()
-	block.add_theme_constant_override("separation", 2)
-	parent.add_child(block)
-	var role_label := Label.new()
-	role_label.text = role
-	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_label.theme_type_variation = &"Kicker"
-	block.add_child(role_label)
-	var names_label := Label.new()
-	names_label.text = names
-	names_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	names_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	names_label.custom_minimum_size = Vector2(650.0, 0.0)
-	names_label.add_theme_font_size_override("font_size", 24)
-	names_label.add_theme_color_override("font_color", DesignTokensScript.TEXT_PRIMARY)
-	block.add_child(names_label)
-
-
 func _show_credits() -> void:
-	credits_panel.visible = true
-	for child in credits_panel.find_children("*", "Button", true, false):
-		(child as Button).grab_focus()
-		break
+	credits.open()
 
 
 func _hide_credits() -> void:
-	credits_panel.visible = false
+	credits.close()
+
+
+func _on_credits_closed() -> void:
 	if connection_controller.is_visible():
 		connection_controller.focus_credits()
 	_show_pending_update_notice()
@@ -720,159 +542,15 @@ func _create_gameplay_cursor() -> void:
 	gameplay_cursor_canvas.add_child(gameplay_cursor)
 
 
-func _create_splash_screen() -> void:
-	var splash_canvas := CanvasLayer.new()
-	splash_canvas.layer = 40
-	splash_canvas.name = "SplashUI"
-	add_child(splash_canvas)
-	settings_controller.register_interface_scope(splash_canvas)
-	splash_screen = Control.new()
-	splash_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	splash_canvas.add_child(splash_screen)
-	var studio_backdrop := ColorRect.new()
-	studio_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	studio_backdrop.color = Color("1d3a3a")
-	splash_screen.add_child(studio_backdrop)
-	splash_neon_backdrop = NeonBackdrop.new()
-	splash_neon_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	splash_neon_backdrop.visible = false
-	splash_screen.add_child(splash_neon_backdrop)
-	studio_splash = Control.new()
-	studio_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	splash_screen.add_child(studio_splash)
-	var studio_center := CenterContainer.new()
-	studio_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	studio_splash.add_child(studio_center)
-	var studio_content := VBoxContainer.new()
-	studio_content.alignment = BoxContainer.ALIGNMENT_CENTER
-	studio_content.add_theme_constant_override("separation", 12)
-	studio_center.add_child(studio_content)
-	var studio_logo := TextureRect.new()
-	studio_logo.name = "DumpsterFireLabsLogo"
-	studio_logo.texture = DUMPSTER_FIRE_LABS_TEXTURE
-	studio_logo.custom_minimum_size = Vector2(470.0, 470.0)
-	studio_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	studio_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	studio_content.add_child(studio_logo)
-	var quote := Label.new()
-	quote.name = "StudioQuote"
-	quote.text = "“Now with 1000% more slop!”"
-	quote.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	quote.add_theme_font_size_override("font_size", 30)
-	quote.add_theme_color_override("font_color", Color("ffe7a8"))
-	studio_content.add_child(quote)
-	var studio_skip := Label.new()
-	studio_skip.text = "PRESS ANY INPUT TO CONTINUE"
-	studio_skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	studio_skip.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
-	studio_skip.add_theme_color_override("font_color", Color("7ee0bd"))
-	studio_content.add_child(studio_skip)
-	game_splash = Control.new()
-	game_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	game_splash.visible = false
-	splash_screen.add_child(game_splash)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	game_splash.add_child(center)
-	var content := VBoxContainer.new()
-	content.alignment = BoxContainer.ALIGNMENT_CENTER
-	center.add_child(content)
-	var logo := SplashLogo.new()
-	logo.custom_minimum_size = Vector2(520.0, 300.0)
-	content.add_child(logo)
-	var title := Label.new()
-	title.text = "SUPER STAR FIGHTER"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 68)
-	title.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
-	content.add_child(title)
-	var flare := Label.new()
-	flare.text = "✦  POWER UP · OUTGUN · OUTLAST  ✦"
-	flare.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	flare.add_theme_font_size_override("font_size", 28)
-	flare.add_theme_color_override("font_color", DesignTokensScript.BRAND_MAGENTA)
-	content.add_child(flare)
-	var skip := Label.new()
-	skip.text = "PRESS ANY INPUT TO START"
-	skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	skip.add_theme_font_size_override("font_size", DesignTokensScript.TEXT_BODY_SIZE)
-	skip.add_theme_color_override("font_color", DesignTokensScript.BRAND_CYAN)
-	content.add_child(skip)
-	studio_content.modulate = Color(1, 1, 1, 0)
-	studio_content.scale = Vector2(0.88, 0.88)
-	studio_content.pivot_offset = Vector2(235.0, 270.0)
-	var intro := create_tween().set_parallel(true)
-	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	intro.tween_property(studio_content, "modulate", Color.WHITE, 0.8)
-	intro.tween_property(studio_content, "scale", Vector2.ONE, 1.05)
-	splash_auto_timer = Timer.new()
-	splash_auto_timer.one_shot = true
-	splash_auto_timer.timeout.connect(_on_splash_auto_advance)
-	splash_screen.add_child(splash_auto_timer)
-	splash_auto_timer.start(STUDIO_SPLASH_AUTO_ADVANCE_SECONDS)
-
-
-func _on_splash_auto_advance() -> void:
-	_dismiss_splash()
-
-
 func _dismiss_splash(immediate: bool = false) -> void:
-	if splash_dismissed or splash_screen == null or splash_transitioning:
-		return
-	if immediate:
-		splash_dismissed = true
-		if splash_auto_timer != null:
-			splash_auto_timer.stop()
-		splash_screen.visible = false
-		_focus_connection_menu()
-		return
-	if splash_stage == 0:
-		_transition_to_game_splash()
-		return
-	splash_dismissed = true
-	if splash_auto_timer != null:
-		splash_auto_timer.stop()
-	var fade := create_tween()
-	fade.tween_property(splash_screen, "modulate", Color(1, 1, 1, 0), 0.35)
-	fade.finished.connect(_finish_splash_dismissal)
+	splash.dismiss(immediate)
 
 
-func _transition_to_game_splash() -> void:
-	splash_stage = 1
-	splash_transitioning = true
-	if splash_auto_timer != null:
-		splash_auto_timer.stop()
-	var fade_out := create_tween()
-	fade_out.tween_property(studio_splash, "modulate", Color(1, 1, 1, 0), 0.3)
-	fade_out.finished.connect(_finish_studio_splash)
-
-
-func _finish_studio_splash() -> void:
-	if splash_dismissed:
-		return
-	studio_splash.visible = false
-	splash_neon_backdrop.visible = true
-	game_splash.visible = true
-	game_splash.modulate = Color(1, 1, 1, 0)
-	var intro := create_tween().set_parallel(true)
-	intro.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	intro.tween_property(game_splash, "modulate", Color.WHITE, 0.6)
-	intro.finished.connect(_finish_game_splash_intro)
-
-
-func _finish_game_splash_intro() -> void:
-	if splash_dismissed:
-		return
-	splash_transitioning = false
-	if splash_auto_timer != null:
-		splash_auto_timer.start(SPLASH_AUTO_ADVANCE_SECONDS)
-
-
-func _finish_splash_dismissal() -> void:
-	splash_screen.visible = false
+func _on_splash_finished(immediate: bool) -> void:
 	_focus_connection_menu()
-	_show_pending_update_notice()
-	_show_pending_controller_prompt()
+	if not immediate:
+		_show_pending_update_notice()
+		_show_pending_controller_prompt()
 
 
 func _focus_connection_menu() -> void:
@@ -884,13 +562,13 @@ func _toggle_pause_overlay() -> void:
 	if connection_controller.is_visible():
 		return
 	standings_controller.set_scoreboard_open(false)
-	pause_overlay.visible = not pause_overlay.visible
-	network_world.input_blocked = pause_overlay.visible
-	if pause_overlay.visible and pause_resume_button != null:
-		pause_resume_button.grab_focus()
+	pause_menu.overlay.visible = not pause_menu.overlay.visible
+	network_world.input_blocked = pause_menu.overlay.visible
+	if pause_menu.overlay.visible and pause_menu.resume_button != null:
+		pause_menu.resume_button.grab_focus()
 	if offline_sandbox.visible:
-		offline_sandbox.set_process(not pause_overlay.visible)
-		offline_sandbox.set_physics_process(not pause_overlay.visible)
+		offline_sandbox.set_process(not pause_menu.overlay.visible)
+		offline_sandbox.set_physics_process(not pause_menu.overlay.visible)
 
 
 func _show_admin() -> void:
@@ -898,7 +576,7 @@ func _show_admin() -> void:
 
 
 func _hide_pause_overlay() -> void:
-	pause_overlay.visible = false
+	pause_menu.overlay.visible = false
 	network_world.input_blocked = false
 	get_viewport().gui_release_focus()
 	if offline_sandbox.visible:
@@ -977,9 +655,9 @@ func _play_offline() -> void:
 	heat_intro_panel.visible = false
 	draft_controller.clear_offer()
 	standings_controller.reset_session()
-	pause_overlay.visible = false
+	pause_menu.overlay.visible = false
 	settings_controller.settings_panel.visible = false
-	credits_panel.visible = false
+	credits.panel.visible = false
 	offline_sandbox.set_sandbox_active(true)
 	audio_director.set_context(&"gameplay")
 
@@ -1010,9 +688,9 @@ func _show_connection_screen(message: String, is_error: bool = false) -> void:
 	heat_intro_panel.visible = false
 	draft_controller.clear_offer()
 	standings_controller.reset_session()
-	pause_overlay.visible = false
+	pause_menu.overlay.visible = false
 	settings_controller.settings_panel.visible = false
-	credits_panel.visible = false
+	credits.panel.visible = false
 	network_world.input_blocked = false
 	audio_director.set_context(&"menu")
 	_focus_connection_menu()
@@ -1040,93 +718,132 @@ func _on_lobby_state(state: Dictionary) -> void:
 	connection_controller.render_lobby(state)
 
 
+## Match event type -> handler(server_tick, payload). Built once in _init.
+var _match_event_handlers: Dictionary = {}
+
+
+func _register_match_event_handlers() -> void:
+	_match_event_handlers = {
+		MatchEventTypes.MATCH_PAUSE_CHANGED: _on_match_pause_changed,
+		MatchEventTypes.COMBAT_FEEDBACK: func(_tick: int, payload: Dictionary) -> void: network_world.apply_combat_feedback(payload),
+		MatchEventTypes.MINE_DETONATIONS: func(tick: int, payload: Dictionary) -> void: network_world.apply_mine_detonations(tick, payload.get("events", []) as Array),
+		MatchEventTypes.REQUEST_REJECTED: _on_request_rejected,
+		MatchEventTypes.DRAFT_OFFER: func(_tick: int, payload: Dictionary) -> void: draft_controller.show_draft_offer(payload),
+		MatchEventTypes.MATCH_START_ACCEPTED: _on_match_start_accepted,
+		MatchEventTypes.STATE_CHANGED: _on_match_state_changed,
+		MatchEventTypes.DRAFT_RESOLVED: _on_draft_resolved,
+		MatchEventTypes.PLAYER_ELIMINATED: _on_player_eliminated,
+		MatchEventTypes.PLAYER_RESPAWNED: func(_tick: int, payload: Dictionary) -> void: match_state.apply_respawn(payload),
+		MatchEventTypes.ARENA_EFFECTS_UPDATED: _on_arena_effects_updated,
+		MatchEventTypes.OBJECTIVE_UPDATED: _on_objective_event.bind(true),
+		MatchEventTypes.OBJECTIVE_TRANSITION: _on_objective_event.bind(false),
+		MatchEventTypes.CARD_POWERUP_SPAWNED: func(_tick: int, payload: Dictionary) -> void: network_world.add_card_powerup(payload),
+		MatchEventTypes.CARD_POWERUP_REMOVED: _on_card_powerup_removed,
+		MatchEventTypes.CARD_POWERUP_COLLECTED: _on_card_powerup_collected,
+	}
+
+
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
 	standings_controller.invalidate_context()
-	if event_type == MatchEventTypes.MATCH_PAUSE_CHANGED:
-		match_state.update_fields({"paused": bool(payload.get("paused", false)), "awaiting_reconnect": payload.get("awaiting_reconnect", []) as Array})
-		network_world.latest_server_tick = server_tick
-		network_world.apply_match_pause(bool(payload.get("paused", false)))
-		_update_global_pause_ui()
-	elif event_type == MatchEventTypes.COMBAT_FEEDBACK:
-		network_world.apply_combat_feedback(payload)
-	elif event_type == MatchEventTypes.MINE_DETONATIONS:
-		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
-	elif event_type == MatchEventTypes.REQUEST_REJECTED:
-		standings_controller.reset_actions()
-		connection_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
-		standings_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
-		draft_controller.recover_rejected_offer()
-	elif event_type == MatchEventTypes.DRAFT_OFFER:
-		draft_controller.show_draft_offer(payload)
-	elif event_type == MatchEventTypes.MATCH_START_ACCEPTED and bool(payload.get("fresh_rematch", false)):
+	var handler: Callable = _match_event_handlers.get(event_type, Callable())
+	if handler.is_valid():
+		handler.call(server_tick, payload)
+
+
+func _on_match_pause_changed(server_tick: int, payload: Dictionary) -> void:
+	var paused := bool(payload.get("paused", false))
+	match_state.apply_pause(payload)
+	network_world.latest_server_tick = server_tick
+	network_world.apply_match_pause(paused)
+	_update_global_pause_ui()
+
+
+func _on_request_rejected(_server_tick: int, payload: Dictionary) -> void:
+	var message := String(payload.get("message", "Unknown request"))
+	standings_controller.reset_actions()
+	connection_controller.show_request_rejection(message)
+	standings_controller.show_request_rejection(message)
+	draft_controller.recover_rejected_offer()
+
+
+func _on_match_start_accepted(_server_tick: int, payload: Dictionary) -> void:
+	if not bool(payload.get("fresh_rematch", false)):
+		return
+	network_world.reset_match_presentation()
+	audio_director.reset_match_deduplication()
+	standings_controller.reset_rematch_request()
+
+
+func _on_match_state_changed(server_tick: int, payload: Dictionary) -> void:
+	var previous_state := String(latest_match_payload.get("state_name", last_state_name))
+	var state_name := String(payload.get("state_name", MatchStateNames.LOBBY))
+	standings_controller.invalidate_rows()
+	var entering_match := state_name != MatchStateNames.LOBBY
+	if entering_match:
+		network_world.set_network_active(true)
+		connection_controller.hide_screens()
+	else:
 		network_world.reset_match_presentation()
-		audio_director.reset_match_deduplication()
-		standings_controller.reset_rematch_request()
-	elif event_type == MatchEventTypes.STATE_CHANGED:
-		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
-		standings_controller.invalidate_rows()
-		var entering_match := String(payload.get("state_name", MatchStateNames.LOBBY)) != MatchStateNames.LOBBY
-		if entering_match:
-			network_world.set_network_active(true)
-		else:
-			network_world.reset_match_presentation()
-			network_world.set_network_active(false, false)
-		if entering_match:
-			connection_controller.hide_screens()
-		else:
-			connection_controller.show_waiting_lobby()
-		network_world.apply_match_state(payload, server_tick)
-		if network_world.match_paused:
-			network_world.latest_server_tick = server_tick
-		audio_director.set_objective_baseline(latest_match_payload.get("objective", {}) as Dictionary)
-		_handle_state_presentation(previous_state, String(payload.get("state_name", MatchStateNames.LOBBY)), payload)
-		_update_match_presentation()
-	elif event_type == MatchEventTypes.DRAFT_RESOLVED:
-		network_world.apply_builds(payload.get("builds", {}) as Dictionary)
-		standings_controller.invalidate_rows()
-		draft_controller.clear_offer()
-	elif event_type == MatchEventTypes.PLAYER_ELIMINATED:
-		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
+		network_world.set_network_active(false, false)
+		connection_controller.show_waiting_lobby()
+	network_world.apply_match_state(payload, server_tick)
+	if network_world.match_paused:
+		network_world.latest_server_tick = server_tick
+	audio_director.set_objective_baseline(latest_match_payload.get("objective", {}) as Dictionary)
+	_handle_state_presentation(previous_state, state_name, payload)
+	_update_match_presentation()
+
+
+func _on_draft_resolved(_server_tick: int, payload: Dictionary) -> void:
+	network_world.apply_builds(payload.get("builds", {}) as Dictionary)
+	standings_controller.invalidate_rows()
+	draft_controller.clear_offer()
+
+
+func _on_player_eliminated(server_tick: int, payload: Dictionary) -> void:
+	match_state.apply_elimination(payload)
+	var eliminations := payload.get("eliminations", []) as Array
+	if eliminations.is_empty():
 		for peer_value in payload.get("peer_ids", []):
-			alive_peer_ids.erase(int(peer_value))
-		match_state.update_fields({"alive_peer_ids": alive_peer_ids})
-		match_state.update_fields({"respawn_deadlines": (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)})
-		var eliminations := payload.get("eliminations", []) as Array
-		if eliminations.is_empty():
-			for peer_value in payload.get("peer_ids", []):
-				eliminations.append({
-					"killer_id": 0,
-					"victim_id": int(peer_value),
-					"reason": String(payload.get("reason", "combat")),
-				})
-		network_world.add_kill_feed_entries(eliminations, server_tick)
-		if payload.has("scores"):
-			match_state.update_fields({"scores": (payload.scores as Dictionary).duplicate(true)})
-			standings_controller.invalidate_rows()
-	elif event_type == MatchEventTypes.PLAYER_RESPAWNED:
-		match_state.update_fields({"alive_peer_ids": (payload.get("alive_peer_ids", []) as Array).duplicate()})
-		match_state.update_fields({"respawn_deadlines": (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)})
-	elif event_type == MatchEventTypes.ARENA_EFFECTS_UPDATED:
-		if network_world.replicated_visuals.arena != null:
-			var previous := network_world.replicated_visuals.arena.effect_state
-			if (bool(payload.get("warning", false)) and not bool(previous.get("warning", false))) or (int(payload.get("door_warning_mask", 0)) != 0 and int(previous.get("door_warning_mask", 0)) == 0):
-				audio_director.play_sfx(&"countdown")
-			network_world.replicated_visuals.arena.set_effect_state(payload)
-	elif event_type in [MatchEventTypes.OBJECTIVE_UPDATED, MatchEventTypes.OBJECTIVE_TRANSITION]:
-		if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, event_type == MatchEventTypes.OBJECTIVE_UPDATED):
-			return
+			eliminations.append({
+				"killer_id": 0,
+				"victim_id": int(peer_value),
+				"reason": String(payload.get("reason", "combat")),
+			})
+	network_world.add_kill_feed_entries(eliminations, server_tick)
+	if payload.has("scores"):
 		standings_controller.invalidate_rows()
-		audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
-	elif event_type == MatchEventTypes.CARD_POWERUP_SPAWNED:
-		network_world.add_card_powerup(payload)
-	elif event_type == MatchEventTypes.CARD_POWERUP_REMOVED:
-		if network_world.replicated_visuals.powerup_layer != null:
-			network_world.replicated_visuals.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
-	elif event_type == MatchEventTypes.CARD_POWERUP_COLLECTED:
-		network_world.apply_builds(payload.get("builds", latest_match_payload.get("builds", {})) as Dictionary)
-		standings_controller.invalidate_rows()
-		network_world.collect_card_powerup(payload)
-		audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
+
+
+func _on_arena_effects_updated(_server_tick: int, payload: Dictionary) -> void:
+	var arena := network_world.replicated_visuals.arena
+	if arena == null:
+		return
+	var previous := arena.effect_state
+	var hazard_warning := bool(payload.get("warning", false)) and not bool(previous.get("warning", false))
+	var door_warning := int(payload.get("door_warning_mask", 0)) != 0 and int(previous.get("door_warning_mask", 0)) == 0
+	if hazard_warning or door_warning:
+		audio_director.play_sfx(&"countdown")
+	arena.set_effect_state(payload)
+
+
+func _on_objective_event(server_tick: int, payload: Dictionary, periodic: bool) -> void:
+	if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, periodic):
+		return
+	standings_controller.invalidate_rows()
+	audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
+
+
+func _on_card_powerup_removed(_server_tick: int, payload: Dictionary) -> void:
+	if network_world.replicated_visuals.powerup_layer != null:
+		network_world.replicated_visuals.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
+
+
+func _on_card_powerup_collected(_server_tick: int, payload: Dictionary) -> void:
+	network_world.apply_builds(payload.get("builds", latest_match_payload.get("builds", {})) as Dictionary)
+	standings_controller.invalidate_rows()
+	network_world.collect_card_powerup(payload)
+	audio_director.play_sfx(&"card_lock", "powerup:%d" % int(payload.get("powerup_id", 0)))
 
 
 func _process(_delta: float) -> void:
@@ -1155,7 +872,7 @@ func _update_pointer_visibility() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var gameplay_visible := offline_sandbox.visible or network_world.visible
-	var interactive_overlay := connection_controller.is_visible() or admin_panel.is_visible() or settings_controller.settings_panel.visible or credits_panel.visible or pause_overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
+	var interactive_overlay := connection_controller.is_visible() or admin_panel.is_visible() or settings_controller.settings_panel.visible or credits.is_open() or pause_menu.overlay.visible or draft_controller.draft_panel.visible or standings_controller.win_overlay.visible or (f2_return_confirmation != null and f2_return_confirmation.visible)
 	var gameplay_pointer_active := gameplay_visible and not interactive_overlay
 	var native_gameplay_cursor: bool = gameplay_pointer_active and not input_profiles.uses_controller() and _uses_native_gameplay_cursor()
 	var pointer_position := network_world.gameplay_mouse_position() if network_world.visible else get_viewport().get_mouse_position()
@@ -1436,7 +1153,7 @@ func _player_team(peer_id: int) -> int:
 
 
 func _scoreboard_available() -> bool:
-	if network_world == null or not network_world.visible or pause_overlay != null and pause_overlay.visible:
+	if network_world == null or not network_world.visible or pause_menu.overlay != null and pause_menu.overlay.visible:
 		return false
 	return String(latest_match_payload.get("state_name", MatchStateNames.LOBBY)) in [MatchStateNames.DRAFT, MatchStateNames.COUNTDOWN, MatchStateNames.ACTIVE_HEAT, MatchStateNames.HEAT_RESULT, MatchStateNames.ROUND_RESULT]
 

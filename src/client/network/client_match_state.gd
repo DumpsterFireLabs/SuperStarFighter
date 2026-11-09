@@ -39,6 +39,38 @@ func update_fields(fields: Dictionary) -> void:
 	changed.emit()
 
 
+## MATCH_PAUSE_CHANGED: the match-wide pause and the pilots it waits for.
+func apply_pause(payload: Dictionary) -> void:
+	update_fields({"paused": bool(payload.get("paused", false)), "awaiting_reconnect": payload.get("awaiting_reconnect", []) as Array})
+
+
+## PLAYER_ELIMINATED: drops the eliminated pilots from the alive list and takes
+## the new respawn deadlines and, when sent, the scores.
+func apply_elimination(payload: Dictionary) -> void:
+	var alive_peer_ids: Array = (payload_value("alive_peer_ids", []) as Array).duplicate()
+	for peer_value in payload.get("peer_ids", []):
+		alive_peer_ids.erase(int(peer_value))
+	var fields := {
+		"alive_peer_ids": alive_peer_ids,
+		"respawn_deadlines": payload.get("respawn_deadlines", {}) as Dictionary,
+	}
+	if payload.has("scores"):
+		fields["scores"] = payload.scores as Dictionary
+	update_fields(fields)
+
+
+## PLAYER_RESPAWNED: the server's alive list and respawn deadlines replace ours.
+func apply_respawn(payload: Dictionary) -> void:
+	update_fields({
+		"alive_peer_ids": payload.get("alive_peer_ids", []) as Array,
+		"respawn_deadlines": payload.get("respawn_deadlines", {}) as Dictionary,
+	})
+
+
+func payload_value(key: String, fallback: Variant = null) -> Variant:
+	return _payload.get(key, fallback)
+
+
 func apply_objective(objective: Dictionary, server_tick: int = -1, periodic: bool = false) -> bool:
 	if server_tick >= 0 and not _accept_objective_version(server_tick, 1 if periodic else 0):
 		return false

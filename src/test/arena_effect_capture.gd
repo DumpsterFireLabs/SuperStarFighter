@@ -13,7 +13,7 @@ func capture() -> void:
 	var client := (load("res://scenes/client/client_main.tscn") as PackedScene).instantiate()
 	root.add_child(client)
 	await process_frame
-	client.splash_auto_timer.stop()
+	client.splash.auto_timer.stop()
 	client._dismiss_splash(true)
 	client.bridge.session.local_peer_id = 2
 	var options := ArenaEffectRules.DEFAULT.duplicate()

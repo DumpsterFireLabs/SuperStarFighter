@@ -34,8 +34,8 @@ static func run(context: TestContext, parent: Node) -> void:
 	client.input_profiles.set_scheme(InputProfileManager.Scheme.KEYBOARD_MOUSE, false)
 	client.settings_controller.accessibility_preferences.set_values(Preferences.DEFAULTS)
 	client._apply_accessibility_settings()
-	client.splash_screen.hide()
-	client.studio_splash.hide()
+	client.splash.screen.hide()
+	client.splash.studio_splash.hide()
 	client._show_settings(false)
 	client.settings_controller.settings_tabs.current_tab = 2
 	client.settings_controller.hud_scale_control.value = 100.0

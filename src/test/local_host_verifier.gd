@@ -113,14 +113,14 @@ func _verify_global_pause(client: Node) -> bool:
 		return false
 	client._toggle_pause_overlay()
 	client._update_global_pause_ui()
-	if not client.global_pause_button.visible:
+	if not client.pause_menu.global_pause_button.visible:
 		printerr("SSF_LOCAL_HOST_ERROR=host pause action is missing")
 		return false
-	client.global_pause_button.pressed.emit()
+	client.pause_menu.global_pause_button.pressed.emit()
 	started_at = Time.get_ticks_msec()
 	while not client.network_world.match_paused and Time.get_ticks_msec() - started_at < TIMEOUT_MSEC:
 		await process_frame
-	if not client.network_world.match_paused or not client.global_pause_notice.visible:
+	if not client.network_world.match_paused or not client.pause_menu.global_pause_notice.visible:
 		printerr("SSF_LOCAL_HOST_ERROR=pause did not replicate to the host UI")
 		return false
 	var tick: int = server.world.server_tick

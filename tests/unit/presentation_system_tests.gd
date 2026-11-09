@@ -514,7 +514,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.connection_controller.direct_connect_button != null and client.connection_controller.direct_connect_button.pressed.is_connected(client.connection_controller._connect_online), "Direct Connect button is wired to its connection action")
 	context.expect_true(client.connection_controller.host_join_button != null and client.connection_controller.host_join_button.pressed.is_connected(client.connection_controller._host_online), "Host & Join button is wired to its hosting action")
 	context.expect_true(client.connection_controller.lobby.lobby_disconnect_button != null and client.connection_controller.disconnect_requested.is_connected(client._disconnect_online), "waiting lobby Disconnect button is wired to the shared disconnect action")
-	context.expect_true(client.pause_disconnect_button != null and client.pause_disconnect_button.pressed.is_connected(client._return_from_pause), "pause-menu Disconnect button is wired to the shared menu-return action")
+	context.expect_true(client.pause_menu.disconnect_button != null and client.pause_menu.disconnect_requested.is_connected(client._return_from_pause), "pause-menu Disconnect button is wired to the shared menu-return action")
 	context.expect_true(client.connection_controller.lobby.lobby_options_popup != null and client.connection_controller.lobby.powerups_button != null, "lobby exposes a dedicated match options menu")
 	context.expect_equal(client.connection_controller.lobby.lobby_options_button.text, "MATCH SETUP", "ship colour is no longer presented as a separate lobby option")
 	context.expect_false(client.connection_controller.lobby.powerups_button.button_pressed, "random spawn powerups are visibly disabled by default")
@@ -555,14 +555,14 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true(client.standings_controller.scoreboard_panel != null, "production scoreboard exists")
 	context.expect_true(client.standings_controller.results_panel != null, "production results screen exists")
 	context.expect_true(client.standings_controller.results_winner_label != null and client.standings_controller.results_standings_container != null, "victory screen uses a structured champion and standings composition")
-	context.expect_true(client.pause_overlay != null, "non-pausing online pilot menu exists")
+	context.expect_true(client.pause_menu.overlay != null, "non-pausing online pilot menu exists")
 	context.expect_true(client.settings_controller.settings_panel != null, "shared display and audio settings screen exists")
-	context.expect_true(client.credits_panel != null and client.connection_controller.credits_button != null, "main menu exposes the dedicated credits screen")
+	context.expect_true(client.credits.panel != null and client.connection_controller.credits_button != null, "main menu exposes the dedicated credits screen")
 	client.connection_controller.credits_button.pressed.emit()
-	context.expect_true(client.credits_panel.visible, "Credits button opens the credits screen through navigation intent")
+	context.expect_true(client.credits.panel.visible, "Credits button opens the credits screen through navigation intent")
 	client._hide_credits()
 	var credits_text := ""
-	for credit_label in client.credits_panel.find_children("*", "Label", true, false):
+	for credit_label in client.credits.panel.find_children("*", "Label", true, false):
 		credits_text += (credit_label as Label).text + "\n"
 	context.expect_true(
 		"Graphite" in credits_text and "Champ" in credits_text and "Equip" in credits_text
@@ -572,7 +572,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 		and "ChatGPT" in credits_text and "Claude" in credits_text,
 		"credits screen includes every requested contributor"
 	)
-	var repo_links: Array[Node] = client.credits_panel.find_children("*", "LinkButton", true, false)
+	var repo_links: Array[Node] = client.credits.panel.find_children("*", "LinkButton", true, false)
 	context.expect_true(
 		repo_links.size() == 1 and (repo_links[0] as LinkButton).uri == "https://github.com/DumpsterFireLabs/SuperStarFighter",
 		"credits screen links to the project repository"
@@ -600,10 +600,10 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
 	client._update_pointer_visibility()
 	context.expect_true(client._application_has_focus and client.gameplay_cursor.visible == software_crosshair, "focus return restores the active gameplay pointer mode")
-	client.pause_overlay.visible = true
+	client.pause_menu.overlay.visible = true
 	client._update_pointer_visibility()
 	context.expect_false(client.gameplay_cursor.visible, "interactive menus replace the combat crosshair with the system pointer")
-	client.pause_overlay.visible = false
+	client.pause_menu.overlay.visible = false
 	client.input_profiles.set_scheme(InputProfileManagerScript.Scheme.CONTROLLER, false)
 	client._update_pointer_visibility()
 	context.expect_false(client.gameplay_cursor.visible, "controller gameplay hides the stale mouse crosshair")
@@ -630,24 +630,24 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	client.settings_controller._update_resolution_control_state()
 	context.expect_false(client.settings_controller.resolution_control.disabled, "windowed mode restores explicit resolution selection")
 	context.expect_equal(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand", "ultrawide windows reveal space without nonuniform stretching")
-	context.expect_true(client.splash_screen != null, "animated splash screen exists")
-	context.expect_equal(client.splash_screen.find_child("StudioQuote", true, false).text, "“Now with 1000% more slop!”", "studio splash includes the requested quote")
-	context.expect_approx(client.STUDIO_SPLASH_AUTO_ADVANCE_SECONDS, 4.0, "studio splash declares a four-second automatic advance")
-	context.expect_approx(client.SPLASH_AUTO_ADVANCE_SECONDS, 10.0, "splash declares a ten-second automatic advance")
+	context.expect_true(client.splash.screen != null, "animated splash screen exists")
+	context.expect_equal(client.splash.screen.find_child("StudioQuote", true, false).text, "“Now with 1000% more slop!”", "studio splash includes the requested quote")
+	context.expect_approx(client.splash.STUDIO_AUTO_ADVANCE_SECONDS, 4.0, "studio splash declares a four-second automatic advance")
+	context.expect_approx(client.splash.GAME_AUTO_ADVANCE_SECONDS, 10.0, "splash declares a ten-second automatic advance")
 	var start_event := InputEventKey.new()
 	start_event.keycode = KEY_ENTER
 	start_event.pressed = true
 	client._input(start_event)
-	context.expect_equal(client.splash_stage, 1, "first input advances from the studio splash to the game splash")
-	client._finish_studio_splash()
-	client._finish_game_splash_intro()
+	context.expect_equal(client.splash.stage, 1, "first input advances from the studio splash to the game splash")
+	client.splash.finish_studio_splash()
+	client.splash.finish_game_splash_intro()
 	client._input(start_event)
-	context.expect_true(client.splash_dismissed, "second input advances from the game splash to the main menu")
+	context.expect_true(client.splash.dismissed, "second input advances from the game splash to the main menu")
 	var controller_start := InputEventJoypadButton.new()
 	controller_start.button_index = JOY_BUTTON_A
 	controller_start.pressed = true
 	context.expect_true(client._is_start_input(controller_start), "controller buttons can advance the splash immediately")
-	client.splash_screen.visible = false
+	client.splash.screen.visible = false
 	context.expect_true(client.standings_controller.win_overlay != null, "dedicated victory screen exists")
 	context.expect_true(client.draft_controller.draft_panel.custom_minimum_size.x <= 1280.0 and client.draft_controller.draft_panel.custom_minimum_size.y <= 720.0, "five-card draft fits the 1280x720 acceptance viewport")
 	# Menus lay out on the 1920x1080 logical canvas (canvas_items + expand), which a 1280x720 window scales down.
@@ -967,7 +967,7 @@ static func _validate_production_screens(context: TestContext, tree_parent: Node
 	context.expect_true((client.network_world.replicated_visuals.ships[2] as CombatShipView).local_control, "second-match ship is recognized as the local controllable ship")
 	client.connection_controller.connection_screen.visible = false
 	client._toggle_pause_overlay()
-	context.expect_true(client.pause_overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")
+	context.expect_true(client.pause_menu.overlay.visible and client.network_world.input_blocked, "Escape overlay blocks local combat input without pausing the server")
 	client._hide_pause_overlay()
 	client._on_rejected(&"SERVER_FULL", "The server is full.")
 	context.expect_true(client.connection_controller.connection_screen.visible and client.connection_controller.connection_status.text.contains("try again"), "connection rejection returns to a usable recovery screen")

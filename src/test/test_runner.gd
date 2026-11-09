@@ -24,6 +24,7 @@ const SUITES: Array = [
 	["architecture_followup_tests", 0],
 	["objective_contract_tests", 0],
 	["network_view_ownership_tests", TREE],
+	["client_match_state_tests", 0],
 	["spectator_camera_tests", TREE],
 	["arena_movement_field_tests", TREE],
 	["competitive_view_tests", TREE],

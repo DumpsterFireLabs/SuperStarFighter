@@ -92,8 +92,8 @@ static func run(context: TestContext, parent: Node) -> void:
 	var scene := load("res://scenes/client/client_main.tscn") as PackedScene
 	var client := scene.instantiate()
 	parent.add_child(client)
-	client.splash_screen.hide()
-	client.studio_splash.hide()
+	client.splash.screen.hide()
+	client.splash.studio_splash.hide()
 	var entry := client.find_child("GuidedIntroductionButton", true, false) as Button
 	context.expect_true(entry != null and entry.text == "LEARN TO PLAY", "main menu exposes an explicit guided introduction entry")
 	if entry != null:
