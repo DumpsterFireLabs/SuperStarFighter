@@ -4,7 +4,7 @@ const RemoteAdminServiceScript = preload("res://src/server/remote_admin_service.
 const ServerRuntime = preload("res://src/server/server_runtime.gd")
 
 var bridge: NetworkBridge
-var remote_admin: Node
+var remote_admin: RemoteAdminService
 var runtime := ServerRuntime.new()
 
 

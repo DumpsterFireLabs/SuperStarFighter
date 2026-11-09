@@ -12,7 +12,7 @@ var world: AuthoritativeWorld
 var machine: MatchStateMachine
 var draft: DraftManager
 var catalog: CardCatalog
-var powerups: RefCounted
+var powerups: CardPowerupSystem
 var match_seed: int
 var overtime_start_seconds: float = GameConstants.OVERTIME_START_SECONDS
 var _heat_overtime_limit_seconds: float = GameConstants.OVERTIME_TIME_LIMIT_SECONDS

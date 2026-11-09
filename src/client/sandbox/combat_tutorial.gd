@@ -3,7 +3,7 @@ extends RefCounted
 enum Step { MOVE, FIRE, RELOAD, SHIELD, PERFECT_GUARD, ABILITY, DRAFT, COMPLETE }
 const DRAFT_CARDS: Array[StringName] = [&"reinforced_hull", &"rapid_cycling", &"quick_loader"]
 const TITLES: Array[String] = ["Move and aim", "Land a shot", "Reload your magazine", "Face the incoming fire", "Time a Perfect Guard", "Select and activate an ability", "Choose a draft upgrade", "Training complete"]
-var lab: Node
+var lab: OfflineSandbox
 var active: bool = false
 var step: Step = Step.MOVE
 var panel: PanelContainer
@@ -26,7 +26,7 @@ var chosen_card: StringName = &""
 var saved_camera_limits: Rect2i
 
 
-func configure(sandbox: Node, hud: Control) -> void:
+func configure(sandbox: OfflineSandbox, hud: Control) -> void:
 	lab = sandbox
 	panel = PanelContainer.new()
 	panel.name = "GuidedIntroduction"

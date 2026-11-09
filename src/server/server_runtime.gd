@@ -4,7 +4,7 @@ extends RefCounted
 const LogWriter = preload("res://src/server/server_log_writer.gd")
 
 var bridge: NetworkBridge
-var log_writer: RefCounted
+var log_writer: LogWriter
 
 
 func attach(parent: Node, writer: RefCounted = null) -> NetworkBridge:

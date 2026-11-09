@@ -6,7 +6,7 @@ const AccessibilityPreferencesScript = preload("res://src/client/presentation/ac
 var surface: Node2D
 var camera: Camera2D
 var bridge: NetworkBridge
-var input_profiles: Node
+var input_profiles: InputProfileManager
 var local_peer_id: int = 0
 var _network_active: bool = false
 var accessibility_settings: Dictionary = AccessibilityPreferencesScript.DEFAULTS.duplicate()

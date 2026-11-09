@@ -38,7 +38,7 @@ var bridge: NetworkBridge
 var network_world: NetworkWorldView
 var offline_sandbox: OfflineSandbox
 var audio_director: AudioDirector
-var input_profiles: Node
+var input_profiles: InputProfileManager
 var gameplay_cursor_canvas: CanvasLayer
 var gameplay_cursor: Sprite2D
 
@@ -63,7 +63,7 @@ var last_countdown_second: int = -1
 var overtime_announced: bool = false
 var last_state_name: String = MatchStateNames.LOBBY
 var f2_return_confirmation: ConfirmationDialog
-var update_checker: Node
+var update_checker: UpdateCheckerScript
 var update_notice: ConfirmationDialog
 var _pending_update_url: String = ""
 var controller_prompt: ConfirmationDialog
@@ -474,7 +474,7 @@ func _apply_accessibility_settings() -> void:
 	settings_controller.apply_accessible_theme()
 	if network_world != null:
 		network_world.apply_accessibility_settings(settings_controller.accessibility_preferences.values)
-	if offline_sandbox != null and offline_sandbox.has_method("apply_accessibility_settings"):
+	if offline_sandbox != null:
 		offline_sandbox.apply_accessibility_settings(settings_controller.accessibility_preferences.values)
 
 

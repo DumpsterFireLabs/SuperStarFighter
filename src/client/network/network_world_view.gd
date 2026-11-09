@@ -17,7 +17,7 @@ var context := preload("res://src/client/network/client_view_context.gd").new()
 var bridge: NetworkBridge:
 	get: return context.bridge
 	set(value): context.bridge = value
-var input_profiles: Node:
+var input_profiles: InputProfileManager:
 	get: return context.input_profiles
 	set(value): context.input_profiles = value
 var local_peer_id: int:
@@ -77,7 +77,7 @@ func configure_owners() -> void:
 	local_prediction.life_received.connect(hud_camera.reset_feedback_for_life)
 
 
-func setup(network_bridge: NetworkBridge, profile_manager: Node = null) -> void:
+func setup(network_bridge: NetworkBridge, profile_manager: InputProfileManager = null) -> void:
 	bridge = network_bridge
 	input_profiles = profile_manager
 	bridge.client_connected.connect(_on_connected)

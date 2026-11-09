@@ -59,7 +59,7 @@ var targets_moving: bool = false
 var target_health: float = 100.0
 var target_count: int = 1
 var target_distance: float = 420.0
-var input_profiles: Node
+var input_profiles: InputProfileManager
 var editor_open: bool = true
 var combat_input_armed: bool = false
 var input_sequence: int = 0
@@ -79,7 +79,7 @@ var camera_kick_offset: Vector2 = Vector2.ZERO
 var accessibility: Dictionary = {}
 var toggle_status_label: Label
 var action_latch = preload("res://src/client/input/combat_action_latch.gd").new()
-var tutorial: RefCounted
+var tutorial: TutorialScript
 
 
 func _ready() -> void:
@@ -282,7 +282,7 @@ func set_sandbox_active(active: bool) -> void:
 		editor_button.grab_focus()
 
 
-func set_input_profile_manager(profile_manager: Node) -> void:
+func set_input_profile_manager(profile_manager: InputProfileManager) -> void:
 	input_profiles = profile_manager
 	if not input_profiles.scheme_changed.is_connected(_on_input_profile_changed):
 		input_profiles.scheme_changed.connect(_on_input_profile_changed)
