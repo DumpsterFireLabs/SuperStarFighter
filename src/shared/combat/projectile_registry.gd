@@ -240,12 +240,20 @@ func _evict(id: int, removed: Array[int]) -> void:
 	removed.append(id)
 
 
-func schedule_owner_cleanup(owner_id: int) -> void:
+func schedule_owner_cleanup(owner_id: int, include_mines: bool = false) -> void:
 	# Capture this life's projectiles. A later respawn or ownership transfer must
 	# never let an old death timer remove newly created ordnance.
+	# Deployed mines outlive their pilot: they last until they detonate, are
+	# evicted by the mine budget, or the heat clears. Only a departing peer
+	# (include_mines) takes its minefield with it.
+	var ids: Array = []
+	for projectile_value in _owner_ordered_ids.get(owner_id, []) as Array:
+		var projectile := get_projectile(int(projectile_value))
+		if projectile != null and (include_mines or not projectile.is_mine):
+			ids.append(projectile.projectile_id)
 	_owner_cleanup_remaining[owner_id] = {
 		"remaining": GameConstants.DEAD_OWNER_PROJECTILE_LIFETIME,
-		"ids": (_owner_ordered_ids.get(owner_id, []) as Array).duplicate(),
+		"ids": ids,
 	}
 
 

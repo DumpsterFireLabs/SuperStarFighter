@@ -77,7 +77,7 @@ func remove_peer(peer_id: int) -> void:
 	input_timeouts.erase(peer_id)
 	input_ages.erase(peer_id)
 	team_assignments.erase(peer_id)
-	projectile_registry.schedule_owner_cleanup(peer_id)
+	projectile_registry.schedule_owner_cleanup(peer_id, true)
 
 
 func set_team_assignments(assignments: Dictionary) -> void:

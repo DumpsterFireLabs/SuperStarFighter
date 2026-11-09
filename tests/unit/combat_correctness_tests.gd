@@ -60,6 +60,19 @@ static func _cleanup(context: TestContext) -> void:
 	registry.maximum_per_owner = 1
 	registry.add(ProjectileState.create(4, 1, 4, Vector2(400, 400), 0.0, stats))
 	context.expect_true(registry.get_projectile(3) == null, "owner cap still retires oldest fresh projectile after cleanup")
+	var mine_registry := ProjectileRegistry.new()
+	mine_registry.add(ProjectileState.create_mine(10, 1, Vector2(400, 400)))
+	mine_registry.add(ProjectileState.create(11, 1, 11, Vector2(400, 400), 0.0, stats))
+	mine_registry.schedule_owner_cleanup(1)
+	context.expect_equal(mine_registry.step_cleanup(GameConstants.DEAD_OWNER_PROJECTILE_LIFETIME), [11], "death cleanup retires shots but leaves deployed mines")
+	context.expect_true(mine_registry.get_projectile(10) != null, "a mine outlives its dead pilot")
+	context.expect_equal(mine_registry.mine_count_for_owner(1), 1, "surviving mine keeps owner mine tracking")
+	mine_registry.schedule_owner_cleanup(1, true)
+	context.expect_equal(mine_registry.step_cleanup(GameConstants.DEAD_OWNER_PROJECTILE_LIFETIME), [10], "a departing peer's mines are cleaned up")
+	var world := AuthoritativeWorld.new()
+	world.projectile_registry.add(ProjectileState.create_mine(20, 1, Vector2(400, 400)))
+	world.prepare_heat({}, {})
+	context.expect_equal(world.projectile_registry.get_projectile(20), null, "heat reset clears surviving mines")
 
 
 static func _cadence(context: TestContext) -> void:
