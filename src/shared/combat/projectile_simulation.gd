@@ -14,7 +14,7 @@ static func _acquire_missile_target(world: AuthoritativeWorld,
 ) -> int:
 	var best_id := 0
 	var best_distance_squared := maxf(maximum_range, 0.0) * maxf(maximum_range, 0.0)
-	for peer_id in world._ordered_peer_ids():
+	for peer_id in world.ordered_peer_ids():
 		var candidate := world.combatants[peer_id] as CombatantState
 		if not candidate.alive or peer_id == owner_id or world.are_allies(owner_id, peer_id):
 			continue
@@ -40,7 +40,7 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 	var arena_effects := world.arena_effects
 	var profiling := world.performance_profiling_enabled
 	var map_id := world.map_id
-	var cargo_geometry := world._cargo_projectile_geometry
+	var cargo_geometry := world.cargo_projectile_geometry
 	var profile_started := Time.get_ticks_usec() if profiling else 0
 	if profiling:
 		world.last_projectile_profile_usec = {
@@ -68,14 +68,14 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 	_step_mine_proximity(world, damage_events, armed_mine_ids)
 	if profiling:
 		world.last_projectile_profile_usec.mine_setup = Time.get_ticks_usec() - profile_started
-	if world._projectile_geometry_normal.is_empty():
-		world._projectile_geometry_normal = ArenaCollisionSystem.projectile_geometry(
+	if world.projectile_geometry_normal.is_empty():
+		world.projectile_geometry_normal = ArenaCollisionSystem.projectile_geometry(
 			map_id,
 			GameConstants.PROJECTILE_RADIUS, arena_effects.hidden_cover)
-	if world._projectile_geometry_beam.is_empty():
-		world._projectile_geometry_beam = ArenaCollisionSystem.projectile_geometry(map_id, 7.0, arena_effects.hidden_cover)
-	if world._projectile_geometry_missile.is_empty():
-		world._projectile_geometry_missile = ArenaCollisionSystem.projectile_geometry(
+	if world.projectile_geometry_beam.is_empty():
+		world.projectile_geometry_beam = ArenaCollisionSystem.projectile_geometry(map_id, 7.0, arena_effects.hidden_cover)
+	if world.projectile_geometry_missile.is_empty():
+		world.projectile_geometry_missile = ArenaCollisionSystem.projectile_geometry(
 			map_id,
 			GameConstants.MISSILE_RADIUS, arena_effects.hidden_cover)
 	cargo_geometry.prepare(map_id, arena_effects.hidden_cover)
@@ -94,14 +94,14 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 			continue
 		if not candidate.is_missile:
 			if ArenaMovementSystem.bend_projectile(candidate, safe_delta, map_id):
-				world._remove_projectile(projectile_id)
+				world.remove_projectile(projectile_id)
 				continue
 			shot_ids.append(projectile_id)
 			continue
 		var guidance_started := Time.get_ticks_usec() if profiling else 0
 		_step_missile_guidance(world, candidate, safe_delta)
 		if ArenaMovementSystem.bend_projectile(candidate, safe_delta, map_id):
-			world._remove_projectile(projectile_id)
+			world.remove_projectile(projectile_id)
 			continue
 		missile_ids.append(projectile_id)
 		if profiling:
@@ -109,7 +109,7 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 		if candidate.lifetime_remaining <= safe_delta:
 			continue
 		var finish := candidate.position + candidate.velocity * safe_delta
-		var obstacle: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(candidate.position, finish, candidate.radius, map_id, world._projectile_geometry_missile)
+		var obstacle: Variant = ArenaCollisionSystem.projectile_obstacle_sweep_hit(candidate.position, finish, candidate.radius, map_id, world.projectile_geometry_missile)
 		var ship: Variant = _nearest_projectile_ship_hit(world, candidate, candidate.position, finish, peer_ids)
 		var end_fraction := minf(float(obstacle.fraction) if obstacle != null else 1.0, float(ship.fraction) if ship != null else 1.0)
 		missile_paths[projectile_id] = {"start": candidate.position, "finish": finish, "end_fraction": end_fraction}
@@ -129,7 +129,7 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 			continue
 		projectile.lifetime_remaining -= safe_delta
 		if projectile.lifetime_remaining <= 0.0:
-			world._remove_projectile(projectile.projectile_id)
+			world.remove_projectile(projectile.projectile_id)
 			continue
 		var projectile_speed := projectile.velocity.length()
 		var travel_remaining := projectile_speed * safe_delta
@@ -142,8 +142,8 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 			var start := projectile.position
 			var finish := start + direction * travel_remaining
 			var projectile_geometry := (
-				world._projectile_geometry_beam if projectile.is_beam
-				else (world._projectile_geometry_missile if projectile.is_missile else world._projectile_geometry_normal)
+				world.projectile_geometry_beam if projectile.is_beam
+				else (world.projectile_geometry_missile if projectile.is_missile else world.projectile_geometry_normal)
 			)
 			var sweep_started := Time.get_ticks_usec() if profiling else 0
 			if arena_effects.enabled & ArenaEffectRules.CARGO:
@@ -177,19 +177,19 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 				missile_hit = _nearest_projectile_missile_hit(world, projectile, start, finish, start_fraction, missile_paths)
 			if missile_hit != null and float(missile_hit.fraction) <= minf(obstacle_fraction, minf(ship_fraction, mine_fraction)):
 				projectile.position = missile_hit.position as Vector2
-				world._remove_projectile(int(missile_hit.missile_id))
-				world._remove_projectile(projectile.projectile_id)
+				world.remove_projectile(int(missile_hit.missile_id))
+				world.remove_projectile(projectile.projectile_id)
 				break
 			var drone_hit: Variant = _nearest_projectile_drone_hit(world, projectile, start, finish) if drones_present else null
 			if drone_hit != null and float(drone_hit.fraction) <= minf(obstacle_fraction, minf(ship_fraction, mine_fraction)):
 				projectile.position = drone_hit.position as Vector2
 				_damage_drone(world, registry.get_projectile(int(drone_hit.drone_id)), projectile.damage)
-				world._remove_projectile(projectile.projectile_id)
+				world.remove_projectile(projectile.projectile_id)
 				break
 			if mine_hit != null and mine_fraction <= obstacle_fraction and mine_fraction <= ship_fraction:
 				projectile.position = mine_hit.position as Vector2
 				var mine := registry.get_projectile(int(mine_hit.mine_id))
-				world._remove_projectile(projectile.projectile_id)
+				world.remove_projectile(projectile.projectile_id)
 				if mine != null:
 					var detonation_started := Time.get_ticks_usec() if profiling else 0
 					_detonate_mine(world, mine, damage_events)
@@ -212,19 +212,19 @@ static func _step_projectiles(world: AuthoritativeWorld, delta: float, peer_ids:
 				projectile.position = obstacle_hit.position as Vector2
 				travel_remaining *= maxf(1.0 - obstacle_fraction, 0.0)
 				arena_effects.damage_cover(projectile.position, projectile.radius, projectile.damage)
-				world._refresh_effect_geometry()
+				world.refresh_effect_geometry()
 				var obstacle_normal := obstacle_hit.normal as Vector2
 				if projectile.ricochet(obstacle_normal):
 					projectile.position += obstacle_normal * world.COLLISION_SURFACE_EPSILON
 					travel_remaining = maxf(travel_remaining - world.COLLISION_SURFACE_EPSILON, 0.0)
 					continue
-				world._remove_projectile(projectile.projectile_id)
+				world.remove_projectile(projectile.projectile_id)
 				break
 			projectile.position = finish
 			travel_remaining = 0.0
 
 	var damage_started := Time.get_ticks_usec() if profiling else 0
-	for peer_id in world._resolve_damage_events(damage_events):
+	for peer_id in world.resolve_damage_events(damage_events):
 		registry.schedule_owner_cleanup(peer_id)
 	_step_mine_activation(world, safe_delta, mine_ids)
 	if profiling:
@@ -241,7 +241,7 @@ static func _step_drones(world: AuthoritativeWorld, delta: float, drone_ids: Arr
 			continue
 		drone.lifetime_remaining -= delta
 		if drone.lifetime_remaining <= 0.0:
-			world._remove_projectile(drone_id)
+			world.remove_projectile(drone_id)
 			continue
 		var owner := world.combatants.get(drone.owner_id) as CombatantState
 		if owner == null or not owner.alive:
@@ -250,7 +250,7 @@ static func _step_drones(world: AuthoritativeWorld, delta: float, drone_ids: Arr
 			if not drone.drone_hidden:
 				tangible.append(drone_id)
 			continue
-		world._set_drone_hidden(drone, owner.is_cloaked())
+		world.set_drone_hidden(drone, owner.is_cloaked())
 		if not drone.drone_hidden:
 			tangible.append(drone_id)
 		drone.steer_drone_toward(ProjectileState.drone_formation_point(owner.position, owner.aim_angle, drone.drone_slot), owner.velocity, owner.aim_angle)
@@ -269,7 +269,7 @@ static func _step_drones(world: AuthoritativeWorld, delta: float, drone_ids: Arr
 			continue
 		drone.missile_target_id = target.peer_id
 		drone.drone_fire_cooldown = GameConstants.DRONE_FIRE_INTERVAL_SECONDS
-		var bolt := world._spawn_drone_bolt(drone, (target.position - drone.position).angle())
+		var bolt := world.spawn_drone_bolt(drone, (target.position - drone.position).angle())
 		if bolt != null:
 			shot_ids.append(bolt.projectile_id)
 	return tangible
@@ -303,7 +303,7 @@ static func _nearest_projectile_drone_hit(world: AuthoritativeWorld, projectile:
 		var drone := world.projectile_registry.get_projectile(drone_id)
 		if drone == null or drone.owner_id == projectile.owner_id or world.are_allies(projectile.owner_id, drone.owner_id):
 			continue
-		var fraction := world._segment_circle_hit_fraction(start, finish, drone.position, projectile.radius + drone.radius)
+		var fraction := world.segment_circle_hit_fraction(start, finish, drone.position, projectile.radius + drone.radius)
 		if fraction < 0.0 or fraction >= nearest_fraction:
 			continue
 		nearest_fraction = fraction
@@ -317,9 +317,9 @@ static func _damage_drone(world: AuthoritativeWorld, drone: ProjectileState, amo
 		return
 	drone.damage -= maxf(amount, 0.0)
 	if drone.damage <= 0.0:
-		world._remove_projectile(drone.projectile_id)
+		world.remove_projectile(drone.projectile_id)
 	else:
-		world._record_projectile_update(drone)
+		world.record_projectile_update(drone)
 
 
 
@@ -332,7 +332,7 @@ static func _nearest_projectile_missile_hit(world: AuthoritativeWorld, projectil
 			continue
 		var path: Dictionary = paths[missile_id]
 		var missile_start: Vector2 = (path.start as Vector2).lerp(path.finish as Vector2, start_fraction)
-		var fraction := world._segment_circle_hit_fraction(start - missile_start, finish - (path.finish as Vector2), Vector2.ZERO, projectile.radius + missile.radius)
+		var fraction := world.segment_circle_hit_fraction(start - missile_start, finish - (path.finish as Vector2), Vector2.ZERO, projectile.radius + missile.radius)
 		if fraction < 0.0 or fraction >= nearest_fraction:
 			continue
 		# A missile that already reached a wall or ship cannot be intercepted.
@@ -486,7 +486,7 @@ static func _nearest_projectile_mine_hit(world: AuthoritativeWorld,
 		var mine := world.projectile_registry.get_projectile(mine_id)
 		if mine == null:
 			continue
-		var fraction := world._segment_circle_hit_fraction(
+		var fraction := world.segment_circle_hit_fraction(
 			start,
 			finish,
 			mine.position,
@@ -511,7 +511,7 @@ static func _detonate_mine(world: AuthoritativeWorld, mine: ProjectileState, dam
 	var spatial_index := world.spatial_index
 	var arena_effects := world.arena_effects
 	var map_id := world.map_id
-	var detonations := world._mine_detonations
+	var detonations := world.pending_mine_detonations
 	if mine == null or not mine.is_mine_armed() or registry.get_projectile(mine.projectile_id) == null:
 		return
 	var pending: Array[int] = [mine.projectile_id]
@@ -524,7 +524,7 @@ static func _detonate_mine(world: AuthoritativeWorld, mine: ProjectileState, dam
 			continue
 		if detonations.size() < GameConstants.MAX_PROJECTILES_GLOBAL:
 			detonations.append({"projectile_id": current.projectile_id, "owner_id": current.owner_id, "position": current.position})
-		world._remove_projectile(current.projectile_id)
+		world.remove_projectile(current.projectile_id)
 		for peer_id in spatial_index.query_nearby_ships(
 			current.position,
 			GameConstants.MINE_BLAST_RADIUS + GameConstants.SHIP_COLLISION_RADIUS
@@ -595,7 +595,7 @@ static func _nearest_projectile_ship_hit(world: AuthoritativeWorld,
 		var target := world.combatants[peer_id] as CombatantState
 		if not target.alive or not projectile.can_hit(peer_id) or world.are_allies(projectile.owner_id, peer_id):
 			continue
-		var fraction := world._segment_circle_hit_fraction(
+		var fraction := world.segment_circle_hit_fraction(
 			start,
 			finish,
 			target.position,
@@ -649,15 +649,15 @@ static func _resolve_projectile_ship_hit(world: AuthoritativeWorld,
 			):
 				projectile.owner_id = old_owner_id
 				for removed_id in registry.transfer_owner(projectile.projectile_id, target.peer_id):
-					world._record_removed(removed_id)
+					world.record_removed(removed_id)
 				if registry.get_projectile(projectile.projectile_id) != null:
-					world._record_shield_feedback(old_owner_id, peer_id, "rebound")
-					world._record_projectile_update(projectile)
+					world.record_shield_feedback(old_owner_id, peer_id, "rebound")
+					world.record_projectile_update(projectile)
 					return true
-				world._record_shield_feedback(old_owner_id, peer_id, "rebound")
+				world.record_shield_feedback(old_owner_id, peer_id, "rebound")
 				return false
-		world._record_shield_feedback(projectile.owner_id, peer_id, "perfect_guard" if perfect_guard else "shield")
-		world._remove_projectile(projectile.projectile_id)
+		world.record_shield_feedback(projectile.owner_id, peer_id, "perfect_guard" if perfect_guard else "shield")
+		world.remove_projectile(projectile.projectile_id)
 		return false
 	_apply_projectile_knockback(world, target, projectile, 1.0)
 	damage_events.append({
@@ -665,13 +665,13 @@ static func _resolve_projectile_ship_hit(world: AuthoritativeWorld,
 		"attacker_id": projectile.owner_id,
 		"target_id": peer_id,
 		"damage": projectile.damage,
-		"source": world._projectile_source(projectile),
-		"mechanic": world._hull_hit_mechanic(target, projectile),
+		"source": world.projectile_source(projectile),
+		"mechanic": world.hull_hit_mechanic(target, projectile),
 		"original_shooter_id": projectile.original_shooter_id,
 		"ricochet_count": projectile.ricochet_count,
 	})
 	if not projectile.register_hull_hit(peer_id):
-		world._remove_projectile(projectile.projectile_id)
+		world.remove_projectile(projectile.projectile_id)
 		return false
 	return true
 

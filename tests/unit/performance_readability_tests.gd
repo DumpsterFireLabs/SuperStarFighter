@@ -102,7 +102,7 @@ static func _sweep_parity(context: TestContext) -> void:
 			var expected_id := 0
 			var expected_fraction := INF
 			for peer in ids:
-				var fraction := world._segment_circle_hit_fraction(start, finish, world.combatants[peer].position, GameConstants.SHIP_COLLISION_RADIUS + radius)
+				var fraction := world.segment_circle_hit_fraction(start, finish, world.combatants[peer].position, GameConstants.SHIP_COLLISION_RADIUS + radius)
 				if fraction >= 0 and fraction < expected_fraction:
 					expected_fraction = fraction
 					expected_id = peer

@@ -36,7 +36,7 @@ static func run(context: TestContext) -> void:
 	world = coordinator.world
 	var start := world.server_tick
 	world.server_tick += 60
-	world._record_shield_feedback(2, 3, "shield")
+	world.record_shield_feedback(2, 3, "shield")
 	coordinator.observations.observe(world.server_tick, coordinator.machine, world)
 	(world.combatants[3] as CombatantState).alive = false
 	coordinator.observations.observe(world.server_tick, coordinator.machine, world)

@@ -218,7 +218,7 @@ static func _firing_and_cloak(context: TestContext) -> void:
 	context.expect_true(drone_damage <= GameConstants.DRONE_BOLT_DAMAGE * GameConstants.DRONE_WING_SIZE * 3.0, "a wing's output stays below a single cannon's")
 	context.expect_equal(world.recent_hostile_attacker(2, 600), 1, "drone damage is credited to the owner")
 	var bolt := ProjectileState.create_drone_bolt(9000, 1, Vector2.ZERO, 0.0)
-	context.expect_equal(AuthoritativeWorld._projectile_source(bolt), "drone", "drone bolts report their own damage source")
+	context.expect_equal(AuthoritativeWorld.projectile_source(bolt), "drone", "drone bolts report their own damage source")
 
 	var cloaked := _drone_world()
 	var cloak_target := cloaked.add_peer(2)
@@ -275,7 +275,7 @@ static func _owner_fire_never_evicts_drones(context: TestContext) -> void:
 	var stats := CombatStats.create_base()
 	for index in GameConstants.MAX_PROJECTILES_PER_OWNER + 10:
 		for removed_id in world.projectile_registry.add(ProjectileState.create(10000 + index, 1, index, Vector2(400, 1000), 0.0, stats)):
-			world._record_removed(removed_id)
+			world.record_removed(removed_id)
 	context.expect_equal(_drones(world).size(), GameConstants.DRONE_WING_SIZE, "ordinary fire never evicts a deployed drone")
 
 

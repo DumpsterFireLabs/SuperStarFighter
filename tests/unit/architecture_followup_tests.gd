@@ -34,6 +34,8 @@ static func run(context: TestContext) -> void:
 	_match_config_copy_guard(context)
 	_match_name_constants(context)
 	_client_diagnostics(context)
+	var simulation_source := FileAccess.get_file_as_string("res://src/shared/combat/projectile_simulation.gd")
+	context.expect_false(simulation_source.contains("world._"), "ProjectileSimulation uses only the world's public simulation members")
 
 
 ## The constants are the wire values; pin them so a rename is caught here.

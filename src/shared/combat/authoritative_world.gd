@@ -18,7 +18,7 @@ var projectile_registry := ProjectileRegistry.new()
 var spatial_index := CombatSpatialIndexScript.new()
 var arena_effects := ArenaEffectState.new()
 var _effect_geometry_mask := 0
-var _cargo_projectile_geometry := preload("res://src/shared/arena/projectile_geometry_references.gd").new()
+var cargo_projectile_geometry := preload("res://src/shared/arena/projectile_geometry_references.gd").new()
 var map_id: StringName = ArenaLayout.DEFAULT_MAP_ID
 var movement_fields: Array[ArenaMovementField] = []
 var event_horizons: Array[ArenaMovementField] = []
@@ -34,15 +34,15 @@ var combat_contact_serial: int = 0
 var combat_hull_damage: float = 0.0
 
 var _combat_feedback := CombatFeedbackBufferScript.new()
-var _mine_detonations: Array[Dictionary] = []
+var pending_mine_detonations: Array[Dictionary] = []
 var _ordered_peer_ids_cache: Array[int] = []
 var _ordered_peer_ids_dirty: bool = true
 var performance_profiling_enabled: bool = false
 var last_step_profile_usec: Dictionary = {}
 var last_projectile_profile_usec: Dictionary = {}
-var _projectile_geometry_normal: Dictionary = {}
-var _projectile_geometry_beam: Dictionary = {}
-var _projectile_geometry_missile: Dictionary = {}
+var projectile_geometry_normal: Dictionary = {}
+var projectile_geometry_beam: Dictionary = {}
+var projectile_geometry_missile: Dictionary = {}
 
 const SHIP_SEPARATION_SPEED: float = 360.0
 const SHIP_OVERLAP_SOLVER_PASSES: int = 6
@@ -120,8 +120,8 @@ func step(
 	server_tick = SequenceMath.increment(server_tick)
 	if not controls_enabled:
 		return
-	_refresh_effect_geometry()
-	var peer_ids := _ordered_peer_ids()
+	refresh_effect_geometry()
+	var peer_ids := ordered_peer_ids()
 	for peer_id in peer_ids:
 		var combatant := combatants[peer_id] as CombatantState
 		if not combatant.alive:
@@ -153,10 +153,10 @@ func step(
 	_resolve_rebound_shield_damage(peer_ids, delta)
 	_resolve_kinetic_vents(peer_ids)
 	var overlaps_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
-	_step_projectiles(delta, peer_ids)
+	ProjectileSimulation._step_projectiles(self, delta, peer_ids)
 	var projectiles_complete := Time.get_ticks_usec() if performance_profiling_enabled else 0
 	for projectile_id in projectile_registry.step_cleanup(delta):
-		_record_removed(projectile_id)
+		record_removed(projectile_id)
 	# Motion changes cells even without a registry membership revision. Rebuild
 	# on the first threat query, after next-tick spawns/removals, rather than
 	# eagerly building an index that can be invalidated before any NPC uses it.
@@ -179,8 +179,8 @@ func prepare_heat(
 	_ram_contact_ticks.clear()
 	_kills_since_drain.clear()
 	_combat_feedback.clear()
-	_mine_detonations.clear()
-	for peer_id in _ordered_peer_ids():
+	pending_mine_detonations.clear()
+	for peer_id in ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		if participant_stats.has(peer_id) and spawn_assignments.has(peer_id):
 			combatant.reset_for_heat(
@@ -227,10 +227,10 @@ func set_map_id(value: StringName) -> void:
 	event_horizons = ArenaLayout.event_horizons(map_id)
 	# These dictionaries reference immutable entries owned by ArenaCollisionSystem's
 	# shared geometry cache. Detach from them instead of clearing the cache entry.
-	_projectile_geometry_normal = {}
-	_projectile_geometry_beam = {}
-	_projectile_geometry_missile = {}
-	_cargo_projectile_geometry.reset()
+	projectile_geometry_normal = {}
+	projectile_geometry_beam = {}
+	projectile_geometry_missile = {}
+	cargo_projectile_geometry.reset()
 	clear_projectiles()
 
 
@@ -247,7 +247,7 @@ func set_spectator(peer_id: int) -> void:
 
 func clear_projectiles() -> void:
 	for projectile in projectile_registry.all_projectiles():
-		_remove_projectile(projectile.projectile_id)
+		remove_projectile(projectile.projectile_id)
 
 
 func apply_overtime(
@@ -257,7 +257,7 @@ func apply_overtime(
 	minimum_radius: float = GameConstants.OVERTIME_MINIMUM_RADIUS
 ) -> Array[int]:
 	var damage_events: Array[Dictionary] = []
-	for peer_id in _ordered_peer_ids():
+	for peer_id in ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		if not combatant.alive:
 			continue
@@ -275,7 +275,7 @@ func apply_overtime(
 				"damage": damage,
 				"source": "overtime",
 			})
-	var deaths := _resolve_damage_events(damage_events)
+	var deaths := resolve_damage_events(damage_events)
 	for peer_id in deaths:
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	return deaths
@@ -283,7 +283,7 @@ func apply_overtime(
 
 func snapshot_states() -> Array[Dictionary]:
 	var states: Array[Dictionary] = []
-	for peer_id in _ordered_peer_ids():
+	for peer_id in ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		states.append({
 			"peer_id": peer_id,
@@ -314,7 +314,7 @@ func snapshot_states() -> Array[Dictionary]:
 
 
 func ordered_peer_ids_view() -> Array[int]:
-	return _ordered_peer_ids()
+	return ordered_peer_ids()
 
 
 func acknowledged_input(peer_id: int) -> int:
@@ -366,7 +366,7 @@ func drain_kill_events() -> Array[Dictionary]:
 # Raw participant feedback. Hit/guard totals are private; for_recipient filters
 # public shield cues against cloak visibility before anything goes on the wire.
 func drain_combat_feedback() -> Dictionary:
-	for peer_id in _ordered_peer_ids():
+	for peer_id in ordered_peer_ids():
 		var combatant := combatants[peer_id] as CombatantState
 		var shield_events := combatant.shield.drain_feedback()
 		if shield_events != Vector2i.ZERO:
@@ -375,8 +375,8 @@ func drain_combat_feedback() -> Dictionary:
 
 
 func drain_mine_detonations() -> Array[Dictionary]:
-	var result := _mine_detonations
-	_mine_detonations = []
+	var result := pending_mine_detonations
+	pending_mine_detonations = []
 	return result
 
 
@@ -402,14 +402,14 @@ func _spawn_shot(combatant: CombatantState) -> void:
 			map_id, arena_effects.hidden_cover)
 		if not spawn_normal.is_zero_approx():
 			arena_effects.damage_cover(projectile.position, projectile.radius, projectile.damage)
-			_refresh_effect_geometry()
+			refresh_effect_geometry()
 			if not projectile.ricochet(spawn_normal):
 				continue
 			projectile.position = combatant.position + spawn_normal * (
 				GameConstants.SHIP_COLLISION_RADIUS + projectile.radius + 1.0
 			)
 		for removed_id in projectile_registry.add(projectile):
-			_record_removed(removed_id)
+			record_removed(removed_id)
 		_spawned_since_batch.append(projectile)
 
 
@@ -421,7 +421,7 @@ func _spawn_mine(combatant: CombatantState) -> void:
 	)
 	_next_projectile_id = SequenceMath.increment(_next_projectile_id)
 	for removed_id in projectile_registry.add(mine):
-		_record_removed(removed_id)
+		record_removed(removed_id)
 	_spawned_since_batch.append(mine)
 
 
@@ -443,7 +443,7 @@ func _spawn_missile(combatant: CombatantState) -> void:
 	if not ArenaCollisionSystem.projectile_obstacle_normal(missile.position, missile.radius, map_id, arena_effects.hidden_cover).is_zero_approx():
 		return
 	for removed_id in projectile_registry.add(missile):
-		_record_removed(removed_id)
+		record_removed(removed_id)
 	_spawned_since_batch.append(missile)
 
 
@@ -455,7 +455,7 @@ func _spawn_drone_wing(combatant: CombatantState) -> void:
 		if existing != null and existing.is_drone and existing.owner_id == combatant.peer_id:
 			previous_wing.append(projectile_id)
 	for projectile_id in previous_wing:
-		_remove_projectile(projectile_id)
+		remove_projectile(projectile_id)
 	for slot in GameConstants.DRONE_WING_SIZE:
 		var drone := ProjectileState.create_drone(
 			_next_projectile_id,
@@ -466,23 +466,23 @@ func _spawn_drone_wing(combatant: CombatantState) -> void:
 		_next_projectile_id = SequenceMath.increment(_next_projectile_id)
 		drone.drone_hidden = combatant.is_cloaked()
 		for removed_id in projectile_registry.add(drone):
-			_record_removed(removed_id)
+			record_removed(removed_id)
 		if not drone.drone_hidden:
 			_spawned_since_batch.append(drone)
 
 
 ## Cloaking withdraws the wing from every client; uncloaking re-sends it as a
 ## fresh spawn. Hidden drones stay simulated so the formation is intact after.
-func _set_drone_hidden(drone: ProjectileState, hidden: bool) -> void:
+func set_drone_hidden(drone: ProjectileState, hidden: bool) -> void:
 	if drone.drone_hidden == hidden:
 		return
 	drone.drone_hidden = hidden
 	if hidden:
 		_spawned_since_batch.erase(drone)
-		_record_removed(drone.projectile_id)
+		record_removed(drone.projectile_id)
 	else:
 		_removed_since_batch.erase(drone.projectile_id)
-		_record_projectile_update(drone)
+		record_projectile_update(drone)
 
 
 ## Whether clients may learn about this projectile.
@@ -498,14 +498,14 @@ static func replicated_only(projectiles: Array[ProjectileState]) -> Array[Projec
 	return result
 
 
-func _spawn_drone_bolt(drone: ProjectileState, angle: float) -> ProjectileState:
+func spawn_drone_bolt(drone: ProjectileState, angle: float) -> ProjectileState:
 	var muzzle := drone.position + Vector2.from_angle(angle) * (drone.radius + GameConstants.DRONE_BOLT_RADIUS + 1.0)
 	if not ArenaCollisionSystem.projectile_obstacle_normal(muzzle, GameConstants.DRONE_BOLT_RADIUS, map_id, arena_effects.hidden_cover).is_zero_approx():
 		return null
 	var bolt := ProjectileState.create_drone_bolt(_next_projectile_id, drone.owner_id, muzzle, angle)
 	_next_projectile_id = SequenceMath.increment(_next_projectile_id)
 	for removed_id in projectile_registry.add(bolt):
-		_record_removed(removed_id)
+		record_removed(removed_id)
 	_spawned_since_batch.append(bolt)
 	return bolt
 
@@ -517,50 +517,6 @@ func _acquire_missile_target(
 	maximum_range: float
 ) -> int:
 	return ProjectileSimulation._acquire_missile_target(self, owner_id, origin, forward, maximum_range)
-
-
-func _step_projectiles(delta: float, peer_ids: Array[int]) -> void:
-	ProjectileSimulation._step_projectiles(self, delta, peer_ids)
-
-
-func _nearest_projectile_missile_hit(projectile: ProjectileState, start: Vector2, finish: Vector2, start_fraction: float, paths: Dictionary) -> Variant:
-	return ProjectileSimulation._nearest_projectile_missile_hit(self, projectile, start, finish, start_fraction, paths)
-
-
-func _step_missile_guidance(missile: ProjectileState, delta: float) -> void:
-	ProjectileSimulation._step_missile_guidance(self, missile, delta)
-
-
-func _missile_target_is_visible_in_cone(
-	missile: ProjectileState,
-	target: CombatantState,
-	half_angle: float
-) -> bool:
-	return ProjectileSimulation._missile_target_is_visible_in_cone(self, missile, target, half_angle)
-
-
-func _step_mine_activation(delta: float, mine_ids: Array[int]) -> void:
-	ProjectileSimulation._step_mine_activation(self, delta, mine_ids)
-
-
-func _step_mine_magnetism(delta: float, armed_mine_ids: Array[int]) -> void:
-	ProjectileSimulation._step_mine_magnetism(self, delta, armed_mine_ids)
-
-
-func _nearest_mine_target(mine: ProjectileState) -> CombatantState:
-	return ProjectileSimulation._nearest_mine_target(self, mine)
-
-
-func _step_mine_proximity(damage_events: Array[Dictionary], armed_mine_ids: Array[int]) -> void:
-	ProjectileSimulation._step_mine_proximity(self, damage_events, armed_mine_ids)
-
-
-func _nearest_projectile_mine_hit(
-	projectile: ProjectileState,
-	start: Vector2,
-	finish: Vector2
-) -> Variant:
-	return ProjectileSimulation._nearest_projectile_mine_hit(self, projectile, start, finish)
 
 
 func _detonate_mine(mine: ProjectileState, damage_events: Array[Dictionary]) -> void:
@@ -624,7 +580,7 @@ func _resolve_ship_overlaps(peer_ids: Array[int]) -> Array[int]:
 				right.velocity = right_safe.velocity
 		if not overlap_found:
 			break
-	return _resolve_damage_events(ram_damage_events)
+	return resolve_damage_events(ram_damage_events)
 
 
 func _resolve_rebound_shield_damage(peer_ids: Array[int], delta: float) -> void:
@@ -645,7 +601,7 @@ func _resolve_rebound_shield_damage(peer_ids: Array[int], delta: float) -> void:
 			events.append({"attacker_id": peer_id, "target_id": target_id,
 				"damage": GameConstants.REBOUND_SHIELD_DAMAGE_PER_SECOND * maxf(delta, 0.0),
 				"source": "rebound_shield", "mechanic": "rebound_contact"})
-	for peer_id in _resolve_damage_events(events):
+	for peer_id in resolve_damage_events(events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 
 
@@ -715,7 +671,7 @@ func _resolve_kinetic_vents(peer_ids: Array[int]) -> void:
 				projectile.velocity = outward.normalized() * projectile.velocity.length()
 				if projectile.is_missile:
 					projectile.missile_target_id = 0
-			_record_projectile_update(projectile)
+			record_projectile_update(projectile)
 	spatial_index.invalidate_projectile_threats()
 
 
@@ -870,10 +826,6 @@ func _append_ram_damage(
 	})
 
 
-func _apply_projectile_knockback(target: CombatantState, projectile: ProjectileState, factor: float) -> void:
-	ProjectileSimulation._apply_projectile_knockback(self, target, projectile, factor)
-
-
 ## Ships touching an event horizon are crushed through shields, grace and
 ## overtime. The last pilot to hit them shortly before gets the kill.
 func _resolve_event_horizons(peer_ids: Array[int]) -> Array[int]:
@@ -892,10 +844,10 @@ func _resolve_event_horizons(peer_ids: Array[int]) -> Array[int]:
 					"mechanic": "event_horizon", "attacker_id": recent_hostile_attacker(peer_id, credit_ticks),
 				})
 				break
-	return _resolve_damage_events(events)
+	return resolve_damage_events(events)
 
 
-func _resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
+func resolve_damage_events(damage_events: Array[Dictionary]) -> Array[int]:
 	var deaths: Array[int] = []
 	var impacts := DamageResolver.resolve_tick_with_feedback(combatants, damage_events)
 	for impact in impacts:
@@ -943,13 +895,13 @@ func recent_hostile_attacker(target_id: int, within_ticks: int) -> int:
 	return attacker_id if combatants.has(attacker_id) else 0
 
 
-func _record_shield_feedback(attacker_id: int, defender_id: int, reason: String) -> void:
+func record_shield_feedback(attacker_id: int, defender_id: int, reason: String) -> void:
 	if attacker_id != defender_id and combatants.has(attacker_id):
 		combat_contact_serial += 1
 	_combat_feedback.record_block(attacker_id if combatants.has(attacker_id) else 0, defender_id, reason)
 
 
-static func _projectile_source(projectile: ProjectileState) -> String:
+static func projectile_source(projectile: ProjectileState) -> String:
 	if projectile.is_missile:
 		return "missile"
 	if projectile.is_drone_bolt:
@@ -959,7 +911,7 @@ static func _projectile_source(projectile: ProjectileState) -> String:
 	return "projectile"
 
 
-static func _hull_hit_mechanic(target: CombatantState, projectile: ProjectileState) -> String:
+static func hull_hit_mechanic(target: CombatantState, projectile: ProjectileState) -> String:
 	if projectile.has_rebounded:
 		return "reflected"
 	if target.shield.active:
@@ -969,24 +921,24 @@ static func _hull_hit_mechanic(target: CombatantState, projectile: ProjectileSta
 	return ""
 
 
-func _remove_projectile(projectile_id: int) -> void:
+func remove_projectile(projectile_id: int) -> void:
 	if projectile_registry.remove(projectile_id):
-		_record_removed(projectile_id)
+		record_removed(projectile_id)
 
 
-func _record_removed(projectile_id: int) -> void:
+func record_removed(projectile_id: int) -> void:
 	if projectile_id not in _removed_since_batch:
 		_removed_since_batch.append(projectile_id)
 
 
-func _record_projectile_update(projectile: ProjectileState) -> void:
+func record_projectile_update(projectile: ProjectileState) -> void:
 	for pending in _spawned_since_batch:
 		if pending.projectile_id == projectile.projectile_id:
 			return
 	_spawned_since_batch.append(projectile)
 
 
-func _ordered_peer_ids() -> Array[int]:
+func ordered_peer_ids() -> Array[int]:
 	if _ordered_peer_ids_dirty:
 		_ordered_peer_ids_cache.clear()
 		for peer_value in combatants.keys():
@@ -996,7 +948,7 @@ func _ordered_peer_ids() -> Array[int]:
 	return _ordered_peer_ids_cache
 
 
-static func _segment_circle_hit_fraction(
+static func segment_circle_hit_fraction(
 	start: Vector2,
 	finish: Vector2,
 	center: Vector2,
@@ -1018,17 +970,17 @@ static func _segment_circle_hit_fraction(
 	return fraction if fraction >= 0.0 and fraction <= 1.0 else -1.0
 
 
-func _refresh_effect_geometry() -> void:
+func refresh_effect_geometry() -> void:
 	if _effect_geometry_mask == arena_effects.hidden_cover: return
 	_effect_geometry_mask = arena_effects.hidden_cover
 	# Damage can open cargo during a sweep; subsequent impacts use the new revision.
-	_cargo_projectile_geometry.prepare(map_id, arena_effects.hidden_cover)
-	_projectile_geometry_normal = {}
-	_projectile_geometry_beam = {}
-	_projectile_geometry_missile = {}
+	cargo_projectile_geometry.prepare(map_id, arena_effects.hidden_cover)
+	projectile_geometry_normal = {}
+	projectile_geometry_beam = {}
+	projectile_geometry_missile = {}
 
 func step_arena_effects(elapsed: float, overtime_seconds: float) -> void:
 	var events := arena_effects.step(elapsed, overtime_seconds, combatants)
-	_refresh_effect_geometry()
-	for peer_id in _resolve_damage_events(events):
+	refresh_effect_geometry()
+	for peer_id in resolve_damage_events(events):
 		projectile_registry.schedule_owner_cleanup(peer_id)

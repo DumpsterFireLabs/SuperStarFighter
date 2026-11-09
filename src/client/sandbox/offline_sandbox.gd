@@ -723,7 +723,7 @@ func _reset_combatants() -> void:
 ## Test/capture helper also delegates damage resolution to the authoritative world.
 func _apply_damage_events(events: Array[Dictionary]) -> void:
 	var before := _presentation_states()
-	for peer_id in world._resolve_damage_events(events):
+	for peer_id in world.resolve_damage_events(events):
 		projectile_registry.schedule_owner_cleanup(peer_id)
 	_sync_presentation(before)
 	_consume_feedback()

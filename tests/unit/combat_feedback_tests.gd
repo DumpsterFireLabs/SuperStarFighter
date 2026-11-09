@@ -40,7 +40,7 @@ static func _world_feedback(context: TestContext) -> void:
 	var target := world.add_peer(2)
 	target.health = 20.0
 	target.cloak_remaining = 5.0
-	world._resolve_damage_events([{"projectile_id": 1, "attacker_id": 1, "target_id": 2, "damage": 30.0, "source": "mine", "mechanic": "blast_ignores_shield"}])
+	world.resolve_damage_events([{"projectile_id": 1, "attacker_id": 1, "target_id": 2, "damage": 30.0, "source": "mine", "mechanic": "blast_ignores_shield"}])
 	var feedback := world.drain_combat_feedback()
 	context.expect_equal(feedback.size(), 2, "damage confirmations go only to attacker and lethal victim")
 	context.expect_equal(int(feedback[1].hit_count), 1, "attacker receives authoritative hit confirmation")
@@ -58,13 +58,13 @@ static func _world_feedback(context: TestContext) -> void:
 	context.expect_equal(String(feedback[2].death.source), "overtime", "environmental death names overtime without inventing a killer")
 	context.expect_true(world.drain_kill_events().is_empty(), "overtime grants no kill score")
 	world.respawn_peer(2, CombatStats.create_base(), Vector2.ZERO)
-	world._resolve_damage_events([{"target_id": 2, "attacker_id": 2, "damage": 1000.0, "source": "mine"}])
+	world.resolve_damage_events([{"target_id": 2, "attacker_id": 2, "damage": 1000.0, "source": "mine"}])
 	feedback = world.drain_combat_feedback()
 	context.expect_equal(int(feedback[2].hit_count), 0, "self damage never confirms an enemy hit")
 	context.expect_true(world.drain_kill_events().is_empty(), "self damage grants no kill score")
 	world.respawn_peer(2, CombatStats.create_base(), Vector2.ZERO)
 	world.remove_peer(1)
-	world._resolve_damage_events([{"target_id": 2, "attacker_id": 1, "damage": 1000.0, "source": "projectile"}])
+	world.resolve_damage_events([{"target_id": 2, "attacker_id": 1, "damage": 1000.0, "source": "projectile"}])
 	feedback = world.drain_combat_feedback()
 	context.expect_false(feedback.has(1), "departed attackers receive no queued feedback")
 	context.expect_equal(int(feedback[2].death.killer_id), 1, "a departed projectile owner retains death-cause identity")
@@ -99,7 +99,7 @@ static func _shield_feedback(context: TestContext) -> void:
 			attacker.health = 1.0
 			shot.position = attacker.position
 			world._resolve_projectile_ship_hit(shot, 1, damage_events)
-			world._resolve_damage_events(damage_events)
+			world.resolve_damage_events(damage_events)
 			feedback = world.drain_combat_feedback()
 			context.expect_equal(int(feedback[1].death.killer_id), 2, "reflected lethal shot attributes the shield owner")
 			context.expect_equal(String(feedback[1].death.mechanic), "reflected", "reflected lethal shot explains Rebound Shield")
@@ -286,7 +286,7 @@ static func _lethal_mechanics(context: TestContext) -> void:
 		world.projectile_registry.add(shot)
 		var events: Array[Dictionary] = []
 		world._resolve_projectile_ship_hit(shot, 2, events)
-		world._resolve_damage_events(events)
+		world.resolve_damage_events(events)
 		var feedback := world.drain_combat_feedback()
 		context.expect_equal(String(feedback[2].death.source), "missile", "lethal missile retains the projectile's actual weapon type")
 		context.expect_equal(String(feedback[2].death.mechanic), "shield_depleted" if depleted else "outside_shield_arc", "lethal hit distinguishes depleted shield from uncovered arc")
@@ -303,7 +303,7 @@ static func _lethal_mechanics(context: TestContext) -> void:
 	world.spatial_index.rebuild_armed_mines(world.projectile_registry, [1])
 	var mine_events: Array[Dictionary] = []
 	world._detonate_mine(mine, mine_events)
-	world._resolve_damage_events(mine_events)
+	world.resolve_damage_events(mine_events)
 	var mine_feedback := world.drain_combat_feedback()
 	context.expect_equal(String(mine_feedback[2].death.mechanic), "blast_ignores_shield", "actual mine detonation explains why an active shield did not block it")
 	context.expect_equal(int(mine_feedback[1].hit_count), 1, "actual blast produces one applied hull damage confirmation")
