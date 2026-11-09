@@ -80,23 +80,16 @@ static func valid_map_pool(pool: Array) -> bool:
 	return true
 
 
+## Copies every script field, so a newly added field cannot be left out here
+## and silently revert to its default when a match starts. Arrays and
+## dictionaries are copied one level deep.
 func duplicate_config() -> MatchConfig:
 	var copy := MatchConfig.new()
-	copy.protocol_version = protocol_version
-	copy.port = port
-	copy.max_players = max_players
-	copy.rounds_to_win = rounds_to_win
-	copy.draft_duration_seconds = draft_duration_seconds
-	copy.countdown_duration_seconds = countdown_duration_seconds
-	copy.heat_result_duration_seconds = heat_result_duration_seconds
-	copy.round_result_duration_seconds = round_result_duration_seconds
-	copy.arena_effects = arena_effects.duplicate()
-	copy.map_pool = map_pool.duplicate()
-	copy.competitive_view = competitive_view
-	copy.random_spawn_powerups = random_spawn_powerups
-	copy.random_powerup_interval_seconds = random_powerup_interval_seconds
-	copy.random_powerups_permanent = random_powerups_permanent
-	copy.overtime_start_seconds = overtime_start_seconds
-	copy.game_mode = game_mode
-	copy.team_count = team_count
+	for property in get_property_list():
+		if not (int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE):
+			continue
+		var value: Variant = get(property.name)
+		if value is Array or value is Dictionary:
+			value = value.duplicate()
+		copy.set(property.name, value)
 	return copy

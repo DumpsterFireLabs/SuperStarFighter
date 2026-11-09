@@ -31,6 +31,65 @@ static func run(context: TestContext) -> void:
 	_presentation_membership(context)
 	_slow_logging(context)
 	_settings_sections(context)
+	_match_config_copy_guard(context)
+
+
+## MatchConfig fields that are deliberately not part of the lobby state sent
+## to clients. Every other field must appear in ServerLobby.serialize().
+const MATCH_CONFIG_SERVER_ONLY_FIELDS: Array[String] = [
+	"protocol_version",
+	"port",
+	"draft_duration_seconds",
+	"countdown_duration_seconds",
+	"heat_result_duration_seconds",
+	"round_result_duration_seconds",
+]
+
+
+static func _match_config_fields(config: MatchConfig) -> Array[String]:
+	var fields: Array[String] = []
+	for property in config.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			fields.append(String(property.name))
+	return fields
+
+
+static func _match_config_copy_guard(context: TestContext) -> void:
+	var defaults := MatchConfig.new()
+	var original := MatchConfig.new()
+	var fields := _match_config_fields(original)
+	context.expect_true(fields.has("random_powerups_permanent"), "MatchConfig field discovery sees script variables")
+	for field in fields:
+		var value: Variant = original.get(field)
+		match typeof(value):
+			TYPE_BOOL:
+				original.set(field, not value)
+			TYPE_INT:
+				original.set(field, int(value) + 1)
+			TYPE_FLOAT:
+				original.set(field, float(value) + 1.5)
+			TYPE_DICTIONARY:
+				(value as Dictionary)["__copy_probe__"] = true
+			TYPE_ARRAY:
+				(value as Array).reverse()
+		context.expect_true(original.get(field) != defaults.get(field), "copy guard varies MatchConfig.%s from its default; extend the guard for its type" % field)
+	var copy := original.duplicate_config()
+	for field in fields:
+		context.expect_equal(copy.get(field), original.get(field), "duplicate_config preserves MatchConfig.%s" % field)
+		var copied: Variant = copy.get(field)
+		if copied is Dictionary:
+			(copied as Dictionary)["__independence_probe__"] = true
+			context.expect_false((original.get(field) as Dictionary).has("__independence_probe__"), "duplicate_config copies MatchConfig.%s instead of sharing it" % field)
+		elif copied is Array:
+			(copied as Array).clear()
+			context.expect_false((original.get(field) as Array).is_empty(), "duplicate_config copies MatchConfig.%s instead of sharing it" % field)
+	var lobby_state := ServerLobby.new().serialize()
+	for field in fields:
+		if field in MATCH_CONFIG_SERVER_ONLY_FIELDS:
+			continue
+		context.expect_true(lobby_state.has(field), "ServerLobby.serialize publishes MatchConfig.%s, or the field is listed as server-only in architecture_followup_tests.gd" % field)
+	for field in MATCH_CONFIG_SERVER_ONLY_FIELDS:
+		context.expect_true(fields.has(field), "server-only MatchConfig field %s still exists" % field)
 
 
 static func _overtime_logging(context: TestContext) -> void:
