@@ -98,7 +98,7 @@ func _init() -> void:
 	# Periodic corrections are replaceable; a backlogged TCP peer receives the next one instead of queueing this one.
 	replication.projectile_correction_ready.connect(func(packet: PackedByteArray) -> void: _broadcast_to_admitted(&"projectile_correction", [packet], replication.correction_excluded_peers()))
 	replication.projectile_recovery_ready.connect(func(peer_id: int, packet: PackedByteArray) -> void: if session.can_send_to(peer_id): projectile_recovery.rpc_id(peer_id, packet))
-	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: if session.can_send_to(peer_id): match_event.rpc_id(peer_id, &"COMBAT_FEEDBACK", tick, payload))
+	replication.combat_feedback_ready.connect(func(peer_id: int, tick: int, payload: Dictionary) -> void: if session.can_send_to(peer_id): match_event.rpc_id(peer_id, MatchEventTypes.COMBAT_FEEDBACK, tick, payload))
 	replication.mine_detonations_ready.connect(func(tick: int, events: Array) -> void: _broadcast_to_admitted(&"mine_detonations", [tick, events], replication.transport_resyncing_peers()))
 
 
@@ -1036,7 +1036,7 @@ func lobby_state(state: Dictionary) -> void:
 func draft_offer(offer_token: String, card_ids: Array[StringName], deadline_tick: int) -> void:
 	if role != Role.CLIENT or multiplayer.get_remote_sender_id() != NetworkProtocol.SERVER_PEER_ID:
 		return
-	client_match_event_received.emit(&"DRAFT_OFFER", deadline_tick, {"offer_token": offer_token, "card_ids": card_ids})
+	client_match_event_received.emit(MatchEventTypes.DRAFT_OFFER, deadline_tick, {"offer_token": offer_token, "card_ids": card_ids})
 
 
 @rpc("authority", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -1084,7 +1084,7 @@ func _reject_malformed_server_payload() -> void:
 @rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_OBJECTIVE)
 func objective_snapshot(server_tick_value: int, payload: Dictionary) -> void:
 	if role == Role.CLIENT and multiplayer.get_remote_sender_id() == NetworkProtocol.SERVER_PEER_ID:
-		client_match_event_received.emit(&"OBJECTIVE_UPDATED", server_tick_value, payload)
+		client_match_event_received.emit(MatchEventTypes.OBJECTIVE_UPDATED, server_tick_value, payload)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PLAYER_SNAPSHOT)
@@ -1199,7 +1199,7 @@ func operator_restart_match() -> Dictionary:
 	npc_controller.clear()
 	match_coordinator = replacement
 	_logged_overtime_key = ""
-	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": ServerLobby.OPERATOR_AUTHORITY_ID, "fresh_rematch": true})
+	_broadcast_match_event(MatchEventTypes.MATCH_START_ACCEPTED, {"leader_id": ServerLobby.OPERATOR_AUTHORITY_ID, "fresh_rematch": true})
 	_drain_match_coordinator()
 	_log("warning", "operator_match_restarted", {"participants": lobby.participant_count()})
 	return {"ok": true, "message": "Match restarted from round one."}
@@ -1336,7 +1336,7 @@ func _accept_control_request(peer_id: int, request_name: String) -> bool:
 
 
 func _send_request_rejected(peer_id: int, message_text: String) -> void:
-	_send_control_to_peer(peer_id, &"match_event", [&"REQUEST_REJECTED", world.server_tick if world != null else 0, {"message": message_text}])
+	_send_control_to_peer(peer_id, &"match_event", [MatchEventTypes.REQUEST_REJECTED, world.server_tick if world != null else 0, {"message": message_text}])
 
 
 func _send_control_to_peer(peer_id: int, method: StringName, arguments: Array) -> void:
@@ -1418,7 +1418,7 @@ func _start_match_coordinator(leader_id: int) -> void:
 		"source": "configured_test_seed" if configured_seed > 0 else "secure_random",
 		"participants": lobby.participant_count(),
 	})
-	_broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": leader_id})
+	_broadcast_match_event(MatchEventTypes.MATCH_START_ACCEPTED, {"leader_id": leader_id})
 	_drain_match_coordinator()
 	match_coordinator.record_phase_work(&"match_start_rpc", Time.get_ticks_usec() - started_usec)
 
@@ -1459,17 +1459,17 @@ func _drain_match_coordinator() -> void:
 		var event_type := event.event_type as StringName
 		var server_tick_value := int(event.server_tick)
 		var payload := event.payload as Dictionary
-		if event_type == &"STATE_CHANGED" and String(payload.get("state_name", "")) == "HEAT_RESULT":
+		if event_type == MatchEventTypes.STATE_CHANGED and String(payload.get("state_name", "")) == MatchStateNames.HEAT_RESULT:
 			if not match_coordinator.observations.heats.is_empty():
 				# Server-local study rows survive normal play without enlarging RPCs.
 				var rows := MatchObservations.log_rows(match_coordinator.observations.heats.back())
 				for index in rows.size():
 					_log("info", "heat_observation" if index == 0 else "heat_player_observation", rows[index])
-		if event_type == &"OBJECTIVE_UPDATED":
+		if event_type == MatchEventTypes.OBJECTIVE_UPDATED:
 			_broadcast_to_admitted(&"objective_snapshot", [server_tick_value, payload], replication.transport_resyncing_peers())
 		else:
 			_broadcast_to_admitted(&"match_event", [event_type, server_tick_value, payload])
-		if event_type not in [&"OBJECTIVE_UPDATED", &"ARENA_EFFECTS_UPDATED"]:
+		if event_type not in [MatchEventTypes.OBJECTIVE_UPDATED, MatchEventTypes.ARENA_EFFECTS_UPDATED]:
 			_log("info", "match_event", {
 				"event_type": String(event_type),
 				"server_tick": server_tick_value,
@@ -1491,7 +1491,7 @@ func _drain_match_coordinator() -> void:
 @rpc("authority", "call_remote", "unreliable_ordered", NetworkProtocol.CHANNEL_PROJECTILE_DELTA)
 func mine_detonations(server_tick_value: int, events: Array) -> void:
 	if role == Role.CLIENT and events.size() <= 8:
-		client_match_event_received.emit(&"MINE_DETONATIONS", server_tick_value, {"events": events})
+		client_match_event_received.emit(MatchEventTypes.MINE_DETONATIONS, server_tick_value, {"events": events})
 
 
 func _accept_projectile_correction_chunk(decoded: Dictionary) -> void:
@@ -1708,7 +1708,7 @@ func complete_admission(sender_id: int, display_name: String, reconnect_token: S
 	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, _serialized_lobby_state(), issued_token])
 	if match_coordinator != null:
 		_send_control_to_peer(sender_id, &"match_event", [
-			&"STATE_CHANGED", world.server_tick, match_coordinator.current_state_payload()
+			MatchEventTypes.STATE_CHANGED, world.server_tick, match_coordinator.current_state_payload()
 		])
 	_schedule_admission_lobby_state()
 	server_peer_admitted.emit(sender_id, player)

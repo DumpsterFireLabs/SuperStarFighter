@@ -32,6 +32,18 @@ static func run(context: TestContext) -> void:
 	_slow_logging(context)
 	_settings_sections(context)
 	_match_config_copy_guard(context)
+	_match_name_constants(context)
+
+
+## The constants are the wire values; pin them so a rename is caught here.
+static func _match_name_constants(context: TestContext) -> void:
+	context.expect_equal(MatchStateNames.ALL, Array(MatchStateMachine.State.keys()).map(func(key: Variant) -> String: return String(key)), "MatchStateNames lists every MatchStateMachine.State key in order")
+	var event_names: Dictionary = (MatchEventTypes as Script).get_script_constant_map()
+	context.expect_equal(event_names.size(), 17, "MatchEventTypes defines the seventeen match event types")
+	for constant_name: String in event_names:
+		context.expect_equal(event_names[constant_name], StringName(constant_name), "MatchEventTypes.%s sends its own name on the wire" % constant_name)
+	for constant_name: String in (ObjectiveTransition as Script).get_script_constant_map():
+		context.expect_equal((ObjectiveTransition as Script).get_script_constant_map()[constant_name], StringName(constant_name), "ObjectiveTransition.%s sends its own name on the wire" % constant_name)
 
 
 ## MatchConfig fields that are deliberately not part of the lobby state sent

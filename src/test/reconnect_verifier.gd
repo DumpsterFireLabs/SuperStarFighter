@@ -37,7 +37,7 @@ func _run() -> void:
 	replacement = _runtime("Replacement")
 	intruder.client_rejected.connect(func(reason: StringName, _message: String) -> void: intruder_rejection = reason)
 	host.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
-		if event == &"STATE_CHANGED":
+		if event == MatchEventTypes.STATE_CHANGED:
 			host_state = payload
 	)
 	if server.start_server({"port": verification_port, "max_players": 2, "lobby_password": "rejoin-test", "server_name": "Reconnect Verification", "test_fast_match": true}) != OK:

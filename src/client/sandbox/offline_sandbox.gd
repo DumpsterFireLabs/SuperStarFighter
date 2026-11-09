@@ -395,7 +395,7 @@ func _create_hud() -> void:
 	kill_feed = KillFeedScript.new()
 	kill_feed.name = "KillFeed"
 	hud_canvas.add_child(kill_feed)
-	kill_feed.set_match_state("ACTIVE_HEAT")
+	kill_feed.set_match_state(MatchStateNames.ACTIVE_HEAT)
 	_update_help_text()
 	_layout_hud()
 

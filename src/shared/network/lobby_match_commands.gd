@@ -213,7 +213,7 @@ func request_rematch(sender_id: int) -> void:
 		_bridge._send_request_rejected(sender_id, String(result.error))
 		return
 	_bridge._broadcast_lobby_state()
-	_bridge._broadcast_match_event(&"MATCH_START_ACCEPTED", {"leader_id": sender_id, "fresh_rematch": true})
+	_bridge._broadcast_match_event(MatchEventTypes.MATCH_START_ACCEPTED, {"leader_id": sender_id, "fresh_rematch": true})
 	_bridge._drain_match_coordinator()
 
 

@@ -62,9 +62,9 @@ func add_eliminations(
 
 
 func set_match_state(state_name: String) -> void:
-	if state_name in ["LOBBY", "DRAFT", "COUNTDOWN"]:
+	if state_name in [MatchStateNames.LOBBY, MatchStateNames.DRAFT, MatchStateNames.COUNTDOWN]:
 		clear()
-	visible = state_name in ["ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
+	visible = state_name in [MatchStateNames.ACTIVE_HEAT, MatchStateNames.HEAT_RESULT, MatchStateNames.ROUND_RESULT]
 
 
 func clear() -> void:

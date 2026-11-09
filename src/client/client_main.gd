@@ -68,7 +68,7 @@ var latest_match_payload: Dictionary:
 var interface_theme: Theme
 var last_countdown_second: int = -1
 var overtime_announced: bool = false
-var last_state_name: String = "LOBBY"
+var last_state_name: String = MatchStateNames.LOBBY
 var pause_resume_button: Button
 var global_pause_button: Button
 var global_pause_notice: Label
@@ -427,8 +427,8 @@ func _create_pause_overlay() -> void:
 
 func _can_toggle_global_pause() -> bool:
 	var is_host := bridge.local_peer_id != 0 and bridge.local_peer_id == int(bridge.latest_lobby_state.get("leader_id", 0))
-	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
-	return is_host and state_name not in ["LOBBY", "MATCH_RESULT"] and not latest_match_payload.is_empty() and _awaiting_reconnect_names().is_empty()
+	var state_name := String(latest_match_payload.get("state_name", MatchStateNames.LOBBY))
+	return is_host and state_name not in [MatchStateNames.LOBBY, MatchStateNames.MATCH_RESULT] and not latest_match_payload.is_empty() and _awaiting_reconnect_names().is_empty()
 
 
 func _awaiting_reconnect_names() -> Array:
@@ -1042,30 +1042,30 @@ func _on_lobby_state(state: Dictionary) -> void:
 
 func _on_match_event(event_type: StringName, server_tick: int, payload: Dictionary) -> void:
 	standings_controller.invalidate_context()
-	if event_type == &"MATCH_PAUSE_CHANGED":
+	if event_type == MatchEventTypes.MATCH_PAUSE_CHANGED:
 		match_state.update_fields({"paused": bool(payload.get("paused", false)), "awaiting_reconnect": payload.get("awaiting_reconnect", []) as Array})
 		network_world.latest_server_tick = server_tick
 		network_world.apply_match_pause(bool(payload.get("paused", false)))
 		_update_global_pause_ui()
-	elif event_type == &"COMBAT_FEEDBACK":
+	elif event_type == MatchEventTypes.COMBAT_FEEDBACK:
 		network_world.apply_combat_feedback(payload)
-	elif event_type == &"MINE_DETONATIONS":
+	elif event_type == MatchEventTypes.MINE_DETONATIONS:
 		network_world.apply_mine_detonations(server_tick, payload.get("events", []) as Array)
-	elif event_type == &"REQUEST_REJECTED":
+	elif event_type == MatchEventTypes.REQUEST_REJECTED:
 		standings_controller.reset_actions()
 		connection_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
 		standings_controller.show_request_rejection(String(payload.get("message", "Unknown request")))
 		draft_controller.recover_rejected_offer()
-	elif event_type == &"DRAFT_OFFER":
+	elif event_type == MatchEventTypes.DRAFT_OFFER:
 		draft_controller.show_draft_offer(payload)
-	elif event_type == &"MATCH_START_ACCEPTED" and bool(payload.get("fresh_rematch", false)):
+	elif event_type == MatchEventTypes.MATCH_START_ACCEPTED and bool(payload.get("fresh_rematch", false)):
 		network_world.reset_match_presentation()
 		audio_director.reset_match_deduplication()
 		standings_controller.reset_rematch_request()
-	elif event_type == &"STATE_CHANGED":
+	elif event_type == MatchEventTypes.STATE_CHANGED:
 		var previous_state := String(latest_match_payload.get("state_name", last_state_name))
 		standings_controller.invalidate_rows()
-		var entering_match := String(payload.get("state_name", "LOBBY")) != "LOBBY"
+		var entering_match := String(payload.get("state_name", MatchStateNames.LOBBY)) != MatchStateNames.LOBBY
 		if entering_match:
 			network_world.set_network_active(true)
 		else:
@@ -1079,13 +1079,13 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		if network_world.match_paused:
 			network_world.latest_server_tick = server_tick
 		audio_director.set_objective_baseline(latest_match_payload.get("objective", {}) as Dictionary)
-		_handle_state_presentation(previous_state, String(payload.get("state_name", "LOBBY")), payload)
+		_handle_state_presentation(previous_state, String(payload.get("state_name", MatchStateNames.LOBBY)), payload)
 		_update_match_presentation()
-	elif event_type == &"DRAFT_RESOLVED":
+	elif event_type == MatchEventTypes.DRAFT_RESOLVED:
 		network_world.apply_builds(payload.get("builds", {}) as Dictionary)
 		standings_controller.invalidate_rows()
 		draft_controller.clear_offer()
-	elif event_type == &"PLAYER_ELIMINATED":
+	elif event_type == MatchEventTypes.PLAYER_ELIMINATED:
 		var alive_peer_ids: Array = (latest_match_payload.get("alive_peer_ids", []) as Array).duplicate()
 		for peer_value in payload.get("peer_ids", []):
 			alive_peer_ids.erase(int(peer_value))
@@ -1103,26 +1103,26 @@ func _on_match_event(event_type: StringName, server_tick: int, payload: Dictiona
 		if payload.has("scores"):
 			match_state.update_fields({"scores": (payload.scores as Dictionary).duplicate(true)})
 			standings_controller.invalidate_rows()
-	elif event_type == &"PLAYER_RESPAWNED":
+	elif event_type == MatchEventTypes.PLAYER_RESPAWNED:
 		match_state.update_fields({"alive_peer_ids": (payload.get("alive_peer_ids", []) as Array).duplicate()})
 		match_state.update_fields({"respawn_deadlines": (payload.get("respawn_deadlines", {}) as Dictionary).duplicate(true)})
-	elif event_type == &"ARENA_EFFECTS_UPDATED":
+	elif event_type == MatchEventTypes.ARENA_EFFECTS_UPDATED:
 		if network_world.replicated_visuals.arena != null:
 			var previous := network_world.replicated_visuals.arena.effect_state
 			if (bool(payload.get("warning", false)) and not bool(previous.get("warning", false))) or (int(payload.get("door_warning_mask", 0)) != 0 and int(previous.get("door_warning_mask", 0)) == 0):
 				audio_director.play_sfx(&"countdown")
 			network_world.replicated_visuals.arena.set_effect_state(payload)
-	elif event_type in [&"OBJECTIVE_UPDATED", &"OBJECTIVE_TRANSITION"]:
-		if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, event_type == &"OBJECTIVE_UPDATED"):
+	elif event_type in [MatchEventTypes.OBJECTIVE_UPDATED, MatchEventTypes.OBJECTIVE_TRANSITION]:
+		if not network_world.apply_objective_state(payload.get("objective", {}) as Dictionary, server_tick, event_type == MatchEventTypes.OBJECTIVE_UPDATED):
 			return
 		standings_controller.invalidate_rows()
 		audio_director.observe_objective(latest_match_payload.get("objective", {}) as Dictionary, bridge.local_peer_id, latest_match_payload.get("teams", {}) as Dictionary)
-	elif event_type == &"CARD_POWERUP_SPAWNED":
+	elif event_type == MatchEventTypes.CARD_POWERUP_SPAWNED:
 		network_world.add_card_powerup(payload)
-	elif event_type == &"CARD_POWERUP_REMOVED":
+	elif event_type == MatchEventTypes.CARD_POWERUP_REMOVED:
 		if network_world.replicated_visuals.powerup_layer != null:
 			network_world.replicated_visuals.powerup_layer.remove_powerup(int(payload.get("powerup_id", 0)))
-	elif event_type == &"CARD_POWERUP_COLLECTED":
+	elif event_type == MatchEventTypes.CARD_POWERUP_COLLECTED:
 		network_world.apply_builds(payload.get("builds", latest_match_payload.get("builds", {})) as Dictionary)
 		standings_controller.invalidate_rows()
 		network_world.collect_card_powerup(payload)
@@ -1194,8 +1194,8 @@ func _pointer_mode_for_gameplay(gameplay_pointer_active: bool, native_gameplay_c
 
 
 func _update_match_presentation() -> void:
-	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
-	if state_name == "LOBBY":
+	var state_name := String(latest_match_payload.get("state_name", MatchStateNames.LOBBY))
+	if state_name == MatchStateNames.LOBBY:
 		match_panel.visible = false
 		heat_intro_panel.visible = false
 		network_world.set_match_status("")
@@ -1209,11 +1209,11 @@ func _update_match_presentation() -> void:
 		return
 	connection_controller.hide_screens()
 	match_panel.visible = false
-	if state_name != "DRAFT":
+	if state_name != MatchStateNames.DRAFT:
 		draft_controller.draft_panel.visible = false
-	standings_controller.set_win_screen_visible(state_name == "MATCH_RESULT")
+	standings_controller.set_win_screen_visible(state_name == MatchStateNames.MATCH_RESULT)
 	var deadline := int(latest_match_payload.get("deadline_tick", -1))
-	if state_name == "DRAFT" and draft_controller.active_offer_deadline >= 0:
+	if state_name == MatchStateNames.DRAFT and draft_controller.active_offer_deadline >= 0:
 		deadline = draft_controller.active_offer_deadline
 	var seconds_left := maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0) if deadline >= 0 else 0.0
 	_update_heat_intro(state_name, seconds_left)
@@ -1226,32 +1226,32 @@ func _update_match_presentation() -> void:
 	]
 	if deadline >= 0:
 		status += " · %.1fs" % seconds_left
-	if state_name == "ACTIVE_HEAT":
+	if state_name == MatchStateNames.ACTIVE_HEAT:
 		status += " · %d alive" % (latest_match_payload.get("alive_peer_ids", []) as Array).size()
 		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
 		if overtime_tick >= 0:
 			status += " · OVERTIME" if network_world.latest_server_tick >= overtime_tick else " · overtime in %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
-	elif state_name == "HEAT_RESULT":
+	elif state_name == MatchStateNames.HEAT_RESULT:
 		var heat_team := int(latest_match_payload.get("last_heat_winner_team", 0))
 		var heat_winner := GameModeRules.team_name(heat_team) if heat_team > 0 else _player_name(int(latest_match_payload.get("last_heat_winner", 0)))
 		status += " · %s" % ("Tie" if bool(latest_match_payload.get("tied_heat", false)) else "%s wins heat" % heat_winner)
-	elif state_name == "ROUND_RESULT":
+	elif state_name == MatchStateNames.ROUND_RESULT:
 		var round_team := int(latest_match_payload.get("last_round_winner_team", 0))
 		status += " · %s wins round" % (GameModeRules.team_name(round_team) if round_team > 0 else _player_name(int(latest_match_payload.get("last_round_winner", 0))))
-	elif state_name == "MATCH_RESULT":
+	elif state_name == MatchStateNames.MATCH_RESULT:
 		var winner_team := int(latest_match_payload.get("match_winner_team", 0))
 		status = "★ VICTORY · %s ★" % (GameModeRules.team_name(winner_team) if winner_team > 0 else _player_name(int(latest_match_payload.get("match_winner", 0))))
 		standings_controller.update_results_screen()
 	match_label.text = status
 	network_world.set_match_status(_combat_hud_status(state_name, seconds_left))
-	if state_name == "DRAFT":
+	if state_name == MatchStateNames.DRAFT:
 		draft_controller.update_countdown(deadline, seconds_left)
 
 
 func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 	if heat_intro_panel == null:
 		return
-	if state_name == "COUNTDOWN":
+	if state_name == MatchStateNames.COUNTDOWN:
 		heat_intro_panel.visible = true
 		heat_intro_panel.modulate.a = 1.0
 		heat_intro_kicker.text = "%s  ·  ROUND %d  ·  HEAT %d" % [
@@ -1273,7 +1273,7 @@ func _update_heat_intro(state_name: String, seconds_left: float) -> void:
 				else "%s  ·  BEGIN IN %.1f" % [mechanic, seconds_left]
 			)
 		return
-	if state_name == "ACTIVE_HEAT":
+	if state_name == MatchStateNames.ACTIVE_HEAT:
 		var entered_tick := int(latest_match_payload.get("entered_tick", network_world.latest_server_tick))
 		var elapsed := maxf(float(network_world.latest_server_tick - entered_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
 		if elapsed < HEAT_BEGIN_FADE_SECONDS:
@@ -1302,7 +1302,7 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	var local_team := network_world.team_for_peer(bridge.local_peer_id) if bridge != null else 0
 	var detail_parts := PackedStringArray()
 	var objective_status := ""
-	if state_name == "ACTIVE_HEAT":
+	if state_name == MatchStateNames.ACTIVE_HEAT:
 		detail_parts.append("%d ALIVE" % (latest_match_payload.get("alive_peer_ids", []) as Array).size())
 		objective_status = _objective_status_text()
 		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
@@ -1312,8 +1312,8 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 			if end_tick >= 0:
 				overtime_label += " · ENDS %.0fs" % maxf(float(end_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0)
 			detail_parts.append(overtime_label if network_world.latest_server_tick >= overtime_tick else "OVERTIME IN %.0fs" % maxf(float(overtime_tick - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
-	elif state_name in ["COUNTDOWN", "HEAT_RESULT", "ROUND_RESULT"]:
-		if state_name == "HEAT_RESULT" and bool(latest_match_payload.get("heat_time_limit_reached", false)):
+	elif state_name in [MatchStateNames.COUNTDOWN, MatchStateNames.HEAT_RESULT, MatchStateNames.ROUND_RESULT]:
+		if state_name == MatchStateNames.HEAT_RESULT and bool(latest_match_payload.get("heat_time_limit_reached", false)):
 			detail_parts.append("TIME LIMIT")
 		detail_parts.append("%.1fs" % seconds_left)
 	var lines := PackedStringArray([
@@ -1325,7 +1325,7 @@ func _combat_hud_status(state_name: String, seconds_left: float) -> String:
 	var team_line := "%s  ·  ○ ALLY  ◇ ENEMY" % GameModeRules.team_name(local_team) if local_team > 0 else ""
 	if not team_line.is_empty():
 		lines.append(team_line)
-	if state_name == "ACTIVE_HEAT" and network_world.hud_camera.uses_compact_hud():
+	if state_name == MatchStateNames.ACTIVE_HEAT and network_world.hud_camera.uses_compact_hud():
 		var short_modes := ["DM", "TEAM DM", "HILL", "CTF", "TEAM CTF"]
 		var mode := clampi(int(latest_match_payload.get("game_mode", 0)), 0, short_modes.size() - 1)
 		lines = PackedStringArray([
@@ -1438,26 +1438,26 @@ func _player_team(peer_id: int) -> int:
 func _scoreboard_available() -> bool:
 	if network_world == null or not network_world.visible or pause_overlay != null and pause_overlay.visible:
 		return false
-	return String(latest_match_payload.get("state_name", "LOBBY")) in ["DRAFT", "COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
+	return String(latest_match_payload.get("state_name", MatchStateNames.LOBBY)) in [MatchStateNames.DRAFT, MatchStateNames.COUNTDOWN, MatchStateNames.ACTIVE_HEAT, MatchStateNames.HEAT_RESULT, MatchStateNames.ROUND_RESULT]
 
 
 func _handle_state_presentation(previous_state: String, state_name: String, payload: Dictionary) -> void:
 	last_state_name = state_name
-	if state_name == "LOBBY":
+	if state_name == MatchStateNames.LOBBY:
 		standings_controller.reset_actions()
 		audio_director.set_context(&"lobby")
 		standings_controller.set_win_screen_visible(false)
 		return
-	audio_director.set_context(&"win" if state_name == "MATCH_RESULT" else &"gameplay")
-	if previous_state == "LOBBY" and state_name == "DRAFT":
+	audio_director.set_context(&"win" if state_name == MatchStateNames.MATCH_RESULT else &"gameplay")
+	if previous_state == MatchStateNames.LOBBY and state_name == MatchStateNames.DRAFT:
 		audio_director.reset_match_deduplication()
-	if state_name == "COUNTDOWN":
+	if state_name == MatchStateNames.COUNTDOWN:
 		audio_director.reset_match_deduplication()
 		last_countdown_second = -1
 		overtime_announced = false
-	elif state_name == "ROUND_RESULT":
+	elif state_name == MatchStateNames.ROUND_RESULT:
 		audio_director.play_sfx(&"round_win", str(payload.get("entered_tick", 0)))
-	elif state_name == "MATCH_RESULT":
+	elif state_name == MatchStateNames.MATCH_RESULT:
 		standings_controller.reset_actions(true)
 		audio_director.play_sfx(&"match_win", str(payload.get("entered_tick", 0)))
 
@@ -1465,14 +1465,14 @@ func _handle_state_presentation(previous_state: String, state_name: String, payl
 func _update_timed_audio() -> void:
 	if latest_match_payload.is_empty():
 		return
-	var state_name := String(latest_match_payload.get("state_name", "LOBBY"))
-	if state_name == "COUNTDOWN":
+	var state_name := String(latest_match_payload.get("state_name", MatchStateNames.LOBBY))
+	if state_name == MatchStateNames.COUNTDOWN:
 		var deadline := int(latest_match_payload.get("deadline_tick", -1))
 		var second := ceili(maxf(float(deadline - network_world.latest_server_tick) / GameConstants.PHYSICS_TICKS_PER_SECOND, 0.0))
 		if second != last_countdown_second and second >= 1 and second <= 3:
 			last_countdown_second = second
 			audio_director.play_sfx(&"countdown", "%d:%d" % [deadline, second])
-	elif state_name == "ACTIVE_HEAT" and not overtime_announced:
+	elif state_name == MatchStateNames.ACTIVE_HEAT and not overtime_announced:
 		var overtime_tick := int(latest_match_payload.get("overtime_start_tick", -1))
 		if overtime_tick >= 0 and network_world.latest_server_tick >= overtime_tick:
 			overtime_announced = true
@@ -1577,7 +1577,7 @@ func _log_client_lifecycle(event: String) -> void:
 	if not is_inside_tree() or get_tree().current_scene != self:
 		return
 	print(JSON.stringify({"event": event, "timestamp": Time.get_datetime_string_from_system(true),
-		"match_state": String(latest_match_payload.get("state_name", "LOBBY")),
+		"match_state": String(latest_match_payload.get("state_name", MatchStateNames.LOBBY)),
 		"server_tick": network_world.latest_server_tick if network_world != null else 0}))
 
 

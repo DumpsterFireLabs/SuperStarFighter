@@ -32,7 +32,7 @@ func step(delta: float, world: AuthoritativeWorld, alive_ids: Array[int], observ
 	if occupants.size() != 1:
 		if state.controller_id != 0:
 			state.controller_id = 0
-			result.transition(&"HILL_CONTROL_LOST", state)
+			result.transition(ObjectiveTransition.HILL_CONTROL_LOST, state)
 		return result
 	var controller_id := occupants[0]
 	observations.add_contribution(controller_id, "hill_control_seconds", delta)
@@ -40,7 +40,7 @@ func step(delta: float, world: AuthoritativeWorld, alive_ids: Array[int], observ
 		state.controller_id = controller_id
 		if not state.progress.has(controller_id):
 			state.progress[controller_id] = 0.0
-		result.transition(&"HILL_CONTROLLER_CHANGED", state)
+		result.transition(ObjectiveTransition.HILL_CONTROLLER_CHANGED, state)
 	state.progress[controller_id] = state.progress.get(controller_id, 0.0) + maxf(delta, 0.0)
 	if state.progress[controller_id] >= GameModeRules.HILL_HOLD_SECONDS:
 		result.winner_peer_id = controller_id

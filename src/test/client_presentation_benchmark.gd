@@ -25,7 +25,7 @@ func _run() -> void:
 		authority.add_peer(peer)
 		players.append({"peer_id": peer, "display_name": "Pilot %02d" % peer, "ship_color": "42e8ff", "ship_pattern": "zebra"})
 		builds[peer] = {&"heavy_rounds": 2, &"rapid_cycling": 2, &"twin_shot": 1}
-	view.apply_match_state({"state_name": "ACTIVE_HEAT", "players": players, "builds": builds})
+	view.apply_match_state({"state_name": MatchStateNames.ACTIVE_HEAT, "players": players, "builds": builds})
 	var snapshot := PlayerSnapshotCodec.decode(PlayerSnapshotCodec.encode(3, 0, authority.snapshot_states()))
 	view._on_snapshot(snapshot)
 	view.presentation_event.connect(func(event: StringName, _payload: Dictionary) -> void:

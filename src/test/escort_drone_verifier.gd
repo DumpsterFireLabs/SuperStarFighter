@@ -33,7 +33,7 @@ func _run() -> void:
 	client.connection_controller.host_port_field.text = str(verification_port)
 	client.connection_controller.host_password_field.text = "drones"
 	client.bridge.client_match_event_received.connect(func(event_type: StringName, _tick: int, payload: Dictionary) -> void:
-		if event_type == &"DRAFT_OFFER":
+		if event_type == MatchEventTypes.DRAFT_OFFER:
 			var ids := payload.get("card_ids", []) as Array
 			if not ids.is_empty():
 				client.bridge.send_card_selection(String(payload.get("offer_token", "")), StringName(ids[0])))

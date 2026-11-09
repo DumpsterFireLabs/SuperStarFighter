@@ -201,10 +201,10 @@ func _before_draw() -> void:
 
 
 func _event(kind: StringName, _tick: int, payload: Dictionary) -> void:
-	if kind == &"DRAFT_OFFER":
+	if kind == MatchEventTypes.DRAFT_OFFER:
 		client.send_card_selection(String(payload.offer_token), StringName(payload.card_ids[0]))
-	elif kind == &"STATE_CHANGED":
+	elif kind == MatchEventTypes.STATE_CHANGED:
 		view.apply_match_state(payload)
-		if payload.get("state_name", "") == "MATCH_RESULT": client.send_return_to_lobby()
-	elif kind == &"COMBAT_FEEDBACK":
+		if payload.get("state_name", "") == MatchStateNames.MATCH_RESULT: client.send_return_to_lobby()
+	elif kind == MatchEventTypes.COMBAT_FEEDBACK:
 		view.apply_combat_feedback(payload)

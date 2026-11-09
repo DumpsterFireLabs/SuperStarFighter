@@ -254,7 +254,7 @@ func create_ui() -> void:
 func update_scoreboard() -> void:
 	if _context_dirty or _scoreboard_rows_dirty:
 		refresh_context()
-	var state_name := String(latest_match_payload.get("state_name", "LOBBY")).replace("_", " ").capitalize()
+	var state_name := String(latest_match_payload.get("state_name", MatchStateNames.LOBBY)).replace("_", " ").capitalize()
 	scoreboard_context_label.text = "%s  ·  ROUND %d  ·  HEAT %d  ·  %d PILOTS" % [
 		state_name,
 		int(latest_match_payload.get("round_number", 0)),

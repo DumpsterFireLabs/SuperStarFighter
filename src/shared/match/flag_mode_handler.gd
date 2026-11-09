@@ -36,7 +36,7 @@ func step(delta: float, world: AuthoritativeWorld, alive_ids: Array[int], observ
 				state.flag_position = carrier.position
 			state.flag_carrier_id = 0
 			dropped_seconds = 0.0
-			result.transition(&"FLAG_DROPPED", state)
+			result.transition(ObjectiveTransition.FLAG_DROPPED, state)
 		else:
 			observations.add_contribution(state.flag_carrier_id, "flag_carry_seconds", delta)
 			carrier.cloak_remaining = 0.0
@@ -68,11 +68,11 @@ func step(delta: float, world: AuthoritativeWorld, alive_ids: Array[int], observ
 			(world.combatants[pickup_id] as CombatantState).cloak_remaining = 0.0
 			state.flag_position = (world.combatants[pickup_id] as CombatantState).position
 			dropped_seconds = 0.0
-			result.transition(&"FLAG_PICKED_UP", state)
+			result.transition(ObjectiveTransition.FLAG_PICKED_UP, state)
 		else:
 			dropped_seconds += maxf(delta, 0.0)
 			if state.flag_position != state.position and dropped_seconds >= GameModeRules.FLAG_RESET_SECONDS:
 				state.flag_position = state.position
 				dropped_seconds = 0.0
-				result.transition(&"FLAG_RESET", state)
+				result.transition(ObjectiveTransition.FLAG_RESET, state)
 	return result

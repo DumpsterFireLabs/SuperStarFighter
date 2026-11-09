@@ -246,7 +246,7 @@ func _update_diagnostics(delta: float = 0.0) -> void:
 		combat_status = "%s diagnostics   ·   Hold %s scoreboard   ·   %s reload" % [diagnostics_hint, scoreboard_hint, reload_hint]
 		# Controls remain discoverable in countdown and pause/settings. During
 		# combat reserve this space for selected abilities and actionable warnings.
-		if String(context.match_payload.get("state_name", "")) == "ACTIVE_HEAT":
+		if String(context.match_payload.get("state_name", "")) == MatchStateNames.ACTIVE_HEAT:
 			combat_status = ""
 		local_prediction.current_special_slot()
 		if local_prediction.selected_special_slot >= 0:
@@ -340,7 +340,7 @@ func _update_spectator_target() -> void:
 	elif spectator_target_id not in targets:
 		spectator_target_id = targets[0]
 	if spectator_curtain != null:
-		spectator_curtain.visible = context._network_active and _restricted_team_spectating() and spectator_target_id == 0 and String(context.match_payload.get("state_name", "")) in ["ACTIVE_HEAT", "OVERTIME"]
+		spectator_curtain.visible = context._network_active and _restricted_team_spectating() and spectator_target_id == 0 and String(context.match_payload.get("state_name", "")) in [MatchStateNames.ACTIVE_HEAT, "OVERTIME"]
 
 
 func _cycle_spectator(direction: int) -> void:
@@ -490,7 +490,7 @@ func reset_session() -> void:
 func apply_match_state(state_name: String) -> void:
 	_nearest_incoming_revision = -1
 	if hud_panel != null:
-		hud_panel.visible = state_name in ["COUNTDOWN", "ACTIVE_HEAT", "HEAT_RESULT", "ROUND_RESULT"]
+		hud_panel.visible = state_name in [MatchStateNames.COUNTDOWN, MatchStateNames.ACTIVE_HEAT, MatchStateNames.HEAT_RESULT, MatchStateNames.ROUND_RESULT]
 	if kill_feed != null:
 		kill_feed.set_match_state(state_name)
 

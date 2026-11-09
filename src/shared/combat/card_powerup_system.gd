@@ -65,12 +65,12 @@ func step(server_tick: int, world: AuthoritativeWorld, players: Dictionary, safe
 		var expired := server_tick >= int(powerup.get("expires_tick", 0x7fffffffffffffff))
 		if expired or (powerup.position as Vector2).distance_to(safe_center) + POWERUP_RADIUS > safe_radius:
 			active_powerups.erase(id)
-			events.append({"event_type": &"CARD_POWERUP_REMOVED", "payload": {"powerup_id": id, "reason": "expired" if expired else "overtime"}})
+			events.append({"event_type": MatchEventTypes.CARD_POWERUP_REMOVED, "payload": {"powerup_id": id, "reason": "expired" if expired else "overtime"}})
 	if next_spawn_tick >= 0 and server_tick >= next_spawn_tick:
 		if active_powerups.size() < MAX_ACTIVE_POWERUPS:
 			var spawned := _spawn_powerup(world)
 			if not spawned.is_empty():
-				events.append({"event_type": &"CARD_POWERUP_SPAWNED", "payload": spawned})
+				events.append({"event_type": MatchEventTypes.CARD_POWERUP_SPAWNED, "payload": spawned})
 		# Skip missed intervals instead of bursting an unbounded backlog after
 		# a tick jump, debugger pause, or a long period at capacity.
 		next_spawn_tick = server_tick + roundi(spawn_interval_seconds * GameConstants.PHYSICS_TICKS_PER_SECOND)
@@ -138,7 +138,7 @@ func _collect_powerups(world: AuthoritativeWorld, players: Dictionary) -> Array[
 			_apply_updated_stats(combatant, StatSystem.derive(player.effective_card_stacks(), _catalog))
 			active_powerups.erase(powerup_id)
 			events.append({
-				"event_type": &"CARD_POWERUP_COLLECTED",
+				"event_type": MatchEventTypes.CARD_POWERUP_COLLECTED,
 				"payload": {
 					"powerup_id": powerup_id,
 					"card_id": card.card_id,

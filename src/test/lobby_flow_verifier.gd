@@ -37,19 +37,19 @@ func _run() -> void:
 	guest = _runtime("Guest")
 	spectator = _runtime("Spectator")
 	spectator.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
-		if event == &"STATE_CHANGED":
+		if event == MatchEventTypes.STATE_CHANGED:
 			spectator_state = payload
 	)
 	host.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
-		if event == &"STATE_CHANGED":
+		if event == MatchEventTypes.STATE_CHANGED:
 			host_state = payload
-		elif event == &"REQUEST_REJECTED":
+		elif event == MatchEventTypes.REQUEST_REJECTED:
 			host_rejections += 1
 	)
 	guest.client_match_event_received.connect(func(event: StringName, _tick: int, payload: Dictionary) -> void:
-		if event == &"REQUEST_REJECTED":
+		if event == MatchEventTypes.REQUEST_REJECTED:
 			guest_rejections += 1
-		elif event == &"STATE_CHANGED":
+		elif event == MatchEventTypes.STATE_CHANGED:
 			guest_state = payload
 	)
 	if server.start_server({"port": verification_port, "max_players": 32, "lobby_password": "flow-test", "server_name": "Lobby Flow Verification", "match_preset": "skirmish"}) != OK:
@@ -123,7 +123,7 @@ func _run() -> void:
 		_fail("map_pool_reready")
 		return
 	host.send_start_match()
-	if not await _until(func() -> bool: return String(host_state.get("state_name", "")) == "DRAFT" and String(guest_state.get("state_name", "")) == "DRAFT"):
+	if not await _until(func() -> bool: return String(host_state.get("state_name", "")) == MatchStateNames.DRAFT and String(guest_state.get("state_name", "")) == MatchStateNames.DRAFT):
 		_fail("draft_not_replicated")
 		return
 	if not bool(host_state.get("competitive_view", false)) or not bool(guest_state.get("competitive_view", false)):
@@ -158,8 +158,8 @@ func _run() -> void:
 	prior.machine.state_deadline_tick = -1
 	prior.machine.players[host.local_peer_id].card_stacks = {&"twin_shot": 3}
 	prior.machine.players[host.local_peer_id].score.kills = 9
-	server._broadcast_match_event(&"STATE_CHANGED", prior.current_state_payload())
-	if not await _until(func() -> bool: return String(host_state.get("state_name", "")) == "MATCH_RESULT"):
+	server._broadcast_match_event(MatchEventTypes.STATE_CHANGED, prior.current_state_payload())
+	if not await _until(func() -> bool: return String(host_state.get("state_name", "")) == MatchStateNames.MATCH_RESULT):
 		_fail("results_not_replicated")
 		return
 	guest.send_rematch()
@@ -171,7 +171,7 @@ func _run() -> void:
 		return
 	var previous_team: int = prior.machine.players[host.local_peer_id].team_id
 	host.send_rematch()
-	if not await _until(func() -> bool: return server.match_coordinator != prior and String(host_state.get("state_name", "")) == "DRAFT" and String(guest_state.get("state_name", "")) == "DRAFT"):
+	if not await _until(func() -> bool: return server.match_coordinator != prior and String(host_state.get("state_name", "")) == MatchStateNames.DRAFT and String(guest_state.get("state_name", "")) == MatchStateNames.DRAFT):
 		_fail("fresh_rematch_not_replicated")
 		return
 	var player: PlayerMatchState = server.match_coordinator.machine.players[host.local_peer_id]

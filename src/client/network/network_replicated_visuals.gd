@@ -650,7 +650,7 @@ func create_layers() -> void:
 
 
 func apply_match_state(payload: Dictionary, state_name: String) -> void:
-	if state_name in ["DRAFT", "COUNTDOWN"]:
+	if state_name in [MatchStateNames.DRAFT, MatchStateNames.COUNTDOWN]:
 		_projectile_history.reset(int(payload.get("entered_tick", -1)))
 		for projectile in authoritative_projectiles.all_projectiles():
 			authoritative_projectiles.remove(projectile.projectile_id)
@@ -668,7 +668,7 @@ func apply_match_state(payload: Dictionary, state_name: String) -> void:
 		arena.set_objective(payload.get("objective", {}) as Dictionary)
 	for ship_value in ships.values():
 		var ship := ship_value as CombatShipView
-		ship.visible = state_name != "DRAFT"
+		ship.visible = state_name != MatchStateNames.DRAFT
 		ship.display_name = _display_name(ship.combatant.peer_id)
 		ship.set_ship_appearance(_player_color(ship.combatant.peer_id), _player_pattern(ship.combatant.peer_id))
 		ship.set_team_identity(team_for_peer(ship.combatant.peer_id), team_for_peer(context.local_peer_id))

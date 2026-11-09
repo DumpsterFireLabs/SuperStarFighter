@@ -171,7 +171,7 @@ func _capture_sequence() -> void:
 	client.connection_controller.lobby.lobby_panel.visible = false
 	client.connection_controller.connection_screen.visible = false
 	client.network_world.set_network_active(true)
-	client.latest_match_payload = {"state_name": "DRAFT", "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}
+	client.latest_match_payload = {"state_name": MatchStateNames.DRAFT, "round_number": 1, "heat_number": 0, "deadline_tick": 1800, "builds": {2: {}}}
 	client.network_world.latest_server_tick = 0
 	client.draft_controller.show_draft_offer({"offer_token": "capture", "card_ids": [&"phase_thrusters", &"blink_capacitor", &"beam_emitter", &"prismatic_lance", &"zero_point_loader"], "deadline_tick": 1800})
 	await _capture(client, "draft")
@@ -189,7 +189,7 @@ func _capture_sequence() -> void:
 	await _capture(client, "draft_bye")
 	client.draft_controller.draft_panel.visible = false
 	client.draft_controller.draft_bye_label.visible = false
-	client.latest_match_payload = {"state_name": "COUNTDOWN", "entered_tick": 100, "deadline_tick": 280, "round_number": 1, "heat_number": 1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {}, 3: {}}, "map_id": &"solar_tide", "map_name": "Solar Tide"}
+	client.latest_match_payload = {"state_name": MatchStateNames.COUNTDOWN, "entered_tick": 100, "deadline_tick": 280, "round_number": 1, "heat_number": 1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "scores": {}, "builds": {2: {}, 3: {}}, "map_id": &"solar_tide", "map_name": "Solar Tide"}
 	client.network_world.latest_server_tick = 160
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
@@ -204,7 +204,7 @@ func _capture_sequence() -> void:
 		{"peer_id": 2, "position": Vector2(420.0, 340.0), "velocity": Vector2(280.0, 0.0), "aim_angle": 0.0, "health": 78.0, "shield": 64.0, "ammunition": 5, "alive": true, "shielding": false},
 		{"peer_id": 3, "position": Vector2(980.0, 520.0), "velocity": Vector2(-210.0, 70.0), "aim_angle": PI, "health": 125.0, "shield": 100.0, "ammunition": 8, "alive": true, "shielding": true},
 	]})
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 100, "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "players": [{"peer_id": 2, "display_name": "Pilot 01", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[0], "ship_pattern": "chevron"}, {"peer_id": 3, "display_name": "Pilot 02", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[1], "ship_pattern": "racing"}, {"peer_id": 4, "display_name": "Star Hunter", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[2], "ship_pattern": "zebra"}, {"peer_id": 5, "display_name": "Void Runner", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[3], "ship_pattern": "checkerboard"}], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "powerups": [{"powerup_id": 1, "card_id": &"kinetic_prow", "position": Vector2(700.0, 430.0), "rarity": CardDefinition.Rarity.RARE}], "random_spawn_powerups": true, "overtime_start_tick": 5600, "game_mode": GameModeRules.Mode.KING_OF_THE_HILL, "teams": {2: 1, 3: 2}, "objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(700.0, 430.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 12.5}, "target_seconds": GameModeRules.HILL_HOLD_SECONDS}}
+	client.latest_match_payload = {"state_name": MatchStateNames.ACTIVE_HEAT, "entered_tick": 100, "round_number": 2, "heat_number": 3, "deadline_tick": -1, "alive_peer_ids": [2, 3], "participant_peer_ids": [2, 3], "players": [{"peer_id": 2, "display_name": "Pilot 01", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[0], "ship_pattern": "chevron"}, {"peer_id": 3, "display_name": "Pilot 02", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[1], "ship_pattern": "racing"}, {"peer_id": 4, "display_name": "Star Hunter", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[2], "ship_pattern": "zebra"}, {"peer_id": 5, "display_name": "Void Runner", "ship_color": ServerLobby.RANDOM_SHIP_COLORS[3], "ship_pattern": "checkerboard"}], "scores": {2: {"heat_wins": 1, "round_wins": 1}, 3: {"heat_wins": 0, "round_wins": 0}}, "builds": {2: {&"rapid_cycling": 2}, 3: {&"reinforced_hull": 1}}, "powerups": [{"powerup_id": 1, "card_id": &"kinetic_prow", "position": Vector2(700.0, 430.0), "rarity": CardDefinition.Rarity.RARE}], "random_spawn_powerups": true, "overtime_start_tick": 5600, "game_mode": GameModeRules.Mode.KING_OF_THE_HILL, "teams": {2: 1, 3: 2}, "objective": {"active": true, "mode": GameModeRules.Mode.KING_OF_THE_HILL, "position": Vector2(700.0, 430.0), "zone_radius": GameModeRules.OBJECTIVE_ZONE_RADIUS, "controller_id": 2, "progress": {2: 12.5}, "target_seconds": GameModeRules.HILL_HOLD_SECONDS}}
 	client.network_world.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	client.network_world.add_kill_feed_entries([
@@ -285,9 +285,9 @@ func _capture_sequence() -> void:
 	client.settings_controller.accessibility_preferences.set_values({"hud_scale": 1.0, "high_contrast": false, "reduced_flashes": false, "toggle_fire": false, "toggle_shield": false})
 	client._apply_accessibility_settings()
 	client.network_world.apply_accessibility_settings({"hud_scale": 1.0, "reduced_shake": false, "reduced_flashes": false, "constrain_hud": true})
-	client._on_match_event(&"COMBAT_FEEDBACK", 201, {"hit_count": 3, "hit_damage": 68, "blocked_count": 1, "last_block_reason": "perfect_guard"})
+	client._on_match_event(MatchEventTypes.COMBAT_FEEDBACK, 201, {"hit_count": 3, "hit_damage": 68, "blocked_count": 1, "last_block_reason": "perfect_guard"})
 	await _capture(client, "hit_confirmation")
-	client._on_match_event(&"COMBAT_FEEDBACK", 202, {"death": {"killer_id": 3, "source": "missile", "mechanic": "outside_shield_arc", "damage": 34, "life_generation": 1}})
+	client._on_match_event(MatchEventTypes.COMBAT_FEEDBACK, 202, {"death": {"killer_id": 3, "source": "missile", "mechanic": "outside_shield_arc", "damage": 34, "life_generation": 1}})
 	await _capture(client, "death_recap")
 	client.network_world.apply_accessibility_settings({"hud_scale": 1.5, "reduced_shake": true, "reduced_flashes": true, "constrain_hud": true})
 	await _capture(client, "death_recap_scaled")
@@ -396,7 +396,7 @@ func _capture_sequence() -> void:
 	client._hide_pause_overlay()
 
 	client.latest_match_payload = {
-		"state_name": "MATCH_RESULT", "round_number": 3, "heat_number": 2,
+		"state_name": MatchStateNames.MATCH_RESULT, "round_number": 3, "heat_number": 2,
 		"deadline_tick": -1, "match_winner": 2, "match_winner_team": 1, "alive_peer_ids": [2, 4],
 		"map_id": &"relay_zero", "map_name": "Relay Zero",
 		"game_mode": GameModeRules.Mode.TEAM_DEATH_MATCH,
@@ -458,7 +458,7 @@ func _capture_crowded_combat(client: Node) -> void:
 		if index == 0:
 			position = Vector2(1600, 900)
 		states.append({"peer_id": peer, "position": position, "velocity": Vector2.ZERO, "aim_angle": index * 0.6, "health": 100, "shield": 100, "ammunition": 8, "alive": true, "shielding": index % 2 == 0, "afterburner_active": index % 3 == 0})
-	client.latest_match_payload = {"state_name": "ACTIVE_HEAT", "entered_tick": 0, "round_number": 1, "heat_number": 1, "deadline_tick": -1, "alive_peer_ids": ids, "participant_peer_ids": ids, "players": players, "scores": {}, "builds": builds, "teams": teams, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "game_mode_name": "Team Capture the Flag", "map_id": &"prism_array", "map_name": "Prism Array", "overtime_start_tick": 4000, "objective": {"active": true, "mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "flag_position": Vector2(1850, 950), "flag_carrier_id": 0, "capture_zones": {1: Vector2(1000, 500), 2: Vector2(2500, 1400)}}}
+	client.latest_match_payload = {"state_name": MatchStateNames.ACTIVE_HEAT, "entered_tick": 0, "round_number": 1, "heat_number": 1, "deadline_tick": -1, "alive_peer_ids": ids, "participant_peer_ids": ids, "players": players, "scores": {}, "builds": builds, "teams": teams, "game_mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "game_mode_name": "Team Capture the Flag", "map_id": &"prism_array", "map_name": "Prism Array", "overtime_start_tick": 4000, "objective": {"active": true, "mode": GameModeRules.Mode.TEAM_CAPTURE_THE_FLAG, "flag_position": Vector2(1850, 950), "flag_carrier_id": 0, "capture_zones": {1: Vector2(1000, 500), 2: Vector2(2500, 1400)}}}
 	view.apply_match_state(client.latest_match_payload)
 	client._update_match_presentation()
 	view._on_snapshot({"server_tick": 300, "acknowledged_input": 0, "states": states})

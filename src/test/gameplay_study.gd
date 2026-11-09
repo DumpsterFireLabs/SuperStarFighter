@@ -277,7 +277,7 @@ func _pacing_case(mode: int, count: int, seed_index: int, pickups: bool = false,
 		world.drain_projectile_batch()
 		world.drain_combat_feedback()
 		for event in coordinator.drain_events():
-			if event.event_type == &"STATE_CHANGED" and event.payload.get("state_name", "") == "HEAT_RESULT" and not coordinator.observations.heats.is_empty():
+			if event.event_type == MatchEventTypes.STATE_CHANGED and event.payload.get("state_name", "") == MatchStateNames.HEAT_RESULT and not coordinator.observations.heats.is_empty():
 				coordinator.observations.heats.back()["time_limit_reached"] = bool(event.payload.get("heat_time_limit_reached", false))
 		if coordinator.observations.heats.size() >= target_heats:
 			break

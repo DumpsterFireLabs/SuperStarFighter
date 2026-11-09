@@ -43,7 +43,7 @@ func _run() -> void:
 		client.client_rejected.connect(func(reason: StringName, _message: String) -> void: rejections.append({"client": index, "reason": reason}))
 		client.client_connected.connect(func(_id: int) -> void: admissions += 1)
 		client.client_match_event_received.connect(func(kind: StringName, _tick: int, payload: Dictionary) -> void:
-			if kind == &"DRAFT_OFFER": client.send_card_selection(payload.offer_token, payload.card_ids[0])
+			if kind == MatchEventTypes.DRAFT_OFFER: client.send_card_selection(payload.offer_token, payload.card_ids[0])
 		)
 	for cycle in 3:
 		if server.start_server({"port": port, "max_players": 32, "ban_file": "", "lobby_password": "burst-fixture", "test_match_seed": 920641}) != OK:

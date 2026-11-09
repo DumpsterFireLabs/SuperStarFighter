@@ -15,7 +15,7 @@ func _init(type_value: StringName, tick: int, payload: Dictionary = {}) -> void:
 
 
 static func objective_event(tick: int, state: ObjectiveState, action: StringName = &"") -> MatchEvent:
-	var result := MatchEvent.new(&"OBJECTIVE_UPDATED" if action.is_empty() else &"OBJECTIVE_TRANSITION", tick)
+	var result := MatchEvent.new(MatchEventTypes.OBJECTIVE_UPDATED if action.is_empty() else MatchEventTypes.OBJECTIVE_TRANSITION, tick)
 	result._objective = state.snapshot()
 	result._action = action
 	return result

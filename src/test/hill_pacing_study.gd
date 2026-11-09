@@ -114,7 +114,7 @@ func _case(count: int, map_id: StringName, match_seed: int) -> Dictionary:
 		world.drain_projectile_batch()
 		world.drain_combat_feedback()
 		for event in coordinator.drain_events():
-			if event.event_type == &"STATE_CHANGED" and event.payload.get("state_name", "") == "HEAT_RESULT":
+			if event.event_type == MatchEventTypes.STATE_CHANGED and event.payload.get("state_name", "") == MatchStateNames.HEAT_RESULT:
 				time_limit = bool(event.payload.get("heat_time_limit_reached", false))
 		if not coordinator.observations.heats.is_empty():
 			break

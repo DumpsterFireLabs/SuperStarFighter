@@ -167,7 +167,7 @@ func _on_snapshot(decoded: Dictionary) -> void:
 		var ship := replicated_visuals._ensure_ship_from_identity(peer_id, state, identities.get(peer_id, {}))
 		var revived := bool(state.alive) and not ship.combatant.alive
 		var remote_life_changed := peer_id != local_peer_id and state.has("life_generation") and int(state.life_generation) != (ship.combatant.life_generation & 0xffff)
-		ship.visible = String(match_payload.get("state_name", "")) != "DRAFT"
+		ship.visible = String(match_payload.get("state_name", "")) != MatchStateNames.DRAFT
 		replicated_visuals._handle_snapshot_feedback(peer_id, state, ship)
 		replicated_visuals._apply_snapshot_resources(ship, state)
 		if peer_id == local_peer_id:
@@ -194,7 +194,7 @@ func apply_match_state(payload: Dictionary, server_tick: int = -1) -> void:
 	replicated_visuals.apply_match_state(match_payload, state_name)
 	hud_camera.apply_match_state(state_name)
 	apply_builds(payload.get("builds", {}) as Dictionary)
-	if String(payload.get("state_name", "")) == "COUNTDOWN":
+	if String(payload.get("state_name", "")) == MatchStateNames.COUNTDOWN:
 		local_prediction.reset_for_countdown()
 		replicated_visuals.reset_for_countdown()
 		hud_camera.reset_for_countdown()
@@ -215,7 +215,7 @@ func apply_match_pause(paused: bool) -> void:
 	if replicated_visuals.arena != null:
 		replicated_visuals.arena.effect_paused = paused
 	match_state.update_fields({"paused": paused})
-	controls_enabled = not paused and String(match_payload.get("state_name", "")) == "ACTIVE_HEAT"
+	controls_enabled = not paused and String(match_payload.get("state_name", "")) == MatchStateNames.ACTIVE_HEAT
 
 
 func _exit_tree() -> void:
@@ -270,7 +270,7 @@ func set_match_status(status: String) -> void:
 func _input(event: InputEvent) -> void:
 	if match_paused:
 		return
-	if local_prediction.input_blocked or (not controls_enabled and String(match_payload.get("state_name", "")) != "COUNTDOWN"):
+	if local_prediction.input_blocked or (not controls_enabled and String(match_payload.get("state_name", "")) != MatchStateNames.COUNTDOWN):
 		return
 	var ship := replicated_visuals.ships.get(local_peer_id) as CombatShipView
 	if ship == null or not ship.combatant.alive:

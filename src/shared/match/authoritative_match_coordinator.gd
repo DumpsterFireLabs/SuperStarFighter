@@ -143,7 +143,7 @@ func step(delta: float) -> void:
 				if not draft.all_locked():
 					draft.resolve_timeout()
 				var applied := draft.apply_locked_selections(machine.players)
-				_events.append(MatchEvent.new(&"DRAFT_RESOLVED", tick, {
+				_events.append(MatchEvent.new(MatchEventTypes.DRAFT_RESOLVED, tick, {
 					"selections": applied,
 					"builds": _public_builds(),
 				}))
@@ -161,7 +161,7 @@ func step(delta: float) -> void:
 				if tick - _last_arena_effect_tick >= 6 or effect_snapshot.hidden_cover != _last_arena_effect_snapshot.get("hidden_cover", -1):
 					_last_arena_effect_snapshot = effect_snapshot
 					_last_arena_effect_tick = tick
-					_events.append(MatchEvent.new(&"ARENA_EFFECTS_UPDATED", tick, effect_snapshot))
+					_events.append(MatchEvent.new(MatchEventTypes.ARENA_EFFECTS_UPDATED, tick, effect_snapshot))
 			if heat_elapsed >= overtime_start_seconds:
 				var overtime_elapsed := (
 					GameConstants.OVERTIME_START_SECONDS +
@@ -176,7 +176,7 @@ func step(delta: float) -> void:
 			var safe_radius := OvertimeSystem.radius_at(npc_overtime_elapsed(), _overtime_center(), _overtime_minimum_radius())
 			for powerup_event in powerups.step(tick, world, machine.players, _overtime_center(), safe_radius):
 				var payload := (powerup_event.payload as Dictionary).duplicate(true)
-				if StringName(powerup_event.event_type) == &"CARD_POWERUP_COLLECTED":
+				if StringName(powerup_event.event_type) == MatchEventTypes.CARD_POWERUP_COLLECTED:
 					observations.record_pickup(int(payload.peer_id), lobby.config.random_powerups_permanent)
 					payload["builds"] = _public_builds()
 				_events.append(MatchEvent.new(powerup_event.event_type, tick, payload))
@@ -199,7 +199,7 @@ func select_card(peer_id: int, offer_token: String, card_id: StringName) -> int:
 		return DraftManager.SelectionResult.NO_ACTIVE_DRAFT
 	var result := draft.select_card(peer_id, offer_token, card_id)
 	if result == DraftManager.SelectionResult.ACCEPTED:
-		_events.append(MatchEvent.new(&"DRAFT_READY", world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
+		_events.append(MatchEvent.new(MatchEventTypes.DRAFT_READY, world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
 	return result
 
 
@@ -244,7 +244,7 @@ func disconnect_peer(peer_id: int, hold_for_reconnect: bool = false) -> bool:
 			"deadline": float(clock.call()) + GameConstants.RECONNECT_GRACE_SECONDS,
 		}
 	if was_active_participant:
-		_events.append(MatchEvent.new(&"PLAYER_ELIMINATED", world.server_tick, {
+		_events.append(MatchEvent.new(MatchEventTypes.PLAYER_ELIMINATED, world.server_tick, {
 			"peer_ids": [peer_id],
 			"eliminations": [{
 				"killer_id": credited_killer,
@@ -311,9 +311,9 @@ func reconnect_peer(previous_peer_id: int, peer_id: int) -> bool:
 				"deadline_tick": machine.state_deadline_tick,
 				"build_complete": offer.build_complete,
 			})
-		_events.append(MatchEvent.new(&"DRAFT_READY", tick, {"ready_peer_ids": _ready_peer_ids()}))
+		_events.append(MatchEvent.new(MatchEventTypes.DRAFT_READY, tick, {"ready_peer_ids": _ready_peer_ids()}))
 	_update_reconnect_hold()
-	_events.append(MatchEvent.new(&"STATE_CHANGED", tick, _state_payload()))
+	_events.append(MatchEvent.new(MatchEventTypes.STATE_CHANGED, tick, _state_payload()))
 	return true
 
 
@@ -408,7 +408,7 @@ func _discard_held_inputs() -> void:
 
 
 func _append_pause_event() -> void:
-	_events.append(MatchEvent.new(&"MATCH_PAUSE_CHANGED", world.server_tick, {
+	_events.append(MatchEvent.new(MatchEventTypes.MATCH_PAUSE_CHANGED, world.server_tick, {
 		"paused": world.simulation_paused,
 		"awaiting_reconnect": awaiting_reconnect_names() if _reconnect_hold else [],
 	}))
@@ -433,7 +433,7 @@ func request_pause(peer_id: int, paused: bool) -> bool:
 		return true
 	world.simulation_paused = paused
 	_discard_held_inputs()
-	_events.append(MatchEvent.new(&"MATCH_PAUSE_CHANGED", world.server_tick, {"paused": paused}))
+	_events.append(MatchEvent.new(MatchEventTypes.MATCH_PAUSE_CHANGED, world.server_tick, {"paused": paused}))
 	return true
 
 
@@ -529,7 +529,7 @@ func _capture_transitions() -> void:
 			_select_map_for_round(int(transition.round_number))
 		if int(transition.state) == MatchStateMachine.State.COUNTDOWN:
 			_prepare_countdown()
-		_events.append(MatchEvent.new(&"STATE_CHANGED", int(transition.entered_tick), _state_payload()))
+		_events.append(MatchEvent.new(MatchEventTypes.STATE_CHANGED, int(transition.entered_tick), _state_payload()))
 		_handle_state_entry(int(transition.state))
 		record_phase_work(StringName("enter_" + MatchStateMachine.State.keys()[int(transition.state)]), Time.get_ticks_usec() - started_usec)
 
@@ -599,7 +599,7 @@ func _step_draft_preparation() -> void:
 	if not draft.is_preparing():
 		# Everybody receives the full decision interval, beginning at publication.
 		machine.state_deadline_tick = world.server_tick + lobby.config.duration_to_ticks(lobby.config.draft_duration_seconds)
-		_events.append(MatchEvent.new(&"STATE_CHANGED", world.server_tick, _state_payload()))
+		_events.append(MatchEvent.new(MatchEventTypes.STATE_CHANGED, world.server_tick, _state_payload()))
 		_publish_draft_offers()
 		record_phase_work(&"draft_prepare_wall", Time.get_ticks_usec() - _draft_preparation_started_usec)
 
@@ -628,7 +628,7 @@ func _publish_draft_offers() -> void:
 			"deadline_tick": machine.state_deadline_tick,
 			"build_complete": offer.build_complete,
 		})
-	_events.append(MatchEvent.new(&"DRAFT_READY", world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
+	_events.append(MatchEvent.new(MatchEventTypes.DRAFT_READY, world.server_tick, {"ready_peer_ids": _ready_peer_ids()}))
 
 
 func _prepare_countdown() -> void:
@@ -752,7 +752,7 @@ func _sync_combat_and_resolve(tick: int) -> void:
 			var respawn_ticks := lobby.config.duration_to_ticks(GameModeRules.OBJECTIVE_RESPAWN_SECONDS)
 			for peer_id in newly_eliminated:
 				_respawn_deadlines[peer_id] = tick + respawn_ticks
-		_events.append(MatchEvent.new(&"PLAYER_ELIMINATED", tick, {
+		_events.append(MatchEvent.new(MatchEventTypes.PLAYER_ELIMINATED, tick, {
 			"peer_ids": newly_eliminated,
 			"eliminations": _elimination_records(newly_eliminated, kill_events),
 			"reason": "combat",
@@ -812,7 +812,7 @@ func _step_respawns(tick: int) -> void:
 		if not world.respawn_peer(peer_id, stats, spawn_position):
 			player.eliminate()
 			continue
-		_events.append(MatchEvent.new(&"PLAYER_RESPAWNED", tick, {
+		_events.append(MatchEvent.new(MatchEventTypes.PLAYER_RESPAWNED, tick, {
 			"peer_id": peer_id,
 			"position": spawn_position,
 			"alive_peer_ids": machine.alive_participant_ids(),

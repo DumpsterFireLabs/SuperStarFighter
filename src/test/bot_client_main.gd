@@ -14,7 +14,7 @@ var observed_shield: bool = false
 var observed_correction: bool = false
 var passive: bool = false
 var draft_timeout: bool = false
-var match_state_name: String = "LOBBY"
+var match_state_name: String = MatchStateNames.LOBBY
 var latest_states: Dictionary = {}
 var match_result_count: int = 0
 var lobby_return_count: int = 0
@@ -121,7 +121,7 @@ func _physics_process(delta: float) -> void:
 			client_tick,
 			movement,
 			aim_angle,
-			not passive and match_state_name == "ACTIVE_HEAT" and (random_fire if randomized else true),
+			not passive and match_state_name == MatchStateNames.ACTIVE_HEAT and (random_fire if randomized else true),
 			not passive and (random_shield if randomized else fmod(elapsed, 5.0) > 4.2)
 		)
 		bridge.send_input(frame)
@@ -191,14 +191,14 @@ func _on_snapshot(decoded: Dictionary) -> void:
 
 
 func _on_match_event(event_type: StringName, _server_tick: int, payload: Dictionary) -> void:
-	if event_type == &"DRAFT_OFFER":
+	if event_type == MatchEventTypes.DRAFT_OFFER:
 		var card_ids := payload.get("card_ids", []) as Array
 		print("SSF_BOT_DRAFT_OFFER cards=%d timeout=%s" % [card_ids.size(), str(draft_timeout).to_lower()])
 		if not draft_timeout and not card_ids.is_empty():
 			var choice_index := rng.randi_range(0, card_ids.size() - 1) if randomized else 0
 			bridge.send_card_selection(String(payload.get("offer_token", "")), StringName(card_ids[choice_index]))
 		return
-	if event_type != &"STATE_CHANGED":
+	if event_type != MatchEventTypes.STATE_CHANGED:
 		return
 	match_state_name = String(payload.get("state_name", ""))
 	print("SSF_BOT_STATE state=%s round=%d heat=%d winner=%d" % [
@@ -207,12 +207,12 @@ func _on_match_event(event_type: StringName, _server_tick: int, payload: Diction
 		int(payload.get("heat_number", 0)),
 		int(payload.get("match_winner", 0)),
 	])
-	if match_state_name == "MATCH_RESULT":
+	if match_state_name == MatchStateNames.MATCH_RESULT:
 		match_result_count += 1
 		print("SSF_BOT_MATCH_RESULT count=%d winner=%d" % [match_result_count, int(payload.get("match_winner", 0))])
 		if int(bridge.latest_lobby_state.get("leader_id", 0)) == bridge.local_peer_id:
 			bridge.send_return_to_lobby()
-	elif match_state_name == "LOBBY":
+	elif match_state_name == MatchStateNames.LOBBY:
 		lobby_return_count += 1
 		var builds := payload.get("builds", {}) as Dictionary
 		var scores := payload.get("scores", {}) as Dictionary
