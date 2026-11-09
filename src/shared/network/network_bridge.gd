@@ -45,37 +45,16 @@ var last_error: String:
 	get:
 		return session.last_error
 
-const METRICS_INTERVAL_USEC: int = 10_000_000
-var _metrics_started_usec: int = 0
-var _server_started_usec: int = 0
-var _last_physics_usec: int = 0
-var _max_physics_gap_usec: int = 0
-var _latest_metrics: Dictionary = {}
-var _simulation_total_usec: int = 0
-var _simulation_max_usec: int = 0
-var _simulation_samples: int = 0
-var _simulation_sample_usec: Array[int] = []
-var _simulation_over_budget_ticks: int = 0
-var _phase_totals_usec: Dictionary = {"simulation": 0, "coordination": 0, "replication": 0, "logging": 0}
-var _max_logging_usec: int = 0
+var metrics := ServerTickMetrics.new()
 var _batch_tick_logs: bool = false
 var _tick_log_lines: PackedStringArray = []
 var log_output: Callable
 var log_status: Callable
-var _active_sample_usec: Array[int] = []
-var _metrics_window: int = 0
 var _logged_overtime_key: String = ""
 var _admission_lobby_broadcast_pending: bool = false
 var in_game_admin := InGameAdminAuthority.new()
 var _ping_accumulator: float = 0.0
-# Admitted human peer id -> private token that lets the player reclaim their seat.
-var _reconnect_tokens: Dictionary = {}
-# Token -> {"peer_id", "player", "coordinator"} for held match seats. The
-# coordinator owns each seat's deadline.
-var _reconnect_reservations: Dictionary = {}
-# Stale peers whose departure _replace_stale_peer already handled; their socket
-# closing later must not run it again.
-var _replaced_peers: Dictionary = {}
+var reconnects := ReconnectReservations.new()
 
 
 func _init() -> void:
@@ -125,11 +104,8 @@ func start_server(configuration: Dictionary) -> Error:
 			return ERR_INVALID_PARAMETER
 		_activate_added_npcs(preset_result)
 	match_coordinator = null
-	_reset_metrics_window()
-	_server_started_usec = Time.get_ticks_usec()
-	_last_physics_usec = 0
-	_latest_metrics.clear()
-	_metrics_window = 0
+	metrics.start(Time.get_ticks_usec())
+	replication.reset_outbound_bytes()
 	_logged_overtime_key = ""
 	var error := session.start_server(configuration, match_config)
 	if error == OK:
@@ -204,7 +180,7 @@ func send_admin_revoke() -> void:
 
 
 func flush_metrics() -> void:
-	if role == Role.SERVER and _simulation_samples > 0:
+	if role == Role.SERVER and metrics.sample_count() > 0:
 		_log_metrics()
 
 
@@ -373,9 +349,6 @@ func _physics_process(delta: float) -> void:
 		return
 	var start_usec := Time.get_ticks_usec()
 	_batch_tick_logs = true
-	if _last_physics_usec > 0:
-		_max_physics_gap_usec = maxi(_max_physics_gap_usec, start_usec - _last_physics_usec)
-	_last_physics_usec = start_usec
 	session.process_pending_connections()
 	_expire_reconnect_reservations()
 	var controls_enabled := match_coordinator != null and match_coordinator.controls_enabled()
@@ -406,24 +379,10 @@ func _physics_process(delta: float) -> void:
 	# A heat result may produce a row for every player. Preserve all JSON lines
 	# but perform only one synchronous release-log flush for this callback.
 	_flush_tick_logs()
-	var duration_usec := Time.get_ticks_usec() - start_usec
-	_phase_totals_usec.simulation += simulation_done_usec - start_usec
-	_phase_totals_usec.coordination += coordination_done_usec - simulation_done_usec
-	_phase_totals_usec.replication += replication_done_usec - coordination_done_usec
-	var logging_usec := start_usec + duration_usec - replication_done_usec
-	_phase_totals_usec.logging += logging_usec
-	_max_logging_usec = maxi(_max_logging_usec, logging_usec)
-	if controls_enabled:
-		_active_sample_usec.append(duration_usec)
-	_simulation_total_usec += duration_usec
-	_simulation_max_usec = maxi(_simulation_max_usec, duration_usec)
-	_simulation_samples += 1
-	_simulation_sample_usec.append(duration_usec)
-	if duration_usec > int(1_000_000.0 / GameConstants.PHYSICS_TICKS_PER_SECOND):
-		_simulation_over_budget_ticks += 1
+	metrics.record_tick(start_usec, simulation_done_usec, coordination_done_usec, replication_done_usec, Time.get_ticks_usec(), controls_enabled)
 	# Match time freezes during pause. Operational health must keep rotating in
 	# idle/paused sessions, both to report liveness and to bound sample storage.
-	if Time.get_ticks_usec() - _metrics_started_usec >= METRICS_INTERVAL_USEC:
+	if metrics.is_due(Time.get_ticks_usec()):
 		_log_metrics()
 
 
@@ -469,14 +428,14 @@ func _admit_hello(sender_id: int, protocol_version: int, display_name: String, p
 		occupied = lobby.players.size() + _held_seat_count()
 	# A returning pilot's own seat, held or still attached to their old
 	# connection, is theirs to take.
-	var stale_value: Variant = _reconnect_tokens.find_key(reconnect_token) if not reconnect_token.is_empty() else null
-	if _reconnect_reservations.has(reconnect_token) or stale_value != null:
+	var stale_peer_id := reconnects.peer_holding_token(reconnect_token)
+	if reconnects.has_reservation(reconnect_token) or stale_peer_id != 0:
 		occupied -= 1
 	if not session.validate_hello(sender_id, protocol_version, display_name, password_proof, occupied, lobby.player_limit):
 		return
 	# Only after the password and version are proven may a rejoin displace a live peer.
-	if stale_value != null:
-		_replace_stale_peer(int(stale_value))
+	if stale_peer_id != 0:
+		_replace_stale_peer(stale_peer_id)
 	complete_admission(sender_id, display_name, reconnect_token)
 
 
@@ -486,17 +445,13 @@ func _admit_hello(sender_id: int, protocol_version: int, display_name: String, p
 func _replace_stale_peer(stale_peer_id: int) -> void:
 	_log("info", "stale_peer_replaced", {"peer_id": stale_peer_id})
 	_on_session_peer_departed(stale_peer_id, true)
-	_replaced_peers[stale_peer_id] = true
+	reconnects.mark_replaced(stale_peer_id)
 	session.forget_admission(stale_peer_id)
 	session.schedule_disconnect(stale_peer_id)
 
 
 func _held_seat_count() -> int:
-	var count := 0
-	for reservation: Dictionary in _reconnect_reservations.values():
-		if reservation.coordinator == match_coordinator:
-			count += 1
-	return count
+	return reconnects.held_seat_count(match_coordinator)
 
 
 @rpc("any_peer", "call_remote", "reliable", NetworkProtocol.CHANNEL_CONTROL)
@@ -1167,60 +1122,18 @@ func projectile_recovery(packet: PackedByteArray) -> void:
 
 
 func operator_status() -> Dictionary:
-	var lobby_summary := lobby.serialize() if lobby != null else {}
-	lobby_summary.erase("players")
-	return {
-		"ok": role == Role.SERVER,
-		"server_name": String(session.configuration_value("server_name", "")),
-		"port": int(session.configuration_value("port", 0)),
-		"auto_start": bool(session.configuration_value("auto_start", false)),
-		"match_active": lobby.match_active if lobby != null else false,
-		"server_tick": world.server_tick if world != null else 0,
-		"human_count": lobby.human_count() if lobby != null else 0,
-		"npc_count": lobby.npc_count() if lobby != null else 0,
-		"active_projectiles": world.projectile_registry.size() if world != null else 0,
-		"blocked_source_count": session.blocked_sources().size(),
-		"uptime_seconds": float(Time.get_ticks_usec() - _server_started_usec) / 1_000_000.0 if role == Role.SERVER else 0.0,
-		"metrics": _latest_metrics.duplicate(true),
-		"logging": log_status.call() if log_status.is_valid() else {},
-		"metrics_age_seconds": float(Time.get_ticks_usec() - _metrics_started_usec) / 1_000_000.0 if not _latest_metrics.is_empty() else -1.0,
-		"lobby": lobby_summary,
-	}
+	var logging_status: Dictionary = log_status.call() if log_status.is_valid() else {}
+	return OperatorCommands.status_report(lobby, session, world, metrics, logging_status, role == Role.SERVER, Time.get_ticks_usec())
 
 
 func operator_players() -> Dictionary:
-	var players: Array[Dictionary] = []
-	var blocked_sources: Array = session.blocked_sources()
-	blocked_sources.sort()
-	var blocked_source_count := blocked_sources.size()
-	if blocked_sources.size() > 256:
-		blocked_sources = blocked_sources.slice(0, 256)
-	if lobby != null:
-		for peer_id in lobby.human_peer_ids():
-			var player := lobby.players[peer_id] as PlayerMatchState
-			players.append({
-				"peer_id": peer_id,
-				"display_name": player.display_name,
-				"source": session.peer_source(peer_id),
-				"ready": player.lobby_ready,
-				"spectator": player.spectator,
-			})
-	return {
-		"ok": role == Role.SERVER,
-		"players": players,
-		"blocked_sources": blocked_sources,
-		"blocked_source_count": blocked_source_count,
-		"blocked_sources_truncated": blocked_source_count > blocked_sources.size(),
-	}
+	return OperatorCommands.players_report(lobby, session, role == Role.SERVER)
 
 
 func operator_kick(peer_id: int, block_source: bool = false) -> Dictionary:
 	if role != Role.SERVER or lobby == null:
 		return {"ok": false, "error": "The server is not running."}
-	var player := lobby.players.get(peer_id) as PlayerMatchState
-	if player == null or player.is_npc:
-		return {"ok": false, "error": "That human player is not connected."}
-	return session.operator_kick(peer_id, player.display_name, block_source)
+	return OperatorCommands.kick(lobby, session, peer_id, block_source)
 
 
 func operator_restart_match() -> Dictionary:
@@ -1263,34 +1176,7 @@ func operator_set_lobby_password(password: String) -> Dictionary:
 func operator_set_setting(setting: String, value: Variant) -> Dictionary:
 	if role != Role.SERVER or lobby == null:
 		return {"ok": false, "error": "The server is not running."}
-	var result: Dictionary
-	var setting_id := StringName(setting)
-	if LobbySettings.has(setting_id):
-		var typed := LobbySettings.coerce(setting_id, value)
-		if not typed.ok:
-			return {"ok": false, "error": typed.error}
-		result = LobbySettings.apply(lobby, ServerLobby.OPERATOR_AUTHORITY_ID, setting_id, typed.value)
-	else:
-		match setting:
-			"map_pool":
-				if not value is Array:
-					return _invalid_operator_setting_type(setting, "a list of map IDs")
-				result = lobby.request_map_pool(ServerLobby.OPERATOR_AUTHORITY_ID, value)
-			"server_name":
-				if not value is String:
-					return _invalid_operator_setting_type(setting, "text")
-				var server_name := String(value).strip_edges()
-				if not LanDiscoveryProtocol.is_valid_server_name(server_name):
-					return {"ok": false, "error": "Server name is outside the supported range."}
-				session.set_server_name(server_name)
-				result = {"ok": true, "changed": true}
-			"auto_start":
-				if not value is bool:
-					return _invalid_operator_setting_type(setting, "true or false")
-				session.set_auto_start(bool(value))
-				result = {"ok": true, "changed": true}
-			_:
-				return {"ok": false, "error": "Unknown or restart-only setting: %s" % setting}
+	var result := OperatorCommands.set_setting(lobby, session, setting, value)
 	if not result.ok:
 		return result
 	_remove_npc_entities(result.get("removed_npc_ids", []) as Array)
@@ -1298,10 +1184,6 @@ func operator_set_setting(setting: String, value: Variant) -> Dictionary:
 	_broadcast_lobby_state()
 	_log("info", "operator_setting_changed", {"setting": setting, "value": value})
 	return {"ok": true, "setting": setting, "value": value}
-
-
-static func _invalid_operator_setting_type(setting: String, expected: String) -> Dictionary:
-	return {"ok": false, "error": "%s requires %s." % [setting, expected]}
 
 
 static func _normalized_source(source: String) -> String:
@@ -1503,19 +1385,9 @@ func _accept_projectile_correction_chunk(decoded: Dictionary) -> void:
 
 
 func _log_metrics() -> void:
-	var elapsed_seconds := maxf(float(Time.get_ticks_usec() - _metrics_started_usec) / 1_000_000.0, 0.000001)
 	var logging_status: Dictionary = log_status.call() if log_status.is_valid() else {}
-	var mean_usec := 0.0
-	if _simulation_samples > 0:
-		mean_usec = float(_simulation_total_usec) / _simulation_samples
-	_metrics_window += 1
-	_latest_metrics = {
-		"window": _metrics_window,
+	var snapshot := metrics.close_window(Time.get_ticks_usec(), {
 		"phase_work": match_coordinator.phase_work_snapshot() if match_coordinator != null else {},
-		"window_seconds": elapsed_seconds,
-		"physics_samples": _simulation_samples,
-		"physics_ticks_per_second": float(_simulation_samples) / elapsed_seconds,
-		"max_physics_gap_usec": _max_physics_gap_usec,
 		"match_active": lobby.match_active if lobby != null else false,
 		"simulation_paused": world.simulation_paused if world != null else false,
 		"server_tick": world.server_tick if world != null else 0,
@@ -1524,47 +1396,15 @@ func _log_metrics() -> void:
 		"participant_records": lobby.players.size() if lobby != null else 0,
 		"active_ships": world.combatants.size() if world != null else 0,
 		"active_projectiles": world.projectile_registry.size() if world != null else 0,
-		"object_count": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
-		"node_count": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
-		"orphan_node_count": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
-		"static_memory_bytes": int(Performance.get_monitor(Performance.MEMORY_STATIC)),
-		"mean_simulation_usec": mean_usec,
-		"p95_simulation_usec": percentile_usec(_simulation_sample_usec, 0.95),
-		"p99_simulation_usec": percentile_usec(_simulation_sample_usec, 0.99),
-		"active_samples": _active_sample_usec.size(),
-		"active_p95_usec": percentile_usec(_active_sample_usec, 0.95),
-		"active_p99_usec": percentile_usec(_active_sample_usec, 0.99),
-		"mean_world_and_npc_usec": float(_phase_totals_usec.simulation) / maxi(_simulation_samples, 1),
-		"mean_coordination_usec": float(_phase_totals_usec.coordination) / maxi(_simulation_samples, 1),
-		"mean_replication_usec": float(_phase_totals_usec.replication) / maxi(_simulation_samples, 1),
-		"mean_logging_usec": float(_phase_totals_usec.logging) / maxi(_simulation_samples, 1),
-		"max_logging_usec": _max_logging_usec,
 		"log_queued_batches": int(logging_status.get("queued_batches", 0)),
 		"log_dropped_batches": int(logging_status.get("dropped_batches", 0)),
 		"projectile_budget_evictions": world.projectile_registry.budget_evictions if world != null else 0,
-		"max_simulation_usec": _simulation_max_usec,
-		"over_budget_ticks": _simulation_over_budget_ticks,
-		"over_budget_percent": float(_simulation_over_budget_ticks) / maxi(_simulation_samples, 1) * 100.0,
 		"outbound_bytes": replication.outbound_bytes(),
 		"outbound_payload": replication.payload_metrics(),
-		"outbound_bytes_per_second": float(replication.outbound_bytes()) / elapsed_seconds,
-	}
-	_log("info", "simulation_metrics", _latest_metrics)
-	_reset_metrics_window()
-
-
-func _reset_metrics_window() -> void:
-	_metrics_started_usec = Time.get_ticks_usec()
-	_max_physics_gap_usec = 0
-	_simulation_total_usec = 0
-	_simulation_max_usec = 0
-	_simulation_samples = 0
-	_simulation_sample_usec.clear()
-	_simulation_over_budget_ticks = 0
+	})
+	_log("info", "simulation_metrics", snapshot)
+	metrics.reset_window(Time.get_ticks_usec())
 	replication.reset_outbound_bytes()
-	_phase_totals_usec = {"simulation": 0, "coordination": 0, "replication": 0, "logging": 0}
-	_max_logging_usec = 0
-	_active_sample_usec.clear()
 
 
 func _log_overtime_if_needed() -> void:
@@ -1615,13 +1455,9 @@ func _write_log_output(text: String) -> void:
 		print(text)
 
 
+## Kept for the benchmark and verifier scripts that summarize their samples.
 static func percentile_usec(samples: Array, percentile: float) -> int:
-	if samples.is_empty():
-		return 0
-	var ordered := samples.duplicate()
-	ordered.sort()
-	var index := clampi(ceili(clampf(percentile, 0.0, 1.0) * ordered.size()) - 1, 0, ordered.size() - 1)
-	return ordered[index]
+	return ServerTickMetrics.percentile_usec(samples, percentile)
 
 
 static func _bounded_log_value(value: Variant, depth: int = 0) -> Variant:
@@ -1652,19 +1488,14 @@ static func _now_seconds() -> float:
 
 
 func _on_session_peer_departed(peer_id: int, keeps_seat: bool = true) -> void:
-	if _replaced_peers.erase(peer_id):
+	if reconnects.consume_replaced(peer_id):
 		return
 	in_game_admin.revoke(peer_id)
-	var reconnect_token := String(_reconnect_tokens.get(peer_id, ""))
-	_reconnect_tokens.erase(peer_id)
+	var reconnect_token := reconnects.take_token(peer_id)
 	if match_coordinator != null:
 		var departing := lobby.players.get(peer_id) as PlayerMatchState if lobby != null else null
 		if match_coordinator.disconnect_peer(peer_id, keeps_seat and not reconnect_token.is_empty()) and departing != null:
-			_reconnect_reservations[reconnect_token] = {
-				"peer_id": peer_id,
-				"player": departing,
-				"coordinator": match_coordinator,
-			}
+			reconnects.hold(reconnect_token, peer_id, departing, match_coordinator)
 			_sync_reserved_names()
 			_log("info", "reconnect_seat_held", {"peer_id": peer_id, "display_name": departing.display_name, "grace_seconds": GameConstants.RECONNECT_GRACE_SECONDS})
 		_drain_match_coordinator()
@@ -1689,7 +1520,7 @@ func complete_admission(sender_id: int, display_name: String, reconnect_token: S
 	var result := lobby.admit(sender_id, display_name, returning)
 	if not result.ok:
 		if returning != null:
-			_reconnect_reservations[reconnect_token] = reservation
+			reconnects.restore(reconnect_token, reservation)
 			_sync_reserved_names()
 		session.reject_connection(sender_id, result.reason)
 		return
@@ -1705,8 +1536,7 @@ func complete_admission(sender_id: int, display_name: String, reconnect_token: S
 		player.participant = false
 		player.spectator = true
 		match_coordinator.add_late_spectator(player)
-	var issued_token := Crypto.new().generate_random_bytes(NetworkProtocol.RECONNECT_TOKEN_BYTES).hex_encode()
-	_reconnect_tokens[sender_id] = issued_token
+	var issued_token := reconnects.issue_token(sender_id)
 	_send_control_to_peer(sender_id, &"server_welcome", [sender_id, _serialized_lobby_state(), issued_token])
 	if match_coordinator != null:
 		_send_control_to_peer(sender_id, &"match_event", [
@@ -1728,13 +1558,8 @@ func complete_admission(sender_id: int, display_name: String, reconnect_token: S
 ## Returns the held-seat reservation for a token, removing it, or {} when the
 ## token is unknown, expired, or belongs to a match that has since ended.
 func _take_reconnect_reservation(reconnect_token: String) -> Dictionary:
-	if reconnect_token.is_empty() or not _reconnect_reservations.has(reconnect_token):
-		return {}
-	var reservation := _reconnect_reservations[reconnect_token] as Dictionary
-	_reconnect_reservations.erase(reconnect_token)
+	var reservation := reconnects.take(reconnect_token, match_coordinator)
 	_sync_reserved_names()
-	if match_coordinator == null or reservation.coordinator != match_coordinator or not match_coordinator.can_reconnect(int(reservation.peer_id)):
-		return {}
 	return reservation
 
 
@@ -1745,22 +1570,13 @@ func _expire_reconnect_reservations() -> void:
 			_drain_match_coordinator()
 			for peer_id in expired:
 				_log("info", "reconnect_seat_released", {"peer_id": peer_id})
-	if _reconnect_reservations.is_empty():
-		return
-	for reconnect_token in _reconnect_reservations.keys():
-		var reservation := _reconnect_reservations[reconnect_token] as Dictionary
-		if reservation.coordinator != match_coordinator or not match_coordinator.can_reconnect(int(reservation.peer_id)):
-			_reconnect_reservations.erase(reconnect_token)
-			_sync_reserved_names()
+	if not reconnects.is_empty() and reconnects.expire(match_coordinator):
+		_sync_reserved_names()
 
 
 func _sync_reserved_names() -> void:
-	if lobby == null:
-		return
-	var names := PackedStringArray()
-	for reservation: Dictionary in _reconnect_reservations.values():
-		names.append((reservation.player as PlayerMatchState).display_name)
-	lobby.reserved_names = names
+	if lobby != null:
+		lobby.reserved_names = reconnects.reserved_names()
 
 
 func _session_status() -> Dictionary:
@@ -1775,9 +1591,7 @@ func _session_status() -> Dictionary:
 
 func _on_session_stopped() -> void:
 	in_game_admin.clear()
-	_reconnect_tokens.clear()
-	_reconnect_reservations.clear()
-	_replaced_peers.clear()
+	reconnects.clear()
 	_admission_lobby_broadcast_pending = false
 	if replication != null:
 		replication.clear()

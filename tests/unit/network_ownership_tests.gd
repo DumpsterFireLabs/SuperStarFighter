@@ -129,6 +129,9 @@ static func run(context: TestContext) -> void:
 	command_bridge.free()
 	_lobby_commands_without_bridge(context)
 	_lobby_setting_descriptors(context)
+	_server_tick_metrics(context)
+	_reconnect_reservations(context)
+	_operator_commands(context)
 	_seat_keeping_departures(context)
 	_admission_queue(context)
 	_transport_liveness(context)
@@ -292,18 +295,17 @@ static func _server_health(context: TestContext) -> void:
 	bridge.session.role = NetworkBridge.Role.SERVER
 	bridge.lobby = ServerLobby.new()
 	bridge.world = AuthoritativeWorld.new()
-	bridge._server_started_usec = Time.get_ticks_usec()
-	bridge._reset_metrics_window()
+	bridge.metrics.start(Time.get_ticks_usec())
 	context.expect_equal(bridge.operator_status().metrics_age_seconds, -1.0, "health has an explicit unavailable age before its first window")
 	# Age the operational clock instead of sleeping. Frozen simulation time must
 	# not prevent a report or retain timing samples indefinitely.
 	bridge.world.simulation_paused = true
 	bridge.world.server_tick = 42
-	bridge._metrics_started_usec -= NetworkBridge.METRICS_INTERVAL_USEC
+	bridge.metrics.window_started_usec -= ServerTickMetrics.INTERVAL_USEC
 	bridge._physics_process(1.0 / 60.0)
 	context.expect_equal(bridge.world.server_tick, 42, "health reporting does not advance a paused match")
-	context.expect_equal(bridge._metrics_window, 1, "paused idle server rotates health on wall time")
-	context.expect_empty(bridge._simulation_sample_usec, "paused health rotation releases timing samples")
+	context.expect_equal(bridge.metrics.window, 1, "paused idle server rotates health on wall time")
+	context.expect_equal(bridge.metrics.sample_count(), 0, "paused health rotation releases timing samples")
 	var status := bridge.operator_status()
 	context.expect_equal(status.metrics.physics_samples, 1, "health counts callbacks independently of match ticks")
 	context.expect_true(status.metrics.window_seconds >= 10.0 and status.metrics.physics_ticks_per_second < 1.0, "wall-time health exposes a stalled callback rate despite cheap simulation work")
@@ -313,9 +315,9 @@ static func _server_health(context: TestContext) -> void:
 	bridge.world.simulation_paused = false
 	bridge._physics_process(1.0 / 60.0)
 	bridge.flush_metrics()
-	context.expect_equal(bridge._metrics_window, 2, "shutdown flush includes an idle server's partial window")
+	context.expect_equal(bridge.metrics.window, 2, "shutdown flush includes an idle server's partial window")
 	bridge.flush_metrics()
-	context.expect_equal(bridge._metrics_window, 2, "repeated flush does not duplicate an empty health window")
+	context.expect_equal(bridge.metrics.window, 2, "repeated flush does not duplicate an empty health window")
 	bridge.free()
 
 
@@ -800,3 +802,67 @@ static func _lobby_setting_descriptors(context: TestContext) -> void:
 	context.expect_true(LobbySettings.in_bounds(&"competitive_view", true), "boolean settings have no bounds")
 	var ids := LobbySettings.operator_setting_ids()
 	context.expect_true(ids.has(&"rounds_to_win") and ids.has(&"server_name") and ids.has(&"auto_start"), "operator setting list covers lobby and session settings")
+
+
+static func _server_tick_metrics(context: TestContext) -> void:
+	var metrics := ServerTickMetrics.new()
+	metrics.start(1_000_000)
+	metrics.record_tick(1_000_000, 1_004_000, 1_005_000, 1_006_000, 1_007_000, true)
+	metrics.record_tick(1_020_000, 1_030_000, 1_031_000, 1_032_000, 1_040_000, false)
+	context.expect_false(metrics.is_due(1_000_000 + ServerTickMetrics.INTERVAL_USEC - 1), "metrics window stays open until its interval")
+	context.expect_true(metrics.is_due(1_000_000 + ServerTickMetrics.INTERVAL_USEC), "metrics window closes on wall time")
+	var window := metrics.close_window(3_000_000, {"connected_peers": 4, "outbound_bytes": 2000})
+	context.expect_equal(window.physics_samples, 2, "metrics count every recorded tick")
+	context.expect_equal(window.max_physics_gap_usec, 20_000, "metrics track the longest gap between tick starts")
+	context.expect_equal(window.over_budget_ticks, 1, "metrics count ticks above the 60 Hz budget")
+	context.expect_equal(window.active_samples, 1, "only ticks with controls enabled are active samples")
+	context.expect_equal(window.max_simulation_usec, 20_000, "metrics keep the slowest callback")
+	context.expect_approx(window.mean_simulation_usec, 13_500.0, "metrics average callback duration")
+	context.expect_approx(window.mean_logging_usec, 4_500.0, "logging phase runs from replication to callback end")
+	context.expect_approx(window.outbound_bytes_per_second, 1_000.0, "outbound rate uses the window length")
+	context.expect_equal(window.connected_peers, 4, "bridge-observed fields pass through")
+	metrics.reset_window(3_000_000)
+	context.expect_equal(metrics.close_window(4_000_000, {}).physics_samples, 0, "a reset window starts empty")
+	context.expect_equal(metrics.window, 2, "window numbers increase")
+	metrics.start(5_000_000)
+	context.expect_true(metrics.latest.is_empty() and metrics.window == 0, "a new server run forgets earlier windows")
+	context.expect_equal(ServerTickMetrics.percentile_usec([5, 1, 3], 0.5), 3, "percentile uses the nearest-rank sample")
+
+
+static func _reconnect_reservations(context: TestContext) -> void:
+	var reservations := ReconnectReservations.new()
+	var token := reservations.issue_token(7)
+	context.expect_equal(token.length(), NetworkProtocol.RECONNECT_TOKEN_BYTES * 2, "reconnect tokens are hex of the configured size")
+	context.expect_equal(reservations.peer_holding_token(token), 7, "a live peer is found by its token")
+	context.expect_equal(reservations.peer_holding_token(""), 0, "an empty token matches nobody")
+	var player := PlayerMatchState.new(7, "Pilot7", 1)
+	var coordinator := RefCounted.new()
+	reservations.hold(token, 7, player, coordinator)
+	context.expect_true(reservations.has_reservation(token), "a dropped pilot's seat is held")
+	context.expect_equal(reservations.held_seat_count(coordinator), 1, "held seats count against their match")
+	context.expect_equal(reservations.held_seat_count(RefCounted.new()), 0, "held seats do not count against another match")
+	context.expect_equal(reservations.reserved_names(), PackedStringArray(["Pilot7"]), "held seats reserve their pilot's name")
+	context.expect_true(reservations.take(token, null).is_empty(), "a seat from a match that ended cannot be taken")
+	context.expect_false(reservations.has_reservation(token), "taking a reservation removes it")
+	reservations.restore(token, {"peer_id": 7, "player": player, "coordinator": coordinator})
+	context.expect_true(reservations.expire(null) and reservations.is_empty(), "reservations expire once their match is gone")
+	reservations.mark_replaced(9)
+	context.expect_true(reservations.consume_replaced(9), "a replaced peer's departure is skipped once")
+	context.expect_false(reservations.consume_replaced(9), "and only once")
+	context.expect_equal(reservations.take_token(7), token, "a departing peer gives up its token")
+	context.expect_equal(reservations.peer_holding_token(token), 0, "a given-up token matches nobody")
+
+
+static func _operator_commands(context: TestContext) -> void:
+	var lobby := ServerLobby.new()
+	lobby.admit(2, "Host")
+	var session := NetworkSessionOwner.new(null, Callable())
+	var players := OperatorCommands.players_report(lobby, session, true)
+	context.expect_true(players.ok and players.players.size() == 1 and players.players[0].display_name == "Host", "operator roster lists connected humans")
+	context.expect_true(OperatorCommands.set_setting(lobby, session, "rounds_to_win", 4.0).ok and lobby.config.rounds_to_win == 4, "operator settings accept whole JSON numbers")
+	context.expect_true(String(OperatorCommands.set_setting(lobby, session, "rounds_to_win", "four").get("error", "")).contains("requires an integer"), "operator settings reject the wrong type")
+	context.expect_true(OperatorCommands.set_setting(lobby, session, "server_name", "Lab Arena").ok and session.configuration_value("server_name") == "Lab Arena", "operator can rename the server")
+	context.expect_false(OperatorCommands.set_setting(lobby, session, "port", 7000).ok, "restart-only settings are refused")
+	context.expect_false(OperatorCommands.kick(lobby, session, 99, false).ok, "operator cannot kick a peer that is not connected")
+	var status := OperatorCommands.status_report(lobby, session, null, ServerTickMetrics.new(), {}, true, 0)
+	context.expect_true(status.ok and status.human_count == 1 and not (status.lobby as Dictionary).has("players"), "operator status summarizes the lobby without its roster")
