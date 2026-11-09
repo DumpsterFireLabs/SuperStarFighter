@@ -4,6 +4,36 @@ Reviewed 2026-11-09 on `main` at `db37fd4`, release `0.1.0-beta.19`, protocol 52
 
 This document is a work backlog written to be handed to an implementing agent. Each item says what is wrong, where, what to do, and how to know it is done. Read "How to use this document" and "Ground rules" before starting any item.
 
+## Implementation status (2026-11-09)
+
+Every item below has been worked on `main`; each row names its commit. "Partly" says what was left and why.
+
+| Item | Status | Commit |
+| --- | --- | --- |
+| T1 step 1 — unregistered-suite guard | Done | `4193712` |
+| A1 stage 1 — `MatchConfig` copy and serialization guard | Done (copy derives from the property list; `serialize()` keeps its hand-built shape, guarded by a test with an explicit server-only list) | `97fef4f` |
+| A4 — card and map directory guards | Done | `26b8a08` |
+| D1 step 1 — factual errors in `DEVELOPMENT.md` | Done | `5827fe4` |
+| D2 — root `CLAUDE.md` | Done | `cd7cee4`, `455bb69` |
+| A3 — event and state name constants | Done (rejection reason codes not yet converted) | `1e085e8` |
+| T1 steps 2–3 — test filter, timings, `SUITES` table, `--r22-only` removed | Done | `e25f555` |
+| V1 — engine pin and shared Godot gate | Done (`verify-foundation.ps1` and `build.py foundation_gate` still both exist) | `0d5fed2` |
+| V3 — opt-in pre-commit hook | Done | `97be622` |
+| A1 stage 2 and A2 — setting descriptors, command outcomes | Done | `b4a7151` |
+| B1 — metrics, reconnect and operator extractions | Done, as one commit because the three interleave in the bridge | `685f6e7` |
+| B2 — `ClientMain` overlays and event dispatch | Partly: overlays and dispatch done; `client_main.gd` is 1,312 lines, and HUD status text is the next seam toward ~900 | `15ff694` |
+| V2 — integration gates in CI | Done; not yet observed on GitHub Actions | `d0ac2fb`, fixed in `7d3b135` |
+| S1 — client diagnostics | Partly: startup and connection lines, log folder button and README done; prediction snaps and resyncs not logged; exported client not rebuilt to confirm the log file | `c96da5f` |
+| S2 — settings schema version | Done | `c96da5f` |
+| D1 steps 2–4 — `DEVELOPMENT.md` restructure | Done | `c13b1e1` |
+| S3 — seeded hazard timing | Done | `5a4bf34` |
+| S4 — unknown map IDs | Done | `583506d` |
+| T2, T3, T4 — quiet output, sections, scratch files, `tests/README.md` | Done | `53c09dc` |
+| C2 — typed collaborators | Done (preload constants used where a new `class_name` would collide) | `0c63ce4` |
+| B3 — projectile simulation access | Done; benchmark p50 unchanged, mixed-mine p95 is close to its budget on the development machine | `7302d17` |
+| V4 — GDScript warnings | Measured and stopped, as directed; counts below | `b2d98d7` |
+| A1 stage 3 — single lobby-setting RPC, protocol 53 | Done | `47558e8` |
+
 ## How to use this document
 
 - Items are grouped by theme and carry a priority (P1 highest) and a rough size (S: under an hour, M: a few hours, L: a day or more).
