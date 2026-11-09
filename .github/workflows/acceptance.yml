@@ -5,7 +5,63 @@ on:
     branches: [main, master]
   workflow_dispatch:
     inputs:
-      extended:
+      integration:
+    # Loopback multi-process gates: real server and bot clients over TCP.
+    # Windows only, because these gates are PowerShell scripts.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cache official Godot downloads
+        uses: actions/cache@v4
+        with:
+          path: .tools/downloads
+          key: godot-editor-downloads-${{ hashFiles('tools/engine.json') }}-${{ runner.os }}-${{ runner.arch }}
+      - name: Bootstrap the pinned editor
+        run: python -c "import sys; sys.path.insert(0, 'tools'); import build; build.bootstrap(templates=False)"
+      - name: Import the project and build the class cache
+        shell: pwsh
+        run: |
+          . ./tools/common.ps1
+          $godot = Get-SsfGodotExecutable
+          & $godot --headless --path . --import 2>&1 | Out-Null
+      - name: Admission, packets, authority and late spectators
+        shell: pwsh
+        run: ./tools/verify-network.ps1
+      - name: Two complete matches, draft timeout, reset and rematch
+        shell: pwsh
+        run: ./tools/verify-match-loop.ps1
+      - name: Solo human with NPC fill
+        shell: pwsh
+        run: ./tools/verify-npc-lobby.ps1
+      - name: Malformed and excessive peers isolated
+        shell: pwsh
+        run: ./tools/verify-hardening.ps1
+      - name: Presets, map pool, guest rejections and fresh rematch
+        shell: pwsh
+        run: |
+          . ./tools/common.ps1
+          $godot = Get-SsfGodotExecutable
+          $log = New-SsfVerificationLogPath -Name 'lobby-flow'
+          $text = (& $godot --headless --path . --log-file $log --script res://src/test/lobby_flow_verifier.gd 2>&1 | Out-String)
+          $exitCode = $LASTEXITCODE
+          Write-Output $text
+          Assert-SsfGodotResult -Output $text -ExitCode $exitCode -Name 'Lobby flow' -ExpectedPattern 'SSF_LOBBY_FLOW_OK='
+      - name: Keep evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-windows
+          include-hidden-files: true
+          path: |
+            .tools/verification-logs/
+            .tools/*-verification/
+  extended:
         description: Run impairment profiles and a 30-minute 32-client Windows soak
         type: boolean
         default: false
