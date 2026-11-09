@@ -81,8 +81,28 @@ const EXPECTED_CARDS := {
 }
 
 
+## The catalog keeps an explicit, ordered path list; this guard catches a card
+## file that was added to data/cards but never registered (or the reverse).
+static func _validate_catalog_matches_directory(context: TestContext) -> void:
+	var directory := "res://data/cards"
+	var listed := {}
+	for path in CardCatalog.DEFAULT_CARD_PATHS:
+		listed[path] = true
+	var on_disk := {}
+	for file_name in DirAccess.get_files_at(directory):
+		if file_name.ends_with(".tres"):
+			on_disk[directory.path_join(file_name)] = true
+	context.expect_false(on_disk.is_empty(), "card directory guard finds card files")
+	for path in on_disk:
+		context.expect_true(listed.has(path), "%s is registered in CardCatalog.DEFAULT_CARD_PATHS" % path)
+	for path in listed:
+		context.expect_true(on_disk.has(path), "CardCatalog.DEFAULT_CARD_PATHS entry %s exists in data/cards" % path)
+	context.expect_equal(listed.size(), CardCatalog.DEFAULT_CARD_PATHS.size(), "CardCatalog.DEFAULT_CARD_PATHS has no duplicate entries")
+
+
 static func run(context: TestContext) -> void:
 	var catalog := CardCatalog.create_default()
+	_validate_catalog_matches_directory(context)
 	context.expect_equal(catalog.size(), 137, "default card catalog contains 137 differentiated cards")
 	context.expect_empty(catalog.validate_default_catalog(), "default card catalog validates")
 	_validate_catalog_metadata(context, catalog)

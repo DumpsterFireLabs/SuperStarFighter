@@ -1,7 +1,26 @@
 extends RefCounted
 
 
+## MapRegistry keeps an explicit, ordered list; this guard catches a map file
+## that was added to resources/maps but never registered (or the reverse).
+static func _registry_matches_directory(context: TestContext) -> void:
+	var directory := "res://resources/maps"
+	var listed := {}
+	for resource in MapRegistry.DEFINITIONS:
+		listed[resource.resource_path] = true
+	var on_disk := {}
+	for file_name in DirAccess.get_files_at(directory):
+		if file_name.ends_with(".tres"):
+			on_disk[directory.path_join(file_name)] = true
+	context.expect_false(on_disk.is_empty(), "map directory guard finds map files")
+	for path in on_disk:
+		context.expect_true(listed.has(path), "%s is registered in MapRegistry.DEFINITIONS" % path)
+	for path in listed:
+		context.expect_true(on_disk.has(path), "MapRegistry.DEFINITIONS entry %s exists in resources/maps" % path)
+
+
 static func run(context: TestContext) -> void:
+	_registry_matches_directory(context)
 	var baseline: Array = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/map_layout_baseline.json"))
 	context.expect_true(MapRegistry.validation_errors().is_empty(), "all authored map resources validate before registry publication")
 	context.expect_equal(ArenaLayout.map_ids().size(), baseline.size() + 2, "resource registry includes Wormhole and Solar Crucible")
