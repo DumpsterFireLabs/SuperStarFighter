@@ -49,6 +49,8 @@ The script downloads the official Godot 4.7.2 Windows archive, export templates,
 
 Nothing is installed system-wide. Generated engine files, imports, logs, reports, and builds are ignored by Git.
 
+Optionally, `.\tools\install-hooks.ps1` installs a Git pre-commit hook that runs `python tools/update-export-policy.py --check` and `python tools/update-release-metadata.py`. Both take well under a second and catch a stale `export_presets.cfg` before CI does. It is opt-in and never installed automatically; `-Force` replaces a different existing hook.
+
 Without PowerShell, including on Linux and macOS, `python3 tools/build.py bootstrap` prepares the same self-contained layout with this host's official editor. It verifies SHA-512 checksums but not the Windows Authenticode signature. `python3 tools/build.py verify` runs the project gate, and `python3 tools/build.py build [targets]` runs the gate and then exports, verifies, and packages clients and dedicated servers. See the README's *Building without PowerShell* section for targets.
 
 Useful launch commands:

@@ -9,3 +9,4 @@
 *.svg text eol=lf
 *.sh text eol=lf
 *.py text eol=lf
+tools/git-hooks/* text eol=lf

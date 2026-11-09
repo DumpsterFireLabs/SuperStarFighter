@@ -1,0 +1,10 @@
+#!/bin/sh
+# Installed by tools/install-hooks.ps1. Rejects a commit whose export
+# allowlists or release metadata are stale, which CI would otherwise reject.
+python=python3
+command -v "$python" >/dev/null 2>&1 || python=python
+"$python" tools/update-export-policy.py --check || {
+    echo "pre-commit: run 'python tools/update-export-policy.py' and stage export_presets.cfg." >&2
+    exit 1
+}
+"$python" tools/update-release-metadata.py || exit 1
