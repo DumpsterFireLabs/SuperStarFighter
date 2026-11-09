@@ -5,7 +5,48 @@ on:
     branches: [main, master]
   workflow_dispatch:
     inputs:
-      integration:
+      extended:
+        description: Run impairment profiles and a 30-minute 32-client Windows soak
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: acceptance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  functional:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cache official Godot downloads
+        uses: actions/cache@v4
+        with:
+          path: .tools/downloads
+          key: godot-editor-downloads-${{ hashFiles('tools/engine.json') }}-${{ runner.os }}-${{ runner.arch }}
+      - name: Native import, unit, negative gates, dense transport, mixed matrix and memory
+        run: python tools/ci-acceptance.py
+      - name: Keep evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.os }}
+          include-hidden-files: true
+          path: |
+            .tools/ci-acceptance/
+            .tools/dense-replication/
+            .tools/architecture-matrix/
+  integration:
     # Loopback multi-process gates: real server and bot clients over TCP.
     # Windows only, because these gates are PowerShell scripts.
     runs-on: windows-latest
@@ -61,47 +102,6 @@ on:
           path: |
             .tools/verification-logs/
             .tools/*-verification/
-  extended:
-        description: Run impairment profiles and a 30-minute 32-client Windows soak
-        type: boolean
-        default: false
-permissions:
-  contents: read
-concurrency:
-  group: acceptance-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-jobs:
-  functional:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Cache official Godot downloads
-        uses: actions/cache@v4
-        with:
-          path: .tools/downloads
-          key: godot-editor-downloads-${{ hashFiles('tools/engine.json') }}-${{ runner.os }}-${{ runner.arch }}
-      - name: Native import, unit, negative gates, dense transport, mixed matrix and memory
-        run: python tools/ci-acceptance.py
-      - name: Keep evidence even on failure
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: acceptance-${{ matrix.os }}
-          include-hidden-files: true
-          path: |
-            .tools/ci-acceptance/
-            .tools/dense-replication/
-            .tools/architecture-matrix/
   extended:
     if: github.event_name == 'workflow_dispatch' && inputs.extended
     runs-on: windows-latest
