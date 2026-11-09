@@ -27,6 +27,12 @@ const NetworkOwnershipTests = preload("res://tests/unit/network_ownership_tests.
 const ObjectiveContractTests = preload("res://tests/unit/objective_contract_tests.gd")
 const NetworkViewOwnershipTests = preload("res://tests/unit/network_view_ownership_tests.gd")
 const ArenaMovementFieldTests = preload("res://tests/unit/arena_movement_field_tests.gd")
+const UNIT_TEST_DIRECTORY := "res://tests/unit"
+## Suites run by another suite rather than by this runner, keyed by file name.
+const SUITES_RUN_BY_OTHER_SUITES := {
+	"connection_preferences_tests.gd": "res://tests/unit/screen_controller_tests.gd",
+	"connection_screen_tests.gd": "res://tests/unit/screen_controller_tests.gd",
+}
 var _context := TestContext.new()
 
 
@@ -36,6 +42,7 @@ func _ready() -> void:
 		print("R22_TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
 		get_tree().quit(0 if _context.failed == 0 else 1)
 		return
+	_run_registration_guard()
 	preload("res://tests/unit/arena_effect_tests.gd").run(_context, self)
 	_run_foundation_tests()
 	preload("res://tests/unit/ship_collision_tests.gd").run(_context)
@@ -94,6 +101,38 @@ func _ready() -> void:
 	print("TEST_SUMMARY passed=%d failed=%d" % [_context.passed, _context.failed])
 	print("SSF_MODE_READY=tests")
 	get_tree().quit(0 if _context.failed == 0 else 1)
+
+
+## Fails for any unit suite that nothing runs, so a new test file cannot pass
+## CI by never executing. A suite counts as run when its invoker calls `.run`
+## on it through `preload("<path>")`, its class_name, or a const preloading it.
+func _run_registration_guard() -> void:
+	var runner_source := FileAccess.get_file_as_string((get_script() as Script).resource_path)
+	var suite_files := Array(DirAccess.get_files_at(UNIT_TEST_DIRECTORY)).filter(func(file_name: String) -> bool: return file_name.ends_with("_tests.gd"))
+	_context.expect_true(suite_files.size() > 0, "registration guard finds unit suites under %s" % UNIT_TEST_DIRECTORY)
+	for file_name: String in suite_files:
+		var path := UNIT_TEST_DIRECTORY.path_join(file_name)
+		var invoker := String(SUITES_RUN_BY_OTHER_SUITES.get(file_name, "res://src/test/test_runner.gd"))
+		var invoker_source := runner_source if not SUITES_RUN_BY_OTHER_SUITES.has(file_name) else FileAccess.get_file_as_string(invoker)
+		_context.expect_true(_invokes_suite(invoker_source, path), "unit suite %s is run by %s (register new suites in src/test/test_runner.gd)" % [file_name, invoker])
+	for file_name: String in SUITES_RUN_BY_OTHER_SUITES:
+		_context.expect_true(suite_files.has(file_name), "suite %s listed as run by another suite still exists" % file_name)
+
+
+func _invokes_suite(invoker_source: String, suite_path: String) -> bool:
+	if invoker_source.contains('preload("%s").run' % suite_path):
+		return true
+	var names: Array[String] = []
+	var declared := RegEx.create_from_string("(?m)^class_name\\s+(\\w+)").search(FileAccess.get_file_as_string(suite_path))
+	if declared != null:
+		names.append(declared.get_string(1))
+	var alias_pattern := RegEx.create_from_string("(?m)^const\\s+(\\w+)\\s*(?::\\s*\\w+\\s*)?:?=\\s*preload\\(\"%s\"\\)" % suite_path.replace(".", "\\."))
+	for alias in alias_pattern.search_all(invoker_source):
+		names.append(alias.get_string(1))
+	for suite_name in names:
+		if RegEx.create_from_string("\\b%s\\.run" % suite_name).search(invoker_source) != null:
+			return true
+	return false
 
 
 func _run_foundation_tests() -> void:
